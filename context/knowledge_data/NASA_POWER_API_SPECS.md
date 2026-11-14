@@ -48,7 +48,19 @@
 
 ---
 
-## 5. Nota sobre Formato de Armazenamento no Backend (Parquet vs. JSON)
+## 5. Decisão Final sobre Formato (Parquet Descartado no Módulo 1)
 
-- **Status (`DADOS-1`):** A equipe está investigando se vale a pena utilizar **Parquet** no backend, mas **provavelmente não vale a pena** para o fluxo principal.
-- **Motivo Técnico:** A NASA POWER API entrega os dados em **JSON** e o Frontend consome **JSON** (Contrato de Dados). Converter `JSON (NASA) -> Parquet (Backend) -> JSON (Frontend)` introduz uma conversão intermediária desnecessária para séries mensais leves (~530 pontos por célula).
+- **Decisão (`DADOS-1`):** O uso de `.parquet` está **descartado definitivamente** no fluxo principal (Módulo 1).
+- **Pipeline Direto:** Mantemos `JSON (NASA POWER) -> JSON (Contrato Frontend)` com armazenamento em cache local (**JSON / SQLite**) indexado por célula individual `(lat, lon, var)` e por consulta agregada de região.
+
+---
+
+## 6. Regra de Snap Geográfico (Lat/Lon)
+
+- **MERRA-2 ($0{,}5^\circ \text{ lat} \times 0{,}625^\circ \text{ lon}$) — Malha única padrão no frontend:**
+  - `lat_snap = round(lat / 0.5) * 0.5`
+  - `lon_snap = round(lon / 0.625) * 0.625` *(arredondado para 4 casas decimais na chave de cache)*
+- **CERES ($1{,}0^\circ \times 1{,}0^\circ$, centros em meio-grau):**
+  - `lat_snap = floor(lat) + 0.5`
+  - `lon_snap = floor(lon) + 0.5`
+  - *(Como `/point` aceita até 20 variáveis misturando MERRA-2 e CERES na mesma chamada, o frontend utiliza apenas a grade fina MERRA-2.)*

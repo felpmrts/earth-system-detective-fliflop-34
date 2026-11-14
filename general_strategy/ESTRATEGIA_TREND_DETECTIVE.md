@@ -98,6 +98,9 @@ flowchart TD
 > [!IMPORTANT]
 > **Natureza Transversal da Validação Estatística:** O teste de **Tendência Real vs. Ruído Natural** via autocorrelação $\text{AR}(1)$ ($N_{\text{efetivo}}$ de Santer/Hamed-Rao) e controle de taxa de falsas descobertas (FDR de Benjamini-Hochberg, $p_{\text{adj}} < 0{,}05$) **não é um modo separado**, mas uma camada matemática aplicada transversal e compulsoriamente a **qualquer uma das 4 combinações** da matriz. Os "3 Casos Clássicos" frequentemente citados no projeto representam destaques científicos e *Story Presets* (atalhos de demonstração rápida) configurados para o pitch de 240 segundos, e nunca uma restrição de produto.
 
+> [!NOTE]
+> **Escopo do MVP para o Walking Skeleton (Fases 1–3):** Para simplificar a entrega ponta a ponta do *Walking Skeleton*, o **MVP (Fases 1–3) inicia com 1 variável por área (`variable_x` / `variable_y`)**, viabilizando testes ágeis e determinísticos de contraste univariado ($X=Y$) e bivariado ($X \neq Y$). A expansão para múltiplas variáveis por área (agrupadas por família ambiental ou seleção livre multivariada) ocorrerá em ciclos posteriores pós-MVP.
+
 ---
 
 #### Ordem Oficial de Interação na Interface (`1º Variável -> 2º Onde -> 3º Período de Tempo`)
@@ -114,9 +117,10 @@ flowchart LR
 ```
 
 1. **Passo 1 — Escolher as Variáveis ($X$ e $Y$, podendo ser iguais ou diferentes):**
+   - *Nota de Escopo do MVP (Fases 1–3):* O **MVP (Fases 1–3) inicia com 1 variável por área (`variable_x` / `variable_y`)** para simplificar o *Walking Skeleton*, com expansão posterior para múltiplas variáveis por área (por família ambiental ou livre).
    - *Justificativa Técnica Inegociável:* Vem obrigatoriamente primeiro porque **a área mínima física da NASA depende da variável selecionada**. Variáveis meteorológicas e hidrológicas do modelo **MERRA-2** possuem grade nativa de $0{,}5^\circ \text{ lat} \times 0{,}625^\circ \text{ lon}$ ($\approx 55\times 69\text{ km}$ no equador), enquanto variáveis de radiação solar e nuvens do satélite **CERES SYN1deg** possuem grade nativa de $1{,}0^\circ \text{ lat} \times 1{,}0^\circ \text{ lon}$ ($\approx 111\times 111\text{ km}$). Além disso, variáveis de umidade de solo (`GWETTOP`, `GWETROOT`) possuem máscara continental (só existem em terra firme). Definir a variável primeiro garante que o mapa opere com a geometria correta desde o início.
-2. **Passo 2 — Escolher Onde no Mapa 2D (Local $A$ e Local $B$, e tamanho da grade $1\times 1$, $2\times 2$ ou $3\times 3$):**
-   - *Justificativa Técnica Inegociável:* Como as variáveis já foram selecionadas no Passo 1, ao clicar no mapa 2D a interface desenha imediatamente o retângulo ou quadrado $1\times 1$ com as dimensões geográficas nativas exatas da respectiva variável. Em seguida, permite ao cientista expandir a área para $2\times 2$ (média espacial de 4 células adjacentes da NASA) ou $3\times 3$ (média espacial de 9 células adjacentes da NASA), definindo se a análise será local ($A = B$) ou regional/comparativa ($A \neq B$).
+2. **Passo 2 — Escolher Onde no Mapa 2D (Local $A$ e Local $B$, com composição flexível de células adjacentes):**
+   - *Justificativa Técnica Inegociável:* Como as variáveis já foram selecionadas no Passo 1, ao clicar no mapa 2D a interface desenha imediatamente o retângulo ou quadrado $1\times 1$ com as dimensões geográficas nativas exatas da respectiva variável. Em seguida, permite ao cientista compor livremente a área adicionando células **adjacentes** (que tenham pelo menos um ponto/vértice em comum, ex.: $1\times 3$, $2\times 1$, $2\times 2$, até o teto de 9 células), podendo escolher uma geometria para $X$ (ex.: $1\times 3$) e outra distinta para $Y$ (ex.: $2\times 1$).
 3. **Passo 3 — Escolher o Período de Tempo ($[t_0, t_f]$):**
    - *Justificativa Técnica Inegociável:* Vem em 3º lugar porque a disponibilidade histórica dos registros depende das variáveis escolhidas no Passo 1 (`1981–Presente` para MERRA-2 vs. `1984–Presente` para CERES). O componente de seleção de datas já abre travado e delimitado no intervalo comum $[\max(t_{0,X}, t_{0,Y}), \min(t_{f,X}, t_{f,Y})]$, eliminando consultas inválidas e erros 400 da API da NASA.
    - *Regra de Flexibilidade:* Após a configuração inicial dos 3 passos, o usuário tem **liberdade total para alterar qualquer parâmetro** (trocar de ponto no mapa, mudar de variável, alterar a janela temporal ou chavear a escala de grade) a qualquer instante, disparando atualizações reativas automáticas na bancada gráfica.
@@ -127,7 +131,7 @@ flowchart LR
 
 O MVP do Sistema de Análise de Dados está concluído quando, para quaisquer coordenadas selecionadas e quaisquer variáveis do catálogo, o usuário recebe em **menos de 2 segundos** as **5 Respostas do Detetive**:
 1. **O QUE muda?** (*What is changing?* — Variável física expressa em unidades corretas, alternância entre Série Bruta e Anomalia Climatológica Mensal sem sazonalidade, classificação de regime físico via GAM — *linear, acelerando ou saturando* — e identificação de extremos pela Elipse de Mahalanobis $D_M > 2{,}5$).
-2. **ONDE muda?** (*Where is it changing?* — Mapa 2D com a área mínima da grade NASA desenhada no local do clique e opção de expansão para $2\times 2$ ou $3\times 3$, com exibição de Local A e Local B conectados visualmente).
+2. **ONDE muda?** (*Where is it changing?* — Mapa 2D com a área mínima da grade NASA desenhada no local do clique e composição livre de células adjacentes (ex.: $1\times 3$, $2\times 1$, $2\times 2$, até 9 células), com exibição de Local A e Local B conectados visualmente).
 3. **QUANDO muda?** (*When is it changing?* — Janela temporal $[t_0, t_f]$ ajustável, com interseção automática de períodos comuns quando $X \neq Y$).
 4. **QUANTO muda?** (*How much is it changing?* — Taxa de variação decadal calculada sobre **toda a nuvem de pontos** via Declive Mediano Robusto de Theil-Sen ($B_{\text{Sen}}$) e Mínimos Quadrados ($B_{\text{OLS}}$), com proibição estrita de usar $Y_{\text{fim}} - Y_{\text{início}}$ ou porcentagens ($\%$) em escalas intervalares como $^\circ\text{C}$).
 5. **É ESTATISTICAMENTE SIGNIFICATIVO?** (*Is it statistically significant?* — $p\text{-valor}$ rigorosamente corrigido para persistência climática $\text{AR}(1)$ ($N_{\text{efetivo}}$), taxa de falsas descobertas $p_{\text{adj}}$ (FDR) e acoplamento via correlação de Pearson $r$, $\tau$ de Kendall e separação multiescala $r_{\text{global}}$ vs. $r_{\text{detrended}}$).
@@ -149,48 +153,72 @@ O MVP do Sistema de Análise de Dados está concluído quando, para quaisquer co
 
 ### 2.1 Consumo de Dados em Tempo Real via NASA POWER API
 
-A **NASA POWER API** (Prediction Of Worldwide Energy Resources) é a espinha dorsal de dados do projeto. Ela sintetiza terabytes de dados brutos de satélites e reanálises climáticas em endpoints REST de alta performance, devolvendo tabelas limpas e estruturadas em JSON:
+A **NASA POWER API v2** (Prediction Of Worldwide Energy Resources) é a espinha dorsal de dados do projeto. Ela sintetiza terabytes de dados brutos de satélites e reanálises climáticas em endpoints REST de alta performance, devolvendo tabelas limpas e estruturadas em JSON:
 
-- **Endpoint Oficial Utilizado:** `/api/temporal/monthly/point`
-- **URL Base:**  
+- **Endpoints Oficiais:**
+  - `/api/temporal/monthly/point` (1 coordenada, aceita até **20 parâmetros** na mesma chamada; latência $\approx 0{,}8\text{--}1{,}8\text{ s}$).
+  - `/api/temporal/monthly/regional` (retângulo `bbox` com tamanho mínimo de **$2^\circ \times 2^\circ$** e máximo síncrono de **$10^\circ \times 10^\circ$**; aceita apenas **1 parâmetro por requisição**, senão retorna `422 Unprocessable Entity`; latência $\approx 1{,}5\text{--}3{,}5\text{ s}$).
+- **URL Base (`/point`):**  
   `https://power.larc.nasa.gov/api/temporal/monthly/point?parameters={PARAMS}&community=AG&longitude={LON}&latitude={LAT}&start={START_YEAR}&end={END_YEAR}&format=JSON`
 - **Autenticação:** Aberta ao público, **não exige chave de API privada**. Requer apenas cabeçalho `User-Agent` informativo (ex.: `User-Agent: TrendDetective-NASASpaceApps/1.0`).
-- **Formato da Resposta:** JSON com estrutura `properties.parameter.{VAR_NAME}.{YYYYMM}`, onde os valores mensais vêm associados à chave cronológica (ex.: `198101: 24.32`).
-- **Camada de Resiliência e Cache Local:**
-  - Toda requisição bem-sucedida é gravada imediatamente em armazenamento local do navegador (**IndexedDB** ou **localStorage**) e no cache em disco do backend/proxy local.
-  - Se o usuário selecionar novamente a mesma célula da grade ou se houver instabilidade momentânea na conexão de internet durante a apresentação aos jurados, a consulta retorna em **$< 50\text{ ms}$**, garantindo risco zero no pitch ao vivo.
+- **Formato da Resposta e Limpeza Obrigatória no Backend:**
+  - Estrutura `properties.parameter.{VAR_NAME}.{YYYYMM}` (ex.: `198101: 24.32`).
+  - **Filtro de `YYYY13`:** A NASA POWER inclui a chave anual `YYYY13` junto aos meses `01..12`; o backend **deve descartar `YYYY13`** antes de qualquer cálculo.
+  - **Valores Faltantes e Máscara Oceânica (`-999`):** O *fill value* padrão da API é **`-999`** (ou `-999.0`), inclusive quando `GWETTOP`/`GWETROOT` (MERRA-2 Land) caem no oceano. O backend deve converter `-999` para `np.nan` (`df.replace(-999, np.nan)`) e usar `np.nanmean()` na agregação espacial costeira/regional.
+  - **Conversão de `PRECTOTCORR` (`mm/day` $\to$ `mm/mês`):** Na comunidade `AG`, `PRECTOTCORR` vem em taxa média diária (`"units": "mm/day"`). Para exibir volume mensal acumulado (`mm/mês`), multiplicar pelo número de dias de cada mês (`calendar.monthrange(ano, mes)[1]`, tratando anos bissextos).
+- **Rate Limits e Camada de Resiliência/Cache Local:**
+  - Limite oficial de **30 requisições/minuto por IP** e tolerância a rajadas de **3 a 5 chamadas simultâneas** (disparar 9 chamadas de uma vez causa `429 Too Many Requests`).
+  - O backend controla concorrência com **`asyncio.Semaphore(3)`** + *backoff* exponencial e grava cada célula `(lat, lon, var)` em cache local (disco/SQLite/memória no backend e **IndexedDB** no navegador), retornando consultas repetidas em **$< 50\text{ ms}$**.
 
 ---
 
-### 2.2 Lógica Espacial de Quadrados da Grade NASA ($1\times 1 \to 2\times 2 \to 3\times 3$) e Resoluções Nativas
+### 2.2 Lógica Espacial de Composição da Grade NASA (Células Adjacentes até $K \le 9$) e Resoluções Nativas
 
-Em vez de polígonos arbitrários, o Trend Detective adota estritamente a **geometria física nativa dos modelos da NASA**:
+Em vez de polígonos arbitrários ou apenas quadrados fixos, o Trend Detective adota a **geometria física nativa dos modelos da NASA** com **composição flexível de células adjacentes**:
 
 ```mermaid
 flowchart TD
-    Click["Clique do Usuário no Mapa (lat, lon)"] --> Resolve["Resolução do Ponto Central na Grade"]
-    Resolve --> ModeCheck{"Tamanho da Grade Selecionado"}
+    Click["Clique do Usuário no Mapa (lat, lon)"] --> Resolve["Resolução da Célula Nativa na Grade"]
+    Resolve --> ModeCheck{"Composição de Células Adjacentes (K <= 9)"}
     
-    ModeCheck -->|1x1: Mínimo Físico| G1["1 Célula Nativa\nMERRA-2: 0.5° x 0.625° (~55x69 km)\nCERES: 1.0° x 1.0° (~111x111 km)\n1 Requisição (< 400 ms)"]
-    ModeCheck -->|2x2: Agregação Regional| G2["4 Células Adjacentes em Paralelo\nMédia Espacial: Y_bar(t) = sum(Y_i(t))/4\n1 Série Temporal Consolidada"]
-    ModeCheck -->|3x3: Bacia / Macrorregião| G3["9 Células Adjacentes em Paralelo\nMédia Espacial: Y_bar(t) = sum(Y_i(t))/9\nTeto Máximo de Pontos (< 2 s)"]
+    ModeCheck -->|K = 1: Mínimo Físico| G1["1 Célula Nativa\nMERRA-2: 0.5° x 0.625° (~55x69 km)\nCERES: 1.0° x 1.0° (~111x111 km)\n1 Requisição /point (~0.8-1.8 s)"]
+    ModeCheck -->|K = 2..9: Composição Livre| G2["K Células Adjacentes (Semaphore(3) + Cache por Célula)\nEx: 1x3, 2x1, 2x2, 3x3 (pelo menos 1 ponto em comum)\nMédia Espacial: Y_bar(t) = nanmean(Y_i(t))\nTeto Máximo: K <= 9"]
 
     G1 --> Series["Série Temporal Unificada da Região"]
     G2 --> Series
-    G3 --> Series
 ```
 
-1. **A Menor Área Física Possível da NASA (Quadrado $1\times 1$):**
+1. **A Menor Área Física Possível da NASA (Célula $1\times 1$):**
    - Ao clicar no mapa 2D, o sistema calcula a célula mínima de grade correspondente à coordenada geográfica:
      - **Variáveis do MERRA-2 (Meteorologia, Água e Solo):** A grade nativa é de **$0{,}5^\circ \text{ latitude} \times 0{,}625^\circ \text{ longitude}$** ($\approx 55\text{ km} \times 69\text{ km}$ no equador). O mapa desenha exatamente esse retângulo delimitador sobre a superfície.
      - **Variáveis do CERES (Radiação Solar e Nuvens):** A grade nativa é de **$1{,}0^\circ \text{ latitude} \times 1{,}0^\circ \text{ longitude}$** ($\approx 111\text{ km} \times 111\text{ km}$). O mapa desenha esse quadrado de resolução solar.
-2. **Expansão de Área para Bacias e Regiões ($2\times 2$ e $3\times 3$):**
-   - O cientista pode desejar analisar uma bacia hidrográfica ou um estado inteiro. O sistema permite expandir a área de captura respeitando os quadrados adjacentes da grade da NASA:
-     - **Quadrado $2\times 2$:** Dispara 4 requisições pontuais em paralelo (`Promise.all`), cobrindo $2\times 2$ células contíguas. O motor realiza a agregação espacial calculando a média aritmética mensal dos 4 pontos:
-       $$Y_{\text{área}}(t) = \frac{1}{4} \sum_{i=1}^{4} Y_i(t)$$
-     - **Quadrado $3\times 3$:** Dispara 9 requisições pontuais em paralelo e calcula a média espacial sobre os 9 pontos adjacentes:
-       $$Y_{\text{área}}(t) = \frac{1}{9} \sum_{i=1}^{9} Y_i(t)$$
-     - **Limite Estrito de Segurança:** O tamanho $3\times 3$ é o teto máximo permitido. Esse limite garante tempo de agregação $< 2\text{ s}$, protege a aplicação contra bloqueios por excesso de chamadas e mantém a interface ultra-responsiva.
+2. **Composição Livre de Células Adjacentes ($1\times 3$, $2\times 1$, $2\times 2$, etc.):**
+   - O cientista pode acompanhar um rio, faixa costeira, bacia ou região escolhendo qualquer composição de $K$ células **adjacentes** (regra: cada nova célula precisa ter **pelo menos um ponto/vértice em comum** com o conjunto já selecionado, i.e., $\max(|\Delta i|, |\Delta j|) \le 1$ na grade discreta).
+   - **Independência entre $X$ e $Y$:** O cientista pode selecionar, por exemplo, uma área **$1\times 3$** para o dado $X$ e outra área **$2\times 1$** para o dado $Y$.
+   - **Agregação Espacial Segura (`Semaphore(3)` + `nanmean`):** Como composições de até $3\times 3$ no MERRA-2 ($1{,}5^\circ \times 1{,}875^\circ$) são menores que o mínimo de $2^\circ \times 2^\circ$ exigido pelo `/regional`, o backend consulta as células não cacheadas via `/point` usando **`asyncio.Semaphore(3)`** (ou usa `/regional` quando a caixa atingir $\ge 2^\circ \times 2^\circ$ com 1 variável) e calcula a média espacial ignorando células oceânicas (`-999` $\to$ `NaN`):
+     $$Y_{\text{área}}(t) = \operatorname{nanmean}_{i=1..K}\big(Y_i(t)\big)$$
+   - **Limite Estrito de Segurança:** O teto máximo é **$K \le 9$ células por região**, protegendo contra erro `429 Too Many Requests` (limite de 30 req/min).
+3. **Stack Oficial de Frontend e Payload de Saída do Mapa (`PROD-1`):**
+   - **Stack Oficial Fechada:** **Leaflet com renderer Canvas + React + TypeScript + Vite** (client-side puro, sem SSR, build 100% offline), garantindo máxima fluidez e rendering determinístico na manipulação vetorial das grades geográficas da NASA.
+   - **Payload de Saída do Mapa:** O componente de mapa emite para o estado do fluxo e para o pipeline de análise o seguinte payload de saída:
+     ```typescript
+     {
+       variable_x: string;
+       variable_y?: string;
+       grid_resolution: { dlat: number; dlon: number };
+       cells_a: [number, number][]; // 1 <= cells_a.length <= 9, coordenadas [lat, lon]
+       cells_b?: [number, number][]; // 1 <= cells_b.length <= 9, coordenadas [lat, lon]
+       start_year: number;
+       end_year: number;
+     }
+     ```
+     - Regras de validação:
+       - `variable_x`: variável obrigatória para a Área A;
+       - `variable_y?`: variável opcional para a Área B (presente em comparações bivariadas);
+       - `grid_resolution: { dlat, dlon }`: resolução nativa correspondente à variável selecionada ($0{,}5^\circ \times 0{,}625^\circ$ para MERRA-2 ou $1{,}0^\circ \times 1{,}0^\circ$ para CERES);
+       - `cells_a`: array de $1 \le \text{cells.length} \le 9$ com coordenadas `[lat, lon]`;
+       - `cells_b?`: array opcional de $1 \le \text{cells.length} \le 9$ com coordenadas `[lat, lon]`;
+       - `start_year`, `end_year`: recorte temporal delimitado pelo intervalo histórico comum.
 
 ---
 
@@ -203,9 +231,9 @@ O catálogo abrange os domínios essenciais das Ciências do Sistema Terra, alim
 | **1** | `T2M` | Atmosfera | Temperatura Média do Ar a 2m | MERRA-2 | $0{,}5^\circ \times 0{,}625^\circ$ | $^\circ\text{C}$ | 1981 |
 | **2** | `T2M_MAX` | Climatologia / Extremos | Temperatura Máxima Diária a 2m | MERRA-2 | $0{,}5^\circ \times 0{,}625^\circ$ | $^\circ\text{C}$ | 1981 |
 | **3** | `T2M_MIN` | Climatologia / Extremos | Temperatura Mínima Diária a 2m | MERRA-2 | $0{,}5^\circ \times 0{,}625^\circ$ | $^\circ\text{C}$ | 1981 |
-| **4** | `PRECTOTCORR` | Hidrologia / Chuva | Precipitação Total Corrigida | MERRA-2 | $0{,}5^\circ \times 0{,}625^\circ$ | $\text{mm/mês}$ | 1981 |
-| **5** | `GWETTOP` | Hidrologia / Agronomia | Umidade do Solo Superficial ($0\text{--}5\text{ cm}$) | MERRA-2 | $0{,}5^\circ \times 0{,}625^\circ$ | $0\text{ a }1$ (fração) | 1981 |
-| **6** | `GWETROOT` | Hidrologia / Geologia | Umidade do Solo Radicular ($0\text{--}100\text{ cm}$) | MERRA-2 | $0{,}5^\circ \times 0{,}625^\circ$ | $0\text{ a }1$ (fração) | 1981 |
+| **4** | `PRECTOTCORR` | Hidrologia / Chuva | Precipitação Total Corrigida | MERRA-2 | $0{,}5^\circ \times 0{,}625^\circ$ | $\text{mm/mês}$ *(API: `mm/day` $\times$ dias do mês)* | 1981 |
+| **5** | `GWETTOP` | Hidrologia / Agronomia | Umidade do Solo Superficial ($0\text{--}5\text{ cm}$) | MERRA-2 | $0{,}5^\circ \times 0{,}625^\circ$ | $0\text{ a }1$ (fração; oceano = `-999`) | 1981 |
+| **6** | `GWETROOT` | Hidrologia / Geologia | Umidade do Solo Radicular ($0\text{--}100\text{ cm}$) | MERRA-2 | $0{,}5^\circ \times 0{,}625^\circ$ | $0\text{ a }1$ (fração; oceano = `-999`) | 1981 |
 | **7** | `RH2M` | Meteorologia | Umidade Relativa do Ar a 2m | MERRA-2 | $0{,}5^\circ \times 0{,}625^\circ$ | $\%$ | 1981 |
 | **8** | `WS10M` | Dinâmica Atmosférica | Velocidade do Vento a 10m | MERRA-2 | $0{,}5^\circ \times 0{,}625^\circ$ | $\text{m/s}$ | 1981 |
 | **9** | `PS` | Dinâmica Atmosférica | Pressão de Superfície | MERRA-2 | $0{,}5^\circ \times 0{,}625^\circ$ | $\text{kPa}$ | 1981 |
@@ -295,7 +323,7 @@ Para maximizar a eficiência em uma maratona de 39 horas sem gerar sobrecargas i
 | **`COORD`** | **Rhyan, Felipe** | Coordenação geral de equipe, governança do repositório Git (branches, PRs, merge), congelamento e versionamento do Contrato JSON unificado, aplicação estrita dos portões de qualidade, sincronia na rede local e preenchimento/submissão oficial no portal da NASA. | Repositório estruturado, CI/CD, `DECISOES.md`, aprovação de PRs e submissão final às 22:30. |
 | **`DADOS-1`** | **Kaio, Renan, Felipe** | Desenvolvimento do cliente em tempo real da NASA POWER API (`/api/temporal/monthly/point`), agregador espacial de quadrados $1\times 1$ (1 dado nativo), $2\times 2$ (média de 4 dados) e $3\times 3$ (média de 9 dados), alinhamento temporal e implementação do Cache Local resiliente (IndexedDB / memória / disco). | Módulo de ingestão, funções de agregação regional e camada de cache offline com resposta $< 50\text{ ms}$. |
 | **`DADOS-2`** | **Rhyan, Fred** | Desenvolvimento do Motor Estatístico (`stats_engine.py`: anomalias mensais dessazonalizadas, OLS e Theil-Sen por década, curva não-linear GAM, distância de Mahalanobis $D_M > 2{,}5$, correção serial $\text{AR}(1)$ com $N_{\text{efetivo}}$, $p_{\text{adj}}$ por FDR, correlações e regressões $X \text{ vs. } Y$), Chatbot Co-Piloto Estatístico (definição de LLM + prompt) e modelo de Machine Learning do *Sistema de Descoberta Científica*. | `stats_engine.py` testado, agente conversacional do Co-Piloto e algoritmo de mineração do Módulo 2. |
-| **`PROD-1`** | **Renan, Fred** | Construção do Mapa 2D interativo (Leaflet/MapLibre), renderização da grade adaptativa no clique ($0{,}5^\circ \times 0{,}625^\circ$ vs. $1{,}0^\circ \times 1{,}0^\circ$), controle de seleção Local A / Local B e implementação da ordem oficial de interação: `1º Variável -> 2º Onde (Local A/B + quadrados 1x1, 2x2, 3x3 adaptados à resolução da variável) -> 3º Tempo`. | Componente de mapa interativo, renderizador de malha física da NASA e painel de seleção geoespacial. |
+| **`PROD-1`** | **Renan, Fred** | Construção do Mapa 2D interativo (Leaflet Canvas + React + TypeScript + Vite), renderização da grade adaptativa no clique ($0{,}5^\circ \times 0{,}625^\circ$ vs. $1{,}0^\circ \times 1{,}0^\circ$), controle de seleção Local A / Local B e implementação da ordem oficial de interação: `1º Variável -> 2º Onde (Local A/B + quadrados 1x1, 2x2, 3x3 adaptados à resolução da variável) -> 3º Tempo`. | Componente de mapa interativo, renderizador de malha física da NASA e painel de seleção geoespacial. |
 | **`PROD-2`** | **Kaio** *(com apoio de PROD-1)* | Construção da Bancada Científica de Gráficos (curvas juntas ou separadas, Tripla Normalização com Eixo Y Duplo e $Z\text{-Score}$, Dado Bruto vs. Anomalia, escala Linear vs. Logarítmica/Symlog, camadas OLS/Sen/GAM/Mahalanobis, dispersão $X \text{ vs. } Y$ e interface visual do Chatbot Co-Piloto). | Bancada de séries temporais reativa, componentes de alternância (toggles) e painel bivariado. |
 | **`NARR`** | **Rhyan, Felipe** | Condução da pesquisa no *Gemini Deep Research* e *Google Scholar* para guiar o *Sistema de Descoberta Científica*, mapeamento de lacunas da literatura, preparação dos casos reais de demonstração (Story Presets), redação do roteiro, captação de áudio, gravação de tela, edição e legendagem do vídeo de pitch (240s). | Dossiê de literatura, roteiro cronometrado, vídeo MP4 1080p final e textos de submissão. |
 
@@ -377,7 +405,7 @@ flowchart TD
   - `COORD` (Rhyan, Felipe): Estruturar o repositório Git, branches protegidas, pastas `/backend` e `/frontend`, esteira de CI/CD (Vercel / GitHub Actions) e inicializar o arquivo de decisões arquiteturais (`DECISOES.md`).
   - `DADOS-1` (Kaio, Renan, Felipe): Testar chamada real ao endpoint `/api/temporal/monthly/point` da NASA POWER API via script/curl, mapear a estrutura exata do JSON retornado e formalizar os metadados de resolução ($0{,}5^\circ\times 0{,}625^\circ$ vs. $1{,}0^\circ\times 1{,}0^\circ$) e limites históricos para o Contrato.
   - `DADOS-2` (Rhyan, Fred): Definir no Contrato JSON a especificação exata de todos os campos estatísticos (vetores de anomalias mensais, OLS e Theil-Sen por década, curva GAM/Splines, outliers de Mahalanobis $D_M > 2{,}5$, testes $\text{AR}(1)$ com $N_{\text{efetivo}}$, $p_{\text{adj}}$ por FDR e correlação bivariada).
-  - `PROD-1` (Renan, Fred): Definir no Contrato JSON os parâmetros de estado do fluxo `1º Variável -> 2º Onde/Grade -> 3º Tempo` e inicializar o boilerplate do Frontend (React/Vite/Next, Leaflet/MapLibre), preparando os componentes vazios.
+  - `PROD-1` (Renan, Fred): Fechar formalmente a stack oficial de Frontend (**Leaflet com renderer Canvas + React + TypeScript + Vite**, client-side puro, sem SSR, build 100% offline), definir no Contrato JSON os parâmetros de estado do fluxo `1º Variável -> 2º Onde/Grade -> 3º Tempo` e o **Payload de Saída do Mapa**: `{ variable_x, variable_y?, grid_resolution: { dlat, dlon }, cells_a, cells_b?, start_year, end_year }` ($1 \le \text{cells.length} \le 9$, coordenadas `[lat, lon]`), e inicializar o boilerplate do Frontend preparando os componentes vazios.
   - `PROD-2` (Kaio): Definir no Contrato JSON a estrutura das séries para a Bancada de Gráficos (séries brutas, anomalias, eixos duplos e arrays $Z\text{-Score}$) e gerar o arquivo `mock_analysis.json` completo e validado para destravar a Fase 2.
   - `NARR` (Rhyan, Felipe): Disparar os primeiros prompts estruturados de pesquisa profunda no **Gemini Deep Research** e **Google Scholar** para mapear temas de vanguarda na literatura e extrair os requisitos obrigatórios do formulário da NASA.
 - **Marco 0 (Sábado 10:30):** Contrato JSON congelado e arquivo `mock_analysis.json` disponível no repositório. Nenhuma linha de UI final é codificada antes deste marco!
@@ -387,21 +415,21 @@ flowchart TD
 ### Fase 2 — Ingestão NASA POWER, Motor Estatístico e UI sobre Mock
 **Sábado 10:30 – 12:30 (2h00)**
 
-- **`DADOS-1` (Kaio, Renan, Felipe — Ingestão NASA POWER & Agregador):**
-  - Implementar o cliente de consulta ao endpoint `/api/temporal/monthly/point` com suporte a múltiplas variáveis e intervalo de datas;
-  - Desenvolver o mecanismo de **Cache Local** (IndexedDB / memória) e a rotina de paralelismo para requisições de grade $2\times 2$ (4 pontos) e $3\times 3$ (9 pontos) com média espacial;
-  - Implementar o alinhamento temporal e teste de fallback para contingência de rede.
+- **`DADOS-1` (Kaio, Renan, Felipe — Ingestão NASA POWER & Agregador $K \le 9$):**
+  - Implementar o cliente de consulta ao endpoint `/api/temporal/monthly/point` (suporta até 20 variáveis por chamada; malha fina MERRA-2 $0{,}5^\circ \times 0{,}625^\circ$ como padrão) com as 3 regras obrigatórias de limpeza: (1) converter `-999` para `np.nan` e usar `np.nanmean()` (máscara oceânica de `GWETTOP`/`GWETROOT`), (2) descartar a chave anual `YYYY13`, e (3) converter `PRECTOTCORR` de `mm/day` para `mm/mês` (`calendar.monthrange`);
+  - Desenvolver o agregador espacial para **composição livre de $1 \le K \le 9$ células adjacentes** (`cells: [{lat, lon}, ...]`) controlando concorrência com **`asyncio.Semaphore(3)`** + *backoff* exponencial (respeitando o limite de 30 req/min, sem `Promise.all` de 9 chamadas) e **Cache Local em JSON/SQLite** indexado por célula individual `(lat, lon, var)` e por região (Parquet descartado no Módulo 1);
+  - Implementar o alinhamento temporal no backend (`1981` MERRA-2 vs. `1984` CERES) e fallback para contingência de rede *(nota: no frontend, `idbCache.ts` e `getCommonStartYear` já foram entregues na branch `frontend`)*.
 - **`DADOS-2` (Rhyan, Fred — Motor Estatístico `stats_engine.py`):**
-  - Implementar a biblioteca matemática completa:
+  - Implementar a biblioteca matemática completa aderente ao `CONTRATO_DE_DADOS.md`:
     1. Anomalia Climatológica Mensal dessazonalizada ($Y'_{a,m} = Y_{a,m} - \bar{Y}_m$);
-    2. Regressão linear OLS e Declive Robusto de Theil-Sen com taxa expressa por década ($10 \times B$);
+    2. Regressão linear OLS e Declive Robusto de Theil-Sen com taxa expressa por década ($10 \times B_{\text{ano}}$ ou $120 \times B_{\text{mês}}$);
     3. Ajuste não-linear via GAM / Splines com classificação de regime (*linear, acelerado, saturando*);
     4. Detecção bivariada de outliers via Distância de Mahalanobis ($D_M > 2{,}5$);
     5. Teste de significância com correção para autocorrelação $\text{AR}(1)$ ($N_{\text{efetivo}}$) e $p_{\text{adj}}$ (FDR);
     6. Módulo bivariado de correlação de Pearson ($r$), $\tau$ de Kendall e separação multiescala ($r_{\text{global}}$ vs. $r_{\text{detrended}}$).
-- **`PROD-1` (Renan, Fred — Mapa 2D & Fluxo Adaptativo sobre Mock):**
-  - Criar o mapa interativo renderizando o retângulo de grade nativo no local clicado ($0{,}5^\circ \times 0{,}625^\circ$ para MERRA-2 ou $1{,}0^\circ \times 1{,}0^\circ$ para CERES);
-  - Implementar os seletores da ordem oficial de interação: `1º Variável -> 2º Onde (Local A/B + grade 1x1, 2x2, 3x3) -> 3º Tempo`.
+- **`PROD-1` (Renan, Fred — Mapa 2D Leaflet Canvas & Fluxo Adaptativo sobre Mock):**
+  - Renderizar o componente visual `<MapView />` em **Leaflet (renderer Canvas)** consumindo `gridGeometry.ts` (snap nativo + conectividade de 8-vizinhos para composição livre de $1 \le K \le 9$ células adjacentes, ex.: $1\times 1, 1\times 3, 2\times 1, 2\times 2, 3\times 3$, já implementado e testado na branch `frontend`);
+  - Implementar os seletores da ordem oficial de interação no escopo MVP (**1 variável por área**: `variable_a` para Região A e `variable_b` para Região B): `1º Variável -> 2º Onde (Local A/B + composição livre K <= 9) -> 3º Tempo`.
 - **`PROD-2` (Kaio, com apoio de PROD-1 — Bancada de Gráficos sobre Mock):**
   - Construir a bancada gráfica conectada ao `mock_analysis.json`: Eixo Y Duplo, padronização em $Z\text{-Score}$ universal ($\sigma$), alternador Série Bruta vs. Anomalia e Linear vs. Symlog;
   - Integrar camadas analíticas (toggles): retas OLS e Theil-Sen por década, curva GAM e elipse de Mahalanobis.
@@ -410,7 +438,7 @@ flowchart TD
 - **`COORD` (Rhyan, Felipe — Governança e 1º Deploy):**
   - Publicar o 1º deploy público da aplicação exibindo a casca visual funcional conectada ao Mock em URL acessível via internet (Vercel/GitHub Pages).
 - **Portão 1 (Sábado 12:30 — Hard Gate):**
-  - *Critérios:* (1) Chamada real à NASA POWER API retornando JSON em $< 1\text{ s}$; (2) `stats_engine.py` executando sem erros com testes unitários; (3) Mapa e Bancada operando integrados ao Mock; (4) 1º Deploy público no ar.
+  - *Critérios:* (1) Chamada real à NASA POWER API retornando JSON limpo (`-999`/`YYYY13` tratados); (2) `stats_engine.py` executando sem erros com testes unitários; (3) Mapa e Bancada operando integrados ao Mock; (4) 1º Deploy público no ar.
 
 ---
 
@@ -560,7 +588,7 @@ flowchart TD
 | # | Risco Crítico | Sinal de Alerta / Gatilho | Resposta Operacional Imediata |
 | :--- | :--- | :--- | :--- |
 | **R1** | **Instabilidade ou Lentidão na NASA POWER API** | Chamada pontual demorando $> 3\text{ s}$ ou timeout | O **Cache Local** assume instantaneamente; requisições repetidas retornam em $< 50\text{ ms}$; manter pré-carregados os dados dos casos do pitch. |
-| **R2** | **Sobrecarga de Chamadas na Expansão $3\times 3$** | 9 requisições paralelas bloqueadas por *rate limit* | Implementar fila com delay de $50\text{ ms}$ entre requisições ou reutilizar pontos de grade sobrepostos já armazenados no cache local. |
+| **R2** | **Rate Limit (`429`) na Composição de Múltiplas Células ($K \le 9$)** | Mais de 3–5 chamadas `/point` simultâneas ou $> 30\text{ req/min}$ | Usar `asyncio.Semaphore(3)` com *backoff* exponencial, cachear cada célula `(lat, lon, var)` individualmente e usar `/regional` quando a caixa for $\ge 2^\circ \times 2^\circ$ (1 variável). |
 | **R3** | **Distorção Visual ao Comparar Variáveis com Unidades Distintas ($X \neq Y$)** | Curva de temperatura ($^\circ\text{C}$) achatando a curva de umidade de solo ($0\text{--}1$) | Aplicar imediatamente a **Tripla Normalização**: Eixo Y Duplo independente e alternador para $Z\text{-Score}$ universal ($\sigma$). |
 | **R4** | **Incompatibilidade Temporal de Datas Iniciais (ex.: 1981 vs. 1984)** | Regressão falhando por tamanhos de vetores divergentes | A rotina de **Interseção Automática de Datas** trunca as duas séries para a janela temporal comum antes de alimentar o motor estatístico. |
 | **R5** | **Erro Conceitual Estatístico no Código ou no Pitch** | Código gerando taxa por $Y_{\text{fim}} - Y_{\text{início}}$ ou porcentagem em $^\circ\text{C}$ | `DADOS-2` mantém travas estritas no código (`allow_percentage: false`) e o Chatbot Co-Piloto emite alerta explícito se detectar violação dos 7 Invariantes. |

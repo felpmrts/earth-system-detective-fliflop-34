@@ -21,7 +21,7 @@
   2. **ONDE está mudando?** (*Where is it changing?* — Mapa espacial interativo destacando divergências regionais *"sobe aqui, cai ali"* e comparação lado a lado de duas regiões).
   3. **QUANTO está mudando?** (*How much is it changing?* — Taxa de variação por década extraída sobre **toda a nuvem de pontos**, nunca apenas ponto final menos inicial).
   4. **A mudança é ESTATISTICAMENTE SIGNIFICATIVA?** (*Is it statistically significant?* — Separação rigorosa entre tendência secular real e ruído/ciclos naturais como El Niño, corrigida para memória climática e falsos positivos espaciais).
-- **Repositório & Fluxo Git:** `https://github.com/felpmrts/earth-system-detective-fliflop-34` possui duas branches (`main` e `develop`). **Regra para IAs:** todas as alterações devem ser feitas e commitadas em `develop` primeiro (nunca direto na `main`, salvo instrução explícita).
+- **Repositório & Fluxo Git (4 Branches):** `https://github.com/felpmrts/earth-system-detective-fliflop-34` possui 4 branches: `main` (release/produção estável), `develop` (integração central), `frontend` (desenvolvimento UI/Mapa/Gráficos) e `data` (ingestão NASA POWER e motor estatístico). **Regra para IAs:** nunca commitar direto na `main`; trabalhar na branch da respectiva frente (`frontend` ou `data`) ou em `develop` para documentação/integração.
 - **Nota de Escopo do MVP (Variáveis por Área):** O **MVP começa com 1 variável por área (`variable_x` / `variable_y`)**, permitindo comparar duas áreas com a mesma variável ou correlacionar duas variáveis distintas entre si na bancada de análise. A expansão futura prevê suporte a múltiplas variáveis simultâneas por área agrupadas em famílias ambientais.
 
 ---
