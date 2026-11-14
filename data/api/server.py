@@ -120,13 +120,15 @@ class BackendRouter:
 
 class _RequestHandler(BaseHTTPRequestHandler):
     router = BackendRouter()
+    max_body_bytes = int(os.environ.get("DATA_API_MAX_BODY_BYTES", str(1024 * 1024)))
+    cors_allow_origin = os.environ.get("DATA_API_CORS_ORIGIN", "*").strip() or "*"
 
     def _send_json(self, status_code: int, payload: dict[str, Any]) -> None:
         encoded = json.dumps(payload, ensure_ascii=False).encode("utf-8")
         self.send_response(status_code)
         self.send_header("Content-Type", "application/json; charset=utf-8")
         self.send_header("Content-Length", str(len(encoded)))
-        self.send_header("Access-Control-Allow-Origin", "*")
+        self.send_header("Access-Control-Allow-Origin", self.cors_allow_origin)
         self.send_header("Access-Control-Allow-Methods", "GET, POST, OPTIONS")
         self.send_header("Access-Control-Allow-Headers", "Content-Type")
         self.end_headers()
@@ -140,7 +142,17 @@ class _RequestHandler(BaseHTTPRequestHandler):
         self._send_json(status_code, payload)
 
     def do_POST(self) -> None:  # noqa: N802
-        length = int(self.headers.get("Content-Length", "0"))
+        try:
+            length = int(self.headers.get("Content-Length", "0"))
+        except ValueError:
+            self._send_json(HTTPStatus.BAD_REQUEST, {"error": "Content-Length inválido."})
+            return
+        if length < 0 or length > self.max_body_bytes:
+            self._send_json(
+                HTTPStatus.REQUEST_ENTITY_TOO_LARGE,
+                {"error": f"Payload excede o limite de {self.max_body_bytes} bytes."},
+            )
+            return
         raw = self.rfile.read(length).decode("utf-8") if length > 0 else "{}"
         try:
             body = json.loads(raw)
