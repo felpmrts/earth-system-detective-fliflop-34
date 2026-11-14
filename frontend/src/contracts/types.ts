@@ -63,6 +63,8 @@ export interface VariableMetadata {
   readonly trend_unit: string;
   readonly allow_percentage_change: boolean;
   readonly land_only_mask: boolean;
+  /** Alias lógico de catálogo (ex.: CLOUD_AMT aponta para o grid global de CLDTOT). */
+  readonly is_alias_of?: VariableId;
 }
 
 export interface GridCell {

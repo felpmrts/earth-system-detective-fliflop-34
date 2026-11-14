@@ -239,3 +239,103 @@ export function toBackendCells(cells: readonly GridCell[]): readonly BackendCell
     lon,
   }));
 }
+
+function deduplicateCells(cells: readonly GridCell[]): GridCell[] {
+  const unique = new Map<string, GridCell>();
+  for (const cell of cells) {
+    unique.set(cell.cell_id, cell);
+  }
+  return [...unique.values()];
+}
+
+function computeCentroid(cells: readonly GridCell[]): { readonly lat: number; readonly lon: number } {
+  let latSum = 0;
+  let lonSum = 0;
+  for (const cell of cells) {
+    latSum += cell.lat;
+    lonSum += cell.lon;
+  }
+  return {
+    lat: latSum / cells.length,
+    lon: lonSum / cells.length,
+  };
+}
+
+function bridgeSourceMidpoints(
+  sourceCells: readonly GridCell[],
+  snappedCells: readonly GridCell[],
+  targetVariableId: VariableId,
+): GridCell[] {
+  const bridged = [...snappedCells];
+  for (let i = 0; i < sourceCells.length; i += 1) {
+    const a = sourceCells[i];
+    if (!a) continue;
+    for (let j = i + 1; j < sourceCells.length; j += 1) {
+      const b = sourceCells[j];
+      if (!b || !isAdjacent8(a, b)) continue;
+      bridged.push(snapCoordToCell((a.lat + b.lat) / 2, (a.lon + b.lon) / 2, targetVariableId));
+    }
+  }
+  return deduplicateCells(bridged);
+}
+
+/** Constrói componente conexo até MAX_CELLS_PER_REGION priorizando células mais próximas do centroide. */
+function selectConnectedCore(
+  candidates: readonly GridCell[],
+  centroid: { readonly lat: number; readonly lon: number },
+  seedCell: GridCell,
+  maxCells = MAX_CELLS_PER_REGION,
+): GridCell[] {
+  const distSq = (cell: GridCell) =>
+    (cell.lat - centroid.lat) ** 2 + (cell.lon - centroid.lon) ** 2;
+  const sortedPool = deduplicateCells([seedCell, ...candidates]).sort((a, b) => distSq(a) - distSq(b));
+  const seed = sortedPool[0] ?? seedCell;
+  const chosen: GridCell[] = [seed];
+  const chosenIds = new Set<string>([seed.cell_id]);
+
+  while (chosen.length < maxCells) {
+    const nextCell = sortedPool.find(
+      candidate =>
+        !chosenIds.has(candidate.cell_id) && chosen.some(existing => isAdjacent8(existing, candidate)),
+    );
+    if (!nextCell) break;
+    chosen.push(nextCell);
+    chosenIds.add(nextCell.cell_id);
+  }
+  return chosen;
+}
+
+/**
+ * Espelha uma seleção válida para outra variável/slot.
+ * Se o modelo nativo diferir (ex.: MERRA-2 <-> CERES_SYN1deg), faz re-snap dos centroides
+ * para a grade nativa da variável alvo com deduplicação e garantia de conexidade (K <= 9).
+ */
+export function mirrorRegionSelection(
+  sourceRegion: RegionSelection,
+  targetSlot: RegionSlot,
+  targetVariableId: VariableId,
+): RegionSelection {
+  const targetMeta = getVariableMetadata(targetVariableId);
+  if (sourceRegion.source_model === targetMeta.source_model) {
+    return buildRegionSelection(targetSlot, targetVariableId, sourceRegion.cells);
+  }
+
+  const directSnapped = deduplicateCells(
+    sourceRegion.cells.map(cell => snapCoordToCell(cell.lat, cell.lon, targetVariableId)),
+  );
+  if (directSnapped.length <= MAX_CELLS_PER_REGION && isConnectedComponent(directSnapped)) {
+    return buildRegionSelection(targetSlot, targetVariableId, directSnapped);
+  }
+
+  // Em CERES (1.0°) -> MERRA-2 (0.5°×0.625°), células adjacentes podem deixar lacunas de 1 passo;
+  // preenchemos pontos médios e garantimos componente conexo centrado até o teto K <= 9.
+  const bridged = bridgeSourceMidpoints(sourceRegion.cells, directSnapped, targetVariableId);
+  if (bridged.length <= MAX_CELLS_PER_REGION && isConnectedComponent(bridged)) {
+    return buildRegionSelection(targetSlot, targetVariableId, bridged);
+  }
+
+  const centroid = computeCentroid(sourceRegion.cells);
+  const seedCell = snapCoordToCell(centroid.lat, centroid.lon, targetVariableId);
+  const core = selectConnectedCore(bridged, centroid, seedCell);
+  return buildRegionSelection(targetSlot, targetVariableId, core);
+}

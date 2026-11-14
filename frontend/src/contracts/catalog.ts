@@ -219,6 +219,7 @@ export const VARIABLE_CATALOG: Readonly<Record<VariableId, VariableMetadata>> = 
     variable_id: 'CLOUD_AMT', variable_name: 'Cobertura de Nuvens', domain: 'Radiação e Nuvens',
     source_model: 'CERES_SYN1deg', resolution: CERES_RESOLUTION, grid_origin: CERES_ORIGIN, min_year: 1984,
     scale_type: 'ratio', unit: '%', trend_unit: 'p.p./década', allow_percentage_change: true, land_only_mask: false,
+    is_alias_of: 'CLDTOT',
   },
   ALLSKY_SFC_LW_DWN: {
     variable_id: 'ALLSKY_SFC_LW_DWN',
@@ -236,10 +237,31 @@ export const VARIABLE_CATALOG: Readonly<Record<VariableId, VariableMetadata>> = 
   },
 };
 
+/** 12 variáveis NASA POWER principais esperadas na camada global ({var_id}_grid.json). */
+export const CORE_GLOBAL_GRID_VARIABLES: readonly VariableId[] = [
+  'T2M',
+  'T2M_MAX',
+  'T2M_MIN',
+  'PRECTOTCORR',
+  'GWETTOP',
+  'GWETROOT',
+  'RH2M',
+  'WS10M',
+  'PS',
+  'ALLSKY_SFC_SW_DWN',
+  'CLDTOT',
+  'ALLSKY_SFC_LW_DWN',
+];
+
 export const VARIABLE_LIST: readonly VariableMetadata[] = Object.values(VARIABLE_CATALOG);
 
 export function getVariableMetadata(variableId: VariableId): VariableMetadata {
   return VARIABLE_CATALOG[variableId];
+}
+
+/** Resolve o variable_id efetivo para arquivos de grade global (ex.: CLOUD_AMT -> CLDTOT). */
+export function resolveGridVariableId(variableId: VariableId): VariableId {
+  return VARIABLE_CATALOG[variableId].is_alias_of ?? variableId;
 }
 
 export function isValidVariableId(value: string): value is VariableId {

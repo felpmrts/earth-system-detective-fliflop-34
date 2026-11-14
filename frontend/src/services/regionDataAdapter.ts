@@ -1,4 +1,4 @@
-import { getIntersectingDateBounds } from '../contracts/catalog.ts';
+import { getIntersectingDateBounds, resolveGridVariableId } from '../contracts/catalog.ts';
 import { validateAnalysisResponse, validateGlobalGrid } from '../contracts/contractValidator.ts';
 import type {
   DataMode,
@@ -47,6 +47,32 @@ export interface BackendCatalogFamily {
 export interface BackendCatalog {
   readonly total_variables: number;
   readonly families: readonly BackendCatalogFamily[];
+}
+
+export class GlobalGridLoadError extends Error {
+  readonly status: number;
+  readonly gridVariableId: VariableId;
+
+  constructor(status: number, gridVariableId: VariableId) {
+    super(`Falha ao carregar grid global de ${gridVariableId} (${status})`);
+    this.name = 'GlobalGridLoadError';
+    this.status = status;
+    this.gridVariableId = gridVariableId;
+  }
+}
+
+export function buildGlobalGridUrl(
+  variableId: VariableId,
+  baseUrl?: string,
+): { readonly resolvedVariableId: VariableId; readonly url: string } {
+  const env = (import.meta as unknown as { env?: Record<string, string | undefined> }).env;
+  const resolvedVariableId = resolveGridVariableId(variableId);
+  const rawBase = baseUrl ?? env?.BASE_URL ?? '/';
+  const normalizedBase = rawBase.endsWith('/') ? rawBase : `${rawBase}/`;
+  return {
+    resolvedVariableId,
+    url: `${normalizedBase}data/${resolvedVariableId}_grid.json`,
+  };
 }
 
 function readEnvConfig(): Pick<AdapterConfig, 'mode' | 'apiBaseUrl'> {
@@ -164,11 +190,12 @@ export function createRegionDataAdapter(overrides: Partial<AdapterConfig> = {}) 
     };
   }
 
-  /** Fluxo A: carrega a camada global pré-processada ({var_id}_grid.json) de public/data/. */
+  /** Fluxo A: carrega a camada global pré-processada ({var_id}_grid.json) de public/data/, resolvendo aliases. */
   async function getGlobalGrid(variableId: VariableId, signal?: AbortSignal): Promise<GlobalGridFile> {
-    const res = await config.fetchFn(`/data/${variableId}_grid.json`, { signal });
+    const { resolvedVariableId, url } = buildGlobalGridUrl(variableId);
+    const res = await config.fetchFn(url, { signal });
     if (!res.ok) {
-      throw new Error(`Falha ao carregar grid global de ${variableId} (${res.status})`);
+      throw new GlobalGridLoadError(res.status, resolvedVariableId);
     }
     const raw: unknown = await res.json();
     return validateGlobalGrid(raw);
