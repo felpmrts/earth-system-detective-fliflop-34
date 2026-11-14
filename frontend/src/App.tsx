@@ -54,6 +54,12 @@ export default function App() {
   useEffect(() => setRegionA(null), [variableA]);
   useEffect(() => setRegionB(null), [variableB]);
 
+  // Qualquer mudança no formulário espacial/temporal invalida a análise anterior.
+  useEffect(() => {
+    setAnalysis(undefined);
+    setAnalysisError('');
+  }, [variableA, variableB, start, end, regionA, regionB]);
+
   useEffect(() => {
     const controller = new AbortController();
     getBackendCatalog(controller.signal)
@@ -125,6 +131,7 @@ export default function App() {
     ? new Date(Date.UTC(Number(lastMonth.slice(0, 4)), Number(lastMonth.slice(5, 7)), 0)).toISOString().slice(0, 10)
     : undefined;
   const hasPoints = months.some(month => !periodReady || (month >= start && month <= end));
+  const isOfflineAnalysis = analysis?.request_meta.source === 'offline_fallback';
   const traces = regions.flatMap((region, index) => {
     const { series } = region;
     const color = region.slot === 'A' ? '#67e8f9' : '#fbbf24';
@@ -145,7 +152,10 @@ export default function App() {
 
   return (
     <main>
-      <header><h1>Earth System Trend Detective</h1></header>
+      <header className="brand-header">
+        <img className="brand-logo" src="/flipflop-34-logo.jpeg" alt="" aria-hidden="true" />
+        <h1>Project Flipflop 34</h1>
+      </header>
       <div className="workspace">
         <aside aria-label="Catálogo de variáveis">
           <h2>Variáveis</h2>
@@ -160,17 +170,19 @@ export default function App() {
               data={variableOptions} searchable clearable clearSectionMode="clear"
               clearButtonProps={{ 'aria-label': 'Limpar variável ' + slot }} nothingFoundMessage="Nenhuma variável encontrada"
               value={value || null} onChange={id => onChange(id ?? '')}
-              comboboxProps={{ width: 310, position: 'bottom-start', withinPortal: true }}
+              comboboxProps={{ width: 310, position: 'bottom-start', withinPortal: true, zIndex: 1100 }}
               maxDropdownHeight={340} />
           ))}
           <fieldset className="period-picker" disabled={!minimumMonth}>
             <legend>Período</legend>
             <MonthPickerInput className="variable-picker" classNames={{ input: 'selection-input' }} label="Mês inicial" placeholder="Selecione o mês"
               locale="pt-br" valueFormat="MMMM [de] YYYY" clearable disabled={!minimumMonth}
+              popoverProps={{ withinPortal: true, zIndex: 1100 }}
               minDate={minimumMonth ? minimumMonth + '-01' : undefined} maxDate={maximumMonth + '-01'}
               value={start ? start + '-01' : null} onChange={value => setStartMonth(value?.slice(0, 7) ?? '')} />
             <MonthPickerInput className="variable-picker" classNames={{ input: 'selection-input' }} label="Mês final" placeholder="Selecione o mês"
               locale="pt-br" valueFormat="MMMM [de] YYYY" clearable disabled={!minimumMonth}
+              popoverProps={{ withinPortal: true, zIndex: 1100 }}
               minDate={minimumMonth ? (start || minimumMonth) + '-01' : undefined} maxDate={maximumMonth + '-01'}
               value={end ? end + '-01' : null} onChange={value => setEndMonth(value?.slice(0, 7) ?? '')} />
           </fieldset>
@@ -203,11 +215,11 @@ export default function App() {
                 {analysis && missing.map(({ slot, id }) => (
           <p className="note" role="status" key={slot}>
             Variável {slot} · {VARIABLE_LIST.find(variable => variable.variable_id === id)?.variable_name}
-            {' ainda não tem série no mock.'}
+            {isOfflineAnalysis ? ' não tem série no conjunto offline.' : ' não está presente no resultado atual.'}
           </p>
         ))}
         {analysis && regions.length === 0 && missing.length === 0 && <p>Selecione uma variável para ver a série.</p>}
-        {analysis && regions.length > 0 && !hasPoints && <p role="status">O mock não contém dados no período selecionado.</p>}
+        {analysis && regions.length > 0 && !hasPoints && <p role="status">O resultado atual não contém dados no período selecionado.</p>}
         {analysis && hasPoints && <>
           <Plot key={firstDate + "/" + lastDate} data={traces} useResizeHandler style={{ width: '100%', height: '100%', minHeight: stacked && regions.length > 1 ? 520 : 340 }} config={{ responsive: true, displaylogo: false }} layout={{
             autosize: true,

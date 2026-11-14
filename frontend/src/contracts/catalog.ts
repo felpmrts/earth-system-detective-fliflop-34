@@ -253,7 +253,7 @@ export function isValidVariableId(value: string): value is VariableId {
 export function getIntersectingDateBounds(
   variableA: VariableId,
   variableB: VariableId | null = null,
-  maxYear = 2025,
+  maxYear = new Date().getUTCFullYear(),
 ): { readonly startDate: string; readonly endDate: string; readonly minYear: number } {
   const metaA = VARIABLE_CATALOG[variableA];
   const metaB = variableB ? VARIABLE_CATALOG[variableB] : null;

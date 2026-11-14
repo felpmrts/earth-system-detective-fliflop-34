@@ -45,6 +45,7 @@ export function MapWorkspace({
   const [activeSlot, setActiveSlot] = useState<RegionSlot>('A');
   const activeSlotRef = useRef<RegionSlot>('A');
   const [notice, setNotice] = useState('Escolha A ou B e clique no mapa para compor a região.');
+  const [noticeKind, setNoticeKind] = useState<'info' | 'success' | 'error'>('info');
 
   stateRef.current = { variableA, variableB, regionA, regionB, periodReady };
   callbacksRef.current = { onRegionAChange, onRegionBChange };
@@ -93,10 +94,12 @@ export function MapWorkspace({
 
       if (!current.periodReady) {
         setNotice('Defina as duas variáveis e o período antes de selecionar os locais.');
+        setNoticeKind('error');
         return;
       }
       if (!variable) {
         setNotice(`Selecione a variável ${slot} antes de marcar o local.`);
+        setNoticeKind('error');
         return;
       }
 
@@ -104,10 +107,12 @@ export function MapWorkspace({
       const result = toggleCellInSelection(region?.cells ?? [], target);
       if (!result.ok) {
         setNotice(result.reason ? selectionErrorMessages[result.reason] : 'Seleção inválida.');
+        setNoticeKind('error');
         return;
       }
       updateRegion(result.cells.length ? buildRegionSelection(slot, variable, result.cells) : null);
       setNotice(`Região ${slot}: ${result.cells.length} célula(s) selecionada(s).`);
+      setNoticeKind('success');
     });
 
     const resizeObserver = new ResizeObserver(() => map.invalidateSize());
@@ -181,7 +186,12 @@ export function MapWorkspace({
       </div>
       <div ref={containerRef} className="map-container" />
       <div className="map-status" role="status">
-        <span className={analysisError ? 'map-error' : ''}>{analysisError || notice}</span>
+        <span
+          className={`map-message ${analysisError ? 'error' : noticeKind}`}
+          role={analysisError || noticeKind === 'error' ? 'alert' : undefined}
+        >
+          {analysisError || notice}
+        </span>
         <div>
           {regionA && <button onClick={() => onRegionAChange(null)}>Limpar A</button>}
           {regionB && <button onClick={() => onRegionBChange(null)}>Limpar B</button>}
