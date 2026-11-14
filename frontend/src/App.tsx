@@ -2,16 +2,14 @@ import environmentalFamilies from './contracts/environmentalFamilies.json';
 import { Select } from '@mantine/core';
 import { MonthPickerInput } from '@mantine/dates';
 import { useEffect, useRef, useState } from 'react';
-import createPlotlyComponent from 'react-plotly.js/factory';
-import Plotly from 'plotly.js-basic-dist-min';
-import type { RegionAnalysisResponse } from './contracts/types';
-import type { RegionSelection, VariableId } from './contracts/types';
+import type { RegionAnalysisResponse, RegionSelection, VariableId } from './contracts/types';
 import { isValidVariableId, VARIABLE_LIST } from './contracts/catalog';
+import type { TrendMode } from './bench/benchMeta';
+import { ScientificBench } from './bench/ScientificBench';
 import { MapWorkspace } from './map/MapWorkspace';
 import { getBackendCatalog, getRegionData } from './services/regionDataAdapter';
+import { loadPersistedSession, savePersistedSession } from './services/sessionState';
 import './bench.css';
-
-const Plot = createPlotlyComponent(Plotly);
 
 const supportedVariables = new Set<string>(VARIABLE_LIST.map(variable => variable.variable_id));
 const fallbackVariableOptions = environmentalFamilies.map(({ group, items }) => ({
@@ -23,19 +21,29 @@ const fallbackVariableOptions = environmentalFamilies.map(({ group, items }) => 
 }));
 
 export default function App() {
+  const [initialSession] = useState(loadPersistedSession);
   const [analysis, setAnalysis] = useState<RegionAnalysisResponse>();
+  const [analyzedAt, setAnalyzedAt] = useState<string | null>(null);
   const [variableOptions, setVariableOptions] = useState(fallbackVariableOptions);
   const [catalogError, setCatalogError] = useState('');
-  const [tab, setTab] = useState<'map' | 'bench'>('map');
-  const [variableA, setVariableA] = useState('GWETTOP');
-  const [variableB, setVariableB] = useState('T2M_MAX');
-  const [regionA, setRegionA] = useState<RegionSelection | null>(null);
-  const [regionB, setRegionB] = useState<RegionSelection | null>(null);
-  const [startMonth, setStartMonth] = useState('');
-  const [endMonth, setEndMonth] = useState('');
+  const [tab, setTab] = useState<'map' | 'bench'>(initialSession.tab);
+  const [variableA, setVariableA] = useState(initialSession.variableA);
+  const [variableB, setVariableB] = useState(initialSession.variableB);
+  const [regionA, setRegionA] = useState<RegionSelection | null>(initialSession.regionA);
+  const [regionB, setRegionB] = useState<RegionSelection | null>(initialSession.regionB);
+  const [startMonth, setStartMonth] = useState(initialSession.startMonth);
+  const [endMonth, setEndMonth] = useState(initialSession.endMonth);
   const [isAnalyzing, setIsAnalyzing] = useState(false);
   const [analysisError, setAnalysisError] = useState('');
   const analysisControllerRef = useRef<AbortController | null>(null);
+
+  const [anomaly, setAnomaly] = useState(initialSession.anomaly);
+  const [separate, setSeparate] = useState(initialSession.separate);
+  const [dual, setDual] = useState(initialSession.dual);
+  const [trendMode, setTrendMode] = useState<TrendMode>(initialSession.trendMode);
+  const [sidebarOpen, setSidebarOpen] = useState(initialSession.sidebarOpen);
+  const [mobileDrawerOpen, setMobileDrawerOpen] = useState(false);
+
   const metadataA = VARIABLE_LIST.find(variable => variable.variable_id === variableA);
   const metadataB = VARIABLE_LIST.find(variable => variable.variable_id === variableB);
   const minimumMonth = metadataA && metadataB
@@ -46,13 +54,39 @@ export default function App() {
   const end = endMonth >= (start || minimumMonth) && endMonth <= maximumMonth ? endMonth : '';
   const periodReady = Boolean(minimumMonth && start && end);
 
-  const [anomaly, setAnomaly] = useState(false);
-  const [separate, setSeparate] = useState(false);
-  const [dual, setDual] = useState(true);
-  const [trend, setTrend] = useState(true);
+  const handleVariableAChange = (next: string) => {
+    if (next !== variableA) setRegionA(null);
+    setVariableA(next);
+  };
 
-  useEffect(() => setRegionA(null), [variableA]);
-  useEffect(() => setRegionB(null), [variableB]);
+  const handleVariableBChange = (next: string) => {
+    if (next !== variableB) setRegionB(null);
+    setVariableB(next);
+  };
+
+  useEffect(() => {
+    savePersistedSession({
+      variableA,
+      variableB,
+      startMonth,
+      endMonth,
+      regionA,
+      regionB,
+      tab,
+      anomaly,
+      separate,
+      dual,
+      trendMode,
+      sidebarOpen,
+    });
+  }, [variableA, variableB, startMonth, endMonth, regionA, regionB, tab, anomaly, separate, dual, trendMode, sidebarOpen]);
+
+  // Qualquer mudança no formulário espacial/temporal invalida a análise anterior.
+  useEffect(() => {
+    setAnalysis(undefined);
+    setAnalyzedAt(null);
+    setAnalysisError('');
+  }, [variableA, variableB, start, end, regionA, regionB]);
 
   useEffect(() => {
     const controller = new AbortController();
@@ -72,6 +106,15 @@ export default function App() {
       });
     return () => controller.abort();
   }, []);
+
+  useEffect(() => {
+    if (!mobileDrawerOpen) return;
+    const onKeyDown = (event: KeyboardEvent) => {
+      if (event.key === 'Escape') setMobileDrawerOpen(false);
+    };
+    window.addEventListener('keydown', onKeyDown);
+    return () => window.removeEventListener('keydown', onKeyDown);
+  }, [mobileDrawerOpen]);
 
   useEffect(() => () => analysisControllerRef.current?.abort(), []);
 
@@ -95,6 +138,7 @@ export default function App() {
         signal: controller.signal,
       });
       setAnalysis(result);
+      setAnalyzedAt(new Date().toLocaleString('pt-BR', { dateStyle: 'short', timeStyle: 'medium' }));
       setTab('bench');
     } catch (requestError) {
       if (!controller.signal.aborted) {
@@ -108,40 +152,19 @@ export default function App() {
     }
   }
 
-  const available = [analysis?.region_a_analysis, analysis?.region_b_analysis];
-  const selections = [{ slot: 'A', id: variableA }, { slot: 'B', id: variableB }];
-  const regions = selections.flatMap(({ slot, id }) => {
-    const region = available.find(item => item?.variable_id === id);
-    return region ? [{ ...region, slot }] : [];
-  });
-  const missing = selections.filter(({ id }) => id && !available.some(item => item?.variable_id === id));
-  const mixed = regions.length > 1 && regions[0]?.unit !== regions[1]?.unit;
-  const stacked = separate || (mixed && !dual);
-  const months = regions.flatMap(region => region.series.dates).sort();
-  const firstMonth = periodReady ? start : months[0];
-  const lastMonth = periodReady ? end : months.at(-1);
-  const firstDate = firstMonth ? firstMonth + '-01' : undefined;
-  const lastDate = lastMonth
-    ? new Date(Date.UTC(Number(lastMonth.slice(0, 4)), Number(lastMonth.slice(5, 7)), 0)).toISOString().slice(0, 10)
-    : undefined;
-  const hasPoints = months.some(month => !periodReady || (month >= start && month <= end));
-  const traces = regions.flatMap((region, index) => {
-    const { series } = region;
-    const color = region.slot === 'A' ? '#67e8f9' : '#fbbf24';
-    const name = region.slot + ' · ' + region.variable_name;
-    const axis = index === 1 && (dual || stacked) ? 'y2' : 'y';
-    const indices = series.dates.flatMap((month, i) => !periodReady || (month >= start && month <= end) ? [i] : []);
-    const valuesInRange = (values: readonly (number | null)[]) => indices.map(i => values[i] ?? null);
-    const base = { x: indices.map(i => series.dates[i] + '-01'), type: 'scatter' as const, mode: 'lines' as const, yaxis: axis };
-    const fitted = series as typeof series & { sen_fit?: number[] };
-    return [
-      { ...base, name, y: valuesInRange(anomaly ? series.anomaly_values : series.raw_values), line: { color } },
-      ...(anomaly && trend ? [
-        { ...base, name: region.slot + ' · OLS', y: valuesInRange(series.linear_fit), line: { color, dash: 'dot' as const } },
-        ...(fitted.sen_fit ? [{ ...base, name: region.slot + ' · Sen', y: valuesInRange(fitted.sen_fit), line: { color, dash: 'dash' as const } }] : []),
-      ] : []),
-    ];
-  });
+  function cancelAnalysis() {
+    analysisControllerRef.current?.abort('Consulta cancelada pelo usuário.');
+  }
+
+  const variablesReady = Boolean(variableA && variableB);
+  const regionsReady = Boolean(regionA && regionB);
+  const currentStep = !variablesReady ? 0 : !periodReady ? 1 : !regionsReady ? 2 : 3;
+  const workflowSteps = [
+    { label: 'Variáveis', complete: variablesReady },
+    { label: 'Período', complete: periodReady },
+    { label: 'Regiões', complete: regionsReady },
+    { label: 'Análise', complete: Boolean(analysis) },
+  ];
 
   return (
     <main>
@@ -149,17 +172,47 @@ export default function App() {
         <img className="brand-logo" src="/flipflop-34-logo.jpeg" alt="" aria-hidden="true" />
         <h1>Project Flipflop 34</h1>
       </header>
-      <div className="workspace">
-        <aside aria-label="Catálogo de variáveis">
-          <h2>Variáveis</h2>
+      <ol className="workflow-progress" aria-label="Etapas da investigação">
+        {workflowSteps.map((step, index) => (
+          <li key={step.label} className={step.complete ? 'complete' : index === currentStep ? 'current' : ''}
+            aria-current={index === currentStep && !step.complete ? 'step' : undefined}>
+            <span>{step.complete ? '✓' : index + 1}</span>
+            <strong>{step.label}</strong>
+          </li>
+        ))}
+      </ol>
+      <div className={`workspace ${sidebarOpen ? '' : 'sidebar-collapsed'}`}>
+        {mobileDrawerOpen && (
+          <div
+            className="drawer-backdrop"
+            aria-hidden="true"
+            onClick={() => setMobileDrawerOpen(false)}
+          />
+        )}
+        <aside
+          id="variables-sidebar"
+          className={mobileDrawerOpen ? 'drawer-open' : ''}
+          aria-label="Catálogo de variáveis e período"
+        >
+          <div className="sidebar-head">
+            <h2>Variáveis</h2>
+            <button
+              type="button"
+              className="drawer-close"
+              aria-label="Fechar painel de variáveis"
+              onClick={() => setMobileDrawerOpen(false)}
+            >
+              ×
+            </button>
+          </div>
           {catalogError && <p className="catalog-warning" role="alert">{catalogError} Usando catálogo local.</p>}
           {([
-            { slot: 'A', value: variableA, onChange: setVariableA },
-            { slot: 'B', value: variableB, onChange: setVariableB },
+            { slot: 'A', value: variableA, onChange: handleVariableAChange },
+            { slot: 'B', value: variableB, onChange: handleVariableBChange },
           ]).map(({ slot, value, onChange }) => (
-            <Select key={slot} className="variable-picker"
+            <Select key={slot} className={`variable-picker variable-picker-${slot.toLowerCase()}`}
               classNames={{ input: 'selection-input', dropdown: 'selection-dropdown', option: 'selection-option' }}
-              label={'Variável ' + slot} placeholder="Buscar variável"
+              label={<span className={`slot-label slot-${slot.toLowerCase()}`}><b>{slot}</b> Variável {slot}</span>} placeholder="Buscar variável"
               data={variableOptions} searchable clearable clearSectionMode="clear"
               clearButtonProps={{ 'aria-label': 'Limpar variável ' + slot }} nothingFoundMessage="Nenhuma variável encontrada"
               value={value || null} onChange={id => onChange(id ?? '')}
@@ -182,56 +235,64 @@ export default function App() {
         </aside>
         <div className="exploration">
           <nav aria-label="Área de trabalho">
-            <button aria-current={tab === 'map' ? 'page' : undefined} onClick={() => setTab('map')}>Mapa</button>
-            <button aria-current={tab === 'bench' ? 'page' : undefined} onClick={() => setTab('bench')}>Bancada científica</button>
+            <button
+              type="button"
+              className="sidebar-toggle desktop-only"
+              aria-expanded={sidebarOpen}
+              aria-controls="variables-sidebar"
+              onClick={() => setSidebarOpen(prev => !prev)}
+            >
+              {sidebarOpen ? '« Recolher painel' : '» Variáveis'}
+            </button>
+            <button
+              type="button"
+              className="sidebar-toggle mobile-only"
+              aria-expanded={mobileDrawerOpen}
+              aria-controls="variables-sidebar"
+              onClick={() => setMobileDrawerOpen(true)}
+            >
+              Variáveis e período
+            </button>
+            <button type="button" aria-current={tab === 'map' ? 'page' : undefined} onClick={() => setTab('map')}>Mapa</button>
+            <button type="button" aria-current={tab === 'bench' ? 'page' : undefined} onClick={() => setTab('bench')}>Bancada científica</button>
           </nav>
-          {tab === 'map' ? <MapWorkspace
-            variableA={variableA ? variableA as VariableId : null}
-            variableB={variableB ? variableB as VariableId : null}
-            periodReady={periodReady}
-            regionA={regionA}
-            regionB={regionB}
-            onRegionAChange={setRegionA}
-            onRegionBChange={setRegionB}
-            isAnalyzing={isAnalyzing}
-            analysisError={analysisError}
-            onAnalyze={analyzeSelection}
-          /> : (
-      <section className="bench-panel" aria-label="Séries temporais">
-        <div className="controls">
-          <label><input type="checkbox" checked={anomaly} onChange={event => setAnomaly(event.target.checked)} /> Anomalia</label>
-          <label><input type="checkbox" checked={separate} onChange={event => setSeparate(event.target.checked)} /> Curvas separadas</label>
-          <label><input type="checkbox" checked={dual} disabled={separate || regions.length < 2} onChange={event => setDual(event.target.checked)} /> Eixo Y duplo</label>
-          <label><input type="checkbox" checked={trend} disabled={!anomaly} onChange={event => setTrend(event.target.checked)} /> OLS e Theil–Sen</label>
-        </div>
-        {!analysis && <p role="status">Defina variáveis, período e regiões no mapa para consultar o backend.</p>}
-                {analysis && missing.map(({ slot, id }) => (
-          <p className="note" role="status" key={slot}>
-            Variável {slot} · {VARIABLE_LIST.find(variable => variable.variable_id === id)?.variable_name}
-            {' ainda não tem série no mock.'}
-          </p>
-        ))}
-        {analysis && regions.length === 0 && missing.length === 0 && <p>Selecione uma variável para ver a série.</p>}
-        {analysis && regions.length > 0 && !hasPoints && <p role="status">O mock não contém dados no período selecionado.</p>}
-        {analysis && hasPoints && <>
-          <Plot key={firstDate + "/" + lastDate} data={traces} useResizeHandler style={{ width: '100%', height: '100%', minHeight: stacked && regions.length > 1 ? 520 : 340 }} config={{ responsive: true, displaylogo: false }} layout={{
-            autosize: true,
-            paper_bgcolor: '#121e30', plot_bgcolor: '#121e30', font: { color: '#e1edf8' },
-            margin: { l: 75, t: 28, r: 75, b: 95 },
-            xaxis: { type: 'date', range: [firstDate, lastDate], minallowed: firstDate, maxallowed: lastDate, anchor: stacked && regions.length > 1 ? 'y2' : 'y' },
-            yaxis: { title: { text: regions[0]?.unit }, automargin: true, domain: stacked && regions.length > 1 ? [0.55, 1] : [0, 1] },
-            yaxis2: stacked
-              ? { title: { text: regions[1]?.unit }, automargin: true, domain: [0, 0.45], anchor: 'x' }
-              : { title: { text: regions[1]?.unit }, automargin: true, overlaying: 'y', side: 'right' },
-            legend: { orientation: 'h', y: -0.18 },
-          }} />
-          <p className="note">
-            Fonte: {analysis.request_meta.source === 'backend_api' ? 'NASA POWER via backend' : analysis.request_meta.source === 'idb_cache' ? 'cache local' : 'dados de demonstração (fallback offline)'}.
-            {' '}As tendências são exibidas na visão de anomalia.
-          </p>
-          {anomaly && trend && regions.some(region => !('sen_fit' in region.series)) && <p className="note">A curva Theil–Sen depende da série ajustada fornecida pelo backend.</p>}
-        </>}
-      </section>
+          {tab === 'map' ? (
+            <MapWorkspace
+              variableA={variableA ? variableA as VariableId : null}
+              variableB={variableB ? variableB as VariableId : null}
+              periodReady={periodReady}
+              startMonth={start}
+              endMonth={end}
+              regionA={regionA}
+              regionB={regionB}
+              onRegionAChange={setRegionA}
+              onRegionBChange={setRegionB}
+              isAnalyzing={isAnalyzing}
+              analysisError={analysisError}
+              onAnalyze={analyzeSelection}
+              onCancel={cancelAnalysis}
+            />
+          ) : (
+            <ScientificBench
+              analysis={analysis}
+              variableA={variableA}
+              variableB={variableB}
+              regionA={regionA}
+              regionB={regionB}
+              start={start}
+              end={end}
+              periodReady={periodReady}
+              analyzedAt={analyzedAt}
+              anomaly={anomaly}
+              separate={separate}
+              dual={dual}
+              trendMode={trendMode}
+              onAnomalyChange={setAnomaly}
+              onSeparateChange={setSeparate}
+              onDualChange={setDual}
+              onTrendModeChange={setTrendMode}
+              onBackToMap={() => setTab('map')}
+            />
           )}
         </div>
       </div>

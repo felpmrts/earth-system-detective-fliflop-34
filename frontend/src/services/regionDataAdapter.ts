@@ -167,7 +167,7 @@ export function createRegionDataAdapter(overrides: Partial<AdapterConfig> = {}) 
     mode: overrides.mode ?? envDefaults.mode,
     apiBaseUrl: overrides.apiBaseUrl ?? envDefaults.apiBaseUrl,
     // A primeira consulta pode incluir duas séries mensais e preencher o cache do backend.
-    timeoutMs: overrides.timeoutMs ?? 30000,
+    timeoutMs: overrides.timeoutMs ?? 90000,
     // Não armazene `window.fetch` diretamente: alguns navegadores exigem que ele
     // seja invocado com o contexto global e lançam "Illegal invocation" caso contrário.
     fetchFn: overrides.fetchFn ?? ((input, init) => globalThis.fetch(input, init)),
@@ -207,7 +207,7 @@ export function createRegionDataAdapter(overrides: Partial<AdapterConfig> = {}) 
    */
   async function getRegionData(params: GetRegionDataParams): Promise<RegionAnalysisResponse> {
     const requestBody = buildRequestBody(params);
-    const cacheKey = `${config.mode}|${buildRegionCacheKey({
+    const cacheKey = `analysis-v2|${config.mode}|${buildRegionCacheKey({
       variableA: requestBody.variable_a,
       variableB: requestBody.variable_b,
       regionAId: requestBody.region_a.region_id,
