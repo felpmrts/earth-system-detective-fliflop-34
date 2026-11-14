@@ -146,7 +146,9 @@ Abaixo estão os documentos Markdown do projeto, organizados por módulo funcion
 | ✅ *Criado* | `context/knowledge_data/environmental_family.md` | Catálogo das 7 Famílias Ambientais (códigos de API, modos, unidades e descrições para UI). | `DADOS-1` + `PROD-2` |
 | ✅ *Criado* | `context/knowledge_data/NASA_RESOURCES.md` | Catálogo dos recursos oficiais da NASA para o desafio. | `DADOS-1` |
 | ✅ *Criado* | `context/knowledge_maps/prod1_context.md` | Especificação e contexto da frente de Mapa 2D. | `PROD-1` |
-| ⏳ *Fase 1 (Sáb 10:30)* | `CONTRATO_DE_DADOS.md` | Especificação congelada do JSON entre Backend (`DADOS-1/2`) e Frontend (`PROD-1/2`). | `DADOS-1` + `PROD-1` |
+| ✅ *Criado* | `CONTRATO_DE_DADOS.md` | Especificação congelada do JSON entre Backend (`DADOS-1/2`) e Frontend (`PROD-1/2`). | `DADOS-1` + `PROD-1` |
+| ✅ *Criado* | `backend/stats_engine.py`, `backend/test_stats_engine.py` & `backend/requirements.txt` | Motor estatístico completo (`DADOS-2`) 100% Estado da Arte (`scipy`, `statsmodels`, `scikit-learn`, `pymannkendall` + fallback puro) com testes unitários e `backend/mock_analysis.json`. | `DADOS-2` |
+| ✅ *Criado* | `context/general_strategy/CASOS_DEMO_E_DESCOBERTA_NARR.md` | Coordenadas exatas (*snapped* MERRA-2/CERES) dos 3 Casos Clássicos de Demonstração (*Story Presets*) e 4 Temas do Sistema de Descoberta por Bioma. | `NARR` |
 | ⏳ *Fase 1 (Sáb 10:30)* | `DECISOES.md` | Log cronológico de decisões de escopo e arquitetura (2 linhas por decisão). | `COORD` |
 | ⏳ *Fase 4/6* | `DATA_SOURCES.md` | Citação oficial dos datasets da NASA, DOIs, resolução, período e limitações conhecidas. | `DADOS-1` + `NARR` |
 | ⏳ *Fase 6* | `README.md` | Documentação pública do repositório para os jurados da NASA (instruções de uso e reprodução). | `COORD` + `NARR` |
