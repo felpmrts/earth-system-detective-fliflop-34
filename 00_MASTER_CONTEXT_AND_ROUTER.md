@@ -7,7 +7,7 @@
 > 2. Consulte a **Árvore de Decisão ("Qual Pergunta Você Precisa Responder?")** na Seção 4 ou o **Catálogo Completo de Documentos Markdown** na Seção 5.
 > 3. Abra **apenas** os arquivos (ou intervalos de linhas `#L...`) necessários para a sua subtarefa atual.
 > 4. Sempre que criar um novo documento `.md` durante o hackathon, **registre-o imediatamente na Seção 5 e 6 deste arquivo**.
-> 5. **Estrutura de Pastas de Contexto:** Apenas este arquivo (`00_MASTER_CONTEXT_AND_ROUTER.md`) fica na raiz. Todos os arquivos de contexto específicos de cada área estão organizados em subpastas dentro de `context/` (ex.: `context/general_strategy/`, `context/knowledge_base_estatistica/`, `context/knowledge_maps/`).
+> 5. **Estrutura de Pastas de Contexto:** Apenas este arquivo (`00_MASTER_CONTEXT_AND_ROUTER.md`) fica na raiz. Todos os arquivos de contexto específicos de cada área estão organizados em subpastas dentro de `context/` (`context/general_strategy/`, `context/knowledge_base_estatistica/`, `context/knowledge_data/`, `context/knowledge_maps/`).
 
 ---
 
