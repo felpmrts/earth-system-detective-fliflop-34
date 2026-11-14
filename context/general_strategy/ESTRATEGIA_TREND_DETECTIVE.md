@@ -98,6 +98,9 @@ flowchart TD
 > [!IMPORTANT]
 > **Natureza Transversal da Validação Estatística:** O teste de **Tendência Real vs. Ruído Natural** via autocorrelação $\text{AR}(1)$ ($N_{\text{efetivo}}$ de Santer/Hamed-Rao) e controle de taxa de falsas descobertas (FDR de Benjamini-Hochberg, $p_{\text{adj}} < 0{,}05$) **não é um modo separado**, mas uma camada matemática aplicada transversal e compulsoriamente a **qualquer uma das 4 combinações** da matriz. Os "3 Casos Clássicos" frequentemente citados no projeto representam destaques científicos e *Story Presets* (atalhos de demonstração rápida) configurados para o pitch de 240 segundos, e nunca uma restrição de produto.
 
+> [!NOTE]
+> **Escopo do MVP para o Walking Skeleton (Fases 1–3):** Para simplificar a entrega ponta a ponta do *Walking Skeleton*, o **MVP (Fases 1–3) inicia com 1 variável por área (`variable_x` / `variable_y`)**, viabilizando testes ágeis e determinísticos de contraste univariado ($X=Y$) e bivariado ($X \neq Y$). A expansão para múltiplas variáveis por área (agrupadas por família ambiental ou seleção livre multivariada) ocorrerá em ciclos posteriores pós-MVP.
+
 ---
 
 #### Ordem Oficial de Interação na Interface (`1º Variável -> 2º Onde -> 3º Período de Tempo`)
@@ -114,6 +117,7 @@ flowchart LR
 ```
 
 1. **Passo 1 — Escolher as Variáveis ($X$ e $Y$, podendo ser iguais ou diferentes):**
+   - *Nota de Escopo do MVP (Fases 1–3):* O **MVP (Fases 1–3) inicia com 1 variável por área (`variable_x` / `variable_y`)** para simplificar o *Walking Skeleton*, com expansão posterior para múltiplas variáveis por área (por família ambiental ou livre).
    - *Justificativa Técnica Inegociável:* Vem obrigatoriamente primeiro porque **a área mínima física da NASA depende da variável selecionada**. Variáveis meteorológicas e hidrológicas do modelo **MERRA-2** possuem grade nativa de $0{,}5^\circ \text{ lat} \times 0{,}625^\circ \text{ lon}$ ($\approx 55\times 69\text{ km}$ no equador), enquanto variáveis de radiação solar e nuvens do satélite **CERES SYN1deg** possuem grade nativa de $1{,}0^\circ \text{ lat} \times 1{,}0^\circ \text{ lon}$ ($\approx 111\times 111\text{ km}$). Além disso, variáveis de umidade de solo (`GWETTOP`, `GWETROOT`) possuem máscara continental (só existem em terra firme). Definir a variável primeiro garante que o mapa opere com a geometria correta desde o início.
 2. **Passo 2 — Escolher Onde no Mapa 2D (Local $A$ e Local $B$, com composição flexível de células adjacentes):**
    - *Justificativa Técnica Inegociável:* Como as variáveis já foram selecionadas no Passo 1, ao clicar no mapa 2D a interface desenha imediatamente o retângulo ou quadrado $1\times 1$ com as dimensões geográficas nativas exatas da respectiva variável. Em seguida, permite ao cientista compor livremente a área adicionando células **adjacentes** (que tenham pelo menos um ponto/vértice em comum, ex.: $1\times 3$, $2\times 1$, $2\times 2$, até o teto de 9 células), podendo escolher uma geometria para $X$ (ex.: $1\times 3$) e outra distinta para $Y$ (ex.: $2\times 1$).
@@ -194,6 +198,27 @@ flowchart TD
    - **Agregação Espacial Segura (`Semaphore(3)` + `nanmean`):** Como composições de até $3\times 3$ no MERRA-2 ($1{,}5^\circ \times 1{,}875^\circ$) são menores que o mínimo de $2^\circ \times 2^\circ$ exigido pelo `/regional`, o backend consulta as células não cacheadas via `/point` usando **`asyncio.Semaphore(3)`** (ou usa `/regional` quando a caixa atingir $\ge 2^\circ \times 2^\circ$ com 1 variável) e calcula a média espacial ignorando células oceânicas (`-999` $\to$ `NaN`):
      $$Y_{\text{área}}(t) = \operatorname{nanmean}_{i=1..K}\big(Y_i(t)\big)$$
    - **Limite Estrito de Segurança:** O teto máximo é **$K \le 9$ células por região**, protegendo contra erro `429 Too Many Requests` (limite de 30 req/min).
+3. **Stack Oficial de Frontend e Payload de Saída do Mapa (`PROD-1`):**
+   - **Stack Oficial Fechada:** **Leaflet com renderer Canvas + React + TypeScript + Vite** (client-side puro, sem SSR, build 100% offline), garantindo máxima fluidez e rendering determinístico na manipulação vetorial das grades geográficas da NASA.
+   - **Payload de Saída do Mapa:** O componente de mapa emite para o estado do fluxo e para o pipeline de análise o seguinte payload de saída:
+     ```typescript
+     {
+       variable_x: string;
+       variable_y?: string;
+       grid_resolution: { dlat: number; dlon: number };
+       cells_a: [number, number][]; // 1 <= cells_a.length <= 9, coordenadas [lat, lon]
+       cells_b?: [number, number][]; // 1 <= cells_b.length <= 9, coordenadas [lat, lon]
+       start_year: number;
+       end_year: number;
+     }
+     ```
+     - Regras de validação:
+       - `variable_x`: variável obrigatória para a Área A;
+       - `variable_y?`: variável opcional para a Área B (presente em comparações bivariadas);
+       - `grid_resolution: { dlat, dlon }`: resolução nativa correspondente à variável selecionada ($0{,}5^\circ \times 0{,}625^\circ$ para MERRA-2 ou $1{,}0^\circ \times 1{,}0^\circ$ para CERES);
+       - `cells_a`: array de $1 \le \text{cells.length} \le 9$ com coordenadas `[lat, lon]`;
+       - `cells_b?`: array opcional de $1 \le \text{cells.length} \le 9$ com coordenadas `[lat, lon]`;
+       - `start_year`, `end_year`: recorte temporal delimitado pelo intervalo histórico comum.
 
 ---
 
@@ -298,7 +323,7 @@ Para maximizar a eficiência em uma maratona de 39 horas sem gerar sobrecargas i
 | **`COORD`** | **Rhyan, Felipe** | Coordenação geral de equipe, governança do repositório Git (branches, PRs, merge), congelamento e versionamento do Contrato JSON unificado, aplicação estrita dos portões de qualidade, sincronia na rede local e preenchimento/submissão oficial no portal da NASA. | Repositório estruturado, CI/CD, `DECISOES.md`, aprovação de PRs e submissão final às 22:30. |
 | **`DADOS-1`** | **Kaio, Renan, Felipe** | Desenvolvimento do cliente em tempo real da NASA POWER API (`/api/temporal/monthly/point`), agregador espacial de quadrados $1\times 1$ (1 dado nativo), $2\times 2$ (média de 4 dados) e $3\times 3$ (média de 9 dados), alinhamento temporal e implementação do Cache Local resiliente (IndexedDB / memória / disco). | Módulo de ingestão, funções de agregação regional e camada de cache offline com resposta $< 50\text{ ms}$. |
 | **`DADOS-2`** | **Rhyan, Fred** | Desenvolvimento do Motor Estatístico (`stats_engine.py`: anomalias mensais dessazonalizadas, OLS e Theil-Sen por década, curva não-linear GAM, distância de Mahalanobis $D_M > 2{,}5$, correção serial $\text{AR}(1)$ com $N_{\text{efetivo}}$, $p_{\text{adj}}$ por FDR, correlações e regressões $X \text{ vs. } Y$), Chatbot Co-Piloto Estatístico (definição de LLM + prompt) e modelo de Machine Learning do *Sistema de Descoberta Científica*. | `stats_engine.py` testado, agente conversacional do Co-Piloto e algoritmo de mineração do Módulo 2. |
-| **`PROD-1`** | **Renan, Fred** | Construção do Mapa 2D interativo (Leaflet/MapLibre), renderização da grade adaptativa no clique ($0{,}5^\circ \times 0{,}625^\circ$ vs. $1{,}0^\circ \times 1{,}0^\circ$), controle de seleção Local A / Local B e implementação da ordem oficial de interação: `1º Variável -> 2º Onde (Local A/B + quadrados 1x1, 2x2, 3x3 adaptados à resolução da variável) -> 3º Tempo`. | Componente de mapa interativo, renderizador de malha física da NASA e painel de seleção geoespacial. |
+| **`PROD-1`** | **Renan, Fred** | Construção do Mapa 2D interativo (Leaflet Canvas + React + TypeScript + Vite), renderização da grade adaptativa no clique ($0{,}5^\circ \times 0{,}625^\circ$ vs. $1{,}0^\circ \times 1{,}0^\circ$), controle de seleção Local A / Local B e implementação da ordem oficial de interação: `1º Variável -> 2º Onde (Local A/B + quadrados 1x1, 2x2, 3x3 adaptados à resolução da variável) -> 3º Tempo`. | Componente de mapa interativo, renderizador de malha física da NASA e painel de seleção geoespacial. |
 | **`PROD-2`** | **Kaio** *(com apoio de PROD-1)* | Construção da Bancada Científica de Gráficos (curvas juntas ou separadas, Tripla Normalização com Eixo Y Duplo e $Z\text{-Score}$, Dado Bruto vs. Anomalia, escala Linear vs. Logarítmica/Symlog, camadas OLS/Sen/GAM/Mahalanobis, dispersão $X \text{ vs. } Y$ e interface visual do Chatbot Co-Piloto). | Bancada de séries temporais reativa, componentes de alternância (toggles) e painel bivariado. |
 | **`NARR`** | **Rhyan, Felipe** | Condução da pesquisa no *Gemini Deep Research* e *Google Scholar* para guiar o *Sistema de Descoberta Científica*, mapeamento de lacunas da literatura, preparação dos casos reais de demonstração (Story Presets), redação do roteiro, captação de áudio, gravação de tela, edição e legendagem do vídeo de pitch (240s). | Dossiê de literatura, roteiro cronometrado, vídeo MP4 1080p final e textos de submissão. |
 
@@ -380,7 +405,7 @@ flowchart TD
   - `COORD` (Rhyan, Felipe): Estruturar o repositório Git, branches protegidas, pastas `/backend` e `/frontend`, esteira de CI/CD (Vercel / GitHub Actions) e inicializar o arquivo de decisões arquiteturais (`DECISOES.md`).
   - `DADOS-1` (Kaio, Renan, Felipe): Testar chamada real ao endpoint `/api/temporal/monthly/point` da NASA POWER API via script/curl, mapear a estrutura exata do JSON retornado e formalizar os metadados de resolução ($0{,}5^\circ\times 0{,}625^\circ$ vs. $1{,}0^\circ\times 1{,}0^\circ$) e limites históricos para o Contrato.
   - `DADOS-2` (Rhyan, Fred): Definir no Contrato JSON a especificação exata de todos os campos estatísticos (vetores de anomalias mensais, OLS e Theil-Sen por década, curva GAM/Splines, outliers de Mahalanobis $D_M > 2{,}5$, testes $\text{AR}(1)$ com $N_{\text{efetivo}}$, $p_{\text{adj}}$ por FDR e correlação bivariada).
-  - `PROD-1` (Renan, Fred): Definir no Contrato JSON os parâmetros de estado do fluxo `1º Variável -> 2º Onde/Grade -> 3º Tempo` e inicializar o boilerplate do Frontend (React/Vite/Next, Leaflet/MapLibre), preparando os componentes vazios.
+  - `PROD-1` (Renan, Fred): Fechar formalmente a stack oficial de Frontend (**Leaflet com renderer Canvas + React + TypeScript + Vite**, client-side puro, sem SSR, build 100% offline), definir no Contrato JSON os parâmetros de estado do fluxo `1º Variável -> 2º Onde/Grade -> 3º Tempo` e o **Payload de Saída do Mapa**: `{ variable_x, variable_y?, grid_resolution: { dlat, dlon }, cells_a, cells_b?, start_year, end_year }` ($1 \le \text{cells.length} \le 9$, coordenadas `[lat, lon]`), e inicializar o boilerplate do Frontend preparando os componentes vazios.
   - `PROD-2` (Kaio): Definir no Contrato JSON a estrutura das séries para a Bancada de Gráficos (séries brutas, anomalias, eixos duplos e arrays $Z\text{-Score}$) e gerar o arquivo `mock_analysis.json` completo e validado para destravar a Fase 2.
   - `NARR` (Rhyan, Felipe): Disparar os primeiros prompts estruturados de pesquisa profunda no **Gemini Deep Research** e **Google Scholar** para mapear temas de vanguarda na literatura e extrair os requisitos obrigatórios do formulário da NASA.
 - **Marco 0 (Sábado 10:30):** Contrato JSON congelado e arquivo `mock_analysis.json` disponível no repositório. Nenhuma linha de UI final é codificada antes deste marco!

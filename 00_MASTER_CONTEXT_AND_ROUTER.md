@@ -22,6 +22,7 @@
   3. **QUANTO está mudando?** (*How much is it changing?* — Taxa de variação por década extraída sobre **toda a nuvem de pontos**, nunca apenas ponto final menos inicial).
   4. **A mudança é ESTATISTICAMENTE SIGNIFICATIVA?** (*Is it statistically significant?* — Separação rigorosa entre tendência secular real e ruído/ciclos naturais como El Niño, corrigida para memória climática e falsos positivos espaciais).
 - **Repositório & Fluxo Git:** `https://github.com/felpmrts/earth-system-detective-fliflop-34` possui duas branches (`main` e `develop`). **Regra para IAs:** todas as alterações devem ser feitas e commitadas em `develop` primeiro (nunca direto na `main`, salvo instrução explícita).
+- **Nota de Escopo do MVP (Variáveis por Área):** O **MVP começa com 1 variável por área (`variable_x` / `variable_y`)**, permitindo comparar duas áreas com a mesma variável ou correlacionar duas variáveis distintas entre si na bancada de análise. A expansão futura prevê suporte a múltiplas variáveis simultâneas por área agrupadas em famílias ambientais.
 
 ---
 
@@ -84,9 +85,7 @@ Use a tabela abaixo para saltar diretamente para o documento (e seção) exato s
 
 ## 5. Catálogo Completo de Todos os Documentos Markdown (`.md`) do Projeto
 
-- [Stack do frontend](general_strategy/STACK_FRONTEND.md)
-
-Abaixo estão **todos os 9 documentos Markdown existentes atualmente no workspace**, organizados por módulo funcional, com tamanho aproximado e resumo cirúrgico de conteúdo:
+Abaixo estão os documentos Markdown do projeto, organizados por módulo funcional, com tamanho aproximado e resumo cirúrgico de conteúdo:
 
 ### 🏛️ Camada 0: Roteador Central (Raiz)
 1. **[`00_MASTER_CONTEXT_AND_ROUTER.md`](file:///home/zrhyan/Principal/Computation/Space%20Apps/00_MASTER_CONTEXT_AND_ROUTER.md)** *(Este documento)*
@@ -97,37 +96,39 @@ Abaixo estão **todos os 9 documentos Markdown existentes atualmente no workspac
    - **Resumo:** Plano diretor operacional para as 39 horas do desafio *"Be An Earth System Trend Detective!"*. Define o critério de aceitação das 4 perguntas, divisão da equipe de 6 pessoas (`COORD`, `DADOS-1`, `DADOS-2`, `PROD-1`, `PROD-2`, `NARR`), desenvolvimento paralelo via Contrato de Dados, cronograma detalhado das 8 Fases + 5 Portões, escopo MoSCoW, matriz de 15 riscos e checklist de submissão.
 3. **[`general_strategy/RELATORIO_ESTRATEGICO_SPACEAPPS_2026.md`](file:///home/zrhyan/Principal/Computation/Space%20Apps/general_strategy/RELATORIO_ESTRATEGICO_SPACEAPPS_2026.md)** *(299 linhas | ~29 KB)*
    - **Resumo:** Dossiê preliminar dos 14 desafios do NASA Space Apps 2026, metodologia dos jurados (Impacto Galáctico, Uso de Dados NASA, Protótipo MVP, Pitch) e análise preliminar de satélites (MODIS, AIRS, OMI, GRACE/GRACE-FO, Giovanni) e ferramentas (Xarray, NetCDF4, Deck.gl/Leaflet) para o *Trend Detective* (listado na seção #2 do relatório, linhas 97–109).
+4. **[`general_strategy/STACK_FRONTEND.md`](file:///home/zrhyan/Principal/Computation/Space%20Apps/earth-system-detective-fliflop-34/general_strategy/STACK_FRONTEND.md)** *(~4 KB)*
+   - **Resumo:** Decisão e especificação da stack técnica do frontend (`React + TypeScript + Vite` com deploy na Vercel, `Leaflet (Canvas)` para renderização da grade global 2D, cliente tipado para o contrato JSON e IndexedDB para cache offline).
 
 ### 📐 Camada 2: Base de Conhecimento Estatístico de Estado da Arte (`knowledge_base_estatistica/`)
-4. **[`knowledge_base_estatistica/00_INDICE_E_ARQUITETURA_ESTATISTICA.md`](file:///home/zrhyan/Principal/Computation/Space%20Apps/knowledge_base_estatistica/00_INDICE_E_ARQUITETURA_ESTATISTICA.md)** *(~8 KB)*
+5. **[`knowledge_base_estatistica/00_INDICE_E_ARQUITETURA_ESTATISTICA.md`](file:///home/zrhyan/Principal/Computation/Space%20Apps/knowledge_base_estatistica/00_INDICE_E_ARQUITETURA_ESTATISTICA.md)** *(~8 KB)*
    - **Resumo:** Índice específico da pasta estatística e diagrama de transformação ligando os conceitos extraídos de [`transcricao.txt`](file:///home/zrhyan/Principal/Computation/Space%20Apps/transcricao.txt) (Hindemburg Melão Jr.) às 4 perguntas do desafio da NASA.
-5. **[`knowledge_base_estatistica/01_FUNDAMENTOS_E_ERROS_CLASSICOS_DE_REGRESSAO.md`](file:///home/zrhyan/Principal/Computation/Space%20Apps/knowledge_base_estatistica/01_FUNDAMENTOS_E_ERROS_CLASSICOS_DE_REGRESSAO.md)** *(~12 KB)*
+6. **[`knowledge_base_estatistica/01_FUNDAMENTOS_E_ERROS_CLASSICOS_DE_REGRESSAO.md`](file:///home/zrhyan/Principal/Computation/Space%20Apps/knowledge_base_estatistica/01_FUNDAMENTOS_E_ERROS_CLASSICOS_DE_REGRESSAO.md)** *(~12 KB)*
    - **Resumo:** A regressão como regra de três sobre toda a nuvem de pontos; por que calcular variação por $Y_{\text{final}} - Y_{\text{inicial}}$ é um erro primário catastrófico; anatomia de $\hat{Y} = A + BX$ (tendência decadal, centralização do intercepto $A_0$ para evitar o "falso zero"); comparação entre Mínimos Quadrados (OLS) e ajuste robusto por desvios absolutos/mediana (Theil-Sen); boas práticas visuais para gráficos de dispersão e séries temporais.
-6. **[`knowledge_base_estatistica/02_ESCALAS_CONTROLE_DE_VARIAVEIS_E_ANOMALIAS.md`](file:///home/zrhyan/Principal/Computation/Space%20Apps/knowledge_base_estatistica/02_ESCALAS_CONTROLE_DE_VARIAVEIS_E_ANOMALIAS.md)** *(~15 KB)*
+7. **[`knowledge_base_estatistica/02_ESCALAS_CONTROLE_DE_VARIAVEIS_E_ANOMALIAS.md`](file:///home/zrhyan/Principal/Computation/Space%20Apps/knowledge_base_estatistica/02_ESCALAS_CONTROLE_DE_VARIAVEIS_E_ANOMALIAS.md)** *(~15 KB)*
    - **Resumo:** O **Princípio de Henrietta Leavitt** (controle da distância nas Cefeidas da Nuvem de Magalhães) traduzido para isolar os 3 confundidores dos dados da NASA: sazonalidade anual (cálculo de anomalias climatológicas e $Z\text{-score}$), descontinuidade de sensores (MODIS/VIIRS, GRACE) e janelas temporais. Diferença entre escalas de razão vs. intervalar (proibição de $\%$ em $^\circ\text{C}$ e anomalias), *offset* basal e escalas logarítmicas/invertidas.
-7. **[`knowledge_base_estatistica/03_CORRELACAO_MULTIESCALA_E_DIVERGENCIA_ESPACIAL.md`](file:///home/zrhyan/Principal/Computation/Space%20Apps/knowledge_base_estatistica/03_CORRELACAO_MULTIESCALA_E_DIVERGENCIA_ESPACIAL.md)** *(~14 KB)*
+8. **[`knowledge_base_estatistica/03_CORRELACAO_MULTIESCALA_E_DIVERGENCIA_ESPACIAL.md`](file:///home/zrhyan/Principal/Computation/Space%20Apps/knowledge_base_estatistica/03_CORRELACAO_MULTIESCALA_E_DIVERGENCIA_ESPACIAL.md)** *(~14 KB)*
    - **Resumo:** Diferença geométrica e operacional entre Correlação ($r$, largura da elipse e preditividade) e Regressão ($B$, taxa física). O **Paradoxo das Correlações Multiescala** (como duas séries têm correlação positiva em 25 anos e correlação sistematicamente negativa a curto prazo por dipolos como El Niño). Taxonomia de correlações (Pearson, Spearman, $\tau$ de Kendall, Biweight de Tukey), variáveis compostas/*proxies* e prevenção contra correlações contaminadas (circularidade).
-8. **[`knowledge_base_estatistica/04_MODELAGEM_NAO_LINEAR_GAMS_E_CONSTRICOES_FISICAS.md`](file:///home/zrhyan/Principal/Computation/Space%20Apps/knowledge_base_estatistica/04_MODELAGEM_NAO_LINEAR_GAMS_E_CONSTRICOES_FISICAS.md)** *(~13 KB)*
+9. **[`knowledge_base_estatistica/04_MODELAGEM_NAO_LINEAR_GAMS_E_CONSTRICOES_FISICAS.md`](file:///home/zrhyan/Principal/Computation/Space%20Apps/knowledge_base_estatistica/04_MODELAGEM_NAO_LINEAR_GAMS_E_CONSTRICOES_FISICAS.md)** *(~13 KB)*
    - **Resumo:** Dissipação física e saturação (experimento da xícara no micro-ondas); perigo de polinômios livres; uso de **GAMs (Generalized Additive Models)**, *Splines* penalizadas e regressão com constrição monotônica; distinção entre logística e GAM via derivadas $f'(x), f''(x)$; árvore de decisão forense para diagnosticar "corcovas" (anomalias locais) separando erro de sensor, pulso de El Niño e mudança estrutural de regime.
-9. **[`knowledge_base_estatistica/05_OUTLIERS_ROBUSTEZ_E_SIGNIFICANCIA_ESPACIAL.md`](file:///home/zrhyan/Principal/Computation/Space%20Apps/knowledge_base_estatistica/05_OUTLIERS_ROBUSTEZ_E_SIGNIFICANCIA_ESPACIAL.md)** *(~13 KB)*
-   - **Resumo:** Detecção bivariada de *outliers* via **Elipse e Distância de Mahalanobis ($D_M$)**; alerta sobre distribuições de caudas pesadas vs. Normal Gaussiana; dupla validação OLS + Theil-Sen; estado da arte em significância estatística com correção para **autocorrelação serial $\text{AR}(1)$** ($N_{\text{efetivo}}$ de Santer / Hamed-Rao) e controle de falsos positivos espaciais em massa no mapa via **FDR de Benjamini-Hochberg ($q < 0{,}05$)**.
-10. **[`context/knowledge_base_estatistica/06_GUIA_OPERACIONAL_PARA_AGENTES_DE_IA_NO_HACKATHON.md`](file:///home/zrhyan/Principal/Computation/Space%20Apps/earth-system-detective-fliflop-34/context/knowledge_base_estatistica/06_GUIA_OPERACIONAL_PARA_AGENTES_DE_IA_NO_HACKATHON.md)** *(~11 KB)*
+10. **[`knowledge_base_estatistica/05_OUTLIERS_ROBUSTEZ_E_SIGNIFICANCIA_ESPACIAL.md`](file:///home/zrhyan/Principal/Computation/Space%20Apps/knowledge_base_estatistica/05_OUTLIERS_ROBUSTEZ_E_SIGNIFICANCIA_ESPACIAL.md)** *(~13 KB)*
+    - **Resumo:** Detecção bivariada de *outliers* via **Elipse e Distância de Mahalanobis ($D_M$)**; alerta sobre distribuições de caudas pesadas vs. Normal Gaussiana; dupla validação OLS + Theil-Sen; estado da arte em significância estatística com correção para **autocorrelação serial $\text{AR}(1)$** ($N_{\text{efetivo}}$ de Santer / Hamed-Rao) e controle de falsos positivos espaciais em massa no mapa via **FDR de Benjamini-Hochberg ($q < 0{,}05$)**.
+11. **[`context/knowledge_base_estatistica/06_GUIA_OPERACIONAL_PARA_AGENTES_DE_IA_NO_HACKATHON.md`](file:///home/zrhyan/Principal/Computation/Space%20Apps/earth-system-detective-fliflop-34/context/knowledge_base_estatistica/06_GUIA_OPERACIONAL_PARA_AGENTES_DE_IA_NO_HACKATHON.md)** *(~11 KB)*
     - **Resumo:** Manual executável direto para o hackathon. Contém a matriz matemática das 4 perguntas, o **schema JSON completo do Contrato de Dados** (com suporte a regressão dupla, GAM, Mahalanobis, $\text{AR}(1)$ + FDR e comparador multiescala de 2 regiões), o checklist de 10 pontos para auditoria de achados e o pitch de 20 segundos sobre rigor científico.
 
 ### 🛰️ Camada 3: Engenharia de Dados e APIs da NASA (`context/knowledge_data/`)
-11. **[`context/knowledge_data/00_INDICE_E_ARQUITETURA_DADOS.md`](file:///home/felipe-martins/dev/repository/earth-system-detective-fliflop-34/context/knowledge_data/00_INDICE_E_ARQUITETURA_DADOS.md)** *(~12 KB)*
+12. **[`context/knowledge_data/00_INDICE_E_ARQUITETURA_DADOS.md`](file:///home/felipe-martins/dev/repository/earth-system-detective-fliflop-34/context/knowledge_data/00_INDICE_E_ARQUITETURA_DADOS.md)** *(~12 KB)*
     - **Resumo:** Índice central e roteador de leitura seletiva da camada de dados. Mapeia por assunto e intervalo de linhas todas as especificações da NASA POWER API, a matriz de fontes de dados, o pipeline de ingestão/limpeza, as 7 Famílias Ambientais e as 5 regras invioláveis de engenharia de dados (`DADOS-1`).
-12. **[`context/knowledge_data/NASA_POWER_API_SPECS.md`](file:///home/felipe-martins/dev/repository/earth-system-detective-fliflop-34/context/knowledge_data/NASA_POWER_API_SPECS.md)** *(~5 KB)*
+13. **[`context/knowledge_data/NASA_POWER_API_SPECS.md`](file:///home/felipe-martins/dev/repository/earth-system-detective-fliflop-34/context/knowledge_data/NASA_POWER_API_SPECS.md)** *(~5 KB)*
     - **Resumo:** Especificações técnicas validadas por `DADOS-1`: máscara oceânica (`-999` $\to$ `np.nan` + `nanmean`), exclusão de `YYYY13`, conversão de `PRECTOTCORR` (`mm/day` $\to$ `mm/mês`), limites de `/point` vs. `/regional` (`2°×2°` a `10°×10°`), *rate limit* (`30 req/min`, `Semaphore(3)`), composição livre de células adjacentes ($1\times 3$, $2\times 1$) e avaliação de Parquet vs. JSON.
-13. **[`context/knowledge_data/nasa_final_resources.md`](file:///home/felipe-martins/dev/repository/earth-system-detective-fliflop-34/context/knowledge_data/nasa_final_resources.md)** *(~6 KB)*
+14. **[`context/knowledge_data/nasa_final_resources.md`](file:///home/felipe-martins/dev/repository/earth-system-detective-fliflop-34/context/knowledge_data/nasa_final_resources.md)** *(~6 KB)*
     - **Resumo:** Matriz de fontes (NASA POWER, AppEEARS, Open-Meteo GloFAS, NOAA CDO, Giovanni), camada de descoberta guiada por bioma e pipeline estatístico do backend.
-14. **[`context/knowledge_data/environmental_family.md`](file:///home/felipe-martins/dev/repository/earth-system-detective-fliflop-34/context/knowledge_data/environmental_family.md)** *(~11 KB)*
+15. **[`context/knowledge_data/environmental_family.md`](file:///home/felipe-martins/dev/repository/earth-system-detective-fliflop-34/context/knowledge_data/environmental_family.md)** *(~11 KB)*
     - **Resumo:** Catálogo completo das 7 Famílias Ambientais (39 entradas na UI / 42 códigos de parâmetros) com API/fonte, modo de operação (`Tempo Real`, `Fila / Cache`, `Validação / Demo`), unidade física e explicações para o usuário.
-15. **[`context/knowledge_data/NASA_RESOURCES.md`](file:///home/zrhyan/Principal/Computation/Space%20Apps/earth-system-detective-fliflop-34/context/knowledge_data/NASA_RESOURCES.md)** *(~24 KB)*
+16. **[`context/knowledge_data/NASA_RESOURCES.md`](file:///home/zrhyan/Principal/Computation/Space%20Apps/earth-system-detective-fliflop-34/context/knowledge_data/NASA_RESOURCES.md)** *(~24 KB)*
     - **Resumo:** Levantamento completo dos 13 recursos oficiais da aba *Resources* do desafio, formatos de arquivo e estimativas de volume.
 
 ### 🗺️ Camada 4: Mapas e Visualização Geoespacial (`context/knowledge_maps/`)
-16. **[`context/knowledge_maps/prod1_context.md`](file:///home/zrhyan/Principal/Computation/Space%20Apps/earth-system-detective-fliflop-34/context/knowledge_maps/prod1_context.md)**
+17. **[`context/knowledge_maps/prod1_context.md`](file:///home/zrhyan/Principal/Computation/Space%20Apps/earth-system-detective-fliflop-34/context/knowledge_maps/prod1_context.md)**
     - **Resumo:** Contexto técnico da frente de Mapas 2D (`PROD-1`).
 
 ---
@@ -137,7 +138,8 @@ Abaixo estão **todos os 9 documentos Markdown existentes atualmente no workspac
 > **Regra de Manutenção para Agentes de IA:** Sempre que realizar qualquer alteração essencial (novos documentos `.md`, scripts, endpoints, regras de ingestão ou decisões arquiteturais), atualize imediatamente o índice da respectiva pasta e o registro abaixo (bem como as Seções 4 e 5, quando aplicável):
 
 | Status | Caminho Planejado / Criado | Papel do Documento | Responsável |
-| :---: | :--- | :--- | :---: |
+| :---: | :--- | :--- | :--- |
+| ✅ *Criado* | `general_strategy/STACK_FRONTEND.md` | Decisão de arquitetura e stack técnica do frontend (React + TypeScript + Vite, Leaflet Canvas, cliente de dados e IndexedDB). | `PROD-1` + `PROD-2` |
 | ✅ *Criado* | `context/knowledge_data/00_INDICE_E_ARQUITETURA_DADOS.md` | Índice central e roteador de leitura seletiva da pasta `context/knowledge_data/`. | `DADOS-1` |
 | ✅ *Criado* | `context/knowledge_data/NASA_POWER_API_SPECS.md` | Regras técnicas validadas da NASA POWER API (`-999`, `YYYY13`, `mm/day`, `/point` vs `/regional`, `Semaphore(3)`, Parquet vs JSON). | `DADOS-1` |
 | ✅ *Criado* | `context/knowledge_data/nasa_final_resources.md` | Arquitetura de fontes de dados e pipeline de ingestão do backend. | `DADOS-1` |
