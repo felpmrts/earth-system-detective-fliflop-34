@@ -20,6 +20,7 @@
   2. **ONDE está mudando?** (*Where is it changing?* — Mapa espacial interativo destacando divergências regionais *"sobe aqui, cai ali"* e comparação lado a lado de duas regiões).
   3. **QUANTO está mudando?** (*How much is it changing?* — Taxa de variação por década extraída sobre **toda a nuvem de pontos**, nunca apenas ponto final menos inicial).
   4. **A mudança é ESTATISTICAMENTE SIGNIFICATIVA?** (*Is it statistically significant?* — Separação rigorosa entre tendência secular real e ruído/ciclos naturais como El Niño, corrigida para memória climática e falsos positivos espaciais).
+- **Repositório & Fluxo Git:** `https://github.com/felpmrts/earth-system-detective-fliflop-34` possui duas branches (`main` e `develop`). **Regra para IAs:** todas as alterações devem ser feitas e commitadas em `develop` primeiro (nunca direto na `main`, salvo instrução explícita).
 
 ---
 
