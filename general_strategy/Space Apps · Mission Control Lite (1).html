@@ -1,0 +1,2515 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>Space Apps · Mission Control Lite — Trend Detective</title>
+<script src="https://cdn.tailwindcss.com/3.4.17"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/react/18.3.1/umd/react.production.min.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/react-dom/18.3.1/umd/react-dom.production.min.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/babel-standalone/7.24.7/babel.min.js"></script>
+<style>
+:root{color-scheme:dark;box-sizing:border-box;padding-top:env(safe-area-inset-top,0px);padding-bottom:env(safe-area-inset-bottom,0px)}
+html,body{background:#020617;margin:0;font-family:system-ui,-apple-system,"Segoe UI",Roboto,sans-serif}
+.mono{font-family:ui-monospace,SFMono-Regular,Menlo,Consolas,monospace}
+::-webkit-scrollbar{width:6px;height:6px}
+::-webkit-scrollbar-track{background:#020617}
+::-webkit-scrollbar-thumb{background:#1e293b;border-radius:3px}
+@keyframes ignitionFlash{
+  0%{opacity:0;transform:scale(0.92)}
+  15%{opacity:1;transform:scale(1.02)}
+  85%{opacity:1;transform:scale(1)}
+  100%{opacity:0;transform:scale(0.98)}
+}
+@keyframes rocketLift{
+  0%{transform:translateY(16px) scale(0.9);opacity:0}
+  20%{transform:translateY(-4px) scale(1.1);opacity:1}
+  50%{transform:translateY(-8px) scale(1.15)}
+  100%{transform:translateY(0) scale(1)}
+}
+@keyframes shockwaveRing{
+  0%{transform:scale(0.4);opacity:0.9}
+  100%{transform:scale(2.4);opacity:0}
+}
+@keyframes pulseBorder{
+  0%,100%{box-shadow:0 0 20px rgba(34,211,238,0.18), inset 0 0 24px rgba(34,211,238,0.06)}
+  50%{box-shadow:0 0 42px rgba(34,211,238,0.38), inset 0 0 36px rgba(168,85,247,0.14)}
+}
+.hero-countdown{animation:pulseBorder 3s ease-in-out infinite}
+.ignition-banner{animation:ignitionFlash 7s ease-out forwards}
+.rocket-lift{animation:rocketLift 1.2s ease-out}
+.shockwave-ring{animation:shockwaveRing 1.4s ease-out infinite}
+</style>
+</head>
+<body>
+<div id="root"></div>
+<script type="text/babel">
+const { useState, useEffect, useRef } = React;
+
+/* ============ CONFIGURAÇÃO E DOMÍNIO OPERACIONAL (FONTE ÚNICA DA VERDADE v5.0) ============ */
+const clock = { offset: 0, now() { return Date.now() + this.offset; } };
+const nowIso = () => new Date(clock.now()).toISOString();
+const uid = () => crypto.randomUUID ? crypto.randomUUID() : "id-" + clock.now().toString(36) + Math.random().toString(36).slice(2, 10);
+
+const MS = {
+  AVAILABLE: ["Disponível", "bg-cyan-400 text-slate-950", "bg-cyan-400"],
+  WORKING:   ["Trabalhando", "bg-emerald-500 text-slate-950", "bg-emerald-400"],
+  BLOCKED:   ["Bloqueado", "bg-amber-400 text-slate-950", "bg-amber-400"],
+  RESTING:   ["Descansando", "bg-slate-300 text-slate-950", "bg-slate-400"]
+};
+const TS = ["BACKLOG", "READY", "IN_PROGRESS", "BLOCKED", "REVIEW", "DONE", "CANCELED"];
+const TL = { BACKLOG: "Backlog", READY: "A fazer (Pronto)", IN_PROGRESS: "Em andamento", BLOCKED: "Bloqueado", REVIEW: "Em revisão", DONE: "Concluído", CANCELED: "Cancelada" };
+const TD = { BACKLOG: "bg-slate-500", READY: "bg-sky-400", IN_PROGRESS: "bg-cyan-400", BLOCKED: "bg-amber-400", REVIEW: "bg-purple-400", DONE: "bg-emerald-400", CANCELED: "bg-slate-700" };
+const PR = { P0: "text-rose-300 border-rose-500/50 bg-rose-500/10", P1: "text-amber-300 border-amber-500/50 bg-amber-500/10", P2: "text-slate-400 border-slate-600 bg-slate-800" };
+const MO = ["", "MUST", "SHOULD", "COULD", "WONT"];
+const OPEN = t => t.status !== "DONE" && t.status !== "CANCELED";
+
+/* Especificação estática das 8 Fases + Janelas Operacionais */
+const PHASES_SPEC = [
+  { code: "F1", title: "Fase 1: Kickoff, Contrato JSON Unificado & Setup NASA POWER", window: "Sáb 09:00 – 10:30", startMin: 0, endMin: 90, leader: "COORD", summary: "Definir contrato JSON da matriz (A,X)x(B,Y), configurar repositório/backend e iniciar mapeamento no Gemini Deep Research." },
+  { code: "F2", title: "Fase 2: Cliente NASA POWER (Grade 1x1/2x2/3x3), Motor Estatístico & Mapa 2D Base", window: "Sáb 10:30 – 12:30", startMin: 90, endMin: 210, leader: "DADOS-1 / DADOS-2", summary: "DADOS-1 cria cliente NASA POWER /temporal/monthly/point + agregador de quadrados 1x1, 2x2 (4 pts) e 3x3 (9 pts); DADOS-2 codifica anomalias, OLS+Theil-Sen, GAM, Mahalanobis e AR(1); PROD-1/2 criam Mapa 2D e estrutura da Bancada de Gráficos; NARR executa Gemini Deep Research." },
+  { code: "F3", title: "Fase 3: Sistema de Análise de Dados Ponta a Ponta (Walking Skeleton)", window: "Sáb 12:30 – 16:00", startMin: 210, endMin: 420, leader: "COORD", summary: "Integrar Mapa 2D + NASA POWER ao vivo + Motor Estatístico + Gráficos respondendo às 3 Comparações Clássicas." },
+  { code: "F4", title: "Fase 4: Bancada Científica Completa (Eixo Duplo, Z-Score, Log) & Chatbot Co-Piloto", window: "Sáb 16:00 – 21:30", startMin: 420, endMin: 750, leader: "Todos (Modular)", summary: "Finalizar Sistema de Análise de Dados (curvas juntas/separadas, correlação X vs Y, escala log/symlog, Chatbot Co-Piloto Estatístico integrado) e decidir escopo do Sistema de Descoberta Científica." },
+  { code: "F5", title: "Fase 5: Sistema de Descoberta Científica (Início ML) & Blindagem dos Casos", window: "Sáb 21:30 – 23:30", startMin: 750, endMin: 870, leader: "NARR + DADOS-2", summary: "Iniciar protótipo do modelo de ML/mineração sobre nosso motor (Generalista ou Especializado no tema do Deep Research) + validar os 3 casos clássicos da demo." },
+  { code: "SLEEP", title: "Pausa Obrigatória: Sono Sincronizado (~6h30)", window: "Sáb 23:30 – Dom 06:30", startMin: 870, endMin: 1290, leader: "COORD", summary: "Descanso sincronizado de toda a equipe após handoff de 3 linhas no canal. Proibido alterar o Contrato JSON ou refatorar componentes de madrugada." },
+  { code: "F6", title: "Fase 6: Fechamento do Sistema de Descoberta Científica, Cache Offline & Feature Freeze", window: "Dom 06:30 – 13:00", startMin: 1290, endMin: 1680, leader: "COORD + PROD-1/2", summary: "Concluir achado do Sistema de Descoberta Científica, criar botões de Presets Científicos (cache instantâneo) e aplicar Feature Freeze às 13:00." },
+  { code: "F7", title: "Fase 7: Produção Focada do Vídeo de Pitch (240s)", window: "Dom 13:30 – 19:00", startMin: 1710, endMin: 2040, leader: "NARR + PROD-2", summary: "Gravação 1080p60 demonstrando o Sistema de Análise de Dados + Chatbot + a inovação encontrada pelo Sistema de Descoberta Científica." },
+  { code: "F8", title: "Fase 8: Submissão 'Quatro Olhos' & Testes Cegos 4G", window: "Dom 19:00 – 22:30", startMin: 2040, endMin: 2250, leader: "COORD + NARR", summary: "Preenchimento e revisão a quatro olhos no portal NASA Space Apps; bancada de jurados anônimos (DADOS-1/2, PROD-1/2) testando links em celulares via 4G/5G até 22:30 (90 min de buffer até 24:00)." }
+];
+
+/* Papéis, Módulos Exclusivos e Pares Anti-SPOF */
+const ROLE_META = {
+  "COORD":   { title: "Coordenação, Arquitetura, Backend & Deploy", backup: "NARR", modules: "Contrato JSON (A,X)x(B,Y), servidor de integração, controle de portões, decisão de escopo do Sistema de Descoberta Científica e submissão." },
+  "DADOS-1": { title: "Engenharia de Dados & Cliente NASA POWER API", backup: "DADOS-2", modules: "Consumo em tempo real da NASA POWER API (/temporal/monthly/point), agregação espacial em quadrados 1x1 (1 dado), 2x2 (média de 4 dados) e 3x3 (média de 9 dados), alinhamento temporal e cache local." },
+  "DADOS-2": { title: "Motor Estatístico, Chatbot Co-Piloto & ML (Descoberta)", backup: "DADOS-1", modules: "Anomalias mensais, OLS + Theil-Sen, GAM, Mahalanobis, AR(1)+FDR, correlação/regressão cruzada X vs Y, Chatbot Co-Piloto Estatístico (definição de LLM + prompt) e modelo de ML do Sistema de Descoberta Científica." },
+  "PROD-1":  { title: "Frontend: Mapa 2D & Seletor de Grade NASA (1x1, 2x2, 3x3)", backup: "PROD-2", modules: "Mapa 2D interativo, seleção de Local A e Local B (ou A=B), visualização dos quadrados da grade da NASA adaptados à variável (MERRA-2 55km vs CERES 111km) e seletores de variáveis/período." },
+  "PROD-2":  { title: "Frontend: Bancada Científica de Gráficos & UI do Chatbot", backup: "PROD-1", modules: "Gráficos sobrepostos ou separados, Eixo Y Duplo, Z-Score, dado bruto vs anomalia, escala linear vs logarítmica, camadas OLS/Sen/GAM/Outliers, gráfico de dispersão X vs Y e painel do Chatbot Co-Piloto." },
+  "NARR":    { title: "Gemini Deep Research, Casos Clássicos & Storytelling", backup: "COORD", modules: "Pesquisa profunda no Gemini Deep Research + Google Scholar para mapear fronteiras científicas, curadoria dos 3 casos clássicos da demo, roteiro e edição do vídeo de pitch." }
+};
+
+/* Catálogo de Dados NASA POWER API */
+const DATA_CATALOG = [
+  { id: "CLIMA", prio: "CLIMA", domain: "Clima & Calor", res: "MERRA-2 (0,5° × 0,625° ≈ 55×69 km)", name: "T2M, T2M_MAX, T2M_MIN, TS (°C)", scale: "Intervalar (PROIBIDO %)", planA: "NASA POWER /temporal/monthly/point (1981–Presente)", planB: "Cache Local JSON pré-aquecido dos pontos de demonstração" },
+  { id: "AGUA", prio: "AGUA", domain: "Água & Umidade do Solo", res: "MERRA-2 (0,5° × 0,625° ≈ 55×69 km)", name: "GWETTOP, GWETROOT, GWETPROF (0–1), PRECTOTCORR (mm/dia), EVPTRNS (W/m²)", scale: "Razão (Zero físico real)", planA: "NASA POWER /temporal/monthly/point (1981–Presente)", planB: "Cache Local JSON + Recorte automático de datas" },
+  { id: "ENERGIA", prio: "ENERGIA", domain: "Energia Solar & Nuvens", res: "CERES (1,0° × 1,0° ≈ 111×111 km)", name: "ALLSKY_SFC_SW_DWN (kWh/m²/dia), CLOUD_AMT (%)", scale: "Razão (Zero físico real)", planA: "NASA POWER /temporal/monthly/point (1984–Presente)", planB: "Interseção automática para 1984 quando cruzado com MERRA-2" },
+  { id: "ATMOS", prio: "ATMOS", domain: "Atmosfera & Vento", res: "MERRA-2 (0,5° × 0,625° ≈ 55×69 km)", name: "RH2M (%), WS2M (m/s), PS (kPa)", scale: "Razão (Zero físico real)", planA: "NASA POWER /temporal/monthly/point (1981–Presente)", planB: "Padronização em Z-Score (σ) para cruzar qualquer unidade" }
+];
+
+/* Os 7 Invariantes Estatísticos de Estado da Arte */
+const INVARIANTS = [
+  { n: 1, danger: true, title: "PROIBIDO Y_fim − Y_início", desc: "Descartar a trajetória intermediária confunde El Niño com tendência secular. Toda taxa ('Quanto muda?') deve vir da regressão sobre toda a nuvem: B_OLS e Declive Mediano de Theil-Sen (B_Sen) por década (10 × B_ano)." },
+  { n: 2, danger: false, title: "Isolamento Sazonal (Princípio Henrietta Leavitt)", desc: "Proibido regredir séries mensais brutas contaminadas pelo ciclo verão/inverno. Extrair primeiro a Anomalia Climatológica Mensal (Y'_{a,m} = Y_{a,m} − Ȳ_m) e garantir a mesma janela [t_0, t_f] entre regiões." },
+  { n: 3, danger: true, title: "PROIBIDO % em Escala Intervalar", desc: "Zero porcentagem (%) para variáveis sem zero absoluto real (Temperatura em °C ou Anomalias de Água GRACE em cm). Exibir apenas diferenças (±X °C/década). % só em escalas de razão puras (km², mm)." },
+  { n: 4, danger: false, title: "Distinção entre Inclinação (B) e Correlação (r / τ)", desc: "A regressão (B) informa quanto Y varia em função de X; a correlação (r de Pearson, τ de Kendall) informa quão estreita é a elipse de contorno (previsibilidade). Exibir ambos!" },
+  { n: 5, danger: false, title: "Decomposição de Correlação Multiescala", desc: "Ao comparar 2 regiões, medir tanto a correlação secular de longo prazo (r_global) quanto a correlação residual de curto prazo sem tendência (r_detrended) para capturar dipolos como El Niño." },
+  { n: 6, danger: false, title: "Modelagem Não-Linear com GAM/Splines", desc: "Nunca usar polinômios livres de grau alto. Combinar a reta de tendência com curva suave (GAM / Smoothing Spline) para revelar aceleração/saturação e diagnosticar 'corcovas' (sensor vs. El Niño vs. rampa)." },
+  { n: 7, danger: false, title: "Outliers via Mahalanobis + Significância AR(1) & FDR", desc: "Destacar extremos fora da elipse bivariada (Distância de Mahalanobis D_M > 2,5) sem apagá-los; corrigir p-valor para autocorrelação serial AR(1) (N_efetivo) e aplicar Benjamini-Hochberg (q_FDR < 0,05) na grade do mapa." }
+];
+
+const OFFICIAL_ASSIGNEES = {
+  "COORD": ["Rhyan", "Felipe"],
+  "DADOS-1": ["Kaio", "Renan", "Felipe"],
+  "DADOS-2": ["Rhyan", "Fred"],
+  "PROD-1": ["Renan", "Fred"],
+  "PROD-2": ["Kaio"],
+  "NARR": ["Rhyan", "Felipe"]
+};
+
+function seed() {
+  const st = new Date(clock.now());
+  st.setHours(9, 0, 0, 0);
+  st.setDate(st.getDate() + (6 - st.getDay() + 7) % 7);
+  const at = min => new Date(st.getTime() + min * 6e4).toISOString();
+  const roles = ["COORD", "DADOS-1", "DADOS-2", "PROD-1", "PROD-2", "NARR"];
+  const members = roles.map(r => ({
+    id: uid(),
+    name: r,
+    role: r,
+    assignees: OFFICIAL_ASSIGNEES[r] || [],
+    backup: ROLE_META[r].backup,
+    modules: ROLE_META[r].modules,
+    status: "AVAILABLE",
+    currentTaskId: "",
+    notes: ""
+  }));
+  const M = Object.fromEntries(roles.map((r, i) => [r, members[i].id]));
+
+  const gatesRaw = [
+    [1, "Marco 0: Contrato JSON Unificado (A,X)x(B,Y) + Repositório & Setup", 90, "IF debate de schema passar das 10:15 → THEN COORD congela o contrato JSON da matriz (A,X)x(B,Y) e inicia setup NASA POWER."],
+    [2, "Portão 1: Cliente NASA POWER (Grade 1x1, 2x2, 3x3) + Motor Estatístico + UI Base", 210, "IF API NASA POWER sofrer rate limit às 11:45 → THEN DADOS-1 ativa cache local JSON dos pontos sentinelas em 10 min."],
+    [3, "Portão 2: Walking Skeleton Integrado (Mapa 2D + NASA POWER + Gráficos)", 420, "IF integração completa não estiver no ar às 16:00 → THEN fixar grade 1x1 e 2 variáveis centrais (T2M e GWET) até 16:45."],
+    [4, "Checkpoint 3: Bancada Científica Completa + Decisão ML Descoberta", 750, "IF dúvida entre ML Generalista vs Especializado às 21:30 → THEN adotar especialização no tema revelado pelo Gemini Deep Research."],
+    [5, "Portão 4: Feature Freeze Absoluto + Presets Científicos em Cache", 1680, "IF qualquer modelo ou feature estiver instável às 13:00 → THEN congelar o que está funcional e ativar presets em cache offline."],
+    [6, "Portão 5: Vídeo de Pitch (240s) Gravado em 1080p60 & Legendado", 2040, "IF edição passar das 17:30 → THEN cortar introdução teórica e focar na demo ao vivo da Análise de Dados e do Descoberta Científica."],
+    [7, "Portão 6: Submissão 'Quatro Olhos' & Testes Cegos 4G (Buffer 90m)", 2250, "IF portal Space Apps oscilar às 21:30 → THEN registrar submissão preliminar e apenas validar links até 22:30."]
+  ];
+  const gates = gatesRaw.map(([n, title, offset, rule]) => ({ id: uid(), n, title, offset, rule, status: "pending" }));
+
+  const T = (title, o, priority, dueMin, status, moscow, g, phase, notes = "") => ({
+    id: uid(),
+    title,
+    ownerId: M[o],
+    priority,
+    due: dueMin ? at(dueMin) : "",
+    status,
+    blockedReason: "",
+    moscow,
+    gateId: g ? gates[g - 1].id : "",
+    phase: phase || "F1",
+    notes: notes || ""
+  });
+
+  return {
+    app: "NASA Space Apps Mission Control",
+    schema_version: "6.0",
+    version: 1,
+    updatedAt: nowIso(),
+    updatedBy: "sistema",
+    event: { start: st.toISOString(), minutes: 2340 },
+    focus: "Trend Detective: Sistema de Análise de Dados da Terra (NASA POWER em Grade 1x1, 2x2 e 3x3 + Motor Estatístico + Chatbot Co-Piloto) & Sistema de Descoberta Científica (Gemini Deep Research + Machine Learning).",
+    members,
+    gates,
+    tasks: [
+      /* Fase 1: Kickoff, Contrato JSON Unificado & Setup NASA POWER (Sáb 09:00 - 10:30 | Marco 0 @ 90m) */
+      T("Estruturar repositório Git, pastas Backend/Frontend, CI/CD e abrir DECISOES.md", "COORD", "P0", 90, "READY", "MUST", 1, "F1", "Configurar deploy contínuo (Vercel ou GitHub Pages) a partir da main. Abrir DECISOES.md para registrar congelamento de arquitetura. Garantir que todos tenham acesso de push."),
+      T("Validar chamada real à NASA POWER API (/temporal/monthly/point) e mapear grades (0,5°×0,625° vs 1,0°×1,0°) para o Contrato", "DADOS-1", "P0", 90, "READY", "MUST", 1, "F1", "Validar endpoint mensal da NASA POWER sem autenticação obrigatória. Testar requisições para T2M, PRECTOTCORR e GWETTOP e mapear as grades de resolução para o Contrato JSON."),
+      T("Especificar no Contrato JSON todos os campos de saída do Motor Estatístico (Anomalias, OLS, Sen, GAM, Mahalanobis, AR1+FDR)", "DADOS-2", "P0", 90, "READY", "MUST", 1, "F1", "Definir entradas, saídas e formatos numéricos do motor de estatística: anomalia mensal climatológica, inclinação OLS e Theil-Sen por década, resíduos GAM, distância de Mahalanobis e correção serial AR(1)+FDR."),
+      T("Definir no Contrato JSON o estado do fluxo '1º Variável → 2º Onde (Local A/B + Grade 1x1, 2x2, 3x3) → 3º Tempo' e iniciar boilerplate Frontend", "PROD-1", "P0", 90, "READY", "MUST", 1, "F1", "Estruturar o payload do fluxo de usuário (variável define grade e ano inicial; coordenadas A e B com blocos 1x1, 2x2, 3x3; intervalo [t0, tf]) e configurar boilerplate Frontend."),
+      T("Definir no Contrato JSON a estrutura das séries para a Bancada de Gráficos e gerar o arquivo mock_analysis.json", "PROD-2", "P0", 90, "READY", "MUST", 1, "F1", "Especificar a estrutura das séries (bruto, anomalia, Z-Score, retas OLS/Sen, elipse de Mahalanobis) para a Bancada Científica de Gráficos e gerar o arquivo mock_analysis.json para destravar o frontend."),
+      T("Disparar pesquisa profunda no Gemini Deep Research + Google Scholar e validar regras oficiais de submissão da NASA", "NARR", "P0", 90, "READY", "MUST", 1, "F1", "Executar prompts aprofundados no Gemini Deep Research levantando anomalias térmicas e hídricas contemporâneas, papers recentes para o Sistema de Descoberta e validar todas as regras oficiais de submissão do portal Space Apps."),
+
+      /* Fase 2: Cliente NASA POWER (Grade 1x1/2x2/3x3), Motor Estatístico & Mapa 2D Base (Sáb 10:30 - 12:30 | Portão 1 @ 210m) */
+      T("Construir cliente NASA POWER com agregador espacial de quadrados: 1x1 (1 dado), 2x2 (média de 4 dados) e 3x3 (média de 9 dados)", "DADOS-1", "P0", 210, "BACKLOG", "MUST", 2, "F2", "Desenvolver função que, dada coordenada central e modo de grade, calcula vizinhos na resolução da variável (0,5° MERRA-2 ou 1,0° CERES), busca pontos em paralelo via Promise.all e faz a média temporal."),
+      T("Implementar Cache Local e alinhador automático de datas (1981 MERRA-2 vs 1984 CERES)", "DADOS-1", "P0", 210, "BACKLOG", "MUST", 2, "F2", "Pré-baixar e salvar em JSON local séries históricas completas (1981–presente) dos pontos clássicos de demonstração para contingência offline e garantir recorte temporal limpo sem NaNs."),
+      T("Codificar stats_engine.py sobre o Mock: Anomalia Climatológica Mensal, OLS e Theil-Sen por década", "DADOS-2", "P0", 210, "BACKLOG", "MUST", 2, "F2", "Implementar sobre o Mock a extração de anomalia Y'_{a,m} = Y_{a,m} - Ȳ_m (isolamento do ciclo sazonal) e regressão robusta calculando inclinação por década (10 x B_ano) via OLS e Theil-Sen."),
+      T("Codificar no stats_engine.py: Curva GAM, Outliers Mahalanobis (D_M > 2,5) e teste AR(1)+FDR (Tendência Real vs Ruído)", "DADOS-2", "P0", 210, "BACKLOG", "MUST", 2, "F2", "Implementar ajuste polinomial suavizado (GAM/spline) para aceleração/saturação, cálculo de Distância de Mahalanobis bivariada (D_M > 2,5) e teste de significância com p-valor corrigido para autocorrelação AR(1) e Benjamini-Hochberg FDR."),
+      T("Construir Mapa 2D e seletores no fluxo '1º Variável → 2º Onde (quadrados 1x1, 2x2, 3x3 na resolução da variável) → 3º Tempo' lendo o Mock", "PROD-1", "P0", 210, "BACKLOG", "MUST", 2, "F2", "Construir Mapa 2D interativo e seletores consumindo o mock_analysis.json: capturar cliques para Local A e Local B, desenhar retângulos com tamanho proporcional à resolução (55 km vs 111 km) e controles temporais."),
+      T("Construir casca da Bancada Científica de Gráficos (curvas juntas/separadas, Bruto vs Anomalia, retas OLS/Sen) lendo o Mock", "PROD-2", "P0", 210, "BACKLOG", "MUST", 2, "F2", "Renderizar linha de tempo consumindo o mock_analysis.json: alternador instantâneo entre série bruta e anomalia sem sazonalidade, retas de tendência OLS/Sen, modo juntas/separadas e Eixo Y Duplo."),
+      T("Analisar resultados do Gemini Deep Research, selecionar temas para o Sistema de Descoberta e fixar coordenadas dos casos de demo", "NARR", "P0", 210, "BACKLOG", "MUST", 2, "F2", "Sintetizar as controvérsias e dados trazidos pela pesquisa de IA, pré-selecionar os temas para o modelo de Descoberta Científica e documentar as coordenadas lat/lon exatas dos 3 Casos Clássicos da demonstração."),
+      T("Publicar 1º deploy funcional (com Mock JSON) em URL pública antes das 12:30", "COORD", "P0", 210, "BACKLOG", "MUST", 2, "F2", "Subir build no ambiente público (Vercel/GitHub Pages) consumindo o mock_analysis.json, verificar ausência de erros no console e validar tempo de carregamento < 2s."),
+
+      /* Fase 3: Sistema de Análise de Dados Ponta a Ponta (Walking Skeleton) (Sáb 12:30 - 16:00 | Portão 2 @ 420m) */
+      T("Integrar Mapa 2D + NASA POWER ao vivo + Motor Estatístico no fluxo principal", "COORD", "P0", 420, "BACKLOG", "MUST", 3, "F3", "Fechar o Walking Skeleton unificado: clique no mapa dispara requisição à NASA POWER (ou cache), alimenta motor de anomalias/tendências e atualiza a bancada de gráficos em < 1s."),
+      T("Homologar alinhamento temporal e recorte de datas para variáveis MERRA-2 e CERES", "DADOS-1", "P0", 390, "BACKLOG", "MUST", 3, "F3", "Garantir interseção de datas limpa (1984–presente quando cruzar com CERES, ou 1981–presente para MERRA-2) sem gerar NaNs nas séries emparelhadas."),
+      T("Implementar correlação cruzada e dispersão bivariada (X vs Y) com elipse de contorno", "DADOS-2", "P0", 390, "BACKLOG", "MUST", 3, "F3", "Calcular correlação de Pearson (r) e Kendall (tau) entre série A/X e série B/Y, tanto global quanto residual dessazonalizada (r_detrended), gerando coordenadas da elipse de Mahalanobis."),
+      T("Adicionar controles de seleção para Local A e Local B no Mapa 2D (ou A=B)", "PROD-1", "P0", 410, "BACKLOG", "MUST", 3, "F3", "Permitir marcar Ponto A (ex: marcador azul) e Ponto B (ex: marcador laranja) no mapa, com toggle 'Mesmo Local (A=B)' para correlação entre variáveis no mesmo lugar."),
+      T("Construir cards de diagnóstico científico das 4 Respostas (O Quê, Onde, Quanto, Significância)", "PROD-2", "P0", 410, "BACKLOG", "MUST", 3, "F3", "Exibir em tempo real: 1) Nome da variável e anomalia; 2) Coordenadas e grade selecionada; 3) Taxa decadal (B_Sen / B_OLS) sem porcentagem para °C; 4) p-valor AR(1) e significância FDR."),
+      T("Redigir glossário científico explicativo na interface para termos de estatística climática", "NARR", "P1", 420, "BACKLOG", "SHOULD", 3, "F3", "Escrever tooltips e explicações em linguagem acessível para OLS, Theil-Sen, GAM, Mahalanobis e AR(1), orientando o usuário e os jurados da NASA."),
+
+      /* Fase 4: Bancada Científica Completa & Chatbot Co-Piloto (Sáb 16:00 - 21:30 | Checkpoint @ 750m) */
+      T("Finalizar bancada com Eixo Y Duplo, Z-Score (σ), escala log/symlog e camadas visuais", "PROD-2", "P0", 720, "BACKLOG", "MUST", 4, "F4", "Implementar botões para: alternar Eixo Y Duplo independente, normalizar por Z-Score (média 0, desvio 1), escala logarítmica e ligar/desligar camadas de reta OLS, curva GAM e pontos Mahalanobis."),
+      T("Definir arquitetura e prompt do Chatbot Co-Piloto Estatístico para interpretação", "DADOS-2", "P0", 720, "BACKLOG", "MUST", 4, "F4", "Projetar motor do Chatbot Co-Piloto (via API de LLM rápida ou gerador de síntese estatística heurística com fallback): recebe JSON das séries e gera diagnóstico textual imediato em português/inglês."),
+      T("Construir painel lateral interativo do Chatbot Co-Piloto na interface", "PROD-2", "P0", 730, "BACKLOG", "MUST", 4, "F4", "Criar gaveta/card expansível do Chatbot com histórico de conversa, botão 'Analisar Cenário Atual com Co-Piloto' e respostas formatadas em Markdown."),
+      T("Sintetizar achados do Gemini Deep Research e propor 2 hipóteses de descoberta científica", "NARR", "P0", 730, "BACKLOG", "MUST", 4, "F4", "Compilar relatório do Deep Research destacando anomalias extremas ou teleconexões pouco exploradas entre bacias hidrográficas e radiação solar para guiar o modelo de Machine Learning."),
+      T("Ponto de Decisão (21:30): Definir escopo do Sistema de Descoberta (Generalista vs Especializado)", "COORD", "P0", 750, "BACKLOG", "MUST", 4, "F4", "Reunião de 15 min com equipe para bater o martelo: aplicar ML generalista de varredura ou especializar o modelo no achado específico apontado pelo Gemini Deep Research."),
+      T("Implementar exportação dos dados analisados em CSV e JSON estruturado", "DADOS-1", "P1", 750, "BACKLOG", "SHOULD", 4, "F4", "Permitir ao usuário baixar a série temporal completa com anomalias e estatísticas calculadas em formato aberto para reprodutibilidade científica."),
+
+      /* Fase 5: Sistema de Descoberta Científica (Início ML) & Blindagem (Sáb 21:30 - 23:30 | Checkpoint @ 870m) */
+      T("Desenvolver protótipo do modelo de Machine Learning / Mineração do Sistema de Descoberta", "DADOS-2", "P0", 850, "BACKLOG", "MUST", 4, "F5", "Treinar/codificar modelo (Random Forest / Autoencoder de Anomalias / Detecção de Quebra Estrutural) alimentado pelas features extraídas pelo motor estatístico para isolar a nova evidência científica."),
+      T("Validar e blindar os 3 Casos Clássicos da demo com o Checklist Hindemburg", "NARR", "P0", 850, "BACKLOG", "MUST", 4, "F5", "Verificar se nenhum caso tem Y_fim - Y_inicio, se unidades respeitam escala intervalar (°C sem %) e se os números batem exatamente com as séries da NASA."),
+      T("Consolidar handoff escrito e iniciar Pausa Obrigatória de Sono Sincronizado (23:30–06:30)", "COORD", "P0", 870, "BACKLOG", "MUST", 4, "F5", "Registrar status do modelo de ML e da UI no canal, congelar código e liberar toda a equipe para descanso completo de ~6h30."),
+
+      /* Fase 6: Fechamento do Sistema de Descoberta, Cache Offline & Feature Freeze (Dom 06:30 - 13:00 | Portão 4 Feature Freeze @ 1680m) */
+      T("Concluir saída científica do Sistema de Descoberta e gerar resumo interpretativo", "DADOS-2", "P0", 1600, "BACKLOG", "MUST", 5, "F6", "Ajustar hiperparâmetros, extrair coeficientes e gráficos de evidência da descoberta e documentar a relevância ecológica/climática encontrada pelo modelo."),
+      T("Criar botões de 'Presets Científicos' (1 clique carrega os casos da demo em cache)", "PROD-2", "P0", 1630, "BACKLOG", "MUST", 5, "F6", "Adicionar barra de botões com: 'Amazônia vs Sahel (Dipolo)', 'Calor vs Seca do Solo', 'El Niño (Ruído Natural)' e 'Descoberta ML', carregando dados instantaneamente sem latência de rede."),
+      T("Empacotar bundle 100% offline e validar renderização sem conexões externas", "PROD-1", "P0", 1650, "BACKLOG", "MUST", 5, "F6", "Garantir que os JSONs de demonstração, fontes e scripts funcionem em modo avião caso a rede do local de apresentação ou da NASA oscile."),
+      T("Fechar roteiro segundo a segundo do Pitch (240s) e testar demo com usuário cego", "NARR", "P0", 1660, "BACKLOG", "MUST", 5, "F6", "Finalizar texto da narração cronometrado para caber em 4 minutos exatos; conduzir teste com voluntário externo para verificar clareza da interface às 11:00."),
+      T("Aplicar Feature Freeze Absoluto às 13:00 e travar branch para gravações", "COORD", "P0", 1680, "BACKLOG", "MUST", 5, "F6", "Zero alterações de código de funcionalidade após as 13:00. Ocultar itens incompletos e liberar ambiente estável para a equipe de vídeo."),
+
+      /* Fase 7: Produção Focada do Vídeo de Pitch (240s) (Dom 13:30 - 19:00 | Portão 5 Vídeo @ 2040m) */
+      T("Gravar captura de tela em 1080p60 da Bancada Científica, Chatbot e Descoberta ML", "PROD-2", "P0", 1860, "BACKLOG", "MUST", 6, "F7", "Executar fluxo suave no navegador usando os botões de Presets Científicos: mostrar Mapa 2D, seleção de grades 1x1/2x2/3x3, gráficos com camadas e interação do Chatbot Co-Piloto."),
+      T("Auditar cada frase narrada no pitch contra os dados exibidos em tela", "DADOS-2", "P0", 1980, "BACKLOG", "MUST", 6, "F7", "Revisão científica minuciosa para garantir rigor absoluto nas terminologias (OLS, Theil-Sen, GAM, Mahalanobis, Z-Score, sem porcentagem em temperatura)."),
+      T("Gravar áudio, sincronizar com tela, legendar (burned-in) e exportar MP4 final (≤ 240s)", "NARR", "P0", 2020, "BACKLOG", "MUST", 6, "F7", "Mixar voz e trilha suave, embutir legendas visíveis no vídeo, exportar em alta qualidade respeitando o limite rígido de 240 segundos da NASA e subir para plataforma pública."),
+      T("Redigir formulário de submissão no portal NASA Space Apps e documentar README.md", "COORD", "P0", 2020, "BACKLOG", "MUST", 6, "F7", "Preencher campos oficiais: resumo executivo do projeto, links do GitHub, deploy público, vídeo do pitch e menção explícita às APIs da NASA POWER e fontes MERRA-2/CERES."),
+
+      /* Fase 8: Submissão 'Quatro Olhos' & Testes Cegos 4G (Dom 19:00 - 22:30 | Portão 6 Submissão @ 2250m) */
+      T("Submeter projeto no portal oficial da NASA em protocolo 'Quatro Olhos' (COORD + NARR)", "COORD", "P0", 2220, "BACKLOG", "MUST", 7, "F8", "Revisar todos os campos, anexar links definitivos e enviar antes das 22:30, preservando 90 minutos de folga total até o prazo limite mundial da NASA."),
+      T("Bancada de Jurados Anônimos: validar deploy e vídeo em celulares 4G/5G", "PROD-1", "P0", 2250, "BACKLOG", "MUST", 7, "F8", "DADOS-1, DADOS-2 e PROD-1 abrem o site público e vídeo em abas anônimas no celular via rede móvel 4G para certificar que nenhum recurso quebra para os avaliadores.")
+    ],
+    risks: [
+      { id: uid(), code: "R1", problem: "R1: Bloqueio ou Lentidão na NASA POWER API (Gatilho: Falha na requisição aos pontos)", ownerId: M["DADOS-1"], plan: "Ativar Cache Local JSON pré-aquecido dos pontos de demonstração e recorte imediato em < 100ms.", state: "OPEN" },
+      { id: uid(), code: "R2", problem: "R2: Sobrecarga na Agregação Espacial da Grade (Gatilho: Grade 3x3 com 9 requisições síncronas)", ownerId: M["DADOS-1"], plan: "Executar Promise.all paralelo no cliente NASA POWER com média ponderada rápida e memoização por coordenadas.", state: "OPEN" },
+      { id: uid(), code: "R3", problem: "R3: Erro Estatístico Primário no Código ou Vídeo (Gatilho: Y_fim − Y_início, % em °C, ou sazonalidade)", ownerId: M["DADOS-2"], plan: "Travar allow_percentage_change: false no JSON e auditar com Checklist dos 7 Invariantes Estatísticos na Fase 5.", state: "OPEN" },
+      { id: uid(), code: "R4", problem: "R4: Falsos Positivos Espaciais e Ruído Natural (Gatilho: Tendência aparente que é ruído vermelho)", ownerId: M["DADOS-2"], plan: "Exibir significância exclusivamente após correção serial AR(1) (N_efetivo) e Benjamini-Hochberg (q_FDR < 0,05).", state: "OPEN" },
+      { id: uid(), code: "R5", problem: "R5: Dessincronia entre Frontend e Contrato JSON às 15:30 (Gatilho: Quebra de formato de dados)", ownerId: M["COORD"], plan: "Validação estrita de schema JSON antes de commits; PROD-1 e PROD-2 desenvolvem sobre mock da matriz (A,X)x(B,Y).", state: "OPEN" },
+      { id: uid(), code: "R6", problem: "R6: Complexidade Excessiva no Modelo de Descoberta Científica (Gatilho: Sábado 21:30 sem convergência)", ownerId: M["DADOS-2"], plan: "Optar imediatamente por modelo focado na anomalia/descoberta detectada pelo Gemini Deep Research, usando motor estatístico como feature store.", state: "OPEN" },
+      { id: uid(), code: "R7", problem: "R7: Atraso na Gravação do Vídeo no Domingo (Gatilho: 16:30 Dom sem captura finalizada)", ownerId: M["NARR"], plan: "Gravar com botões de Presets Científicos na UI em 3 tomadas de 60s sem depender de digitação manual.", state: "OPEN" }
+    ],
+    delivery: [
+      "Sistema de Análise de Dados: Matriz unificada (Local A, Var X) vs (Local B, Var Y) em tempo real",
+      "Seleção de Grade NASA POWER: Modos 1x1 (1 ponto), 2x2 (média 4 pontos) e 3x3 (média 9 pontos)",
+      "Bancada Científica: Gráficos juntos/separados, Eixo Duplo, Z-Score, Escala Logarítmica e Camadas Estatísticas",
+      "Motor Estatístico: Anomalias mensais, OLS, Theil-Sen, GAM, Mahalanobis e teste AR(1)+FDR",
+      "Chatbot Co-Piloto Estatístico: Análise interpretativa automática e respostas contextuais da análise",
+      "Sistema de Descoberta Científica: Modelo de ML/mineração treinado e hipótese validada via Gemini Deep Research",
+      "3 Comparações Clássicas da Demo: Lugares Opostos, Causas e Efeitos no Mesmo Lugar, Tendência vs Ruído Natural",
+      "Presets Científicos com Cache Local: Carregamento instantâneo de casos emblemáticos em 1 clique",
+      "Vídeo de Pitch (240s) 1080p60: Apresentação fluida da bancada, chatbot e achado do modelo de descoberta",
+      "Submissão 'Quatro Olhos': Revisão dupla concluída no portal NASA Space Apps até 22:30 (90m de buffer)"
+    ].map(t => ({ id: uid(), t, done: false })),
+    scienceAudit: [
+      "1. Zero Erro Inicial/Final: Taxa veio da inclinação B (OLS e Theil-Sen) sobre toda a nuvem de pontos",
+      "2. Isolamento Sazonal (Leavitt): Regressão calculada sobre anomalias mensais dessazonalizadas",
+      "3. Respeito à Escala: Zero porcentagem (%) associada a °C ou anomalias de água na tela/vídeo",
+      "4. Concordância OLS vs. Theil-Sen: Inclinações apontam na mesma direção e outliers foram inspecionados",
+      "5. Distinção B vs. r: Velocidade da mudança (B) e correlação/estreiteza da elipse (r/τ) explicadas",
+      "6. Curvatura Física (GAM): Curva suave captura aceleração/saturação sem polinômio livre nas pontas",
+      "7. Diagnóstico de Outliers: Extremos Mahalanobis (D_M > 2,5) verificados contra anomalias reais",
+      "8. Memória Climática AR(1): p-valor reportado corrige o tamanho efetivo da amostra (N_efetivo)",
+      "9. Controle Espacial FDR: Grade filtrada por Benjamini-Hochberg (q < 0,05) contra falsos positivos",
+      "10. Cautela Causal e Zero Circularidade: Variáveis independentes e linguagem sem afirmar causa não provada"
+    ].map(t => ({ id: uid(), t, done: false }))
+  };
+}
+
+function migrate(o) {
+  const base = seed();
+  if (!o || typeof o !== "object") return base;
+  const stMap = { working: "WORKING", blocked: "BLOCKED", resting: "RESTING" };
+  return {
+    ...base,
+    schema_version: "6.0",
+    version: (o.version || 1) + 1,
+    updatedAt: o.updatedAt || nowIso(),
+    updatedBy: o.updatedBy || "migração",
+    event: { start: (o.event && o.event.start) || base.event.start, minutes: (o.event && o.event.minutes) || 2340 },
+    focus: o.focus || (o.mvp && o.mvp.sentence) || base.focus,
+    members: Array.isArray(o.members) && o.members.length === 6 ? o.members.map(m => {
+      const r = m.role || m.name || "COORD";
+      const meta = ROLE_META[r] || ROLE_META["COORD"];
+      const baseAssignees = OFFICIAL_ASSIGNEES[r] || [];
+      const hasAssignees = Array.isArray(m.assignees) && m.assignees.length > 0;
+      return {
+        id: m.id || uid(),
+        name: m.name || r,
+        role: r,
+        assignees: hasAssignees ? m.assignees : baseAssignees,
+        backup: m.backup || meta.backup,
+        modules: m.modules || meta.modules,
+        status: MS[m.status] ? m.status : (stMap[m.status] || "AVAILABLE"),
+        currentTaskId: m.currentTaskId || "",
+        notes: m.notes || ""
+      };
+    }) : base.members,
+    gates: Array.isArray(o.gates) && o.gates.length >= 5 ? o.gates.map((g, idx) => ({
+      id: g.id || uid(),
+      n: g.n || (idx + 1),
+      title: g.title,
+      offset: typeof g.offset === "number" ? g.offset : (base.gates[idx] ? base.gates[idx].offset : 90),
+      rule: g.rule || (base.gates[idx] ? base.gates[idx].rule : ""),
+      status: ["pending", "passed", "failed"].includes(g.status) ? g.status : "pending"
+    })) : base.gates,
+    tasks: Array.isArray(o.tasks) && o.tasks.length ? o.tasks.map(t => ({
+      id: t.id || uid(),
+      title: t.title || "Tarefa",
+      notes: t.notes || "",
+      ownerId: t.ownerId || "",
+      priority: PR[t.priority] ? t.priority : "P1",
+      due: t.due || "",
+      status: TS.includes(t.status) ? t.status : "BACKLOG",
+      blockedReason: t.blockedReason || "",
+      moscow: MO.includes(t.moscow || "") ? (t.moscow || "") : (t.priority === "P0" ? "MUST" : ""),
+      gateId: t.gateId || "",
+      phase: t.phase || "F1"
+    })) : base.tasks,
+    risks: Array.isArray(o.risks) && o.risks.length ? o.risks.map((r, idx) => ({
+      id: r.id || uid(),
+      code: r.code || `R${idx + 1}`,
+      problem: r.problem || r.title || "",
+      ownerId: r.ownerId || "",
+      plan: r.plan || r.planB || r.mitigation || "",
+      state: ["OPEN", "CLOSED"].includes(r.state) ? r.state : (r.status === "aberto" ? "OPEN" : "CLOSED")
+    })) : base.risks,
+    delivery: Array.isArray(o.delivery) && o.delivery.length ? o.delivery : base.delivery,
+    scienceAudit: Array.isArray(o.scienceAudit) && o.scienceAudit.length ? o.scienceAudit : base.scienceAudit
+  };
+}
+
+const IDR = /^[\w-]{6,}$/;
+function validate(s) {
+  const e = m => ({ ok: false, err: m });
+  if (!s || typeof s !== "object") return e("Estado inválido");
+  for (const k of ["members", "tasks", "gates", "risks", "delivery"]) if (!Array.isArray(s[k])) return e("Campo ausente: " + k);
+  if (!s.event || isNaN(new Date(s.event.start)) || typeof s.event.minutes !== "number") return e("Dados do evento inválidos");
+  if (s.gates.length < 5) return e("São necessários ao menos 5 marcos");
+  const mid = new Set(s.members.map(m => m.id)), gid = new Set(s.gates.map(g => g.id));
+  for (const m of s.members) if (!IDR.test(m.id) || !MS[m.status]) return e("Membro inválido");
+  for (const g of s.gates) if (!IDR.test(g.id) || !["pending", "passed", "failed"].includes(g.status) || typeof g.offset !== "number") return e("Marco inválido");
+  for (const t of s.tasks) {
+    if (!IDR.test(t.id) || typeof t.title !== "string" || !TS.includes(t.status) || !PR[t.priority] || !MO.includes(t.moscow || "")) return e("Tarefa inválida: " + t.title);
+    if (t.ownerId && !mid.has(t.ownerId)) return e("Responsável inexistente em: " + t.title);
+    if (t.gateId && !gid.has(t.gateId)) return e("Marco inexistente em: " + t.title);
+    if (t.due && isNaN(new Date(t.due))) return e("Prazo inválido em: " + t.title);
+  }
+  for (const r of s.risks) if (!["OPEN", "CLOSED"].includes(r.state) || (r.ownerId && !mid.has(r.ownerId))) return e("Risco inválido");
+  return { ok: true };
+}
+
+/* ============ REPOSITORY COM PERSISTÊNCIA LOCAL (mc-v6) E SINCRONIZAÇÃO EM REDE WI-FI (LAN) ============ */
+const ls = {
+  get: k => { try { return localStorage.getItem(k); } catch (e) { return null; } },
+  set: (k, v) => { try { localStorage.setItem(k, v); } catch (e) {} }
+};
+
+class LocalRepository {
+  constructor() {
+    this.l = new Set();
+    this.me = ls.get("mc-me") || "";
+    this.lanUrl = "";
+    this.lanStatus = "offline"; // "connected" | "connecting" | "offline"
+    this.lanError = "";
+    this.es = null;
+    this.isSyncingRemote = false;
+    this.s = this.load();
+    this.initLan();
+  }
+  load() {
+    try {
+      const v6 = ls.get("mc-v6");
+      if (v6) {
+        const r = JSON.parse(v6);
+        if (r && (r.schema_version === "6.0" || r.schema_version === "5.0") && validate(r).ok) {
+          if (!Array.isArray(r.scienceAudit)) r.scienceAudit = seed().scienceAudit;
+          if (Array.isArray(r.members)) {
+            r.members.forEach(m => {
+              if ((!Array.isArray(m.assignees) || m.assignees.length === 0) && OFFICIAL_ASSIGNEES[m.role]) {
+                m.assignees = OFFICIAL_ASSIGNEES[m.role];
+              }
+            });
+          }
+          r.schema_version = "6.0";
+          return r;
+        }
+      }
+    } catch (e) {}
+
+    const fresh = seed();
+    try {
+      const v5 = ls.get("mc-v5") || ls.get("mc-v4");
+      if (v5) {
+        const old = JSON.parse(v5);
+        if (old) {
+          if (old.event) fresh.event = old.event;
+          if (Array.isArray(old.members)) {
+            fresh.members.forEach(m => {
+              const om = old.members.find(x => (x.role && x.role === m.role) || (x.name && x.name === m.role));
+              if (om) {
+                if (Array.isArray(om.assignees) && om.assignees.length) m.assignees = om.assignees;
+                if (om.status) m.status = om.status;
+                if (om.notes) m.notes = om.notes;
+              }
+            });
+          }
+        }
+      }
+    } catch (e) {}
+
+    ls.set("mc-v6", JSON.stringify(fresh));
+    return fresh;
+  }
+  getState() { return this.s; }
+  subscribe(f) { this.l.add(f); return () => this.l.delete(f); }
+  userName() { const m = this.s.members.find(x => x.id === this.me); return m ? m.name : "anônimo"; }
+  setMe(id) { this.me = id; ls.set("mc-me", id); this.notify(); }
+  notify() { this.l.forEach(f => f()); }
+
+  initLan() {
+    if (typeof window !== "undefined" && window.location && window.location.protocol.startsWith("http")) {
+      this.connectLan(window.location.origin);
+    } else {
+      const saved = ls.get("mc-lan-url");
+      if (saved) this.connectLan(saved);
+    }
+  }
+
+  connectLan(url) {
+    const targetUrl = (url || "").trim().replace(/\/+$/, "");
+    if (!targetUrl) return;
+    if (typeof window !== "undefined" && (!window.location || !window.location.protocol.startsWith("http") || targetUrl !== window.location.origin)) {
+      ls.set("mc-lan-url", targetUrl);
+    }
+    this.lanUrl = targetUrl;
+    this.lanStatus = "connecting";
+    this.lanError = "";
+    this.notify();
+
+    if (this.es) {
+      try { this.es.close(); } catch (_) {}
+      this.es = null;
+    }
+
+    // 1. Consulta o estado inicial do servidor
+    fetch(targetUrl + "/api/state")
+      .then(res => {
+        if (!res.ok) throw new Error("HTTP " + res.status);
+        return res.json();
+      })
+      .then(remote => {
+        if (remote && remote.empty) {
+          // Servidor vazio: inicializa com o estado local atual
+          this.pushToLan(this.s);
+        } else if (remote && validate(remote).ok) {
+          if (!this.s || (remote.version && remote.version > this.s.version) || remote.updatedAt !== this.s.updatedAt) {
+            this.applyRemote(remote);
+          }
+        }
+        this.startEventSource(targetUrl);
+      })
+      .catch(err => {
+        console.warn("Aviso ao conectar com LAN /api/state:", err);
+        this.lanStatus = "offline";
+        this.lanError = err.message || "Erro de conexão";
+        this.notify();
+        this.startEventSource(targetUrl);
+      });
+  }
+
+  startEventSource(url) {
+    if (this.es) {
+      try { this.es.close(); } catch (_) {}
+      this.es = null;
+    }
+    try {
+      const es = new EventSource(url + "/api/events");
+      this.es = es;
+      es.onopen = () => {
+        this.lanStatus = "connected";
+        this.lanError = "";
+        this.notify();
+      };
+      es.onerror = () => {
+        if (this.es === es) {
+          this.lanStatus = "offline";
+          this.notify();
+        }
+      };
+      es.onmessage = e => {
+        try {
+          const remote = JSON.parse(e.data);
+          if (remote && validate(remote).ok) {
+            if (!this.s || (remote.version && remote.version > this.s.version) || remote.updatedAt !== this.s.updatedAt) {
+              this.applyRemote(remote);
+            }
+          }
+        } catch (err) {
+          console.warn("Erro ao decodificar evento SSE:", err);
+        }
+      };
+    } catch (err) {
+      this.lanStatus = "offline";
+      this.lanError = err.message || "EventSource não suportado";
+      this.notify();
+    }
+  }
+
+  disconnectLan() {
+    if (this.es) {
+      try { this.es.close(); } catch (_) {}
+      this.es = null;
+    }
+    this.lanStatus = "offline";
+    this.lanUrl = "";
+    ls.set("mc-lan-url", "");
+    this.notify();
+  }
+
+  applyRemote(remote) {
+    this.isSyncingRemote = true;
+    try {
+      this.s = remote;
+      ls.set("mc-v6", JSON.stringify(remote));
+      this.notify();
+    } finally {
+      this.isSyncingRemote = false;
+    }
+  }
+
+  pushToLan(state) {
+    if (!this.lanUrl) return;
+    fetch(this.lanUrl + "/api/state", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify(state)
+    }).catch(err => console.warn("Falha ao propagar estado para LAN:", err));
+  }
+
+  commit(fn) {
+    const s = structuredClone(this.s);
+    fn(s);
+    s.version++;
+    s.updatedAt = nowIso();
+    s.updatedBy = this.userName();
+    this.s = s;
+    ls.set("mc-v6", JSON.stringify(s));
+    this.notify();
+    if (!this.isSyncingRemote) {
+      this.pushToLan(s);
+    }
+  }
+  addTask(t) { this.commit(s => { s.tasks.push(t); }); }
+  updateTask(id, p) { this.commit(s => Object.assign(s.tasks.find(x => x.id === id), p)); }
+  deleteTask(id) { this.commit(s => { s.tasks = s.tasks.filter(x => x.id !== id); s.members.forEach(m => { if (m.currentTaskId === id) m.currentTaskId = ""; }); }); }
+  updateMember(id, p) { this.commit(s => Object.assign(s.members.find(x => x.id === id), p)); }
+  updateGate(id, p) { this.commit(s => Object.assign(s.gates.find(x => x.id === id), p)); }
+  addRisk(r) { this.commit(s => { s.risks.push(r); }); }
+  updateRisk(id, p) { this.commit(s => Object.assign(s.risks.find(x => x.id === id), p)); }
+  backup() { ls.set("mc-v6-backup", JSON.stringify(this.s)); }
+  replace(state) { this.backup(); this.commit(s => { Object.keys(s).forEach(k => delete s[k]); Object.assign(s, structuredClone(state)); }); }
+  restore() { try { const b = JSON.parse(ls.get("mc-v6-backup")); if (!validate(b).ok) return false; this.replace(b); return true; } catch (e) { return false; } }
+}
+
+const COLS = ["members", "tasks", "gates", "risks", "delivery", "scienceAudit"], META = ["id", "order", "updatedAt", "updatedBy"], sleep = ms => new Promise(r => setTimeout(r, ms));
+const HAS = !!(window.claude && window.claude.use);
+const bus = { impl: null, sh: null, fn: new Set(), status: HAS ? "connecting" : "local", lockMsg: HAS ? "Conectando ao servidor… aguarde" : "", say() {}, emit() { this.fn.forEach(f => f()); }, on(f) { this.fn.add(f); return () => this.fn.delete(f); } };
+
+const local = new LocalRepository();
+local.subscribe(() => bus.emit());
+bus.impl = local;
+
+const WR = new Set(["addTask", "updateTask", "deleteTask", "updateMember", "updateGate", "addRisk", "updateRisk", "commit", "replace", "restore", "connectLan", "disconnectLan"]);
+const repo = new Proxy({}, {
+  get(_, k) {
+    if (k === "me") return ls.get("mc-me") || "";
+    if (k === "setMe") return id => { ls.set("mc-me", id); local.me = id; if (bus.sh) bus.sh.me = id; bus.emit(); };
+    if (k === "subscribe") return f => bus.on(f);
+    if (k === "lanStatus") return local.lanStatus;
+    if (k === "lanUrl") return local.lanUrl;
+    if (k === "connectLan") return url => local.connectLan(url);
+    if (k === "disconnectLan") return () => local.disconnectLan();
+    const i = bus.impl, v = i[k];
+    if (typeof v !== "function") return v;
+    if (WR.has(k)) return (...a) => bus.lockMsg ? bus.say(bus.lockMsg) : v.apply(i, a);
+    return v.bind(i);
+  }
+});
+const useRepo = () => { const [, f] = useState(0); useEffect(() => repo.subscribe(() => f(x => x + 1)), []); return repo.getState(); };
+
+/* ============ HELPERS TEMPORAIS E DE PROGRESSO ============ */
+const T0 = s => new Date(s.event.start).getTime();
+const Tend = s => T0(s) + (s.event.minutes || 2340) * 6e4;
+const gAt = (s, g) => T0(s) + g.offset * 6e4;
+const freezeOn = (s, now) => { const g = s.gates.find(x => x.n === 5) || s.gates.find(x => x.offset === 1680); return g ? (now >= gAt(s, g) || g.status === "passed") : false; };
+
+/* Formatação com segundos para cronômetro regressivo de alta precisão */
+const durSec = ms => {
+  const totalSec = Math.floor(Math.abs(ms) / 1000);
+  const d = Math.floor(totalSec / 86400);
+  const h = Math.floor((totalSec % 86400) / 3600);
+  const m = Math.floor((totalSec % 3600) / 60);
+  const s = totalSec % 60;
+  const pad = n => String(n).padStart(2, "0");
+  return (d ? `${d}d ` : "") + `${pad(h)}h ${pad(m)}m ${pad(s)}s`;
+};
+const dur = ms => {
+  const m = Math.floor(Math.abs(ms) / 6e4), d = Math.floor(m / 1440), h = Math.floor(m % 1440 / 60);
+  return (d ? d + "d " : "") + `${h}h ${String(m % 60).padStart(2, "0")}m`;
+};
+const fmtAt = ts => new Date(ts).toLocaleString("pt-BR", { weekday: "short", day: "2-digit", month: "2-digit", hour: "2-digit", minute: "2-digit" });
+const toLoc = iso => { if (!iso) return ""; const d = new Date(iso), p = n => String(n).padStart(2, "0"); return `${d.getFullYear()}-${p(d.getMonth() + 1)}-${p(d.getDate())}T${p(d.getHours())}:${p(d.getMinutes())}`; };
+const fromLoc = v => v ? new Date(v).toISOString() : "";
+const memberLabel = m => {
+  if (!m) return "—";
+  const list = Array.isArray(m.assignees) && m.assignees.length ? m.assignees : (m.name && m.name !== m.role ? [m.name] : []);
+  return list.length ? `${m.role || m.name} (${list.join(", ")})` : (m.role || m.name);
+};
+const nm = (s, id) => {
+  const m = s.members.find(x => x.id === id);
+  if (!m) return "—";
+  const list = Array.isArray(m.assignees) && m.assignees.length ? m.assignees : (m.name && m.name !== m.role ? [m.name] : []);
+  return list.length ? `${m.role} · ${list.join(", ")}` : m.name;
+};
+const mOpts = (s, ph = "—") => [["", ph], ...s.members.map(m => [m.id, memberLabel(m)])];
+const allPeople = s => {
+  const map = new Map();
+  s.members.forEach(m => {
+    const list = Array.isArray(m.assignees) && m.assignees.length ? m.assignees : (m.name && m.name !== m.role ? [m.name] : []);
+    list.forEach(p => {
+      const k = p.trim();
+      if (!k) return;
+      if (!map.has(k)) map.set(k, []);
+      map.get(k).push(m);
+    });
+  });
+  return Array.from(map.entries()).map(([person, roles]) => ({ person, roles }));
+};
+const late = (t, now) => OPEN(t) && t.due && new Date(t.due).getTime() < now;
+const pct = a => a.length ? Math.round(a.filter(t => t.status === "DONE").length / a.length * 100) : 0;
+
+/* Identifica a Fase Atual com base nos minutos decorridos desde T0 */
+function currentPhaseInfo(s, now) {
+  const elapsedMin = (now - T0(s)) / 6e4;
+  if (elapsedMin < 0) return { state: "PRE", elapsedMin, phase: PHASES_SPEC[0], label: "Pré-Kickoff (Aguardando Largada Sáb 09:00)" };
+  if (elapsedMin >= 2340) return { state: "POST", elapsedMin, phase: PHASES_SPEC[PHASES_SPEC.length - 1], label: "Hackathon Encerrado (Prazo Dom 24:00 Concluído)" };
+  if (elapsedMin >= 2250) return { state: "BUFFER", elapsedMin, phase: PHASES_SPEC[PHASES_SPEC.length - 1], label: "Buffer Exclusivo de Contingência (Dom 22:30 – 24:00)" };
+  if (elapsedMin >= 1680 && elapsedMin < 1710) return { state: "LUNCH", elapsedMin, phase: PHASES_SPEC[6], label: "Almoço & Setup Silencioso de Gravação (Dom 13:00 – 13:30)" };
+  const found = PHASES_SPEC.find(p => elapsedMin >= p.startMin && elapsedMin < p.endMin) || PHASES_SPEC[0];
+  return { state: "ACTIVE", elapsedMin, phase: found, label: found.title };
+}
+
+/* ============ COMPONENTES VISUAIS BASE ============ */
+const inp = "w-full bg-slate-900 border border-slate-700 rounded-lg px-2.5 py-1.5 text-sm text-slate-100 placeholder-slate-500 focus:outline-none focus:border-cyan-400";
+const Card = ({ children, className = "" }) => <div className={`bg-slate-900/70 border border-slate-800 rounded-2xl p-4 ${className}`}>{children}</div>;
+const H = ({ children, right }) => <div className="flex items-center justify-between mb-2 gap-2"><h2 className="text-xs font-semibold tracking-widest uppercase text-cyan-300">{children}</h2>{right}</div>;
+const Sel = ({ v, on, o, c = "" }) => <select className={`${inp} ${c}`} value={v || ""} onChange={e => on(e.target.value)}>{o.map(([k, l]) => <option key={k} value={k}>{l}</option>)}</select>;
+const Tx = ({ v, on, ...p }) => {
+  const [x, setX] = useState(v || "");
+  const fo = useRef(false), dirty = useRef(false);
+  useEffect(() => { if (!fo.current) setX(v || ""); }, [v]);
+  return (
+    <input
+      className={inp}
+      value={x}
+      onFocus={() => { fo.current = true; }}
+      onChange={e => { dirty.current = true; setX(e.target.value); }}
+      onBlur={() => { fo.current = false; if (dirty.current && x !== (v || "")) on(x); else setX(v || ""); dirty.current = false; }}
+      onKeyDown={e => e.key === "Enter" && e.target.blur()}
+      {...p}
+    />
+  );
+};
+const Bar = ({ p, c = "bg-cyan-400" }) => <div className="h-2 bg-slate-800 rounded-full overflow-hidden"><div className={`h-full transition-all duration-300 ${c}`} style={{ width: Math.max(0, Math.min(100, p)) + "%" }} /></div>;
+const Chip = ({ c = "", children }) => <span className={`text-[10px] px-2 py-0.5 rounded-full border font-medium ${c}`}>{children}</span>;
+const Two = ({ on, children, cls = "bg-slate-700 text-white" }) => {
+  const [a, setA] = useState(false);
+  return (
+    <button
+      onClick={() => { if (a) { setA(false); on(); } else { setA(true); setTimeout(() => setA(false), 3000); } }}
+      className={`px-3 py-1.5 rounded-lg text-xs font-semibold transition ${a ? "bg-rose-500 text-white" : cls}`}
+    >
+      {a ? "Confirmar?" : children}
+    </button>
+  );
+};
+const FreezeBanner = () => (
+  <div className="bg-rose-950/60 border border-rose-500 rounded-2xl p-3">
+    <b className="text-rose-300">🔒 PORTÃO 3 ATIVO — FEATURE FREEZE ABSOLUTO (DOM 13:00)</b>
+    <p className="text-xs text-rose-200/90 mt-1">Proibido iniciar novas features na main. Foco 100% em correção de bugs visuais críticos, pacote 100% offline, gravação do vídeo de 240s e submissão quatro olhos.</p>
+  </div>
+);
+
+/* ============ ABA 1: COMMAND (SALA DE SITUAÇÃO & GESTÃO TEMPORAL) ============ */
+function Command({ s, now, goTasksPhase }) {
+  const [cfg, setCfg] = useState(false);
+  const [selPhase, setSelPhase] = useState(null);
+  const [ignition, setIgnition] = useState(false);
+
+  const startMs = T0(s);
+  const isPreLaunch = now < startMs;
+  const wasPreRef = useRef(isPreLaunch);
+
+  useEffect(() => {
+    if (wasPreRef.current && !isPreLaunch) {
+      setIgnition(true);
+      setSelPhase("F1");
+      const tm = setTimeout(() => setIgnition(false), 7000);
+      wasPreRef.current = false;
+      return () => clearTimeout(tm);
+    }
+    wasPreRef.current = isPreLaunch;
+  }, [isPreLaunch]);
+
+  const gs = [...s.gates].sort((a, b) => a.offset - b.offset);
+  const nx = gs.find(g => g.status === "pending");
+  const frz = freezeOn(s, now);
+  const cp = currentPhaseInfo(s, now);
+  const activePhase = selPhase ? PHASES_SPEC.find(p => p.code === selPhase) : cp.phase;
+
+  const validTasks = s.tasks.filter(t => t.status !== "CANCELED");
+  const act = s.tasks.filter(OPEN);
+  const doing = act.filter(t => t.status === "IN_PROGRESS");
+  const blk = act.filter(t => t.status === "BLOCKED");
+  const lt = act.filter(t => late(t, now));
+  const p0 = act.filter(t => t.priority === "P0");
+  const doneCount = validTasks.filter(t => t.status === "DONE").length;
+  const totalPct = pct(validTasks);
+
+  const gt = nx ? gAt(s, nx) : 0;
+  const subGate = gs.find(g => g.n === 7) || gs[gs.length - 1];
+  const subTime = subGate ? gAt(s, subGate) : Tend(s);
+  const hardEnd = Tend(s);
+
+  const rel = nx ? act.filter(t => t.gateId === nx.id || (t.due && new Date(t.due).getTime() <= gt)) : [];
+  const must = s.tasks.filter(t => t.moscow === "MUST" && t.status !== "CANCELED");
+  const dlPct = s.delivery.length ? Math.round(s.delivery.filter(d => d.done).length / s.delivery.length * 100) : 0;
+  const sciArr = s.scienceAudit || [];
+  const sciPct = sciArr.length ? Math.round(sciArr.filter(d => d.done).length / sciArr.length * 100) : 0;
+
+  const timeElapsedPct = Math.max(0, Math.min(100, Math.round(((now - startMs) / ((s.event.minutes || 2340) * 6e4)) * 100)));
+
+  /* Decomposição do temporizador de pré-largada */
+  const preMs = Math.max(0, startMs - now);
+  const preSecTotal = Math.ceil(preMs / 1000);
+  const preD = Math.floor(preSecTotal / 86400);
+  const preH = Math.floor((preSecTotal % 86400) / 3600);
+  const preM = Math.floor((preSecTotal % 3600) / 60);
+  const preS = preSecTotal % 60;
+  const pad2 = n => String(n).padStart(2, "0");
+
+  const T = ({ t }) => (
+    <div className="text-sm flex items-center gap-2 py-0.5">
+      <span className={`w-2 h-2 rounded-full shrink-0 ${TD[t.status]}`} />
+      <span className="text-[10px] font-mono px-1.5 py-0.5 rounded bg-slate-800 text-cyan-300 shrink-0">{t.phase || "F1"}</span>
+      <span className="flex-1 truncate">{t.title}</span>
+      <span className="text-xs font-mono text-slate-400 shrink-0">{nm(s, t.ownerId)}</span>
+    </div>
+  );
+
+  const memberTask = m => {
+    const t = s.tasks.find(x => x.id === m.currentTaskId) || s.tasks.find(x => x.ownerId === m.id && x.status === "IN_PROGRESS");
+    return t ? `[${t.phase || "F1"}] ${t.title}` : m.notes;
+  };
+
+  /* Ajusta início ou fim mantendo a janela de 39h (2340 min) */
+  const setStartIso = iso => {
+    if (!iso) return;
+    repo.commit(x => {
+      const oldStart = new Date(x.event.start).getTime();
+      const newStart = new Date(iso).getTime();
+      const diff = newStart - oldStart;
+      x.event.start = iso;
+      x.tasks.forEach(t => {
+        if (t.due) t.due = new Date(new Date(t.due).getTime() + diff).toISOString();
+      });
+    });
+  };
+  const setEndIso = endIso => {
+    if (!endIso) return;
+    const endMs = new Date(endIso).getTime();
+    const sMs = endMs - (s.event.minutes || 2340) * 6e4;
+    setStartIso(new Date(sMs).toISOString());
+  };
+  const jumpToPhaseNow = minOffset => {
+    const targetStart = new Date(clock.now() - minOffset * 6e4).toISOString();
+    setStartIso(targetStart);
+  };
+  const testLaunch5s = () => {
+    const targetStart = new Date(clock.now() + 5000).toISOString();
+    setStartIso(targetStart);
+  };
+
+  return (
+    <div className="space-y-4">
+      {frz && <FreezeBanner />}
+
+      {/* ANIMAÇÃO DE IGNIÇÃO / LANÇAMENTO AO ATINGIR ZERO */}
+      {ignition && (
+        <div className="ignition-banner relative overflow-hidden rounded-2xl border-2 border-emerald-400 bg-gradient-to-r from-emerald-950/90 via-cyan-950/90 to-purple-950/90 p-5 shadow-[0_0_50px_rgba(16,185,129,0.45)]">
+          <div className="absolute -right-8 -top-8 w-36 h-36 rounded-full border-2 border-cyan-400/50 shockwave-ring pointer-events-none" />
+          <div className="flex flex-wrap items-center justify-between gap-4 relative z-10">
+            <div className="flex items-center gap-4">
+              <div className="rocket-lift text-4xl sm:text-5xl select-none">🚀</div>
+              <div>
+                <div className="mono text-xs uppercase tracking-[0.25em] text-emerald-300 font-bold">T-MINUS 00:00:00 · IGNIÇÃO CONFIRMADA</div>
+                <h2 className="text-xl sm:text-2xl font-extrabold text-white mt-0.5">HACKATHON INICIADO — FASE 1 ATIVA!</h2>
+                <p className="text-xs sm:text-sm text-cyan-200 mt-0.5">39 horas na linha do tempo. Missão: <b>Be An Earth System Trend Detective!</b> Marco 0 (Contrato JSON) às 10:30.</p>
+              </div>
+            </div>
+            <button onClick={() => setIgnition(false)} className="text-xs px-3 py-1.5 rounded-lg bg-emerald-400 text-slate-950 font-bold">
+              Iniciar Operação ✓
+            </button>
+          </div>
+        </div>
+      )}
+
+      {/* HERO TEMPORIZADOR MOTIVADOR DE PRÉ-LARGADA (VISÍVEL ENQUANTO HACKATHON NÃO COMEÇOU) */}
+      {isPreLaunch && (
+        <div className="hero-countdown relative overflow-hidden rounded-2xl border border-cyan-400/60 bg-gradient-to-br from-slate-900 via-[#07132c] to-purple-950/50 p-5 sm:p-7">
+          <div className="flex flex-wrap items-center justify-between gap-2 mb-4">
+            <div className="flex items-center gap-2">
+              <span className="w-3 h-3 rounded-full bg-cyan-400 animate-ping" />
+              <span className="mono text-xs uppercase tracking-[0.2em] text-cyan-300 font-bold">Contagem Regressiva para a Largada Oficial</span>
+            </div>
+            <div className="flex items-center gap-2">
+              <button onClick={testLaunch5s} className="text-[11px] font-mono px-2.5 py-1 rounded-lg bg-purple-500/20 hover:bg-purple-500/30 text-purple-200 border border-purple-400/40 transition">
+                🚀 Simular Largada (5s)
+              </button>
+              <button onClick={() => setCfg(!cfg)} className="text-[11px] font-mono px-2.5 py-1 rounded-lg bg-slate-800 hover:bg-slate-700 text-cyan-300 border border-slate-700 transition">
+                ⚙ Ajustar Data
+              </button>
+            </div>
+          </div>
+
+          <div className="grid grid-cols-4 gap-2 sm:gap-4 max-w-2xl mx-auto my-3">
+            {[
+              [pad2(preD), preD === 1 ? "DIA" : "DIAS"],
+              [pad2(preH), "HORAS"],
+              [pad2(preM), "MINUTOS"],
+              [pad2(preS), "SEGUNDOS"]
+            ].map(([val, lbl]) => (
+              <div key={lbl} className="bg-slate-950/80 border border-cyan-500/30 rounded-2xl py-3 sm:py-5 px-2 text-center shadow-inner">
+                <div className={`mono text-3xl sm:text-5xl md:text-6xl font-extrabold tracking-tight ${preSecTotal <= 10 ? "text-emerald-300 animate-pulse" : "text-white"}`}>
+                  {val}
+                </div>
+                <div className="mono text-[10px] sm:text-xs tracking-widest text-cyan-300/80 mt-1">{lbl}</div>
+              </div>
+            ))}
+          </div>
+
+          <div className="text-center mt-4 space-y-1">
+            <div className="text-sm sm:text-base font-bold text-slate-100">
+              Prepare os motores: <span className="text-cyan-300">Earth System Trend Detective</span> · Largada em <span className="text-amber-300">{fmtAt(startMs)}</span>
+            </div>
+            <p className="text-xs text-slate-400 max-w-2xl mx-auto">
+              Assim que o cronômetro zerar, a interface entrará automaticamente na <b>Fase 1 (Reconhecimento &amp; Contrato JSON)</b>.
+            </p>
+          </div>
+        </div>
+      )}
+
+      {/* PAINEL SUPERIOR DE GESTÃO TEMPORAL: PRÓXIMO MARCO + PRAZO FINAL + FASE ATUAL */}
+      <div className="grid lg:grid-cols-3 gap-4">
+        <Card className="lg:col-span-2 border-cyan-500/40 bg-gradient-to-br from-slate-900 via-slate-900 to-cyan-950/30">
+          <div className="flex flex-wrap items-center justify-between gap-2 mb-1">
+            <div className="flex items-center gap-2">
+              <span className="w-2.5 h-2.5 rounded-full bg-cyan-400 animate-ping" />
+              <span className="text-[11px] uppercase tracking-widest font-semibold text-cyan-300">Próximo Portão Inegociável (Hard Gate)</span>
+            </div>
+            <button onClick={() => setCfg(!cfg)} className="text-xs px-2.5 py-1 rounded-lg bg-slate-800 hover:bg-slate-700 text-cyan-300 border border-slate-700 font-medium">
+              ⚙ Configurar Relógio / Datas
+            </button>
+          </div>
+
+          {nx ? (
+            <div className="mt-1">
+              <div className="text-lg sm:text-xl font-bold text-white">{nx.title}</div>
+              <div className="text-xs text-slate-400 mt-0.5">Alvo: <b className="text-slate-200">{fmtAt(gt)}</b></div>
+              <div className={`mono text-3xl sm:text-5xl font-bold my-2.5 tracking-tight ${now > gt ? "text-rose-400" : "text-cyan-300"}`}>
+                {now > gt ? "ATRASADO -" : ""}{durSec(gt - now)}
+              </div>
+              {nx.rule && (
+                <div className="bg-amber-950/40 border border-amber-500/40 rounded-xl p-2.5 text-xs text-amber-200">
+                  <b className="text-amber-300 uppercase font-mono">Regra Determinística IF/THEN:</b> {nx.rule}
+                </div>
+              )}
+            </div>
+          ) : (
+            <div className="text-lg font-bold text-emerald-300 py-4">✓ Todos os 7 Marcos e Portões foram concluídos!</div>
+          )}
+        </Card>
+
+        {/* INDICADOR DE FASE ATUAL E PRAZO FINAL (DOM 22:30 / 24:00) */}
+        <Card className="flex flex-col justify-between border-purple-500/30 bg-gradient-to-br from-slate-900 to-purple-950/20">
+          <div>
+            <div className="flex items-center justify-between">
+              <span className="text-[10px] uppercase tracking-widest font-semibold text-purple-300">Marco / Fase Atual</span>
+              <span className="mono text-xs px-2 py-0.5 rounded bg-purple-500/20 text-purple-200 border border-purple-500/40">{cp.phase.code}</span>
+            </div>
+            <div className="text-sm font-bold text-white mt-1 leading-snug">{cp.label}</div>
+            <div className="text-xs text-slate-400 mt-0.5">{cp.phase.window} · Líder: <b className="text-cyan-300">{cp.phase.leader}</b></div>
+            <p className="text-xs text-slate-300 mt-2 line-clamp-3">{cp.phase.summary}</p>
+          </div>
+
+          <div className="pt-3 mt-3 border-t border-slate-800 space-y-2">
+            <div className="flex items-center justify-between text-xs">
+              <span className="text-slate-400">Portão 5 (Submissão 22:30):</span>
+              <span className={`mono font-bold ${now > subTime ? "text-rose-400" : "text-emerald-300"}`}>{now > subTime ? "-" : ""}{durSec(subTime - now)}</span>
+            </div>
+            <div className="flex items-center justify-between text-xs">
+              <span className="text-slate-400">Prazo Final NASA (24:00):</span>
+              <span className="mono font-semibold text-slate-200">{now > hardEnd ? "-" : ""}{dur(hardEnd - now)}</span>
+            </div>
+            <div>
+              <div className="flex justify-between text-[10px] text-slate-400 mb-1">
+                <span>Tempo Decorrido da Maratona (39h)</span>
+                <span className="mono">{timeElapsedPct}%</span>
+              </div>
+              <Bar p={timeElapsedPct} c="bg-purple-400" />
+            </div>
+          </div>
+        </Card>
+      </div>
+
+      {/* MODAL / CARD DE CONFIGURAÇÃO DE DATA-ALVO E SIMULAÇÃO DE FASE */}
+      {cfg && (
+        <Card className="border-cyan-400/50 bg-slate-900">
+          <H right={<button onClick={() => setCfg(false)} className="text-xs text-slate-400 hover:text-white">✕ fechar</button>}>Configuração de Data-Alvo do Hackathon & Sincronia</H>
+          <div className="grid sm:grid-cols-2 lg:grid-cols-3 gap-3 mt-2">
+            <div>
+              <label className="text-xs text-slate-400 block mb-1">Largada Oficial (Sábado 09:00)</label>
+              <input type="datetime-local" className={inp} value={toLoc(s.event.start)} onChange={e => e.target.value && setStartIso(fromLoc(e.target.value))} />
+            </div>
+            <div>
+              <label className="text-xs text-slate-400 block mb-1">Prazo Final Oficial (Domingo 24:00 / +39h)</label>
+              <input type="datetime-local" className={inp} value={toLoc(new Date(Tend(s)).toISOString())} onChange={e => e.target.value && setEndIso(fromLoc(e.target.value))} />
+            </div>
+            <div className="flex flex-wrap gap-2 items-end">
+              <button onClick={() => jumpToPhaseNow(0)} className="px-3 py-1.5 rounded-lg text-xs font-semibold bg-cyan-400 text-slate-950">Simular Largada Agora (F1)</button>
+              <Two on={() => repo.restore()}>Restaurar Backup</Two>
+              <Two on={() => repo.replace(seed())} cls="bg-rose-900/80 text-rose-200 border border-rose-500/40">Resetar p/ Plano v6.0</Two>
+            </div>
+          </div>
+          <div className="mt-3 pt-2 border-t border-slate-800 flex flex-wrap items-center gap-1.5">
+            <span className="text-[11px] text-slate-400 mr-1">Saltar relógio para testar fase:</span>
+            {PHASES_SPEC.map(p => (
+              <button key={p.code} onClick={() => jumpToPhaseNow(p.startMin + 5)} className="text-[11px] font-mono px-2 py-1 rounded bg-slate-800 hover:bg-slate-700 text-slate-200 border border-slate-700">
+                {p.code} ({p.window.split("–")[0].trim()})
+              </button>
+            ))}
+          </div>
+          <p className="text-[11px] text-slate-500 mt-2">Persistência automática em <code>localStorage (mc-v6)</code> · Sincronização em tempo real via LAN (sync_server.py) · rev {s.version}</p>
+        </Card>
+      )}
+
+      {/* BARRA DE PROGRESSO GLOBAL E INDICADORES DE SAÚDE OPERACIONAL */}
+      <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-6 gap-2.5">
+        <Card className="p-3">
+          <div className="text-[11px] text-slate-400">Progresso Geral</div>
+          <div className="mono text-xl font-bold text-cyan-300 my-0.5">{totalPct}%</div>
+          <Bar p={totalPct} c="bg-cyan-400" />
+          <div className="text-[10px] text-slate-500 mt-1">{doneCount}/{validTasks.length} concluídas</div>
+        </Card>
+        <Card className="p-3">
+          <div className="text-[11px] text-slate-400">MVP (MUST)</div>
+          <div className="mono text-xl font-bold text-emerald-300 my-0.5">{pct(must)}%</div>
+          <Bar p={pct(must)} c="bg-emerald-400" />
+          <div className="text-[10px] text-slate-500 mt-1">{must.filter(t => t.status === "DONE").length}/{must.length} itens MUST</div>
+        </Card>
+        <Card className="p-3">
+          <div className="text-[11px] text-slate-400">Em Andamento</div>
+          <div className="mono text-xl font-bold text-sky-300 my-0.5">{doing.length}</div>
+          <div className="text-[10px] text-slate-500 mt-2">{act.length} abertas no total</div>
+        </Card>
+        <Card className={`p-3 ${blk.length ? "border-amber-500/70 bg-amber-950/20" : ""}`}>
+          <div className="text-[11px] text-slate-400">Bloqueios Ativos</div>
+          <div className={`mono text-xl font-bold my-0.5 ${blk.length ? "text-amber-300" : "text-emerald-300"}`}>{blk.length}</div>
+          <div className="text-[10px] text-slate-500 mt-2">{lt.length} tarefa(s) atrasada(s)</div>
+        </Card>
+        <Card className="p-3">
+          <div className="text-[11px] text-slate-400">Blindagem Científica</div>
+          <div className="mono text-xl font-bold text-amber-300 my-0.5">{sciPct}%</div>
+          <Bar p={sciPct} c="bg-amber-400" />
+          <div className="text-[10px] text-slate-500 mt-1">10 Testes Hindemburg</div>
+        </Card>
+        <Card className="p-3">
+          <div className="text-[11px] text-slate-400">Checklist Entrega</div>
+          <div className="mono text-xl font-bold text-purple-300 my-0.5">{dlPct}%</div>
+          <Bar p={dlPct} c="bg-purple-400" />
+          <div className="text-[10px] text-slate-500 mt-1">Auditoria Dom 21:00</div>
+        </Card>
+      </div>
+
+      {/* RÉGUA INTERATIVA DAS 8 FASES OPERACIONAIS */}
+      <Card>
+        <H right={<span className="text-[11px] text-slate-400">Clique numa fase para inspecionar as entregas</span>}>Cronograma das 8 Fases Operacionais (Sáb 09:00 → Dom 24:00)</H>
+        <div className="grid grid-cols-3 sm:grid-cols-5 lg:grid-cols-9 gap-1.5 mt-2">
+          {PHASES_SPEC.map(p => {
+            const isCur = cp.phase.code === p.code && cp.state === "ACTIVE";
+            const isSel = activePhase.code === p.code;
+            const pTasks = s.tasks.filter(t => t.phase === p.code && t.status !== "CANCELED");
+            const pDone = pct(pTasks);
+            return (
+              <button
+                key={p.code}
+                onClick={() => setSelPhase(p.code === selPhase ? null : p.code)}
+                className={`text-left p-2 rounded-xl border transition ${isSel ? "border-cyan-400 bg-cyan-950/40" : isCur ? "border-emerald-400/70 bg-emerald-950/20" : "border-slate-800 bg-slate-900/60 hover:border-slate-700"}`}
+              >
+                <div className="flex items-center justify-between">
+                  <span className={`mono text-xs font-bold ${isCur ? "text-emerald-300" : "text-cyan-300"}`}>{p.code}</span>
+                  {pTasks.length > 0 && <span className="mono text-[10px] text-slate-400">{pDone}%</span>}
+                </div>
+                <div className="text-[10px] text-slate-400 truncate mt-0.5">{p.window.replace("Sáb ", "").replace("Dom ", "")}</div>
+                {pTasks.length > 0 && <div className="mt-1.5"><Bar p={pDone} c={pDone === 100 ? "bg-emerald-400" : "bg-cyan-400"} /></div>}
+              </button>
+            );
+          })}
+        </div>
+
+        {activePhase && (
+          <div className="mt-3 pt-3 border-t border-slate-800 flex flex-wrap items-center justify-between gap-3">
+            <div className="flex-1 min-w-[240px]">
+              <div className="text-xs font-bold text-white">{activePhase.title} <span className="text-cyan-300 font-mono">({activePhase.window})</span></div>
+              <p className="text-xs text-slate-300 mt-1">{activePhase.summary}</p>
+            </div>
+            {activePhase.code !== "SLEEP" && (
+              <button onClick={() => goTasksPhase(activePhase.code)} className="text-xs font-semibold px-3 py-1.5 rounded-lg bg-cyan-400/20 text-cyan-300 border border-cyan-400/40 hover:bg-cyan-400/30 shrink-0">
+                Ver Tarefas de {activePhase.code} →
+              </button>
+            )}
+          </div>
+        )}
+      </Card>
+
+      {/* FOCO / CENTRO DE GRAVIDADE EDITÁVEL */}
+      <Tx v={s.focus} on={v => repo.commit(x => { x.focus = v; })} placeholder="Centro de Gravidade (Schwerpunkt) e promessa do MVP…" />
+
+      {/* QUADRO DE EXECUÇÃO EM TEMPO REAL: EM ANDAMENTO, BLOQUEIOS, EQUIPE E ATENÇÃO */}
+      <div className="grid lg:grid-cols-2 gap-4">
+        <Card>
+          <H right={<span className="mono text-xs text-cyan-300">{doing.length} ativa(s)</span>}>Em Andamento Agora</H>
+          {doing.length ? <div className="space-y-1">{doing.map(t => <T key={t.id} t={t} />)}</div> : <p className="text-sm text-slate-500">Nenhuma tarefa marcada como "Em andamento". Puxe uma tarefa na aba Tasks.</p>}
+        </Card>
+
+        <Card className={blk.length || s.members.some(m => m.status === "BLOCKED") ? "border-amber-500/70 bg-amber-950/15" : ""}>
+          <H>Bloqueios & Alerta de Gargalo (Regra dos 5 Minutos)</H>
+          {!blk.length && !s.members.some(m => m.status === "BLOCKED") && <p className="text-sm text-emerald-300">✓ Nenhum bloqueio ativo na equipe.</p>}
+          {blk.map(t => (
+            <div key={t.id} className="text-sm text-amber-200 py-1 border-b border-slate-800/80 last:border-0">
+              ⚠ <b>[{t.phase}]</b> {t.title} <span className="text-slate-400">({nm(s, t.ownerId)})</span>
+              <div className="text-xs text-amber-300/80">Motivo: {t.blockedReason || "não informado — acionar Par de Backup ou COORD em 5 min"}</div>
+            </div>
+          ))}
+          {s.members.filter(m => m.status === "BLOCKED" && !blk.some(t => t.ownerId === m.id)).map(m => (
+            <div key={m.id} className="text-sm text-amber-200">⚠ {m.name} (Par Backup: {m.backup || ROLE_META[m.role]?.backup}){m.notes ? ": " + m.notes : " precisa de desbloqueio"}</div>
+          ))}
+        </Card>
+
+        <Card>
+          <H right={<span className="text-[11px] text-slate-400">6 Pessoas · 4 Trilhas Paralelas</span>}>Status da Equipe & Progresso Individual</H>
+          <div className="space-y-2">
+            {s.members.map(m => {
+              const mTasks = s.tasks.filter(t => t.ownerId === m.id && t.status !== "CANCELED");
+              const mPct = pct(mTasks);
+              return (
+                <div key={m.id} className="flex items-center gap-2 text-sm">
+                  <span className={`w-2.5 h-2.5 rounded-full shrink-0 ${MS[m.status][2]}`} />
+                  <b className="w-20 font-mono text-xs truncate">{m.name}</b>
+                  <span className="text-xs text-slate-400 flex-1 truncate">{m.status === "RESTING" ? "Descansando (Sono)" : memberTask(m) || MS[m.status][0]}</span>
+                  <span className="mono text-[11px] text-cyan-300 w-9 text-right">{mPct}%</span>
+                </div>
+              );
+            })}
+          </div>
+        </Card>
+
+        <Card>
+          <H>Radar de Atenção do Coordenador (COORD)</H>
+          {lt.length > 0 && <div className="mb-2"><div className="text-[11px] text-rose-300 font-semibold">ATRASADAS ({lt.length})</div>{lt.slice(0, 5).map(t => <T key={t.id} t={t} />)}</div>}
+          {nx && (
+            <div className="mb-2">
+              <div className="text-[11px] text-cyan-300 font-semibold">PENDENTES PARA “{nx.title.toUpperCase()}” ({rel.length})</div>
+              {rel.length ? rel.slice(0, 6).map(t => <T key={t.id} t={t} />) : <p className="text-xs text-emerald-300">✓ Todas as tarefas deste marco já foram concluídas.</p>}
+            </div>
+          )}
+          {p0.length > 0 && <div><div className="text-[11px] text-amber-300 font-semibold">TAREFAS CRÍTICAS P0 EM ABERTO ({p0.length})</div>{p0.slice(0, 4).map(t => <T key={t.id} t={t} />)}</div>}
+          {s.risks.some(r => r.state === "OPEN") && <p className="text-xs text-amber-300 mt-2">⚠ {s.risks.filter(r => r.state === "OPEN").length} risco(s) monitorado(s) na matriz (R1–R7) — ver aba Delivery</p>}
+        </Card>
+      </div>
+
+      {/* LISTA COMPLETA DOS 7 MARCOS / PORTÕES E SUAS REGRAS IF/THEN */}
+      <Card>
+        <H right={<span className="text-[11px] text-slate-400">Clique no botão de status para aprovar ou acionar contingência</span>}>Os 7 Marcos e Portões Inegociáveis (Hard Gates & Regras IF/THEN)</H>
+        <div className="space-y-2.5 mt-2">
+          {gs.map(g => (
+            <div key={g.id} className="p-2.5 rounded-xl bg-slate-950/60 border border-slate-800/90 flex flex-col sm:flex-row sm:items-center justify-between gap-2">
+              <div className="space-y-0.5">
+                <div className="flex items-center gap-2 text-sm font-medium">
+                  <span className={`w-3 h-3 rounded-full shrink-0 ${g.status === "passed" ? "bg-emerald-400" : g.status === "failed" ? "bg-rose-500" : "bg-slate-600"}`} />
+                  <span className={g.status === "passed" ? "text-slate-400 line-through" : "text-slate-100"}>{g.title}</span>
+                  <span className="text-xs font-mono text-cyan-300">· {fmtAt(gAt(s, g))}</span>
+                </div>
+                {g.rule && <div className="text-[11px] text-slate-400 pl-5"><b className="text-amber-300/90 font-mono">Contingência:</b> {g.rule}</div>}
+              </div>
+              <button
+                onClick={() => repo.updateGate(g.id, { status: g.status === "pending" ? "passed" : g.status === "passed" ? "failed" : "pending" })}
+                className={`text-xs font-semibold px-3 py-1.5 rounded-lg shrink-0 ${g.status === "passed" ? "bg-emerald-500/20 text-emerald-300 border border-emerald-500/40" : g.status === "failed" ? "bg-rose-500/20 text-rose-300 border border-rose-500/40" : "bg-slate-800 text-slate-300 border border-slate-700"}`}
+              >
+                {g.status === "pending" ? "⏳ Pendente" : g.status === "passed" ? "✓ Aprovado" : "⚠ Contingência Ativa"}
+              </button>
+            </div>
+          ))}
+        </div>
+      </Card>
+    </div>
+  );
+}
+
+/* ============ ABA 2: TASKS (RASTREAMENTO POR MEMBRO, FASE E KANBAN) ============ */
+function TaskModal({ t, s, now, onClose }) {
+  if (!t) return null;
+  const set = p => repo.updateTask(t.id, p);
+  const ld = late(t, now);
+  const owner = s.members.find(m => m.id === t.ownerId);
+  const phaseObj = PHASES_SPEC.find(p => p.code === (t.phase || "F1"));
+
+  return (
+    <div className="fixed inset-0 z-50 bg-slate-950/80 backdrop-blur-sm flex items-center justify-center p-3 sm:p-6" onClick={onClose}>
+      <div className="w-full max-w-2xl bg-slate-900 border border-cyan-500/40 rounded-2xl p-5 shadow-2xl space-y-4 max-h-[90vh] overflow-y-auto" onClick={e => e.stopPropagation()}>
+        <div className="flex items-start justify-between gap-3 border-b border-slate-800 pb-3">
+          <div className="space-y-1 flex-1">
+            <div className="flex flex-wrap items-center gap-1.5">
+              <Chip c="border-cyan-500/40 text-cyan-300 bg-cyan-950/40 font-mono">{t.phase || "F1"}</Chip>
+              <Chip c={PR[t.priority]}>{t.priority}</Chip>
+              {t.moscow && <Chip c="border-emerald-500/40 text-emerald-300">{t.moscow}</Chip>}
+              <Chip c="border-slate-700 text-slate-300">{TL[t.status]}</Chip>
+              {ld && <Chip c="border-rose-500/60 text-rose-300">ATRASADA</Chip>}
+            </div>
+            <div className="text-xs text-slate-400 font-mono">{phaseObj ? `${phaseObj.title} (${phaseObj.window})` : ""}</div>
+          </div>
+          <button onClick={onClose} className="px-2.5 py-1 rounded-lg bg-slate-800 hover:bg-slate-700 text-xs text-slate-300">✕ Fechar</button>
+        </div>
+
+        <div>
+          <label className="text-[11px] font-mono uppercase text-slate-400 block mb-1">Título da Tarefa / Entregável</label>
+          <Tx v={t.title} on={v => v.trim() && set({ title: v.trim() })} />
+        </div>
+
+        <div>
+          <label className="text-[11px] font-mono uppercase text-slate-400 block mb-1">Notas Detalhadas / Critérios / Links</label>
+          <textarea
+            className={`${inp} min-h-[110px] leading-relaxed`}
+            defaultValue={t.notes || ""}
+            placeholder="Descreva aqui detalhes técnicos, links de arquivos, comandos ou observações importantes para quem assumir esta tarefa…"
+            onBlur={e => { if (e.target.value !== (t.notes || "")) set({ notes: e.target.value }); }}
+          />
+        </div>
+
+        <div className="grid sm:grid-cols-2 gap-3">
+          <div>
+            <label className="text-[11px] font-mono uppercase text-slate-400 block mb-1">Cargo / Frente Responsável</label>
+            <Sel v={t.ownerId} on={v => set({ ownerId: v })} o={mOpts(s, "Sem responsável")} />
+            {owner && Array.isArray(owner.assignees) && owner.assignees.length > 0 && (
+              <div className="text-[11px] text-cyan-300 mt-1 font-mono">Equipe neste cargo: {owner.assignees.join(", ")}</div>
+            )}
+          </div>
+          <div>
+            <label className="text-[11px] font-mono uppercase text-slate-400 block mb-1">Status no Kanban</label>
+            <Sel v={t.status} on={v => set({ status: v })} o={TS.map(k => [k, TL[k]])} />
+          </div>
+        </div>
+
+        <div className="grid grid-cols-2 sm:grid-cols-4 gap-2">
+          <div>
+            <label className="text-[11px] font-mono uppercase text-slate-400 block mb-1">Fase</label>
+            <Sel v={t.phase || "F1"} on={v => set({ phase: v })} o={PHASES_SPEC.filter(p => p.code !== "SLEEP").map(p => [p.code, p.code])} />
+          </div>
+          <div>
+            <label className="text-[11px] font-mono uppercase text-slate-400 block mb-1">Prioridade</label>
+            <Sel v={t.priority} on={v => set({ priority: v })} o={["P0", "P1", "P2"].map(x => [x, x])} />
+          </div>
+          <div>
+            <label className="text-[11px] font-mono uppercase text-slate-400 block mb-1">MoSCoW</label>
+            <Sel v={t.moscow} on={v => set({ moscow: v })} o={MO.map(x => [x, x || "—"])} />
+          </div>
+          <div>
+            <label className="text-[11px] font-mono uppercase text-slate-400 block mb-1">Marco / Portão</label>
+            <Sel v={t.gateId} on={v => set({ gateId: v })} o={[["", "Opcional"], ...s.gates.map(g => [g.id, `G${g.n}: ${g.title.slice(0, 22)}`])]} />
+          </div>
+        </div>
+
+        <div className="grid sm:grid-cols-2 gap-3">
+          <div>
+            <label className="text-[11px] font-mono uppercase text-slate-400 block mb-1">Prazo (Deadline)</label>
+            <input type="datetime-local" className={inp} value={toLoc(t.due)} onChange={e => set({ due: fromLoc(e.target.value) })} />
+          </div>
+          <div>
+            <label className="text-[11px] font-mono uppercase text-slate-400 block mb-1">Motivo de Bloqueio (se bloqueada)</label>
+            <Tx v={t.blockedReason} on={v => set({ blockedReason: v })} placeholder="Ex.: Aguardando API ou revisão…" />
+          </div>
+        </div>
+
+        <div className="flex items-center justify-between pt-3 border-t border-slate-800 flex-wrap gap-2">
+          <div className="flex items-center gap-2">
+            <button
+              onClick={() => {
+                repo.deleteTask(t.id);
+                bus.say("Tarefa excluída");
+                onClose();
+              }}
+              className="bg-rose-500/15 border border-rose-500/40 text-rose-300 px-3 py-1.5 rounded-lg text-xs hover:bg-rose-500/25 transition font-medium"
+            >
+              🗑 Excluir Tarefa
+            </button>
+            <button
+              onClick={() => {
+                set({ status: "BLOCKED" });
+                bus.say("Tarefa movida para Bloqueado");
+              }}
+              className="bg-amber-500/15 border border-amber-500/40 text-amber-300 px-3 py-1.5 rounded-lg text-xs hover:bg-amber-500/25 transition font-medium"
+            >
+              ⚠ Mover para Bloqueado
+            </button>
+          </div>
+          <button onClick={onClose} className="px-4 py-1.5 rounded-lg bg-cyan-400 text-slate-950 font-semibold text-xs hover:bg-cyan-300 transition">Concluir Edição</button>
+        </div>
+      </div>
+    </div>
+  );
+}
+
+function TaskCard({ t, s, now, onExpand }) {
+  const [dragging, setDragging] = useState(false);
+  const set = p => repo.updateTask(t.id, p), ld = late(t, now);
+  const owner = s.members.find(m => m.id === t.ownerId);
+  const people = owner && Array.isArray(owner.assignees) && owner.assignees.length ? owner.assignees.join(", ") : "";
+
+  return (
+    <div
+      draggable="true"
+      onDragStart={e => {
+        setDragging(true);
+        e.dataTransfer.setData("text/plain", t.id);
+        e.dataTransfer.effectAllowed = "move";
+      }}
+      onDragEnd={() => setDragging(false)}
+      className={`bg-slate-900 border rounded-xl p-3 space-y-2 cursor-grab active:cursor-grabbing transition ${dragging ? "opacity-40 scale-[0.98] border-cyan-400" : ld ? "border-rose-500/60 hover:border-rose-400" : "border-slate-800 hover:border-cyan-500/40"}`}
+    >
+      <div className="flex gap-2 items-start">
+        <button
+          aria-label="Concluir"
+          onClick={() => set({ status: t.status === "DONE" ? "READY" : "DONE", blockedReason: "" })}
+          className={`mt-0.5 w-5 h-5 rounded-md border-2 shrink-0 text-[11px] leading-none ${t.status === "DONE" ? "bg-emerald-400 border-emerald-400 text-slate-950 font-bold" : "border-slate-600 text-transparent"}`}
+        >
+          ✓
+        </button>
+        <span className={`text-sm flex-1 leading-snug break-words ${t.status === "DONE" || t.status === "CANCELED" ? "line-through text-slate-500" : "text-slate-100"}`}>{t.title}</span>
+      </div>
+
+      <div className="flex flex-wrap gap-1">
+        <Chip c="border-cyan-500/40 text-cyan-300 bg-cyan-950/30 font-mono">{t.phase || "F1"}</Chip>
+        <Chip c={PR[t.priority]}>{t.priority}</Chip>
+        {t.moscow && <Chip c={t.moscow === "MUST" ? "border-emerald-500/40 text-emerald-300" : "border-slate-700 text-slate-400"}>{t.moscow}</Chip>}
+        {t.due && <Chip c={ld ? "border-rose-500/60 text-rose-300" : "border-slate-700 text-slate-400"}>{ld ? "atrasada · " : ""}{fmtAt(t.due)}</Chip>}
+      </div>
+
+      {t.notes && <p className="text-[11px] text-slate-400 line-clamp-2 leading-relaxed">{t.notes}</p>}
+      {t.status === "BLOCKED" && <Tx v={t.blockedReason} on={v => set({ blockedReason: v })} placeholder="Por que está bloqueado?" />}
+
+      <div className="grid grid-cols-2 gap-1.5">
+        <Sel v={t.ownerId} on={v => set({ ownerId: v })} o={mOpts(s, "Sem resp.")} c="text-xs" />
+        <Sel v={t.status} on={v => set({ status: v })} o={TS.map(k => [k, TL[k]])} c="text-xs" />
+      </div>
+
+      <div className="flex items-center justify-between pt-1 border-t border-slate-800/70 gap-1.5">
+        <span className="text-[11px] text-slate-400 truncate max-w-[130px]" title={people}>{people ? `👤 ${people}` : "Arraste para mover"}</span>
+        <div className="flex items-center gap-1.5 shrink-0">
+          <button
+            title="Excluir tarefa"
+            onClick={e => {
+              e.stopPropagation();
+              repo.deleteTask(t.id);
+              bus.say("Tarefa excluída");
+            }}
+            className="text-xs text-slate-500 hover:text-rose-400 px-1.5 py-0.5 rounded bg-slate-800/80 hover:bg-rose-950/40 border border-slate-700/80 hover:border-rose-500/40 transition"
+          >
+            🗑
+          </button>
+          <button onClick={() => onExpand(t.id)} className="text-[11px] font-mono px-2 py-0.5 rounded bg-slate-800 hover:bg-cyan-500/20 text-cyan-300 border border-slate-700 hover:border-cyan-400/50 transition">
+            ⤢ Expandir
+          </button>
+        </div>
+      </div>
+    </div>
+  );
+}
+
+function Tasks({ s, now, say, initPhase, clearInitPhase, mePerson }) {
+  const [n, setN] = useState({
+    title: "",
+    ownerId: "",
+    priority: "P0",
+    moscow: "MUST",
+    phase: "F1",
+    status: "READY",
+    due: "",
+    notes: ""
+  });
+  const [showNotes, setShowNotes] = useState(false);
+  const titleInputRef = useRef(null);
+  const [roleFilter, setRoleFilter] = useState("ALL");
+  const [personFilter, setPersonFilter] = useState("ALL");
+  const [phaseFilter, setPhaseFilter] = useState(initPhase || "ALL");
+  const [ok, setOk] = useState(false);
+  const [cn, setCn] = useState(false);
+  const [dragOverCol, setDragOverCol] = useState(null);
+  const [expandedId, setExpandedId] = useState(null);
+
+  useEffect(() => {
+    if (initPhase) {
+      setPhaseFilter(initPhase);
+      clearInitPhase();
+    }
+  }, [initPhase]);
+
+  const frz = freezeOn(s, now);
+  const add = () => {
+    if (!n.title.trim()) return;
+    if (frz && !ok) return say("🔒 Feature Freeze ativo: confirme que é bugfix/doc/integração");
+    repo.addTask({
+      id: uid(),
+      title: n.title.trim(),
+      notes: n.notes ? n.notes.trim() : "",
+      ownerId: n.ownerId || repo.me || "",
+      priority: n.priority,
+      due: n.due,
+      status: n.status || "READY",
+      blockedReason: n.status === "BLOCKED" ? "Bloqueado na criação" : "",
+      moscow: n.moscow || "MUST",
+      gateId: "",
+      phase: n.phase || "F1"
+    });
+    say(`Tarefa criada em ${TL[n.status || "READY"]}!`);
+    setN(prev => ({ ...prev, title: "", notes: "", due: "" }));
+    setShowNotes(false);
+    setOk(false);
+  };
+
+  const startAddInCol = colKey => {
+    setN(prev => ({ ...prev, status: colKey }));
+    if (titleInputRef.current) {
+      titleInputRef.current.focus();
+      titleInputRef.current.scrollIntoView({ behavior: "smooth", block: "center" });
+    }
+  };
+
+  const peopleList = allPeople(s);
+
+  const list = s.tasks.filter(t => {
+    const owner = s.members.find(x => x.id === t.ownerId);
+    if (roleFilter === "MINE") {
+      if (mePerson) {
+        if (!owner || !Array.isArray(owner.assignees) || !owner.assignees.includes(mePerson)) return false;
+      } else if (t.ownerId !== repo.me) return false;
+    }
+    if (roleFilter === "P0" && t.priority !== "P0") return false;
+    if (roleFilter !== "ALL" && roleFilter !== "MINE" && roleFilter !== "P0") {
+      if (!owner || owner.role !== roleFilter) return false;
+    }
+    if (personFilter !== "ALL") {
+      if (!owner || !Array.isArray(owner.assignees) || !owner.assignees.includes(personFilter)) return false;
+    }
+    if (phaseFilter !== "ALL" && (t.phase || "F1") !== phaseFilter) return false;
+    return true;
+  });
+
+  const activeList = list.filter(t => t.status !== "CANCELED");
+  const expandedTask = expandedId ? s.tasks.find(x => x.id === expandedId) : null;
+
+  const Ch = ({ active, onClick, children }) => (
+    <button onClick={onClick} className={`px-2.5 py-1 rounded-full text-xs font-medium border transition ${active ? "bg-cyan-400 text-slate-950 border-cyan-400 font-semibold" : "bg-slate-900 text-slate-300 border-slate-700 hover:border-slate-500"}`}>
+      {children}
+    </button>
+  );
+
+  const handleDrop = (e, targetStatus) => {
+    e.preventDefault();
+    setDragOverCol(null);
+    const taskId = e.dataTransfer.getData("text/plain");
+    if (!taskId) return;
+    const task = s.tasks.find(x => x.id === taskId);
+    if (!task || task.status === targetStatus) return;
+    repo.updateTask(taskId, {
+      status: targetStatus,
+      blockedReason: targetStatus === "BLOCKED" ? task.blockedReason : ""
+    });
+    say(`Movida para ${TL[targetStatus]}`);
+  };
+
+  return (
+    <div className="space-y-3">
+      {frz && <FreezeBanner />}
+
+      {/* BARRA DE PROGRESSO DAS TAREFAS FILTRADAS */}
+      <Card className="p-3">
+        <div className="flex flex-wrap items-center justify-between gap-2 mb-1.5">
+          <span className="text-xs font-semibold text-cyan-300 uppercase tracking-wider">Progresso do Filtro Atual ({activeList.filter(t => t.status === "DONE").length}/{activeList.length} concluídas)</span>
+          <span className="mono text-sm font-bold text-emerald-300">{pct(activeList)}%</span>
+        </div>
+        <Bar p={pct(activeList)} c="bg-emerald-400" />
+      </Card>
+
+      {/* CRIAR NOVA TAREFA COMPLETA & RÁPIDA */}
+      <Card className="border-slate-800 bg-slate-900/90 space-y-2.5">
+        <div className="flex items-center justify-between gap-2">
+          <div className="flex items-center gap-2">
+            <span className="text-xs font-semibold text-cyan-300 uppercase tracking-wider font-mono">+ Criar Tarefa no Kanban</span>
+            <span className={`text-[10px] font-mono px-2 py-0.5 rounded-full border ${n.status === "READY" ? "bg-sky-950/60 text-sky-300 border-sky-500/40" : n.status === "BACKLOG" ? "bg-slate-800 text-slate-300 border-slate-700" : n.status === "IN_PROGRESS" ? "bg-cyan-950/60 text-cyan-300 border-cyan-500/40" : "bg-amber-950/60 text-amber-300 border-amber-500/40"}`}>
+              Coluna: {TL[n.status || "READY"]}
+            </span>
+          </div>
+          <button
+            type="button"
+            onClick={() => setShowNotes(!showNotes)}
+            className={`text-xs font-mono px-2.5 py-1 rounded-lg border transition ${showNotes ? "bg-cyan-500/20 text-cyan-300 border-cyan-500/40" : "bg-slate-800 text-slate-400 border-slate-700 hover:text-slate-200"}`}
+          >
+            {showNotes ? "▲ Ocultar Descrição" : "📝 + Descrição / Notas"}
+          </button>
+        </div>
+
+        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-12 gap-2">
+          {/* Título da tarefa */}
+          <div className="sm:col-span-2 lg:col-span-4">
+            <input
+              ref={titleInputRef}
+              className={inp}
+              placeholder="Título da tarefa ou entregável…"
+              value={n.title}
+              onChange={e => setN({ ...n, title: e.target.value })}
+              onKeyDown={e => e.key === "Enter" && add()}
+            />
+          </div>
+
+          {/* Coluna / Status inicial */}
+          <div className="lg:col-span-2">
+            <Sel
+              v={n.status || "READY"}
+              on={v => setN({ ...n, status: v })}
+              o={[["READY", "A Fazer (Pronto)"], ["BACKLOG", "Backlog"], ["IN_PROGRESS", "Em Andamento"], ["BLOCKED", "Bloqueado"]]}
+            />
+          </div>
+
+          {/* Fase */}
+          <div className="lg:col-span-1">
+            <Sel
+              v={n.phase}
+              on={v => setN({ ...n, phase: v })}
+              o={PHASES_SPEC.filter(p => p.code !== "SLEEP").map(p => [p.code, p.code])}
+            />
+          </div>
+
+          {/* Cargo Responsável */}
+          <div className="lg:col-span-2">
+            <Sel
+              v={n.ownerId || repo.me}
+              on={v => setN({ ...n, ownerId: v })}
+              o={mOpts(s, "Cargo Resp.")}
+            />
+          </div>
+
+          {/* Prioridade e MoSCoW */}
+          <div className="flex gap-1.5 lg:col-span-2">
+            <Sel
+              v={n.priority}
+              on={v => setN({ ...n, priority: v })}
+              o={["P0", "P1", "P2"].map(x => [x, x])}
+              c="w-1/2"
+            />
+            <Sel
+              v={n.moscow}
+              on={v => setN({ ...n, moscow: v })}
+              o={["MUST", "SHOULD", "COULD"].map(x => [x, x])}
+              c="w-1/2"
+            />
+          </div>
+
+          {/* Botão de criar */}
+          <div className="sm:col-span-2 lg:col-span-1">
+            <button
+              onClick={add}
+              className="w-full bg-emerald-500 hover:bg-emerald-400 text-slate-950 font-bold rounded-lg px-3 py-1.5 text-xs transition"
+            >
+              + Criar
+            </button>
+          </div>
+        </div>
+
+        {/* Campo expansível de Descrição / Notas Detalhadas */}
+        {showNotes && (
+          <div className="pt-2 border-t border-slate-800">
+            <label className="text-[11px] font-mono uppercase text-slate-400 block mb-1">Descrição / Notas Detalhadas (opcional)</label>
+            <textarea
+              className={`${inp} min-h-[75px] text-xs leading-relaxed`}
+              placeholder="Explique critérios de aceite, comandos, links ou orientações para a tarefa…"
+              value={n.notes}
+              onChange={e => setN({ ...n, notes: e.target.value })}
+            />
+          </div>
+        )}
+
+        {frz && <label className="flex items-center gap-2 text-xs text-rose-300 mt-2"><input type="checkbox" checked={ok} onChange={e => setOk(e.target.checked)} /> Confirmo que não é feature nova (apenas correção de bug, doc, integração ou vídeo)</label>}
+      </Card>
+
+      {/* FILTROS POR CARGO, POR PESSOA E POR FASE */}
+      <div className="space-y-2">
+        <div className="flex flex-wrap items-center gap-1.5">
+          <span className="text-[11px] font-mono uppercase text-slate-400 mr-1">Cargo / Frente:</span>
+          <Ch active={roleFilter === "ALL"} onClick={() => setRoleFilter("ALL")}>Todas ({s.tasks.filter(t => t.status !== "CANCELED").length})</Ch>
+          <Ch active={roleFilter === "MINE"} onClick={() => setRoleFilter("MINE")}>Minhas{mePerson ? ` (${mePerson})` : ""}</Ch>
+          <Ch active={roleFilter === "P0"} onClick={() => setRoleFilter("P0")}>Críticas P0</Ch>
+          {["COORD", "DADOS-1", "DADOS-2", "PROD-1", "PROD-2", "NARR"].map(r => (
+            <Ch key={r} active={roleFilter === r} onClick={() => setRoleFilter(r)}>{r}</Ch>
+          ))}
+        </div>
+
+        {peopleList.length > 0 && (
+          <div className="flex flex-wrap items-center gap-1.5">
+            <span className="text-[11px] font-mono uppercase text-slate-400 mr-1">Pessoa:</span>
+            <Ch active={personFilter === "ALL"} onClick={() => setPersonFilter("ALL")}>Todas</Ch>
+            {peopleList.map(p => (
+              <Ch key={p.person} active={personFilter === p.person} onClick={() => setPersonFilter(p.person)}>
+                👤 {p.person} ({p.roles.map(r => r.role).join(", ")})
+              </Ch>
+            ))}
+          </div>
+        )}
+
+        <div className="flex flex-wrap items-center gap-1.5">
+          <span className="text-[11px] font-mono uppercase text-slate-400 mr-1">Fase:</span>
+          <Ch active={phaseFilter === "ALL"} onClick={() => setPhaseFilter("ALL")}>Todas (F1–F8)</Ch>
+          {PHASES_SPEC.filter(p => p.code !== "SLEEP").map(p => (
+            <Ch key={p.code} active={phaseFilter === p.code} onClick={() => setPhaseFilter(p.code)}>{p.code}</Ch>
+          ))}
+        </div>
+      </div>
+
+      {roleFilter === "MINE" && !repo.me && !mePerson && <p className="text-xs text-amber-300">Selecione “Quem sou eu?” na barra superior para filtrar suas tarefas.</p>}
+
+      <div className="text-[11px] text-slate-400 font-mono">💡 Dica: Arraste e solte qualquer cartão entre as colunas, ou clique em <b>⤢ Expandir</b> para ler/editar os detalhes sem aperto.</div>
+
+      {/* KANBAN COM COLUNAS LARGAS E SCROLL HORIZONTAL CONFORTÁVEL + DRAG & DROP */}
+      <div className="flex gap-3 overflow-x-auto pb-4 items-start">
+        {TS.slice(0, 6).map(k => {
+          const col = list.filter(t => t.status === k);
+          const isOver = dragOverCol === k;
+          return (
+            <div
+              key={k}
+              onDragOver={e => { e.preventDefault(); if (dragOverCol !== k) setDragOverCol(k); }}
+              onDragLeave={() => setDragOverCol(null)}
+              onDrop={e => handleDrop(e, k)}
+              className={`min-w-[275px] w-[275px] 2xl:flex-1 2xl:min-w-[240px] shrink-0 rounded-2xl p-3 border transition min-h-[260px] ${isOver ? "bg-cyan-950/30 border-cyan-400 ring-2 ring-cyan-400/50" : "bg-slate-900/50 border-slate-800"}`}
+            >
+              <div className="flex items-center gap-2 mb-3 pb-2 border-b border-slate-800/80">
+                <span className={`w-2.5 h-2.5 rounded-full ${TD[k]}`} />
+                <span className="text-xs font-bold uppercase tracking-wide text-slate-200">{TL[k]}</span>
+                <div className="ml-auto flex items-center gap-1.5">
+                  <button
+                    title="Adicionar tarefa diretamente nesta coluna"
+                    onClick={() => startAddInCol(k)}
+                    className="w-5 h-5 flex items-center justify-center rounded bg-slate-800 hover:bg-cyan-500/20 text-cyan-300 hover:border-cyan-400 border border-slate-700 text-xs font-bold transition"
+                  >
+                    +
+                  </button>
+                  <span className="text-xs font-mono px-2 py-0.5 rounded bg-slate-800 text-cyan-300">{col.length}</span>
+                </div>
+              </div>
+              <div className="space-y-2.5">
+                {!col.length && (
+                  <div className={`text-xs text-center py-8 rounded-xl border border-dashed ${isOver ? "border-cyan-400 text-cyan-300" : "border-slate-800 text-slate-600"}`}>
+                    {isOver ? "Solte aqui" : "Arraste tarefas para cá"}
+                  </div>
+                )}
+                {col.map(t => <TaskCard key={t.id} t={t} s={s} now={now} onExpand={setExpandedId} />)}
+              </div>
+            </div>
+          );
+        })}
+      </div>
+
+      {list.some(t => t.status === "CANCELED") && (
+        <>
+          <button onClick={() => setCn(!cn)} className="text-xs text-slate-500 underline">
+            {cn ? "ocultar" : "ver"} canceladas ({list.filter(t => t.status === "CANCELED").length})
+          </button>
+          {cn && (
+            <div className="flex gap-3 overflow-x-auto pb-3">
+              {list.filter(t => t.status === "CANCELED").map(t => (
+                <div key={t.id} className="min-w-[275px] w-[275px] shrink-0">
+                  <TaskCard t={t} s={s} now={now} onExpand={setExpandedId} />
+                </div>
+              ))}
+            </div>
+          )}
+        </>
+      )}
+
+      {expandedTask && <TaskModal t={expandedTask} s={s} now={now} onClose={() => setExpandedId(null)} />}
+    </div>
+  );
+}
+
+/* ============ ABA 3: TEAM (CARGOS COM MÚLTIPLAS PESSOAS & MAPA MULTI-CARGO) ============ */
+function Team({ s }) {
+  const [drafts, setDrafts] = useState({});
+  const peopleMap = allPeople(s);
+
+  const addAssignee = m => {
+    const raw = (drafts[m.id] || "").trim();
+    if (!raw) return;
+    const names = raw.split(",").map(x => x.trim()).filter(Boolean);
+    const current = Array.isArray(m.assignees) ? m.assignees : [];
+    const merged = Array.from(new Set([...current, ...names]));
+    repo.updateMember(m.id, { assignees: merged });
+    setDrafts({ ...drafts, [m.id]: "" });
+  };
+
+  const removeAssignee = (m, name) => {
+    const current = Array.isArray(m.assignees) ? m.assignees : [];
+    repo.updateMember(m.id, { assignees: current.filter(x => x !== name) });
+  };
+
+  return (
+    <div className="space-y-4">
+      <Card className="p-4 bg-slate-900/90 border-cyan-500/30">
+        <H right={<span className="mono text-xs text-cyan-300">{peopleMap.length} pessoa(s) alocada(s)</span>}>
+          Mapa de Alocação Multi-Cargo (Várias Pessoas por Cargo · Vários Cargos por Pessoa)
+        </H>
+        <p className="text-xs text-slate-400 mb-3">
+          Adicione os nomes em cada frente abaixo (ex.: <code>Kaio, Renan, Felipe</code> em <code>DADOS-1</code>, ou <code>Rian</code> em <code>COORD</code>, <code>DADOS-2</code> e <code>NARR</code>). O painel cruza automaticamente quem está em quais frentes:
+        </p>
+        {peopleMap.length === 0 ? (
+          <div className="text-xs text-amber-300 bg-amber-950/30 border border-amber-500/30 rounded-xl p-2.5">
+            Nenhuma pessoa nominal cadastrada ainda. Digite os nomes da equipe nos cards abaixo!
+          </div>
+        ) : (
+          <div className="grid sm:grid-cols-2 lg:grid-cols-3 gap-2">
+            {peopleMap.map(({ person, roles }) => {
+              const pTasks = s.tasks.filter(t => roles.some(r => r.id === t.ownerId) && t.status !== "CANCELED");
+              const pDone = pTasks.filter(t => t.status === "DONE").length;
+              return (
+                <div key={person} className="p-2.5 rounded-xl bg-slate-950/70 border border-slate-800 flex items-center justify-between gap-2">
+                  <div>
+                    <div className="text-sm font-bold text-white">👤 {person}</div>
+                    <div className="flex flex-wrap gap-1 mt-1">
+                      {roles.map(r => <Chip key={r.id} c="border-cyan-500/40 text-cyan-300 font-mono">{r.role}</Chip>)}
+                    </div>
+                  </div>
+                  <div className="text-right shrink-0">
+                    <div className="mono text-xs font-bold text-emerald-300">{pct(pTasks)}%</div>
+                    <div className="text-[10px] text-slate-500">{pDone}/{pTasks.length} tarefas</div>
+                  </div>
+                </div>
+              );
+            })}
+          </div>
+        )}
+      </Card>
+
+      <div className="grid sm:grid-cols-2 xl:grid-cols-3 gap-3.5">
+        {s.members.map(m => {
+          const meta = ROLE_META[m.role] || ROLE_META["COORD"];
+          const mTasks = s.tasks.filter(t => t.ownerId === m.id && t.status !== "CANCELED");
+          const mDone = mTasks.filter(t => t.status === "DONE").length;
+          const mPct = pct(mTasks);
+          const assignees = Array.isArray(m.assignees) ? m.assignees : [];
+
+          return (
+            <Card key={m.id} className={m.id === repo.me ? "border-cyan-400" : ""}>
+              <div className="flex items-center justify-between gap-2 mb-1">
+                <div className="flex items-center gap-2">
+                  <span className={`w-3 h-3 rounded-full shrink-0 ${MS[m.status][2]}`} />
+                  <span className="text-base font-bold text-white font-mono">{m.role}</span>
+                </div>
+                <Chip c="border-amber-500/40 text-amber-300 font-mono">Backup: {m.backup || meta.backup}</Chip>
+              </div>
+              <div className="text-xs font-semibold text-cyan-300">{meta.title}</div>
+
+              {/* PESSOAS ALOCADAS NESTE CARGO */}
+              <div className="mt-2.5 p-2.5 rounded-xl bg-slate-950/70 border border-slate-800 space-y-2">
+                <div className="text-[10px] font-mono uppercase tracking-wider text-slate-400">Pessoas neste cargo ({assignees.length})</div>
+                <div className="flex flex-wrap gap-1.5">
+                  {assignees.length === 0 && <span className="text-[11px] text-slate-500">Ninguém alocado ainda</span>}
+                  {assignees.map(person => (
+                    <span key={person} className="inline-flex items-center gap-1.5 text-xs px-2 py-0.5 rounded-full bg-cyan-500/15 border border-cyan-400/40 text-cyan-200">
+                      {person}
+                      <button onClick={() => removeAssignee(m, person)} className="text-cyan-400 hover:text-rose-400 font-bold leading-none" title="Remover pessoa">×</button>
+                    </span>
+                  ))}
+                </div>
+                <div className="flex gap-1.5">
+                  <input
+                    className={`${inp} text-xs py-1`}
+                    placeholder="+ Nome (ou Kaio, Renan, Felipe)"
+                    value={drafts[m.id] || ""}
+                    onChange={e => setDrafts({ ...drafts, [m.id]: e.target.value })}
+                    onKeyDown={e => e.key === "Enter" && addAssignee(m)}
+                  />
+                  <button onClick={() => addAssignee(m)} className="px-2.5 py-1 rounded-lg bg-cyan-400 text-slate-950 font-bold text-xs shrink-0">+</button>
+                </div>
+              </div>
+
+              <div className="text-[11px] text-slate-400 mt-2 leading-relaxed">
+                <b className="text-slate-300">Módulos Exclusivos:</b> {m.modules || meta.modules}
+              </div>
+
+              <div className="flex items-center justify-between text-[11px] mt-2 mb-1">
+                <span className="text-slate-400">Progresso do cargo</span>
+                <span className="mono text-emerald-300">{mDone}/{mTasks.length} entregas ({mPct}%)</span>
+              </div>
+              <div className="mb-2.5"><Bar p={mPct} c="bg-emerald-400" /></div>
+
+              <div className="grid grid-cols-4 gap-1 mb-2">
+                {Object.entries(MS).map(([k, v]) => (
+                  <button
+                    key={k}
+                    onClick={() => repo.updateMember(m.id, { status: k })}
+                    className={`text-[11px] leading-tight py-2 rounded-md font-medium ${m.status === k ? v[1] : "bg-slate-800 text-slate-400"}`}
+                  >
+                    {v[0]}
+                  </button>
+                ))}
+              </div>
+              <Sel
+                v={m.currentTaskId}
+                on={v => repo.updateMember(m.id, { currentTaskId: v })}
+                o={[["", "Tarefa em foco: automática"], ...s.tasks.filter(t => t.ownerId === m.id && OPEN(t)).map(t => [t.id, `[${t.phase}] ${t.title.slice(0, 42)}`])]}
+                c="mb-2 text-xs"
+              />
+              <Tx v={m.notes} on={v => repo.updateMember(m.id, { notes: v })} placeholder={m.status === "BLOCKED" ? "Qual é o bloqueio? Acione " + (m.backup || meta.backup) : "Status curto / branch…"} />
+            </Card>
+          );
+        })}
+      </div>
+    </div>
+  );
+}
+
+/* ============ ABA 4: STRATEGY (DOUTRINA OPERACIONAL, DUPLA CAMADA, PLANO B & 7 INVARIANTES) ============ */
+function Strategy() {
+  return (
+    <div className="space-y-4">
+      {/* DIVISÃO DAS DUAS CAMADAS DE PRODUTO */}
+      <div className="grid md:grid-cols-2 gap-4">
+        <Card className="border-cyan-500/40 bg-slate-900/80">
+          <H right={<Chip c="border-cyan-500/40 text-cyan-300 font-mono">Primordial (MUST)</Chip>}>
+            1. Sistema de Análise de Dados da Terra
+          </H>
+          <p className="text-xs text-slate-300 leading-relaxed mb-2">
+            Plataforma <b>generalista, interativa e aberta</b> para qualquer cientista investigar o planeta. Consome a <b>NASA POWER API</b> em tempo real nas resoluções MERRA-2 e CERES, permitindo explorar qualquer ponto do globo sem barreiras.
+          </p>
+          <ul className="text-xs text-slate-300 space-y-1 list-disc list-inside">
+            <li><b>Mapa 2D com Grade NASA:</b> Seleção de Local A e Local B em modos 1x1, 2x2 (4 pts) e 3x3 (9 pts).</li>
+            <li><b>Motor Estatístico Inviolável:</b> Anomalias mensais, regressão OLS + Theil-Sen, GAM, Mahalanobis e teste AR(1)+FDR.</li>
+            <li><b>Chatbot Co-Piloto Estatístico:</b> IA integrada que interpreta dinamicamente as regressões, correlações e desvios das séries carregadas.</li>
+          </ul>
+        </Card>
+
+        <Card className="border-purple-500/40 bg-slate-900/80">
+          <H right={<Chip c="border-purple-500/40 text-purple-300 font-mono">Ambição (SHOULD)</Chip>}>
+            2. Sistema de Descoberta Científica
+          </H>
+          <p className="text-xs text-slate-300 leading-relaxed mb-2">
+            Camada de <b>inovação e geração de conhecimento novo</b>. Mapeia hipóteses de fronteira na literatura via <b>Gemini Deep Research + Google Scholar</b> e acopla modelos de Machine Learning sobre o nosso motor de dados.
+          </p>
+          <ul className="text-xs text-slate-300 space-y-1 list-disc list-inside">
+            <li><b>Gemini Deep Research:</b> Mapeamento acelerado das controvérsias climáticas recentes e teleconexões não resolvidas.</li>
+            <li><b>Ponto de Decisão (Sáb 21:30):</b> Escolha entre modelo de mineração generalista vs. modelo especializado no tema do Deep Research.</li>
+            <li><b>Descoberta Real:</b> Modelo de ML (detecção de quebras/anomalias) rodando sobre as séries para revelar uma nova evidência para o vídeo de pitch.</li>
+          </ul>
+        </Card>
+      </div>
+
+      {/* AS 4 COMBINAÇÕES LIVRES DA MATRIZ (A,X) x (B,Y) */}
+      <Card className="border-cyan-500/40">
+        <H right={<span className="mono text-xs text-cyan-300">Espaço de Investigação Completo & Flexível</span>}>
+          As 4 Combinações Livres da Matriz Científica (Local A, Var X) × (Local B, Var Y)
+        </H>
+        <p className="text-xs text-slate-300 leading-relaxed mt-1 mb-3">
+          O usuário possui <b>liberdade total</b> para cruzar quaisquer variáveis e coordenadas. A matriz de exploração não impõe amarras e cobre as 4 combinações possíveis do espaço global de dados:
+        </p>
+        <div className="grid sm:grid-cols-2 lg:grid-cols-4 gap-3 text-xs">
+          <div className="p-3 rounded-xl bg-slate-950/70 border border-slate-800 space-y-1.5 flex flex-col justify-between">
+            <div>
+              <div className="font-mono font-bold text-slate-300 text-[11px] mb-0.5">A = B &nbsp;e&nbsp; X = Y</div>
+              <div className="font-bold text-cyan-300">1. Linha de Base / Auto-Verificação</div>
+              <p className="text-slate-300 leading-relaxed mt-1 text-[11px]">
+                Mesma variável no mesmo local. Análise univariada clássica para inspecionar série temporal única, calcular taxa decadal (OLS/Theil-Sen), curva GAM e anomalias locais.
+              </p>
+            </div>
+            <div className="text-[10px] font-mono text-cyan-400/80 pt-1 border-t border-slate-800">Ex: T2M em Manaus vs T2M em Manaus</div>
+          </div>
+
+          <div className="p-3 rounded-xl bg-slate-950/70 border border-slate-800 space-y-1.5 flex flex-col justify-between">
+            <div>
+              <div className="font-mono font-bold text-slate-300 text-[11px] mb-0.5">A = B &nbsp;e&nbsp; X ≠ Y</div>
+              <div className="font-bold text-emerald-300">2. Causas e Efeitos no Mesmo Lugar</div>
+              <p className="text-slate-300 leading-relaxed mt-1 text-[11px]">
+                Variáveis diferentes na mesma região. Revela mecanismos de feedback biofísico local e acoplamento térmico-hídrico.
+              </p>
+            </div>
+            <div className="text-[10px] font-mono text-emerald-400/80 pt-1 border-t border-slate-800">Ex: TS vs GWETTOP (Calor secando o solo)</div>
+          </div>
+
+          <div className="p-3 rounded-xl bg-slate-950/70 border border-slate-800 space-y-1.5 flex flex-col justify-between">
+            <div>
+              <div className="font-mono font-bold text-slate-300 text-[11px] mb-0.5">A ≠ B &nbsp;e&nbsp; X = Y</div>
+              <div className="font-bold text-sky-300">3. Lugares Opostos / Dipolo Espacial</div>
+              <p className="text-slate-300 leading-relaxed mt-1 text-[11px]">
+                Mesma variável em biomas distantes. Evidencia divergência espacial ("sobe aqui, cai ali") e prova que médias globais escondem colapsos regionais.
+              </p>
+            </div>
+            <div className="text-[10px] font-mono text-sky-400/80 pt-1 border-t border-slate-800">Ex: Amazônia vs Sahel (Precipitação/Calor)</div>
+          </div>
+
+          <div className="p-3 rounded-xl bg-slate-950/70 border border-purple-500/30 bg-purple-950/10 space-y-1.5 flex flex-col justify-between">
+            <div>
+              <div className="font-mono font-bold text-purple-300 text-[11px] mb-0.5">A ≠ B &nbsp;e&nbsp; X ≠ Y</div>
+              <div className="font-bold text-purple-300">4. Teleconexões Cruzadas Globais</div>
+              <p className="text-slate-300 leading-relaxed mt-1 text-[11px]">
+                <b>Variáveis diferentes em lugares diferentes.</b> Cruza forçantes oceânicas ou atmosféricas remotas com impactos hidrológicos em continentes distantes.
+              </p>
+            </div>
+            <div className="text-[10px] font-mono text-purple-400/80 pt-1 border-t border-slate-800">Ex: SST no Pacífico vs Chuva no Nordeste</div>
+          </div>
+        </div>
+      </Card>
+
+      {/* O FLUXO LIVRE EM 3 PASSOS (POR QUE A VARIÁVEL VEM PRIMEIRO) */}
+      <Card className="border-cyan-500/30">
+        <H right={<Chip c="border-cyan-500/40 text-cyan-300 font-mono">1º Variável → 2º Onde → 3º Tempo</Chip>}>
+          O Fluxo Livre em 3 Passos & Por Que a Variável Vem Primeiro
+        </H>
+        <div className="grid md:grid-cols-3 gap-3 mt-2 text-xs">
+          <div className="p-3 rounded-xl bg-slate-950/70 border border-slate-800 space-y-2">
+            <div className="flex items-center gap-2">
+              <span className="w-5 h-5 rounded-full bg-cyan-400 text-slate-950 font-bold flex items-center justify-center text-[11px]">1</span>
+              <span className="font-bold text-cyan-300">1º Escolher Variáveis (X, Y)</span>
+            </div>
+            <p className="text-slate-300 leading-relaxed">
+              <b>A física regula a geometria e o tempo:</b>
+            </p>
+            <ul className="text-slate-400 text-[11px] space-y-1 list-disc list-inside">
+              <li><b>Define a Resolução da Grade:</b> MERRA-2 opera em grade fina de 0,5° × 0,625° (≈ 55 × 69 km). CERES opera em 1,0° × 1,0° (≈ 111 × 111 km).</li>
+              <li><b>Define o Ano Mínimo:</b> MERRA-2 está disponível desde 1981; CERES inicia em 1984. Escolher a variável antes evita que o usuário selecione períodos inválidos ou grades incompatíveis.</li>
+            </ul>
+          </div>
+
+          <div className="p-3 rounded-xl bg-slate-950/70 border border-slate-800 space-y-2">
+            <div className="flex items-center gap-2">
+              <span className="w-5 h-5 rounded-full bg-emerald-400 text-slate-950 font-bold flex items-center justify-center text-[11px]">2</span>
+              <span className="font-bold text-emerald-300">2º Escolher Onde (Mapa 2D + Grade)</span>
+            </div>
+            <p className="text-slate-300 leading-relaxed">
+              <b>Geometria visual adaptativa no mapa:</b>
+            </p>
+            <ul className="text-slate-400 text-[11px] space-y-1 list-disc list-inside">
+              <li><b>Clique no Mapa:</b> Usuário marca Local A e Local B livremente no globo (ou toggle A=B).</li>
+              <li><b>Blocos de Amostragem:</b> <b>1x1</b> (1 dado pontual mais próximo), <b>2x2</b> (média de 4 dados vizinhos) ou <b>3x3</b> (média de 9 dados para escala de bacia). O polígono desenhado no mapa reflete exatamente o tamanho físico da grade da variável selecionada.</li>
+            </ul>
+          </div>
+
+          <div className="p-3 rounded-xl bg-slate-950/70 border border-slate-800 space-y-2">
+            <div className="flex items-center gap-2">
+              <span className="w-5 h-5 rounded-full bg-amber-400 text-slate-950 font-bold flex items-center justify-center text-[11px]">3</span>
+              <span className="font-bold text-amber-300">3º Escolher Período [t₀, tf]</span>
+            </div>
+            <p className="text-slate-300 leading-relaxed">
+              <b>Alinhamento temporal e recorte automático:</b>
+            </p>
+            <ul className="text-slate-400 text-[11px] space-y-1 list-disc list-inside">
+              <li><b>Interseção Limpa:</b> O seletor respeita o limite comum (ex.: 1984–presente se CERES estiver envolvida, ou 1981–presente para MERRA-2 pura).</li>
+              <li><b>Disparo do Motor:</b> Dispara a requisição paralela (ou lê do cache local) e atualiza a bancada de gráficos e o motor estatístico em menos de 1 segundo.</li>
+            </ul>
+          </div>
+        </div>
+      </Card>
+
+      {/* LÓGICA ESPACIAL DE GRADE NASA E TRIPLA NORMALIZAÇÃO */}
+      <div className="grid md:grid-cols-2 gap-4">
+        <Card>
+          <H right={<Chip c="border-cyan-500/40 text-cyan-300 font-mono">1x1 · 2x2 · 3x3</Chip>}>
+            Lógica Espacial de Quadrados da NASA (Mapa 2D)
+          </H>
+          <div className="text-xs text-slate-300 space-y-2 mt-1 leading-relaxed">
+            <p>
+              Ao clicar no mapa, o usuário seleciona não apenas um ponto isolado, mas uma <b>amostragem com representatividade espacial controlada</b>:
+            </p>
+            <ul className="space-y-1 list-disc list-inside">
+              <li><b>1x1 (1 dado pontual):</b> Célula exata mais próxima da coordenada do clique. Ideal para medições locais específicas.</li>
+              <li><b>2x2 (média de 4 dados):</b> Bloco de 4 células vizinhas agregadas pela média. Reduz ruídos de mesoescala e microclima.</li>
+              <li><b>3x3 (média de 9 dados):</b> Bloco de 9 células vizinhas. Fornece representatividade regional robusta de bacias ou biomas inteiros.</li>
+            </ul>
+            <p className="text-[11px] text-cyan-300 font-mono mt-1">
+              • MERRA-2 (Clima/Água/Atmosfera): Célula 0,5° × 0,625° ≈ 55 × 69 km.<br />
+              • CERES (Radiação/Nuvens): Célula 1,0° × 1,0° ≈ 111 × 111 km.
+            </p>
+          </div>
+        </Card>
+
+        <Card>
+          <H right={<Chip c="border-emerald-500/40 text-emerald-300 font-mono">3 Camadas de Ajuste</Chip>}>
+            Tripla Normalização para Variáveis Diferentes
+          </H>
+          <div className="text-xs text-slate-300 space-y-2 mt-1 leading-relaxed">
+            <p>
+              Para permitir comparações visualmente honestas entre grandezas físicas distintas (ex.: °C vs. mm/dia vs. kWh/m²), aplicamos três níveis de normalização:
+            </p>
+            <ul className="space-y-1 list-disc list-inside">
+              <li><b>1. Normalização Temporal (Anomalia Mensal):</b> Subtrai a climatologia mensal histórica (Y'_{"{a,m}"} = Y_{"{a,m}"} − Ȳ_{"{m}"}), isolando a tendência secular do ciclo sazonal verão/inverno.</li>
+              <li><b>2. Normalização de Escala Física (Z-Score σ):</b> Padronização Z = (Y − μ) / σ transforma qualquer grandeza em desvios-padrão da média, viabilizando sobreposição no mesmo gráfico.</li>
+              <li><b>3. Normalização de Visualização (Eixo Y Duplo & Log):</b> Eixos Y independentes para séries brutas e escala logarítmica/symlog para variáveis com distribuições altamente assimétricas.</li>
+            </ul>
+          </div>
+        </Card>
+      </div>
+
+      {/* CATÁLOGO DE DADOS NASA POWER API */}
+      <Card>
+        <H right={<span className="text-xs font-mono text-emerald-300">NASA POWER API v2.0 (tempo real + cache)</span>}>
+          Catálogo Oficial de Variáveis NASA POWER & Estratégia de Dados
+        </H>
+        <div className="overflow-x-auto mt-2">
+          <table className="w-full text-left border-collapse text-xs">
+            <thead>
+              <tr className="border-b border-slate-800 text-slate-400 font-mono uppercase">
+                <th className="py-2 pr-3">Domínio</th>
+                <th className="py-2 pr-3">Resolução Grade</th>
+                <th className="py-2 pr-3">Variáveis Físicas</th>
+                <th className="py-2 pr-3">Escala Científica</th>
+                <th className="py-2 pr-3">Endpoint API Primário</th>
+                <th className="py-2">Estratégia de Cache & Fallback</th>
+              </tr>
+            </thead>
+            <tbody className="divide-y divide-slate-800/70 text-slate-200">
+              {DATA_CATALOG.map(v => (
+                <tr key={v.id}>
+                  <td className="py-2 pr-3 font-mono font-bold text-cyan-300">{v.domain}</td>
+                  <td className="py-2 pr-3 font-mono text-slate-400">{v.res}</td>
+                  <td className="py-2 pr-3 font-medium text-slate-100">{v.name}</td>
+                  <td className="py-2 pr-3 font-mono text-[11px] text-rose-300">{v.scale}</td>
+                  <td className="py-2 pr-3 text-slate-300">{v.planA}</td>
+                  <td className="py-2 text-emerald-300">{v.planB}</td>
+                </tr>
+              ))}
+            </tbody>
+          </table>
+        </div>
+      </Card>
+
+      {/* OS 7 INVARIANTES ESTATÍSTICOS */}
+      <Card>
+        <H>Os 7 Invariantes Estatísticos de Estado da Arte (Regras Invioláveis)</H>
+        <div className="grid md:grid-cols-2 gap-2.5 mt-2">
+          {INVARIANTS.map(inv => (
+            <div key={inv.n} className={`p-3 rounded-xl border text-xs ${inv.danger ? "bg-rose-950/25 border-rose-500/40" : "bg-slate-950/60 border-slate-800"}`}>
+              <div className={`font-mono font-bold mb-1 ${inv.danger ? "text-rose-300" : "text-cyan-300"}`}>#{inv.n} · {inv.title}</div>
+              <p className="text-slate-300 leading-relaxed">{inv.desc}</p>
+            </div>
+          ))}
+        </div>
+      </Card>
+
+      {/* ESTRUTURA CRONOMETRADA DO PITCH (240s) E RITUAIS COORD */}
+      <div className="grid md:grid-cols-2 gap-4">
+        <Card>
+          <H right={<span className="mono text-xs text-cyan-300">240s (4 min)</span>}>Estrutura Cronometrada do Vídeo de Pitch (Fase 7)</H>
+          <ol className="text-xs text-slate-300 space-y-1.5 list-decimal list-inside mt-2">
+            <li><b>00:00 – 00:25 | Gancho Visual:</b> Mapa dividido mostrando seca na Amazônia Meridional vs. aumento de água em outra bacia sob o mesmo aquecimento global.</li>
+            <li><b>00:25 – 00:50 | O Problema Científico:</b> O erro primário de olhar apenas médias globais ou subtrair ano final menos inicial (confundindo El Niño e sazonalidade com tendência).</li>
+            <li><b>00:50 – 02:15 | Demo ao Vivo do Sistema de Análise de Dados:</b> Operação fluida respondendo <i>O Quê, Onde, Quanto e Significância</i>, seletores de grade 1x1/2x2/3x3, Eixo Y Duplo e Chatbot Co-Piloto.</li>
+            <li><b>02:15 – 03:15 | Inovação do Sistema de Descoberta Científica:</b> Como o modelo de ML treinado sobre nosso motor isolou a nova evidência/anomalia indicada pelo Gemini Deep Research.</li>
+            <li><b>03:15 – Fim | Impacto, Rigor e Créditos NASA:</b> Dados NASA POWER, MERRA-2 e CERES; link aberto para teste imediato dos jurados.</li>
+          </ol>
+        </Card>
+        <Card>
+          <H>Rituais de Comando e Controle (COORD)</H>
+          <ul className="text-xs text-slate-300 space-y-2 mt-2 list-disc list-inside">
+            <li><b>Sincronias Rápidas no Sábado (10:30, 12:30, 16:00, 19:00, 21:30 — máx. 8 min):</b> 45s por pessoa (Entregue / Meta até próximo portão / Bloqueio).</li>
+            <li><b>Silêncio de Fluxo no Domingo à Tarde (Fase 7):</b> Standups coletivos suspensos durante gravação e edição do vídeo; <code>COORD</code> faz ponte silenciosa individual.</li>
+            <li><b>Regra dos 5 Minutos:</b> Impasse técnico &gt; 5 min é decidido por <code>COORD</code> e registrado em 2 linhas no <code>DECISOES.md</code>.</li>
+            <li><b>Disciplina de Deploy:</b> Branch <code>main</code> sempre funcional; JSONs passam pelo validador antes do commit.</li>
+          </ul>
+        </Card>
+      </div>
+    </div>
+  );
+}
+
+/* ============ ABA 5: DELIVERY (10 TESTES HINDEMBURG, CHECKLIST FINAL, MVP MUST & RISCOS R1-R7) ============ */
+function Delivery({ s, now }) {
+  const [mv, setMv] = useState(""), [di, setDi] = useState("");
+  const must = s.tasks.filter(t => t.moscow === "MUST" && t.status !== "CANCELED");
+  const dn = s.delivery.filter(d => d.done).length;
+  const sci = s.scienceAudit || [];
+  const sciDone = sci.filter(d => d.done).length;
+  const gFr = s.gates.find(g => g.n === 5) || s.gates.find(g => g.offset === 1680);
+  const frz = freezeOn(s, now);
+
+  return (
+    <div className="space-y-4">
+      {frz ? <FreezeBanner /> : gFr && (
+        <Card>
+          <H>Contagem para o Portão 3 — Feature Freeze Absoluto (Dom 13:00)</H>
+          <p className="text-sm">Faltam <b className="mono text-cyan-300">{durSec(gAt(s, gFr) - now)}</b> ({fmtAt(gAt(s, gFr))}). Após as 13:00 de domingo: zero features novas na <code>main</code>.</p>
+        </Card>
+      )}
+
+      {/* CHECKLIST DOS 10 TESTES DE BLINDAGEM CIENTÍFICA HINDEMBURG + CHECKLIST PRE-SUBMISSÃO */}
+      <div className="grid lg:grid-cols-2 gap-4">
+        <Card className="border-amber-500/30">
+          <H right={<span className="mono text-sm text-amber-300">{sciDone}/{sci.length} ({sci.length ? Math.round(sciDone / sci.length * 100) : 0}%)</span>}>
+            10 Testes de Blindagem Científica Hindemburg (Fase 5)
+          </H>
+          <p className="text-[11px] text-slate-400 mb-2">Auditoria obrigatória de <code>DADOS-2</code> + <code>NARR</code> sobre cada número antes de gravar o vídeo:</p>
+          <div className="space-y-1.5">
+            {sci.map(item => (
+              <label key={item.id} className="flex items-start gap-2 text-xs sm:text-sm cursor-pointer py-0.5">
+                <input
+                  type="checkbox"
+                  className="accent-amber-400 w-4 h-4 mt-0.5 shrink-0"
+                  checked={item.done}
+                  onChange={() => repo.commit(x => { const i = x.scienceAudit.find(k => k.id === item.id); if (i) i.done = !i.done; })}
+                />
+                <span className={item.done ? "line-through text-slate-500" : "text-slate-200"}>{item.t}</span>
+              </label>
+            ))}
+          </div>
+        </Card>
+
+        <Card className="border-purple-500/30">
+          <H right={<span className="mono text-sm text-purple-300">{dn}/{s.delivery.length} ({s.delivery.length ? Math.round(dn / s.delivery.length * 100) : 0}%)</span>}>
+            Checklist Final de Auditoria Pré-Submissão (Dom 21:00)
+          </H>
+          <p className="text-[11px] text-slate-400 mb-2">Protocolo Quatro Olhos (<code>COORD</code> + <code>NARR</code>) e Bancada de Testes Cegos 4G:</p>
+          <div className="space-y-1.5">
+            {s.delivery.map(d => (
+              <div key={d.id} className="flex items-start gap-2 text-xs sm:text-sm py-0.5">
+                <input
+                  type="checkbox"
+                  className="accent-purple-400 w-4 h-4 mt-0.5 shrink-0 cursor-pointer"
+                  checked={d.done}
+                  onChange={() => repo.commit(x => { const i = x.delivery.find(k => k.id === d.id); if (i) i.done = !i.done; })}
+                />
+                <span className={`flex-1 ${d.done ? "line-through text-slate-500" : "text-slate-200"}`}>{d.t}</span>
+                <button onClick={() => repo.commit(x => { x.delivery = x.delivery.filter(k => k.id !== d.id); })} className="text-slate-600 hover:text-rose-400 text-xs">✕</button>
+              </div>
+            ))}
+          </div>
+          <input
+            className={`${inp} mt-3`}
+            placeholder="+ Adicionar item de verificação final…"
+            value={di}
+            onChange={e => setDi(e.target.value)}
+            onKeyDown={e => { if (e.key === "Enter" && di.trim()) { repo.commit(x => { x.delivery.push({ id: uid(), t: di.trim(), done: false }); }); setDi(""); } }}
+          />
+        </Card>
+      </div>
+
+      {/* ESCOPO MUST (TAREFAS VINCULADAS) */}
+      <Card>
+        <H right={<span className="mono text-sm text-emerald-300">{pct(must)}% ({must.filter(t => t.status === "DONE").length}/{must.length})</span>}>
+          Escopo Blindado MVP · Entregáveis MUST (Invioláveis)
+        </H>
+        <div className="grid sm:grid-cols-2 gap-1.5 mt-2">
+          {must.map(t => (
+            <label key={t.id} className="flex items-center gap-2 text-xs sm:text-sm bg-slate-950/50 border border-slate-800/80 rounded-lg px-2.5 py-1.5 cursor-pointer">
+              <input
+                type="checkbox"
+                className="accent-emerald-400 w-4 h-4 shrink-0"
+                checked={t.status === "DONE"}
+                onChange={() => repo.updateTask(t.id, { status: t.status === "DONE" ? "READY" : "DONE", blockedReason: "" })}
+              />
+              <span className="font-mono text-[10px] text-cyan-300">[{t.phase || "F1"}]</span>
+              <span className={`flex-1 truncate ${t.status === "DONE" ? "line-through text-slate-500" : "text-slate-200"}`}>{t.title}</span>
+              <span className="text-[10px] font-mono text-slate-400 shrink-0">{nm(s, t.ownerId)}</span>
+            </label>
+          ))}
+        </div>
+        <div className="flex gap-2 mt-3">
+          <input
+            className={inp}
+            placeholder="+ Adicionar entregável MUST ao escopo…"
+            value={mv}
+            onChange={e => setMv(e.target.value)}
+            onKeyDown={e => { if (e.key === "Enter" && mv.trim()) { repo.addTask({ id: uid(), title: mv.trim(), ownerId: repo.me || "", priority: "P0", due: "", status: "READY", blockedReason: "", moscow: "MUST", gateId: "", phase: "F4" }); setMv(""); } }}
+          />
+        </div>
+      </Card>
+
+      {/* MATRIZ DE RISCOS OPERACIONAIS R1-R7 */}
+      <Card>
+        <H right={<button onClick={() => repo.addRisk({ id: uid(), code: `R${s.risks.length + 1}`, problem: "", ownerId: repo.me || "", plan: "", state: "OPEN" })} className="text-xs text-cyan-300 font-semibold">+ Novo Risco</button>}>
+          Matriz de Riscos Operacionais e Mitigação Preventiva (R1–R7)
+        </H>
+        {!s.risks.length && <p className="text-sm text-slate-500">Nenhum risco registrado.</p>}
+        <div className="space-y-2 mt-2">
+          {s.risks.map(r => (
+            <div key={r.id} className={`grid sm:grid-cols-[1.2fr_auto_1.4fr_auto] gap-2 items-center p-2 rounded-xl border border-slate-800/80 bg-slate-950/40 ${r.state === "CLOSED" ? "opacity-50" : ""}`}>
+              <Tx v={r.problem} on={v => repo.updateRisk(r.id, { problem: v })} placeholder="Risco e Gatilho de Alerta" />
+              <Sel v={r.ownerId} on={v => repo.updateRisk(r.id, { ownerId: v })} o={mOpts(s, "Resp.")} c="text-xs" />
+              <Tx v={r.plan} on={v => repo.updateRisk(r.id, { plan: v })} placeholder="Resposta Operacional Imediata" />
+              <button
+                onClick={() => repo.updateRisk(r.id, { state: r.state === "OPEN" ? "CLOSED" : "OPEN" })}
+                className={`text-[11px] font-semibold px-3 py-1.5 rounded-lg ${r.state === "OPEN" ? "bg-amber-400 text-slate-950" : "bg-slate-700 text-slate-300"}`}
+              >
+                {r.state === "OPEN" ? "ATIVO" : "MITIGADO"}
+              </button>
+            </div>
+          ))}
+        </div>
+      </Card>
+    </div>
+  );
+}
+
+/* ============ APLICAÇÃO PRINCIPAL (SHELL & SINCRONIZAÇÃO JSON) ============ */
+const TABS = [
+  ["cmd",   "Command",  "M4 15s1-1 4-1 5 2 8 2 4-1 4-1V3s-1 1-4 1-5-2-8-2-4 1-4 1z M4 22v-7"],
+  ["tasks", "Tasks",    "M6 5v11 M12 5v6 M18 5v14"],
+  ["team",  "Team",     "M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2 M9 11a4 4 0 1 0 0-8 4 4 0 0 0 0 8z M23 21v-2a4 4 0 0 0-3-3.87 M16 3.13a4 4 0 0 1 0 7.75"],
+  ["strat", "Strategy", "M12 2L2 7l10 5 10-5-10-5z M2 17l10 5 10-5 M2 12l10 5 10-5"],
+  ["del",   "Delivery", "m9 11 3 3L22 4 M21 12v7a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h11"]
+];
+const Ic = ({ d, c = "w-5 h-5" }) => <svg className={c} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d={d} /></svg>;
+const IO = {
+  copy:  "M10 8h10a2 2 0 0 1 2 2v10a2 2 0 0 1-2 2H10a2 2 0 0 1-2-2V10a2 2 0 0 1 2-2z M4 16c-1.1 0-2-.9-2-2V4c0-1.1.9-2 2-2h10c1.1 0 2 .9 2 2",
+  paste: "M8 2h8v4H8z M16 4h2a2 2 0 0 1 2 2v14a2 2 0 0 1-2 2H6a2 2 0 0 1-2-2V6a2 2 0 0 1 2-2h2",
+  down:  "M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4 M7 10l5 5 5-5 M12 15V3",
+  up:    "M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4 M17 8l-5-5-5 5 M12 3v12"
+};
+
+const SYNC = {
+  live:       ["●", "Ao vivo", "text-emerald-300 border-emerald-500/50"],
+  connecting: ["○", "Conectando…", "text-amber-300 border-amber-500/50"],
+  readonly:   ["◐", "Somente leitura", "text-purple-300 border-purple-500/50"],
+  offline:    ["✕", "Sem conexão", "text-rose-300 border-rose-500/50"],
+  local:      ["●", "Salvo no navegador", "text-emerald-300 border-emerald-500/50"]
+};
+const SyncChip = () => {
+  if (repo.lanStatus === "connected") {
+    return (
+      <span title={`Sincronização em tempo real ativa na LAN (${repo.lanUrl})`} className="text-[11px] font-semibold px-2 py-1 rounded-full border whitespace-nowrap text-emerald-300 border-emerald-500/50 flex items-center gap-1.5">
+        <span className="relative flex h-2 w-2">
+          <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-emerald-400 opacity-75"></span>
+          <span className="relative inline-flex rounded-full h-2 w-2 bg-emerald-500"></span>
+        </span>
+        <span className="hidden min-[430px]:inline">Ao vivo na LAN</span>
+      </span>
+    );
+  }
+  const [d, l, c] = SYNC[bus.status] || SYNC.local;
+  return <span title={bus.lockMsg || "Persistência ativa em localStorage (mc-v6)"} className={`text-[11px] font-semibold px-2 py-1 rounded-full border whitespace-nowrap ${c}`}>{d}<span className="hidden min-[430px]:inline"> {l}</span></span>;
+};
+
+function App() {
+  const s = useRepo();
+  const [tab, setTab] = useState("cmd");
+  const [initPhase, setInitPhase] = useState(null);
+  const [now, setNow] = useState(clock.now());
+  const [toast, setToast] = useState("");
+  const [pend, setPend] = useState(null);
+  const [collapsed, setCollapsed] = useState(() => ls.get("mc-sidebar") === "1");
+  const [mePerson, setMePerson] = useState(() => ls.get("mc-me-person") || "");
+  const [showLanModal, setShowLanModal] = useState(false);
+  const [lanInputUrl, setLanInputUrl] = useState(() => repo.lanUrl || (typeof window !== "undefined" && window.location && window.location.protocol.startsWith("http") ? window.location.origin : "http://localhost:8765"));
+  const fileRef = useRef(null);
+
+  const toggleSidebar = () => {
+    const next = !collapsed;
+    setCollapsed(next);
+    ls.set("mc-sidebar", next ? "1" : "0");
+  };
+
+  useEffect(() => {
+    const i = setInterval(() => setNow(clock.now()), 1000);
+    return () => clearInterval(i);
+  }, []);
+
+  const say = m => { setToast(m); setTimeout(() => setToast(""), 3500); };
+  bus.say = say;
+
+  const payload = () => JSON.stringify({ app: s.app, schema_version: "6.0", exported_at: nowIso(), exported_by: mePerson || repo.userName(), state: s }, null, 2);
+  const exportJson = () => {
+    const a = document.createElement("a");
+    a.href = URL.createObjectURL(new Blob([payload()], { type: "application/json" }));
+    a.download = `trend-detective-mc-${nowIso().slice(0, 16).replace(/[:T]/g, "-")}.json`;
+    a.click();
+    URL.revokeObjectURL(a.href);
+    say("Estado JSON exportado!");
+  };
+  const copyState = async () => {
+    const t = payload();
+    try {
+      await navigator.clipboard.writeText(t);
+      say("Estado JSON copiado! Cole no grupo da equipe");
+    } catch (e) {
+      const ta = document.createElement("textarea");
+      ta.value = t;
+      document.body.appendChild(ta);
+      ta.select();
+      let ok = false;
+      try { ok = document.execCommand("copy"); } catch (_) {}
+      ta.remove();
+      say(ok ? "Estado JSON copiado! Cole no grupo" : "Falha ao copiar");
+    }
+  };
+  const prepare = txt => {
+    try {
+      const j = JSON.parse(txt);
+      if (j.app !== undefined && j.app !== s.app) return say("Arquivo de outra aplicação");
+      let st = j.state || j;
+      const v = st.schema_version || j.schema_version;
+      if (v === "2.0" || v === "3.0" || v === "4.0" || v === "5.0") st = migrate(st);
+      else if (v !== "6.0") return say("Versão de schema não suportada");
+      const r = validate(st);
+      if (!r.ok) return say("Importação recusada: " + r.err);
+      setPend({ st, info: `Tarefas ${s.tasks.length} → ${st.tasks.length} · Marcos ${s.gates.length} → ${st.gates.length} · rev v${s.version} → v${st.version}${j.exported_by ? " · por " + j.exported_by : ""}` });
+    } catch (e) {
+      say("JSON inválido");
+    }
+  };
+  const pasteState = async () => {
+    try { prepare(await navigator.clipboard.readText()); } catch (e) { say("Colar bloqueado pelo navegador: use o botão Importar arquivo"); }
+  };
+  const importFile = e => {
+    const f = e.target.files[0];
+    if (!f) return;
+    const r = new FileReader();
+    r.onload = () => prepare(r.result);
+    r.readAsText(f);
+    e.target.value = "";
+  };
+
+  const goTasksPhase = pCode => {
+    setInitPhase(pCode);
+    setTab("tasks");
+  };
+
+  const handleMeChange = val => {
+    if (val.startsWith("P:")) {
+      const pName = val.slice(2);
+      setMePerson(pName);
+      ls.set("mc-me-person", pName);
+      const firstRole = s.members.find(m => Array.isArray(m.assignees) && m.assignees.includes(pName));
+      if (firstRole) repo.setMe(firstRole.id);
+    } else {
+      setMePerson("");
+      ls.set("mc-me-person", "");
+      repo.setMe(val);
+    }
+  };
+
+  const cp = currentPhaseInfo(s, now);
+  const peopleList = allPeople(s);
+  const btn = "flex items-center gap-1.5 text-xs font-semibold px-2.5 sm:px-3 py-1.5 rounded-lg transition";
+  const padLeft = collapsed ? "md:pl-20" : "md:pl-60";
+
+  return (
+    <div className="min-h-screen bg-slate-950 text-slate-200">
+      <header className={`sticky top-0 z-30 bg-slate-950/90 backdrop-blur border-b border-slate-800 px-3 py-2 flex items-center gap-2 transition-all ${padLeft}`}>
+        <button
+          onClick={toggleSidebar}
+          title={collapsed ? "Expandir barra lateral" : "Recolher barra lateral"}
+          className="hidden md:inline-flex items-center justify-center w-8 h-8 rounded-lg bg-slate-900 hover:bg-slate-800 border border-slate-700 text-cyan-300 text-xs font-mono"
+        >
+          {collapsed ? "»" : "«"}
+        </button>
+        <SyncChip />
+        <select
+          aria-label="Quem sou eu"
+          className="bg-slate-900 border border-slate-700 rounded-lg text-xs px-2 py-1.5 max-w-[165px]"
+          value={mePerson ? `P:${mePerson}` : repo.me}
+          onChange={e => handleMeChange(e.target.value)}
+        >
+          <option value="">Quem sou eu?</option>
+          {peopleList.length > 0 && (
+            <optgroup label="Por Pessoa (Multi-Cargo)">
+              {peopleList.map(p => <option key={p.person} value={`P:${p.person}`}>👤 {p.person} ({p.roles.map(r => r.role).join("+")})</option>)}
+            </optgroup>
+          )}
+          <optgroup label="Por Cargo">
+            {s.members.map(m => <option key={m.id} value={m.id}>{memberLabel(m)}</option>)}
+          </optgroup>
+        </select>
+        <span className="hidden lg:inline-flex items-center gap-1.5 text-xs font-mono px-2.5 py-1 rounded-lg bg-slate-900 border border-slate-800 text-cyan-300">
+          <span>Fase Atual:</span>
+          <b>{cp.phase.code}</b>
+          <span className="text-slate-400">({cp.phase.window})</span>
+        </span>
+        <div className="ml-auto flex items-center gap-1.5 flex-wrap">
+          {/* Botão/Indicador de Rede Wi-Fi */}
+          {repo.lanStatus === "connected" ? (
+            <button
+              onClick={() => { setLanInputUrl(repo.lanUrl || ""); setShowLanModal(true); }}
+              title={`🟢 Ao Vivo na Rede (${repo.lanUrl}) · Clique para ver detalhes ou desconectar`}
+              className={`${btn} bg-emerald-500/20 text-emerald-300 border border-emerald-500/50 hover:bg-emerald-500/30`}
+            >
+              <span className="relative flex h-2 w-2 mr-1">
+                <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-emerald-400 opacity-75"></span>
+                <span className="relative inline-flex rounded-full h-2 w-2 bg-emerald-500"></span>
+              </span>
+              <span className="hidden sm:inline">Ao Vivo na Rede</span>
+              <span className="sm:hidden">Rede</span>
+            </button>
+          ) : (
+            <button
+              onClick={() => { setLanInputUrl(repo.lanUrl || "http://localhost:8765"); setShowLanModal(true); }}
+              title="Conectar sincronização em tempo real na rede Wi-Fi (LAN)"
+              className={`${btn} bg-slate-800 hover:bg-slate-700 text-cyan-300 border border-slate-700`}
+            >
+              <span className="mr-1">📡</span>
+              <span className="hidden sm:inline">Rede Wi-Fi</span>
+              <span className="sm:hidden">LAN</span>
+            </button>
+          )}
+
+          <button onClick={copyState} title="Copiar estado JSON para a área de transferência" className={`${btn} bg-emerald-500 hover:bg-emerald-400 text-slate-950`}><Ic d={IO.copy} c="w-4 h-4" /><span className="hidden sm:inline">Copiar</span></button>
+          <button onClick={pasteState} title="Colar estado JSON da área de transferência" className={`${btn} bg-slate-800 hover:bg-slate-700 text-white border border-slate-700`}><Ic d={IO.paste} c="w-4 h-4" /><span className="hidden sm:inline">Colar</span></button>
+          <button onClick={exportJson} title="Baixar arquivo .json de estado da operação" className={`${btn} bg-cyan-400 hover:bg-cyan-300 text-slate-950`}><Ic d={IO.down} c="w-4 h-4" /><span className="hidden sm:inline">Exportar</span></button>
+          <button onClick={() => fileRef.current.click()} title="Importar arquivo .json de estado da operação" className={`${btn} bg-purple-500 hover:bg-purple-400 text-white`}><Ic d={IO.up} c="w-4 h-4" /><span className="hidden sm:inline">Importar</span></button>
+          <input ref={fileRef} type="file" accept="application/json,.json" className="hidden" onChange={importFile} />
+        </div>
+      </header>
+
+      <aside className={`hidden md:flex fixed left-0 top-0 bottom-0 ${collapsed ? "w-16 px-2" : "w-56 px-4"} bg-slate-900 border-r border-slate-800 flex-col py-4 z-40 transition-all`}>
+        <div className={`mb-5 mt-1 flex items-center ${collapsed ? "justify-center" : "justify-between"}`}>
+          {!collapsed ? (
+            <div>
+              <div className="font-bold leading-tight text-white">Mission Control</div>
+              <div className="text-[10px] text-cyan-400 tracking-widest font-mono mt-0.5">TREND DETECTIVE · v6.0</div>
+            </div>
+          ) : (
+            <div className="font-bold text-cyan-400 font-mono text-sm" title="Mission Control · Trend Detective">MC</div>
+          )}
+        </div>
+        <nav className="space-y-1 flex-1">
+          {TABS.map(([k, l, d]) => (
+            <button
+              key={k}
+              title={l}
+              onClick={() => setTab(k)}
+              className={`w-full flex items-center ${collapsed ? "justify-center px-2" : "gap-3 px-3"} py-2.5 rounded-xl text-sm font-medium transition ${tab === k ? "bg-cyan-400/15 text-cyan-300 border border-cyan-400/40" : "text-slate-400 hover:bg-slate-800 border border-transparent"}`}
+            >
+              <Ic d={d} />{!collapsed && <span>{l}</span>}
+            </button>
+          ))}
+        </nav>
+        {!collapsed && (
+          <div className="pt-3 border-t border-slate-800 text-[11px] text-slate-400 space-y-1">
+            <div className="font-mono text-slate-300">Janela: 39h (~30h prod)</div>
+            <div>Dupla Camada + 7 Invariantes</div>
+            <div className="text-[10px] text-slate-500">Atualizado por: {s.updatedBy}</div>
+          </div>
+        )}
+      </aside>
+
+      <main className={`px-4 py-5 pb-28 md:pb-8 transition-all ${padLeft}`}>
+        <div className={`md:px-2 ${tab === "tasks" ? "max-w-full" : "max-w-6xl"}`}>
+          {tab === "cmd"   && <Command s={s} now={now} goTasksPhase={goTasksPhase} />}
+          {tab === "tasks" && <Tasks s={s} now={now} say={say} initPhase={initPhase} clearInitPhase={() => setInitPhase(null)} mePerson={mePerson} />}
+          {tab === "team"  && <Team s={s} />}
+          {tab === "strat" && <Strategy />}
+          {tab === "del"   && <Delivery s={s} now={now} />}
+        </div>
+      </main>
+
+      <nav className="md:hidden fixed bottom-0 inset-x-0 z-40 bg-slate-900/95 backdrop-blur border-t border-slate-800 grid grid-cols-5" style={{ paddingBottom: "env(safe-area-inset-bottom,0px)" }}>
+        {TABS.map(([k, l, d]) => (
+          <button key={k} onClick={() => setTab(k)} className={`flex flex-col items-center gap-1 py-2.5 text-[10px] font-medium ${tab === k ? "text-cyan-300" : "text-slate-500"}`}>
+            <Ic d={d} c="w-4 h-4" />{l}
+          </button>
+        ))}
+      </nav>
+
+      {/* Modal de Conexão / Status da Rede Wi-Fi */}
+      {showLanModal && (
+        <div className="fixed inset-0 z-50 bg-black/80 backdrop-blur-sm flex items-center justify-center p-4">
+          <div className="bg-slate-900 border border-slate-700 rounded-2xl max-w-lg w-full p-5 space-y-4 shadow-2xl">
+            <div className="flex items-center justify-between border-b border-slate-800 pb-3">
+              <div className="flex items-center gap-2">
+                <span className="text-xl">📡</span>
+                <h3 className="font-bold text-white text-base">Sincronização em Tempo Real na Rede Wi-Fi (LAN)</h3>
+              </div>
+              <button onClick={() => setShowLanModal(false)} className="text-slate-400 hover:text-white text-sm font-mono p-1">✕</button>
+            </div>
+
+            {repo.lanStatus === "connected" ? (
+              <div className="space-y-3">
+                <div className="p-3.5 rounded-xl bg-emerald-950/40 border border-emerald-500/40 space-y-1.5">
+                  <div className="flex items-center gap-2 text-emerald-300 font-semibold text-xs">
+                    <span className="relative flex h-2.5 w-2.5">
+                      <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-emerald-400 opacity-75"></span>
+                      <span className="relative inline-flex rounded-full h-2.5 w-2.5 bg-emerald-500"></span>
+                    </span>
+                    🟢 Ao Vivo na Rede com a Equipe!
+                  </div>
+                  <div className="text-xs text-slate-300">
+                    Servidor conectado: <code className="bg-slate-950 px-2 py-0.5 rounded text-cyan-300 font-mono text-[11px] border border-slate-800">{repo.lanUrl}</code>
+                  </div>
+                  <p className="text-[11px] text-slate-400 leading-relaxed pt-1">
+                    Todas as alterações em tarefas, membros e marcos feitas por você ou pelos outros membros são transmitidas instantaneamente via SSE (Server-Sent Events) para todos os computadores da equipe.
+                  </p>
+                </div>
+
+                <div className="flex justify-end gap-2 pt-2">
+                  <button
+                    onClick={() => {
+                      repo.disconnectLan();
+                      say("Desconectado da rede Wi-Fi");
+                      setShowLanModal(false);
+                    }}
+                    className="px-3.5 py-1.5 rounded-lg text-xs font-semibold bg-rose-900/70 hover:bg-rose-800 text-rose-200 border border-rose-700/50"
+                  >
+                    Desconectar da Rede
+                  </button>
+                  <button
+                    onClick={() => setShowLanModal(false)}
+                    className="px-4 py-1.5 rounded-lg text-xs font-semibold bg-cyan-400 hover:bg-cyan-300 text-slate-950"
+                  >
+                    Fechar
+                  </button>
+                </div>
+              </div>
+            ) : (
+              <div className="space-y-3.5 text-xs text-slate-300">
+                <div className="p-3.5 rounded-xl bg-slate-950/80 border border-slate-800 space-y-2">
+                  <div className="font-semibold text-cyan-300 text-xs">Como parear a equipe no mesmo Wi-Fi:</div>
+                  <ol className="list-decimal list-inside space-y-2 text-slate-300 text-[11px] leading-relaxed">
+                    <li>
+                      <b>Na máquina host (um dos membros):</b> abra o terminal na pasta <code>general_strategy</code> e execute:<br />
+                      <code className="inline-block mt-1 bg-slate-900 text-emerald-400 px-2.5 py-1 rounded font-mono text-xs border border-slate-700 select-all">python3 sync_server.py</code>
+                    </li>
+                    <li>
+                      <b>Nos computadores da equipe no mesmo Wi-Fi:</b> acesse no navegador o endereço exibido no terminal do host (ex.: <code className="text-cyan-300 font-mono">http://IP_DO_HOST:8765</code>) ou cole o endereço abaixo para sincronizar mesmo se abrir o arquivo localmente:
+                    </li>
+                  </ol>
+                </div>
+
+                <div className="space-y-1.5">
+                  <label className="block text-slate-400 text-[11px] font-mono">Endereço do Servidor Wi-Fi (Host):</label>
+                  <div className="flex gap-2">
+                    <input
+                      type="text"
+                      className="flex-1 bg-slate-950 border border-slate-700 rounded-lg px-3 py-1.5 text-xs text-white font-mono focus:outline-none focus:border-cyan-400"
+                      value={lanInputUrl}
+                      placeholder="http://192.168.1.X:8765 ou http://localhost:8765"
+                      onChange={e => setLanInputUrl(e.target.value)}
+                      onKeyDown={e => {
+                        if (e.key === "Enter" && lanInputUrl.trim()) {
+                          repo.connectLan(lanInputUrl);
+                          setShowLanModal(false);
+                          say("Conectando ao servidor Wi-Fi...");
+                        }
+                      }}
+                    />
+                    <button
+                      onClick={() => {
+                        if (!lanInputUrl.trim()) return;
+                        repo.connectLan(lanInputUrl);
+                        setShowLanModal(false);
+                        say("Conectando ao servidor Wi-Fi...");
+                      }}
+                      className="px-4 py-1.5 rounded-lg text-xs font-semibold bg-emerald-500 hover:bg-emerald-400 text-slate-950"
+                    >
+                      Conectar
+                    </button>
+                  </div>
+                </div>
+
+                <div className="flex justify-end gap-2 pt-2 border-t border-slate-800">
+                  <button
+                    onClick={() => setShowLanModal(false)}
+                    className="px-3.5 py-1.5 rounded-lg text-xs font-semibold bg-slate-800 hover:bg-slate-700 text-slate-300 border border-slate-700"
+                  >
+                    Cancelar
+                  </button>
+                </div>
+              </div>
+            )}
+          </div>
+        </div>
+      )}
+
+      {pend && (
+        <div className="fixed inset-x-3 bottom-24 md:bottom-6 md:left-64 z-50 bg-slate-900 border border-purple-500 rounded-2xl p-4 shadow-2xl">
+          <b className="text-sm">Confirmar importação de estado JSON?</b>
+          <p className="text-xs text-slate-400 my-2">{pend.info}. Um backup automático do estado atual será salvo antes da substituição.</p>
+          <div className="flex gap-2">
+            <button onClick={() => { repo.replace(pend.st); setPend(null); say("Estado importado com sucesso (backup salvo)"); }} className="bg-purple-500 text-white text-xs font-semibold px-4 py-2 rounded-lg">Importar Agora</button>
+            <button onClick={() => setPend(null)} className="bg-slate-700 text-xs px-4 py-2 rounded-lg">Cancelar</button>
+          </div>
+        </div>
+      )}
+
+      {toast && (
+        <div className="fixed top-16 left-1/2 -translate-x-1/2 z-50 bg-emerald-500 text-slate-950 text-sm font-semibold px-4 py-2 rounded-full shadow-lg max-w-[90vw] text-center">
+          {toast}
+        </div>
+      )}
+    </div>
+  );
+}
+
+ReactDOM.createRoot(document.getElementById("root")).render(<App />);
+</script>
+</body>
+</html>
