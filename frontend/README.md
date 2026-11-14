@@ -12,13 +12,13 @@ npm ci
 npm run dev
 ```
 
-Abra o endereço indicado pelo Vite. Para verificar alterações, execute `npm run typecheck`, `npm test` e `npm run build`. O build gera `frontend/dist/`. Use `npm run preview` para servir esse build localmente.
+Abra o endereço indicado pelo Vite. Para verificar alterações, execute `npm run typecheck`, `npm test` e `npm run build`. O build gera `frontend/dist/`. Use `npm run preview` para servir esse build localmente. Para homologar os 12 arquivos `{var_id}_grid.json` reais em `public/data/`, execute `npm run validate:grids -- --strict` (modo parcial sem `--strict` valida apenas os arquivos presentes e o alias `CLOUD_AMT -> CLDTOT_grid.json`).
 
 ## Jornada e estado
 
 1. Escolha as variáveis A e B nos seletores agrupados por família. Os dois lados podem usar a mesma variável.
 2. Selecione o mês inicial e o mês final. O início mínimo vem do maior ano inicial entre as duas variáveis. O limite superior é o mês corrente. A cobertura efetiva depende da consulta.
-3. A área Mapa usa NASA GIBS no Leaflet. Escolha o lado ativo e clique nas células para compor as regiões A e B. Cada região aceita até nove células conexas.
+3. A área Mapa usa NASA GIBS no Leaflet. Escolha o lado ativo e clique nas células para compor as regiões A e B (ou ative **Mesmo Local (A=B)** para espelhar A em B — com *re-snap* automático e deduplicação quando `MERRA-2` `0.5°×0.625°` e `CERES_SYN1deg` `1.0°×1.0°` diferirem). Cada região aceita até nove células conexas.
 4. `Analisar seleção` envia uma única requisição `POST /api/analyze` depois que variáveis, período e regiões A/B estão completos. A Bancada recebe a resposta real e apresenta o erro do backend sem substituir silenciosamente a consulta por dados sintéticos.
 
 O estado está em `src/App.tsx`. A aplicação inicia na aba Mapa e mantém as escolhas durante a troca de abas. Os controles de gráficos alternam série bruta e anomalia, curvas juntas e separadas, eixo Y duplo e tendências OLS/Theil–Sen. Unidades diferentes são separadas quando o eixo duplo está desativado. O recorte temporal preserva o alinhamento entre datas, valores e tendências e limita a navegação horizontal. O recorte usa os ajustes pré-calculados da fixture, válidos para o período original da análise.
