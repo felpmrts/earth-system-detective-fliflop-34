@@ -415,21 +415,21 @@ flowchart TD
 ### Fase 2 — Ingestão NASA POWER, Motor Estatístico e UI sobre Mock
 **Sábado 10:30 – 12:30 (2h00)**
 
-- **`DADOS-1` (Kaio, Renan, Felipe — Ingestão NASA POWER & Agregador):**
-  - Implementar o cliente de consulta ao endpoint `/api/temporal/monthly/point` com suporte a múltiplas variáveis e intervalo de datas;
-  - Desenvolver o mecanismo de **Cache Local** (IndexedDB / memória) e a rotina de paralelismo para requisições de grade $2\times 2$ (4 pontos) e $3\times 3$ (9 pontos) com média espacial;
-  - Implementar o alinhamento temporal e teste de fallback para contingência de rede.
+- **`DADOS-1` (Kaio, Renan, Felipe — Ingestão NASA POWER & Agregador $K \le 9$):**
+  - Implementar o cliente de consulta ao endpoint `/api/temporal/monthly/point` (suporta até 20 variáveis por chamada; malha fina MERRA-2 $0{,}5^\circ \times 0{,}625^\circ$ como padrão) com as 3 regras obrigatórias de limpeza: (1) converter `-999` para `np.nan` e usar `np.nanmean()` (máscara oceânica de `GWETTOP`/`GWETROOT`), (2) descartar a chave anual `YYYY13`, e (3) converter `PRECTOTCORR` de `mm/day` para `mm/mês` (`calendar.monthrange`);
+  - Desenvolver o agregador espacial para **composição livre de $1 \le K \le 9$ células adjacentes** (`cells: [{lat, lon}, ...]`) controlando concorrência com **`asyncio.Semaphore(3)`** + *backoff* exponencial (respeitando o limite de 30 req/min, sem `Promise.all` de 9 chamadas) e **Cache Local em JSON/SQLite** indexado por célula individual `(lat, lon, var)` e por região (Parquet descartado no Módulo 1);
+  - Implementar o alinhamento temporal no backend (`1981` MERRA-2 vs. `1984` CERES) e fallback para contingência de rede *(nota: no frontend, `idbCache.ts` e `getCommonStartYear` já foram entregues na branch `frontend`)*.
 - **`DADOS-2` (Rhyan, Fred — Motor Estatístico `stats_engine.py`):**
-  - Implementar a biblioteca matemática completa:
+  - Implementar a biblioteca matemática completa aderente ao `CONTRATO_DE_DADOS.md`:
     1. Anomalia Climatológica Mensal dessazonalizada ($Y'_{a,m} = Y_{a,m} - \bar{Y}_m$);
-    2. Regressão linear OLS e Declive Robusto de Theil-Sen com taxa expressa por década ($10 \times B$);
+    2. Regressão linear OLS e Declive Robusto de Theil-Sen com taxa expressa por década ($10 \times B_{\text{ano}}$ ou $120 \times B_{\text{mês}}$);
     3. Ajuste não-linear via GAM / Splines com classificação de regime (*linear, acelerado, saturando*);
     4. Detecção bivariada de outliers via Distância de Mahalanobis ($D_M > 2{,}5$);
     5. Teste de significância com correção para autocorrelação $\text{AR}(1)$ ($N_{\text{efetivo}}$) e $p_{\text{adj}}$ (FDR);
     6. Módulo bivariado de correlação de Pearson ($r$), $\tau$ de Kendall e separação multiescala ($r_{\text{global}}$ vs. $r_{\text{detrended}}$).
-- **`PROD-1` (Renan, Fred — Mapa 2D & Fluxo Adaptativo sobre Mock):**
-  - Criar o mapa interativo renderizando o retângulo de grade nativo no local clicado ($0{,}5^\circ \times 0{,}625^\circ$ para MERRA-2 ou $1{,}0^\circ \times 1{,}0^\circ$ para CERES);
-  - Implementar os seletores da ordem oficial de interação: `1º Variável -> 2º Onde (Local A/B + grade 1x1, 2x2, 3x3) -> 3º Tempo`.
+- **`PROD-1` (Renan, Fred — Mapa 2D Leaflet Canvas & Fluxo Adaptativo sobre Mock):**
+  - Renderizar o componente visual `<MapView />` em **Leaflet (renderer Canvas)** consumindo `gridGeometry.ts` (snap nativo + conectividade de 8-vizinhos para composição livre de $1 \le K \le 9$ células adjacentes, ex.: $1\times 1, 1\times 3, 2\times 1, 2\times 2, 3\times 3$, já implementado e testado na branch `frontend`);
+  - Implementar os seletores da ordem oficial de interação no escopo MVP (**1 variável por área**: `variable_a` para Região A e `variable_b` para Região B): `1º Variável -> 2º Onde (Local A/B + composição livre K <= 9) -> 3º Tempo`.
 - **`PROD-2` (Kaio, com apoio de PROD-1 — Bancada de Gráficos sobre Mock):**
   - Construir a bancada gráfica conectada ao `mock_analysis.json`: Eixo Y Duplo, padronização em $Z\text{-Score}$ universal ($\sigma$), alternador Série Bruta vs. Anomalia e Linear vs. Symlog;
   - Integrar camadas analíticas (toggles): retas OLS e Theil-Sen por década, curva GAM e elipse de Mahalanobis.
@@ -438,7 +438,7 @@ flowchart TD
 - **`COORD` (Rhyan, Felipe — Governança e 1º Deploy):**
   - Publicar o 1º deploy público da aplicação exibindo a casca visual funcional conectada ao Mock em URL acessível via internet (Vercel/GitHub Pages).
 - **Portão 1 (Sábado 12:30 — Hard Gate):**
-  - *Critérios:* (1) Chamada real à NASA POWER API retornando JSON em $< 1\text{ s}$; (2) `stats_engine.py` executando sem erros com testes unitários; (3) Mapa e Bancada operando integrados ao Mock; (4) 1º Deploy público no ar.
+  - *Critérios:* (1) Chamada real à NASA POWER API retornando JSON limpo (`-999`/`YYYY13` tratados); (2) `stats_engine.py` executando sem erros com testes unitários; (3) Mapa e Bancada operando integrados ao Mock; (4) 1º Deploy público no ar.
 
 ---
 
