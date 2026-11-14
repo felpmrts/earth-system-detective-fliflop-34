@@ -187,7 +187,7 @@ export function validateVariableStatistics(data: unknown, prefix = 'statistics')
     throw new ContractValidationError(`${prefix}.series ausente.`);
   }
 
-  const { dates, raw_values, anomaly_values, linear_fit, gam_smooth_fit, sen_fit } = data.series;
+  const { dates, raw_values, anomaly_values, linear_fit, gam_smooth_fit, sen_fit, z_scores } = data.series;
   const validDates = assertMonthlyDates(dates, `${prefix}.series.dates`);
   const expectedLen = validDates.length;
   assertNumericSeries(raw_values, `${prefix}.series.raw_values`, expectedLen, true);
@@ -196,6 +196,9 @@ export function validateVariableStatistics(data: unknown, prefix = 'statistics')
   assertNumericSeries(gam_smooth_fit, `${prefix}.series.gam_smooth_fit`, expectedLen, false);
   if (sen_fit !== undefined) {
     assertNumericSeries(sen_fit, `${prefix}.series.sen_fit`, expectedLen, false);
+  }
+  if (z_scores !== undefined) {
+    assertNumericSeries(z_scores, `${prefix}.series.z_scores`, expectedLen, true);
   }
 
   return data as unknown as VariableStatistics;

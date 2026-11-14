@@ -195,3 +195,27 @@ button:focus-visible, a:focus-visible, summary:focus-visible, input:focus-visibl
   section, aside, .discovery-header, .discovery-card, .map-legend { border-color: #94a3b8; }
   button:focus-visible, a:focus-visible, input:focus-visible { outline: 3px solid #fde047; outline-offset: 2px; }
 }
+
+.bench-header-actions { display: flex; flex-wrap: wrap; gap: .45rem; }
+.charts-grid { display: grid; grid-template-columns: minmax(0, 1fr); gap: .75rem; }
+.charts-grid.dual-charts { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+.chart-box { min-width: 0; min-height: 410px; background: #0c1726; border: 1px solid #24364e; border-radius: 10px; padding: .35rem; overflow: hidden; }
+@media (max-width: 1120px) { .charts-grid.dual-charts { grid-template-columns: minmax(0, 1fr); } }
+
+.diagnostic-drawer { background: #0e1929; border: 1px solid #24364e; border-radius: 12px; padding: .85rem; }
+.diag-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(260px, 1fr)); gap: .75rem; }
+.diag-card { background: #122136; border: 1px solid #2a3f5c; border-radius: 10px; padding: .75rem .85rem; display: flex; flex-direction: column; gap: .55rem; }
+.diag-card h4 { margin: 0; font-size: .9rem; color: #67e8f9; border-bottom: 1px solid #23364f; padding-bottom: .35rem; }
+.diag-row { display: flex; flex-direction: column; gap: .25rem; font-size: .84rem; padding-top: .25rem; }
+.diag-row + .diag-row { border-top: 1px dashed #243852; padding-top: .5rem; }
+.diag-meta { color: #bdd0e6; font-size: .8rem; line-height: 1.45; }
+.diag-meta code { color: #a5f3fc; background: #0a1422; padding: .08rem .28rem; border-radius: 4px; font-size: .78rem; }
+
+.slot-tag { display: inline-block; width: fit-content; font-size: .72rem; font-weight: 700; letter-spacing: .03em; padding: .12rem .45rem; border-radius: 999px; border: 1px solid transparent; }
+.slot-tag.slot-a { color: #ecfeff; background: rgba(34, 211, 238, .18); border-color: #22d3ee; }
+.slot-tag.slot-b { color: #fff7ed; background: rgba(251, 146, 60, .18); border-color: #fb923c; }
+
+.badge-line { display: flex; flex-wrap: wrap; align-items: center; gap: .38rem; }
+.paradox-badge { display: inline-flex; align-items: center; font-size: .74rem; font-weight: 600; padding: .15rem .5rem; border-radius: 999px; color: #e0f2fe; background: rgba(56, 189, 248, .16); border: 1px solid #38bdf8; }
+.invariant-note { color: #fbbf24; font-size: .76rem; line-height: 1.35; }
+.interpretation-box { margin: .25rem 0 0; padding: .5rem .6rem; background: #0a1422; border-left: 3px solid #22d3ee; border-radius: 6px; font-size: .8rem; line-height: 1.42; color: #dbeafe; }
