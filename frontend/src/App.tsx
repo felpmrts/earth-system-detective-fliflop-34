@@ -8,13 +8,11 @@ import type {
   ConfidenceTier,
   RegionAnalysisResponse,
   RegionSelection,
-  RegionSlot,
   RegimeShape,
   VariableId,
   VariableStatistics,
 } from './contracts/types';
 import { isValidVariableId, VARIABLE_LIST } from './contracts/catalog';
-import { buildRegionSelection, snapCoordToCell } from './geo/gridGeometry';
 import { MapWorkspace } from './map/MapWorkspace';
 import { getBackendCatalog, getRegionData } from './services/regionDataAdapter';
 import './bench.css';
@@ -24,67 +22,6 @@ type PlotTraces = NonNullable<ComponentProps<typeof Plot>['data']>;
 type MetricMode = 'anomaly' | 'raw' | 'zscore';
 type ScaleMode = 'linear' | 'symlog';
 type ViewMode = 'timeseries' | 'scatter' | 'both';
-
-interface StoryPreset {
-  readonly id: string;
-  readonly label: string;
-  readonly summary: string;
-  readonly variableA: VariableId;
-  readonly variableB: VariableId;
-  readonly startDate: string;
-  readonly endDate: string;
-  readonly coordsA: readonly (readonly [number, number])[];
-  readonly coordsB: readonly (readonly [number, number])[];
-}
-
-const STORY_PRESETS: readonly StoryPreset[] = [
-  {
-    id: 'caso-1',
-    label: 'Caso 1 · Cerrado vs. Amazônia',
-    summary: 'Umidade radicular (GWETROOT): MATOPIBA vs. Amazônia Central (1981–2024)',
-    variableA: 'GWETROOT',
-    variableB: 'GWETROOT',
-    startDate: '1981-01',
-    endDate: '2024-12',
-    coordsA: [[-12.0, -45.625], [-12.0, -45.0], [-11.5, -45.625], [-11.5, -45.0]],
-    coordsB: [[-3.0, -60.0], [-3.0, -59.375], [-2.5, -60.0], [-2.5, -59.375]],
-  },
-  {
-    id: 'caso-2',
-    label: 'Caso 2 · Calor & Seca (MG)',
-    summary: 'Acoplamento local (A = B): T2M_MAX vs. GWETROOT em Minas Gerais (1981–2024)',
-    variableA: 'T2M_MAX',
-    variableB: 'GWETROOT',
-    startDate: '1981-01',
-    endDate: '2024-12',
-    coordsA: [[-19.5, -48.125], [-19.5, -47.5], [-19.0, -48.125], [-19.0, -47.5]],
-    coordsB: [[-19.5, -48.125], [-19.5, -47.5], [-19.0, -48.125], [-19.0, -47.5]],
-  },
-  {
-    id: 'caso-3',
-    label: 'Caso 3 · Teleconexão Equatorial',
-    summary: 'Paradoxo multiescala: T2M (Foz Amazônica) vs. PRECTOTCORR (Bacia Xingu/Tapajós)',
-    variableA: 'T2M',
-    variableB: 'PRECTOTCORR',
-    startDate: '1981-01',
-    endDate: '2024-12',
-    coordsA: [[-1.5, -51.25], [-1.5, -50.625], [-1.0, -51.25], [-1.0, -50.625]],
-    coordsB: [[-3.5, -52.5], [-3.5, -51.875], [-3.0, -52.5], [-3.0, -51.875]],
-  },
-];
-
-function buildPresetRegion(
-  slot: RegionSlot,
-  variableId: VariableId,
-  coords: readonly (readonly [number, number])[],
-): RegionSelection {
-  const uniqueCells = new Map<string, ReturnType<typeof snapCoordToCell>>();
-  for (const [lat, lon] of coords) {
-    const cell = snapCoordToCell(lat, lon, variableId);
-    uniqueCells.set(cell.cell_id, cell);
-  }
-  return buildRegionSelection(slot, variableId, [...uniqueCells.values()]);
-}
 
 function toSymlog(val: number): number {
   return Math.sign(val) * Math.log1p(Math.abs(val));
@@ -324,7 +261,6 @@ export default function App() {
   const [regionB, setRegionB] = useState<RegionSelection | null>(null);
   const [startMonth, setStartMonth] = useState('');
   const [endMonth, setEndMonth] = useState('');
-  const [activePresetId, setActivePresetId] = useState<string | null>(null);
   const [isAnalyzing, setIsAnalyzing] = useState(false);
   const [analysisError, setAnalysisError] = useState('');
   const analysisControllerRef = useRef<AbortController | null>(null);
@@ -353,13 +289,11 @@ export default function App() {
 
   function handleSelectVariableA(nextVar: string) {
     setVariableA(nextVar);
-    setActivePresetId(null);
     setRegionA(prev => (prev && prev.variable_id === nextVar ? prev : null));
   }
 
   function handleSelectVariableB(nextVar: string) {
     setVariableB(nextVar);
-    setActivePresetId(null);
     setRegionB(prev => (prev && prev.variable_id === nextVar ? prev : null));
   }
 
@@ -437,27 +371,6 @@ export default function App() {
       regB: regionB,
       startDate: start,
       endDate: end,
-    });
-  }
-
-  async function handleApplyPreset(preset: StoryPreset) {
-    const nextRegA = buildPresetRegion('A', preset.variableA, preset.coordsA);
-    const nextRegB = buildPresetRegion('B', preset.variableB, preset.coordsB);
-    setActivePresetId(preset.id);
-    setVariableA(preset.variableA);
-    setVariableB(preset.variableB);
-    setStartMonth(preset.startDate);
-    setEndMonth(preset.endDate);
-    setRegionA(nextRegA);
-    setRegionB(nextRegB);
-
-    await runAnalysisRequest({
-      varA: preset.variableA,
-      varB: preset.variableB,
-      regA: nextRegA,
-      regB: nextRegB,
-      startDate: preset.startDate,
-      endDate: preset.endDate,
     });
   }
 
@@ -704,30 +617,13 @@ export default function App() {
               locale="pt-br" valueFormat="MMMM [de] YYYY" clearable disabled={!minimumMonth}
               popoverProps={{ withinPortal: true, zIndex: 1100 }}
               minDate={minimumMonth ? `${minimumMonth}-01` : undefined} maxDate={`${maximumMonth}-01`}
-              value={start ? `${start}-01` : null} onChange={value => { setActivePresetId(null); setStartMonth(value?.slice(0, 7) ?? ''); }} />
+              value={start ? `${start}-01` : null} onChange={value => setStartMonth(value?.slice(0, 7) ?? '')} />
             <MonthPickerInput className="variable-picker" classNames={{ input: 'selection-input' }} label="Mês final" placeholder="Selecione o mês"
               locale="pt-br" valueFormat="MMMM [de] YYYY" clearable disabled={!minimumMonth}
               popoverProps={{ withinPortal: true, zIndex: 1100 }}
               minDate={minimumMonth ? `${start || minimumMonth}-01` : undefined} maxDate={`${maximumMonth}-01`}
-              value={end ? `${end}-01` : null} onChange={value => { setActivePresetId(null); setEndMonth(value?.slice(0, 7) ?? ''); }} />
+              value={end ? `${end}-01` : null} onChange={value => setEndMonth(value?.slice(0, 7) ?? '')} />
           </fieldset>
-          <section className="preset-picker" aria-label="Casos Clássicos de Demonstração">
-            <h3>Casos Clássicos (1 clique)</h3>
-            <div className="preset-list">
-              {STORY_PRESETS.map(preset => (
-                <button
-                  key={preset.id}
-                  type="button"
-                  className={activePresetId === preset.id ? 'preset-btn active' : 'preset-btn'}
-                  title={preset.summary}
-                  disabled={isAnalyzing}
-                  onClick={() => void handleApplyPreset(preset)}
-                >
-                  {preset.label}
-                </button>
-              ))}
-            </div>
-          </section>
         </aside>
         <div className="exploration">
           <nav aria-label="Área de trabalho">
@@ -806,7 +702,7 @@ export default function App() {
         {analysisError && <p className="map-error" role="alert">{analysisError}</p>}
         {!analysis && (
           <p role="status">
-            Defina variáveis, período e regiões no mapa ou escolha um dos <b>Casos Clássicos</b> à esquerda para consultar o motor estatístico.
+            Defina variáveis, período e regiões no mapa para consultar o motor estatístico.
           </p>
         )}
         {analysis && missing.map(({ slot, id }) => (
