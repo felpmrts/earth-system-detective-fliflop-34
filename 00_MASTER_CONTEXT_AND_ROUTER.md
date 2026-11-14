@@ -94,7 +94,7 @@ Use a tabela abaixo para saltar diretamente para o documento (e seção) exato s
 
 ## 5. Catálogo Completo de Todos os Documentos Markdown (`.md`) do Projeto
 
-- [Documentação do frontend](frontend/README.md) — execução, arquitetura, catálogo e integração.
+- [Documentação do frontend](frontend/README.md) — execução, arquitetura, catálogo e integração..
 
 Abaixo estão os documentos Markdown do projeto, organizados por módulo funcional, com tamanho aproximado e resumo cirúrgico de conteúdo:
 
