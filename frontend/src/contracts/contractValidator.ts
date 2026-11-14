@@ -1,0 +1,278 @@
+import { isValidVariableId } from './catalog.ts';
+import type {
+  ComparisonPair,
+  GlobalGridFile,
+  RegionAnalysisResponse,
+  VariableStatistics,
+} from './types.ts';
+import { assertValidLatLon } from '../geo/gridGeometry.ts';
+
+export class ContractValidationError extends Error {
+  readonly code = 'CONTRACT_VIOLATION' as const;
+
+  constructor(message: string) {
+    super(message);
+    this.name = 'ContractValidationError';
+  }
+}
+
+function isRecord(value: unknown): value is Record<string, unknown> {
+  return typeof value === 'object' && value !== null && !Array.isArray(value);
+}
+
+function assertFiniteNumber(value: unknown, fieldPath: string): number {
+  if (typeof value !== 'number' || !Number.isFinite(value)) {
+    throw new ContractValidationError(`Campo numérico inválido em "${fieldPath}": ${String(value)}`);
+  }
+  return value;
+}
+
+function assertNumberInRange(
+  value: unknown,
+  min: number,
+  max: number,
+  fieldPath: string,
+): number {
+  const num = assertFiniteNumber(value, fieldPath);
+  if (num < min || num > max) {
+    throw new ContractValidationError(
+      `Valor fora do intervalo [${min}, ${max}] em "${fieldPath}": ${num}`,
+    );
+  }
+  return num;
+}
+
+function assertNonEmptyString(value: unknown, fieldPath: string): string {
+  if (typeof value !== 'string' || value.trim().length === 0) {
+    throw new ContractValidationError(`String obrigatória ausente em "${fieldPath}"`);
+  }
+  return value;
+}
+
+/** Valida arquivo pré-processado da camada global Canvas ({var_id}_grid.json). */
+export function validateGlobalGrid(data: unknown): GlobalGridFile {
+  if (!isRecord(data)) {
+    throw new ContractValidationError('Payload de grid global deve ser um objeto JSON.');
+  }
+
+  const varId = assertNonEmptyString(data.variable_id, 'variable_id');
+  if (!isValidVariableId(varId)) {
+    throw new ContractValidationError(`variable_id desconhecido no grid global: ${varId}`);
+  }
+
+  assertNonEmptyString(data.unit, 'unit');
+  assertNonEmptyString(data.trend_unit, 'trend_unit');
+
+  if (!isRecord(data.period)) {
+    throw new ContractValidationError('Bloco "period" ausente no grid global.');
+  }
+  assertNonEmptyString(data.period.start, 'period.start');
+  assertNonEmptyString(data.period.end, 'period.end');
+
+  if (!Array.isArray(data.points)) {
+    throw new ContractValidationError('Campo "points" deve ser um array no grid global.');
+  }
+
+  data.points.forEach((pt, idx) => {
+    if (!isRecord(pt)) {
+      throw new ContractValidationError(`Ponto [${idx}] inválido no grid global.`);
+    }
+    const lat = assertFiniteNumber(pt.lat, `points[${idx}].lat`);
+    const lon = assertFiniteNumber(pt.lon, `points[${idx}].lon`);
+    assertValidLatLon(lat, lon);
+    assertFiniteNumber(pt.slope_sen_decade, `points[${idx}].slope_sen_decade`);
+    assertNumberInRange(pt.q_value_fdr, 0, 1, `points[${idx}].q_value_fdr`);
+    if (typeof pt.is_sig !== 'boolean') {
+      throw new ContractValidationError(`points[${idx}].is_sig deve ser boolean.`);
+    }
+  });
+
+  return data as unknown as GlobalGridFile;
+}
+
+/** Valida um bloco estatístico individual garantindo os 7 Invariantes Estatísticos. */
+export function validateVariableStatistics(data: unknown, prefix = 'statistics'): VariableStatistics {
+  if (!isRecord(data)) {
+    throw new ContractValidationError(`${prefix} deve ser um objeto.`);
+  }
+
+  const varId = assertNonEmptyString(data.variable_id, `${prefix}.variable_id`);
+  if (!isValidVariableId(varId)) {
+    throw new ContractValidationError(`variable_id desconhecido em ${prefix}: ${varId}`);
+  }
+
+  const scaleType = assertNonEmptyString(data.scale_type, `${prefix}.scale_type`);
+  if (scaleType !== 'interval' && scaleType !== 'ratio') {
+    throw new ContractValidationError(`${prefix}.scale_type inválido: ${scaleType}`);
+  }
+
+  if (typeof data.allow_percentage_change !== 'boolean') {
+    throw new ContractValidationError(`${prefix}.allow_percentage_change deve ser boolean.`);
+  }
+
+  // Trava do Invariante #3: proibido exibir variação percentual em escalas intervalares (°C, kPa).
+  if (scaleType === 'interval' && data.allow_percentage_change) {
+    throw new ContractValidationError(
+      `Violação do Invariante #3 em ${prefix}: scale_type="interval" (${varId}) não pode ter allow_percentage_change=true.`,
+    );
+  }
+
+  if (!isRecord(data.period)) {
+    throw new ContractValidationError(`${prefix}.period ausente.`);
+  }
+  assertFiniteNumber(data.period.n_observations, `${prefix}.period.n_observations`);
+  assertFiniteNumber(data.period.n_effective_ar1, `${prefix}.period.n_effective_ar1`);
+
+  if (!isRecord(data.regression)) {
+    throw new ContractValidationError(`${prefix}.regression ausente.`);
+  }
+  assertFiniteNumber(data.regression.slope_per_decade_ols, `${prefix}.regression.slope_per_decade_ols`);
+  assertFiniteNumber(data.regression.slope_per_decade_sen, `${prefix}.regression.slope_per_decade_sen`);
+
+  if (!isRecord(data.significance)) {
+    throw new ContractValidationError(`${prefix}.significance ausente.`);
+  }
+  assertNumberInRange(data.significance.p_value_naive, 0, 1, `${prefix}.significance.p_value_naive`);
+  assertNumberInRange(
+    data.significance.p_value_ar1_corrected,
+    0,
+    1,
+    `${prefix}.significance.p_value_ar1_corrected`,
+  );
+  assertNumberInRange(data.significance.fdr_q_value, 0, 1, `${prefix}.significance.fdr_q_value`);
+  if (typeof data.significance.is_significant_fdr05 !== 'boolean') {
+    throw new ContractValidationError(`${prefix}.significance.is_significant_fdr05 deve ser boolean.`);
+  }
+
+  if (!isRecord(data.series)) {
+    throw new ContractValidationError(`${prefix}.series ausente.`);
+  }
+
+  const { dates, raw_values, anomaly_values, linear_fit, gam_smooth_fit } = data.series;
+  if (
+    !Array.isArray(dates) ||
+    !Array.isArray(raw_values) ||
+    !Array.isArray(anomaly_values) ||
+    !Array.isArray(linear_fit) ||
+    !Array.isArray(gam_smooth_fit)
+  ) {
+    throw new ContractValidationError(`${prefix}.series deve conter arrays válidos.`);
+  }
+
+  const expectedLen = dates.length;
+  if (
+    raw_values.length !== expectedLen ||
+    anomaly_values.length !== expectedLen ||
+    linear_fit.length !== expectedLen ||
+    gam_smooth_fit.length !== expectedLen
+  ) {
+    throw new ContractValidationError(
+      `Comprimento inconsistente nos vetores de ${prefix}.series (esperado ${expectedLen}).`,
+    );
+  }
+
+  return data as unknown as VariableStatistics;
+}
+
+/** Valida os campos internos de comparison_pair (r_global, r_detrended e eventuais p-valores). */
+export function validateComparisonPair(data: unknown): ComparisonPair {
+  if (!isRecord(data)) {
+    throw new ContractValidationError('comparison_pair deve ser um objeto.');
+  }
+
+  assertNonEmptyString(data.region_a_id, 'comparison_pair.region_a_id');
+  assertNonEmptyString(data.region_b_id, 'comparison_pair.region_b_id');
+
+  if (typeof data.spatial_divergence_detected !== 'boolean') {
+    throw new ContractValidationError('comparison_pair.spatial_divergence_detected deve ser boolean.');
+  }
+
+  if (data.slope_difference_per_decade !== null) {
+    assertFiniteNumber(
+      data.slope_difference_per_decade,
+      'comparison_pair.slope_difference_per_decade',
+    );
+  }
+
+  if (!isRecord(data.multiscale_correlation)) {
+    throw new ContractValidationError('comparison_pair.multiscale_correlation ausente.');
+  }
+
+  const mc = data.multiscale_correlation;
+  assertNumberInRange(
+    mc.long_term_secular_r,
+    -1,
+    1,
+    'comparison_pair.multiscale_correlation.long_term_secular_r',
+  );
+  assertNumberInRange(
+    mc.short_term_detrended_r,
+    -1,
+    1,
+    'comparison_pair.multiscale_correlation.short_term_detrended_r',
+  );
+  assertNonEmptyString(mc.paradox_type, 'comparison_pair.multiscale_correlation.paradox_type');
+  assertNonEmptyString(mc.interpretation, 'comparison_pair.multiscale_correlation.interpretation');
+
+  // Se o backend enviar p-valores de correlação multiescala no comparison_pair, valida intervalo [0, 1].
+  for (const pField of [
+    'p_value_naive',
+    'p_value_ar1_corrected',
+    'fdr_q_value',
+    'long_term_p_value',
+    'short_term_p_value',
+  ] as const) {
+    if (mc[pField] !== undefined && mc[pField] !== null) {
+      assertNumberInRange(mc[pField], 0, 1, `comparison_pair.multiscale_correlation.${pField}`);
+    }
+  }
+
+  return data as unknown as ComparisonPair;
+}
+
+/** Valida a resposta completa do backend Python ou do fallback offline. */
+export function validateAnalysisResponse(data: unknown): RegionAnalysisResponse {
+  if (!isRecord(data)) {
+    throw new ContractValidationError('Resposta de análise deve ser um objeto JSON.');
+  }
+
+  if (!isRecord(data.request_meta)) {
+    throw new ContractValidationError('Bloco "request_meta" ausente na resposta.');
+  }
+
+  assertNumberInRange(data.request_meta.cells_count_a, 1, 9, 'request_meta.cells_count_a');
+
+  const hasRegionBId =
+    data.request_meta.region_b_id !== null && data.request_meta.region_b_id !== undefined;
+  const hasRegionBAnalysis =
+    data.region_b_analysis !== null && data.region_b_analysis !== undefined;
+
+  if (hasRegionBId) {
+    assertNonEmptyString(data.request_meta.region_b_id, 'request_meta.region_b_id');
+    assertNumberInRange(data.request_meta.cells_count_b, 1, 9, 'request_meta.cells_count_b');
+    if (!hasRegionBAnalysis) {
+      throw new ContractValidationError(
+        'region_b_analysis é obrigatório quando request_meta.region_b_id está presente.',
+      );
+    }
+  } else if (data.request_meta.cells_count_b !== undefined) {
+    assertNumberInRange(data.request_meta.cells_count_b, 0, 9, 'request_meta.cells_count_b');
+  }
+
+  validateVariableStatistics(data.region_a_analysis, 'region_a_analysis');
+
+  if (hasRegionBAnalysis) {
+    validateVariableStatistics(data.region_b_analysis, 'region_b_analysis');
+    if (data.comparison_pair === null || data.comparison_pair === undefined) {
+      throw new ContractValidationError(
+        'comparison_pair é obrigatório quando region_b_analysis está presente.',
+      );
+    }
+  }
+
+  if (data.comparison_pair !== null && data.comparison_pair !== undefined) {
+    validateComparisonPair(data.comparison_pair);
+  }
+
+  return data as unknown as RegionAnalysisResponse;
+}
