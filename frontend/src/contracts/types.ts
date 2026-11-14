@@ -198,7 +198,9 @@ export interface VariableStatistics {
     readonly dates: readonly string[];
     readonly raw_values: readonly (number | null)[];
     readonly anomaly_values: readonly (number | null)[];
+    readonly z_scores?: readonly (number | null)[];
     readonly linear_fit: readonly number[];
+    readonly sen_fit?: readonly number[];
     readonly gam_smooth_fit: readonly number[];
   };
 }
@@ -211,6 +213,8 @@ export interface ComparisonPair {
   readonly multiscale_correlation: {
     readonly long_term_secular_r: number;
     readonly short_term_detrended_r: number;
+    readonly long_term_p_value?: number;
+    readonly short_term_p_value?: number;
     readonly paradox_type: string;
     readonly interpretation: string;
   };

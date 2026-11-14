@@ -148,7 +148,7 @@ export function validateVariableStatistics(data: unknown, prefix = 'statistics')
     throw new ContractValidationError(`${prefix}.series ausente.`);
   }
 
-  const { dates, raw_values, anomaly_values, linear_fit, gam_smooth_fit } = data.series;
+  const { dates, raw_values, anomaly_values, linear_fit, gam_smooth_fit, sen_fit, z_scores } = data.series;
   if (
     !Array.isArray(dates) ||
     !Array.isArray(raw_values) ||
@@ -158,13 +158,21 @@ export function validateVariableStatistics(data: unknown, prefix = 'statistics')
   ) {
     throw new ContractValidationError(`${prefix}.series deve conter arrays válidos.`);
   }
+  if (sen_fit !== undefined && !Array.isArray(sen_fit)) {
+    throw new ContractValidationError(`${prefix}.series.sen_fit deve ser um array quando presente.`);
+  }
+  if (z_scores !== undefined && !Array.isArray(z_scores)) {
+    throw new ContractValidationError(`${prefix}.series.z_scores deve ser um array quando presente.`);
+  }
 
   const expectedLen = dates.length;
   if (
     raw_values.length !== expectedLen ||
     anomaly_values.length !== expectedLen ||
     linear_fit.length !== expectedLen ||
-    gam_smooth_fit.length !== expectedLen
+    gam_smooth_fit.length !== expectedLen ||
+    (sen_fit !== undefined && sen_fit.length !== expectedLen) ||
+    (z_scores !== undefined && z_scores.length !== expectedLen)
   ) {
     throw new ContractValidationError(
       `Comprimento inconsistente nos vetores de ${prefix}.series (esperado ${expectedLen}).`,

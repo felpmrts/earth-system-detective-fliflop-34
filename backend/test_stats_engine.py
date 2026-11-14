@@ -8,8 +8,11 @@ from __future__ import annotations
 import json
 import math
 import os
+import tempfile
 import unittest
+from pathlib import Path
 from typing import List, Optional
+from unittest.mock import patch
 
 from backend.stats_engine import (
     SemanticContractError,
@@ -284,6 +287,107 @@ class TestStatsEngineInvariants(unittest.TestCase):
         self.assertEqual(len(grid["points"]), 3)
         self.assertTrue(grid["points"][0]["is_sig"])
         self.assertFalse(grid["points"][2]["is_sig"])
+
+    def test_comparison_service_delegates_to_stats_engine_and_extended_vars(self) -> None:
+        """Integration: `data.services.comparison_service` delegates to `stats_engine` and preserves extended catalog."""
+        from data.cache.store import CellCacheStore
+        from data.services import comparison_service
+
+        dates = _generate_monthly_dates(1990, 2014)  # 300 months
+        series_a = {}
+        series_b = {}
+        for idx, ym in enumerate(dates):
+            month = int(ym[5:7])
+            seasonal = 1.5 * math.sin(2.0 * math.pi * month / 12.0)
+            enso = 0.25 * math.sin(2.0 * math.pi * idx / 42.0)
+            years = idx / 12.0
+            val_a = 10.5 + seasonal + 0.04 * years + enso
+            val_b = 0.65 - 0.15 * seasonal - 0.004 * years - 0.08 * enso
+            if ym == "2005-11":
+                val_a += 4.2
+            series_a[ym] = round(val_a, 5)
+            series_b[ym] = round(val_b, 5)
+
+        def fake_fetch(query, start_year: int, end_year: int, *, cache=None, label: str = ""):
+            del start_year, end_year, cache, label
+            if query.variable == "T2M_RANGE":
+                return {
+                    "status": "OK",
+                    "variable": "T2M_RANGE",
+                    "ui_name": "Amplitude Térmica Diurna (Tmax - Tmin)",
+                    "unit": "°C",
+                    "scale_type": "interval",
+                    "allow_percentage_change": False,
+                    "api_puxada": "NASA POWER",
+                    "endpoint_consultado": "/point",
+                    "family_id": "atmosfera_temperatura",
+                    "snapped_cells": [],
+                    "cache_hits": 1,
+                    "http_calls": 0,
+                    "series": series_a,
+                }
+            return {
+                "status": "OK",
+                "variable": "GWETTOP",
+                "ui_name": "Umidade Superficial do Solo",
+                "unit": "fração (0–1)",
+                "scale_type": "ratio",
+                "allow_percentage_change": False,
+                "api_puxada": "NASA POWER",
+                "endpoint_consultado": "/point",
+                "family_id": "hidrologia_solo",
+                "snapped_cells": [],
+                "cache_hits": 1,
+                "http_calls": 0,
+                "series": series_b,
+            }
+
+        req = {
+            "variable_a": "T2M_RANGE",
+            "variable_b": "GWETTOP",
+            "region_a": {
+                "slot": "A",
+                "region_id": "MERRA-2__r142_c210",
+                "cells": [{"cell_id": "r142_c210", "lat": -18.75, "lon": -48.4375}],
+            },
+            "region_b": {
+                "slot": "B",
+                "region_id": "MERRA-2__r173_c191",
+                "cells": [{"cell_id": "r173_c191", "lat": -3.25, "lon": -60.3125}],
+            },
+            "start_date": "1990-01",
+            "end_date": "2014-12",
+        }
+
+        with tempfile.TemporaryDirectory() as tmp_dir, patch.object(
+            comparison_service, "fetch_location_single_variable", side_effect=fake_fetch
+        ):
+            resp = comparison_service.analyze_regions_contract(
+                req, cache=CellCacheStore(cache_dir=Path(tmp_dir))
+            )
+
+        block_a = resp["region_a_analysis"]
+        block_b = resp["region_b_analysis"]
+        pair = resp["comparison_pair"]
+        self.assertEqual(block_a["variable_id"], "T2M_RANGE")
+        self.assertEqual(block_a["scale_type"], "interval")
+        self.assertFalse(block_a["allow_percentage_change"])
+        self.assertEqual(len(block_a["series"]["z_scores"]), 300)
+        self.assertEqual(len(block_a["series"]["sen_fit"]), 300)
+        self.assertEqual(len(block_a["series"]["gam_smooth_fit"]), 300)
+        self.assertTrue(
+            any(o["date"] == "2005-11" for o in block_a["outliers_mahalanobis"]),
+            "Outlier sintético 2005-11 não detectado via comparison_service -> MinCovDet.",
+        )
+        self.assertIsNotNone(block_b)
+        self.assertGreaterEqual(block_b["significance"]["fdr_q_value"], 0.0)
+        self.assertLessEqual(block_b["significance"]["fdr_q_value"], 1.0)
+        self.assertIsNotNone(pair)
+        mc = pair["multiscale_correlation"]
+        self.assertLess(mc["long_term_secular_r"], -0.5)
+        self.assertLess(mc["short_term_detrended_r"], 0.0)
+        self.assertIn("long_term_p_value", mc)
+        self.assertIn("short_term_p_value", mc)
 
 
 if __name__ == "__main__":

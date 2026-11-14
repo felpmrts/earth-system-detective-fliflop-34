@@ -1169,15 +1169,7 @@ def compute_significance_ar1(
     q_val = p_ar1 if fdr_q_value is None else max(0.0, min(1.0, float(fdr_q_value)))
     same_sign = (slope_per_decade_ols * slope_per_decade_sen) >= 0.0
     is_sig_fdr05 = (q_val < 0.05) and same_sign
-
-    if p_ar1 < 0.01 and is_sig_fdr05 and same_sign:
-        confidence_tier = "CONFIRMED_HIGH"
-    elif p_ar1 < 0.05 and same_sign:
-        confidence_tier = "CONFIRMED_MODERATE"
-    elif p_ar1 < 0.15 or not same_sign:
-        confidence_tier = "INSUFFICIENT_SIGNAL"
-    else:
-        confidence_tier = "NO_TREND"
+    confidence_tier = classify_confidence_tier(p_ar1, is_sig_fdr05, same_sign)
 
     return {
         "n_effective_ar1": round(n_eff, 2),
@@ -1187,6 +1179,31 @@ def compute_significance_ar1(
         "is_significant_fdr05": bool(is_sig_fdr05),
         "confidence_tier": confidence_tier,
     }
+
+
+def classify_confidence_tier(p_ar1: float, is_sig_fdr05: bool, same_sign: bool) -> str:
+    """Classifies confidence tier from AR(1)-corrected p-value, BH-FDR flag, and OLS/Sen concordance."""
+    if p_ar1 < 0.01 and is_sig_fdr05 and same_sign:
+        return "CONFIRMED_HIGH"
+    if p_ar1 < 0.05 and same_sign:
+        return "CONFIRMED_MODERATE"
+    if p_ar1 < 0.15 or not same_sign:
+        return "INSUFFICIENT_SIGNAL"
+    return "NO_TREND"
+
+
+def update_fdr_significance(analysis: Dict[str, Any], q_value: float, alpha: float = 0.05) -> None:
+    """Updates Benjamini-Hochberg FDR q-value and confidence tier in-place for an analysis block."""
+    reg = analysis["regression"]
+    sig = analysis["significance"]
+    same_sign = (float(reg["slope_per_decade_ols"]) * float(reg["slope_per_decade_sen"])) >= 0.0
+    q_clamped = max(0.0, min(1.0, float(q_value)))
+    is_sig = (q_clamped < alpha) and same_sign
+    sig["fdr_q_value"] = round(q_clamped, 8)
+    sig["is_significant_fdr05"] = bool(is_sig)
+    sig["confidence_tier"] = classify_confidence_tier(
+        float(sig["p_value_ar1_corrected"]), is_sig, same_sign
+    )
 
 
 def apply_spatial_fdr_bh(p_values: Sequence[float], alpha: float = 0.05) -> Tuple[List[float], List[bool]]:
@@ -1229,24 +1246,53 @@ def apply_spatial_fdr_bh(p_values: Sequence[float], alpha: float = 0.05) -> Tupl
     return q_values, is_sig
 
 
+apply_benjamini_hochberg_fdr = apply_spatial_fdr_bh
+
+
 # ============================================================================
 # 9. Single-Region Complete Pipeline & Multiscale Comparison (Invariant #5)
 # ============================================================================
 
-def analyze_region_series(
+def _compute_z_scores(anomaly_values: Sequence[Optional[float]]) -> List[Optional[float]]:
+    """Computes dimensionless standardized anomalies Z = (Y' - mean) / std over valid months."""
+    valid = [float(a) for a in anomaly_values if a is not None]
+    if len(valid) < 2:
+        return [None if a is None else 0.0 for a in anomaly_values]
+    mu = statistics.fmean(valid)
+    std = statistics.stdev(valid)
+    if std <= 1e-12:
+        return [None if a is None else 0.0 for a in anomaly_values]
+    return [None if a is None else round((float(a) - mu) / std, 5) for a in anomaly_values]
+
+
+def analyze_single_series(
     variable_id: str,
     dates: Sequence[str],
     raw_values: Sequence[Optional[float]],
     fdr_q_value: Optional[float] = None,
+    variable_meta: Optional[Mapping[str, Any]] = None,
 ) -> Dict[str, Any]:
     """
     Executes the complete statistical pipeline on a region's monthly series and returns
     a `VariableStatistics` dictionary strictly conforming to CONTRATO_DE_DADOS.md.
+    Supports extended variables from `data/` catalog via optional `variable_meta`.
     """
-    if variable_id not in VARIABLE_CATALOG:
+    if variable_meta is not None:
+        scale_type = str(variable_meta.get("scale_type") or "ratio")
+        unit = str(variable_meta.get("unit") or "")
+        meta: Dict[str, Any] = {
+            "variable_id": str(variable_meta.get("variable_id") or variable_id),
+            "variable_name": str(variable_meta.get("variable_name") or variable_id),
+            "scale_type": scale_type,
+            "unit": unit,
+            "trend_unit": str(variable_meta.get("trend_unit") or f"{unit}/década"),
+            "allow_percentage_change": bool(variable_meta.get("allow_percentage_change", scale_type == "ratio")),
+        }
+    elif variable_id in VARIABLE_CATALOG:
+        meta = VARIABLE_CATALOG[variable_id]
+    else:
         raise SemanticContractError("CONTRACT_VIOLATION", f"Variável desconhecida no catálogo: {variable_id}")
 
-    meta = VARIABLE_CATALOG[variable_id]
     # Invariant #3 hard check: interval scales never allow percentage change
     allow_pct = False if meta["scale_type"] == "interval" else bool(meta["allow_percentage_change"])
 
@@ -1317,6 +1363,8 @@ def analyze_region_series(
         else:
             full_gam_fit.append(round(sen_val, 5))
 
+    z_scores = _compute_z_scores(anomaly_values)
+
     return {
         "variable_id": meta["variable_id"],
         "variable_name": meta["variable_name"],
@@ -1353,11 +1401,15 @@ def analyze_region_series(
             "dates": list(dates),
             "raw_values": [None if _is_missing_or_sentinel(v) else round(float(v), 4) for v in raw_values],  # type: ignore[arg-type]
             "anomaly_values": [None if v is None else round(float(v), 4) for v in anomaly_values],
+            "z_scores": z_scores,
             "linear_fit": full_linear_fit,
             "sen_fit": full_sen_fit,
             "gam_smooth_fit": full_gam_fit,
         },
     }
+
+
+analyze_region_series = analyze_single_series
 
 
 def _pearson_corr_pairs(pairs: Sequence[Tuple[float, float]]) -> Tuple[float, float]:
@@ -1443,8 +1495,8 @@ def compare_regions(
         # Detrended short-term residual: e(t) = Y'(t) - Y_hat_linear(t)
         detrended_pairs.append((float(anom_a) - float(lin_a), float(anom_b) - float(lin_b)))
 
-    r_secular, _ = _pearson_corr_pairs(secular_pairs)
-    r_detrended, _ = _pearson_corr_pairs(detrended_pairs)
+    r_secular, p_secular = _pearson_corr_pairs(secular_pairs)
+    r_detrended, p_detrended = _pearson_corr_pairs(detrended_pairs)
 
     slope_a = float(analysis_a["regression"]["slope_per_decade_sen"])
     slope_b = float(analysis_b["regression"]["slope_per_decade_sen"])
@@ -1502,10 +1554,15 @@ def compare_regions(
         "multiscale_correlation": {
             "long_term_secular_r": r_secular,
             "short_term_detrended_r": r_detrended,
+            "long_term_p_value": p_secular,
+            "short_term_p_value": p_detrended,
             "paradox_type": paradox_type,
             "interpretation": interpretation,
         },
     }
+
+
+compute_multiscale_comparison = compare_regions
 
 
 def analyze_request(
@@ -1577,16 +1634,8 @@ def analyze_request(
                 stats_b["significance"]["p_value_ar1_corrected"],
             ]
         )
-        stats_a["significance"]["fdr_q_value"] = q_vals[0]
-        stats_a["significance"]["is_significant_fdr05"] = (
-            q_vals[0] < 0.05
-            and (stats_a["regression"]["slope_per_decade_ols"] * stats_a["regression"]["slope_per_decade_sen"] >= 0)
-        )
-        stats_b["significance"]["fdr_q_value"] = q_vals[1]
-        stats_b["significance"]["is_significant_fdr05"] = (
-            q_vals[1] < 0.05
-            and (stats_b["regression"]["slope_per_decade_ols"] * stats_b["regression"]["slope_per_decade_sen"] >= 0)
-        )
+        update_fdr_significance(stats_a, q_vals[0])
+        update_fdr_significance(stats_b, q_vals[1])
 
         comp_pair = compare_regions(region_a_id, region_b_id, stats_a, stats_b)
     else:
