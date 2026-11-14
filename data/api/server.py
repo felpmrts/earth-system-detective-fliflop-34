@@ -4,6 +4,7 @@ Endpoints:
 - GET  /api/health
 - GET  /api/catalog
 - POST /api/analyze        (Contrato oficial `RegionAnalysisRequest -> RegionAnalysisResponse`)
+- POST /api/copilot        (Chatbot Co-Piloto Estatístico — síntese científica + Q&A)
 - POST /api/location/fetch
 - POST /api/compare
 
@@ -19,6 +20,7 @@ from http import HTTPStatus
 from http.server import BaseHTTPRequestHandler, ThreadingHTTPServer
 from typing import Any
 
+from backend.copilot_engine import generate_copilot_response
 from data.cache.store import CellCacheStore
 from data.catalog.environmental_catalog import get_catalog_tree
 from data.models.contracts import LocationQuery
@@ -51,6 +53,21 @@ class BackendRouter:
         try:
             if path == "/api/analyze":
                 return HTTPStatus.OK, analyze_regions_contract(body, cache=self.cache)
+
+            if path == "/api/copilot":
+                analysis = body.get("analysis")
+                if not isinstance(analysis, dict) or not isinstance(
+                    analysis.get("region_a_analysis"), dict
+                ):
+                    return HTTPStatus.BAD_REQUEST, {
+                        "error": "Campo 'analysis' com 'region_a_analysis' válido é obrigatório."
+                    }
+                return HTTPStatus.OK, generate_copilot_response(
+                    analysis,
+                    question=body.get("question"),
+                    language=str(body.get("language") or "pt"),
+                    history=body.get("history"),
+                )
 
             start_year = int(body.get("start_year", 2001))
             end_year = int(body.get("end_year", 2023))

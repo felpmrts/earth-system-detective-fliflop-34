@@ -1,5 +1,13 @@
 """Backend package for Earth System Trend Detective (NASA Space Apps 2026)."""
 
+from .copilot_engine import (
+    COPILOT_SYSTEM_PROMPT_EN,
+    COPILOT_SYSTEM_PROMPT_PT,
+    build_copilot_prompt,
+    generate_copilot_response,
+    generate_heuristic_synthesis,
+    sanitize_interval_scale_percentages,
+)
 from .stats_engine import (
      SemanticContractError,
     VARIABLE_CATALOG,
@@ -21,12 +29,15 @@ from .stats_engine import (
 )
 
 __all__ = [
+    "COPILOT_SYSTEM_PROMPT_EN",
+    "COPILOT_SYSTEM_PROMPT_PT",
     "SemanticContractError",
     "VARIABLE_CATALOG",
     "aggregate_cells_nanmean",
     "analyze_region_series",
     "analyze_request",
     "apply_spatial_fdr_bh",
+    "build_copilot_prompt",
     "build_global_grid_payload",
     "clean_nasa_power_monthly",
     "compare_regions",
@@ -37,5 +48,8 @@ __all__ = [
     "compute_significance_ar1",
     "compute_theil_sen_regression",
     "detect_mahalanobis_outliers",
+    "generate_copilot_response",
+    "generate_heuristic_synthesis",
     "get_intersecting_date_bounds",
+    "sanitize_interval_scale_percentages",
 ]
