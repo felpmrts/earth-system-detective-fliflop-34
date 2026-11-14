@@ -195,11 +195,71 @@ export interface UseMapSelectionControllerOptions {
   readonly autoAnalyzeOnSelection?: boolean;
 }
 
+export interface UseMapSelectionControllerResult {
+  readonly state: MapSelectionState;
+  readonly gridData: GlobalGridFile | null;
+  readonly analysisData: RegionAnalysisResponse | null;
+  /** @deprecated Prefira `analysisData`; mantido para compatibilidade retroativa. */
+  readonly analysis: RegionAnalysisResponse | null;
+  readonly isLoading: boolean;
+  readonly notification: MapNotification | null;
+  readonly setActiveSlot: (slot: RegionSlot) => void;
+  readonly setVariableA: (variableId: VariableId | null) => void;
+  readonly setVariableB: (variableId: VariableId | null) => void;
+  readonly clearNotification: () => void;
+  readonly runAnalysis: (targetState?: MapSelectionState) => Promise<RegionAnalysisResponse | null>;
+  readonly mapProps: MapViewContractProps;
+}
+
+/**
+ * Executa a consulta tipada de análise para o estado atual, respeitando AbortController
+ * e traduzindo falhas semânticas (ex.: OCEAN_MASK_NO_DATA) sem fallback enganoso.
+ */
+export async function executeStateAnalysis(
+  state: MapSelectionState,
+  fetchRegionData: typeof defaultGetRegionData,
+  options: {
+    readonly startDate?: string;
+    readonly endDate?: string;
+    readonly signal?: AbortSignal;
+  } = {},
+): Promise<{
+  readonly analysisData: RegionAnalysisResponse | null;
+  readonly notification: MapNotification | null;
+}> {
+  const requestInput = buildAnalyzeRequestInput(state, {
+    startDate: options.startDate,
+    endDate: options.endDate,
+  });
+
+  if (!requestInput) {
+    return { analysisData: null, notification: null };
+  }
+
+  try {
+    const result = await fetchRegionData({
+      ...requestInput,
+      signal: options.signal,
+    });
+    return { analysisData: result, notification: null };
+  } catch (err: unknown) {
+    if (options.signal?.aborted) {
+      throw err;
+    }
+    return {
+      analysisData: null,
+      notification: mapErrorToNotification(err),
+    };
+  }
+}
+
 /**
  * Orquestrador React tipado para plugar o componente MapView do Dev Núcleo ao contrato PROD-1.
  * Gerencia slots A/B, reconciliação de grade nativa, AbortController e erros semânticos do backend.
  */
-export function useMapSelectionController(options: UseMapSelectionControllerOptions = {}) {
+export function useMapSelectionController(
+  options: UseMapSelectionControllerOptions = {},
+): UseMapSelectionControllerResult {
   const fetchGlobalGrid = options.fetchGlobalGrid ?? defaultGetGlobalGrid;
   const fetchRegionData = options.fetchRegionData ?? defaultGetRegionData;
   const autoAnalyze = options.autoAnalyzeOnSelection ?? false;
@@ -212,7 +272,7 @@ export function useMapSelectionController(options: UseMapSelectionControllerOpti
     }),
   );
   const [gridData, setGridData] = useState<GlobalGridFile | null>(null);
-  const [analysis, setAnalysis] = useState<RegionAnalysisResponse | null>(null);
+  const [analysisData, setAnalysisData] = useState<RegionAnalysisResponse | null>(null);
   const [isLoading, setIsLoading] = useState(false);
 
   const analysisAbortRef = useRef<AbortController | null>(null);
@@ -253,15 +313,15 @@ export function useMapSelectionController(options: UseMapSelectionControllerOpti
 
   const runAnalysis = useCallback(
     async (targetState: MapSelectionState = state) => {
+      analysisAbortRef.current?.abort();
+
       const requestInput = buildAnalyzeRequestInput(targetState, {
         startDate: options.startDate,
         endDate: options.endDate,
       });
 
-      analysisAbortRef.current?.abort();
-
       if (!requestInput) {
-        setAnalysis(null);
+        setAnalysisData(null);
         setIsLoading(false);
         return null;
       }
@@ -271,20 +331,19 @@ export function useMapSelectionController(options: UseMapSelectionControllerOpti
       setIsLoading(true);
 
       try {
-        const result = await fetchRegionData({
-          ...requestInput,
+        const outcome = await executeStateAnalysis(targetState, fetchRegionData, {
+          startDate: options.startDate,
+          endDate: options.endDate,
           signal: controller.signal,
         });
         if (!controller.signal.aborted) {
-          setAnalysis(result);
+          setAnalysisData(outcome.analysisData);
+          if (outcome.notification) {
+            setState((prev) => ({ ...prev, lastNotification: outcome.notification }));
+          }
         }
-        return result;
-      } catch (err: unknown) {
-        if (controller.signal.aborted) {
-          return null;
-        }
-        const notification = mapErrorToNotification(err);
-        setState((prev) => ({ ...prev, lastNotification: notification }));
+        return outcome.analysisData;
+      } catch {
         return null;
       } finally {
         if (analysisAbortRef.current === controller) {
@@ -294,6 +353,15 @@ export function useMapSelectionController(options: UseMapSelectionControllerOpti
     },
     [fetchRegionData, options.endDate, options.startDate, state],
   );
+
+  useEffect(() => {
+    if (!autoAnalyze) {
+      return;
+    }
+    void runAnalysis(state);
+    // Dispara somente quando variáveis ou células selecionadas mudam
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [autoAnalyze, state.variableA, state.variableB, state.cellsA, state.cellsB]);
 
   const setActiveSlot = useCallback((slot: RegionSlot) => {
     setState((prev) => ({ ...prev, activeSlot: slot }));
@@ -307,18 +375,9 @@ export function useMapSelectionController(options: UseMapSelectionControllerOpti
     setState((prev) => applySlotVariableChange(prev, 'B', variableId));
   }, []);
 
-  const onCellToggle = useCallback(
-    (slot: RegionSlot, lat: number, lon: number) => {
-      setState((prev) => {
-        const next = applyCellToggle(prev, slot, lat, lon);
-        if (autoAnalyze && next !== prev && !next.lastNotification) {
-          void runAnalysis(next);
-        }
-        return next;
-      });
-    },
-    [autoAnalyze, runAnalysis],
-  );
+  const onCellToggle = useCallback((slot: RegionSlot, lat: number, lon: number) => {
+    setState((prev) => applyCellToggle(prev, slot, lat, lon));
+  }, []);
 
   const onClearSlot = useCallback((slot: RegionSlot) => {
     setState((prev) => applyClearSlot(prev, slot));
@@ -362,7 +421,8 @@ export function useMapSelectionController(options: UseMapSelectionControllerOpti
   return {
     state,
     gridData,
-    analysis,
+    analysisData,
+    analysis: analysisData,
     isLoading,
     notification: state.lastNotification,
     setActiveSlot,

@@ -43,7 +43,7 @@ frontend/
 | **`geo/gridGeometry.ts`** | `MAX_CELLS_PER_REGION` (`9`), `assertValidLatLon(lat, lon)`, `snapCoordToCell(lat, lon, variableId)`, `isAdjacent8(a, b)`, `isConnectedComponent(cells)`, `toggleCellInSelection(current, target, maxCells?)`, `reconcileCellsOnVariableChange(prev, next, cells)`, `buildRegionSelection(slot, variableId, cells)`, `toBackendCells(cells)` | `MapView` (`PROD-1`) |
 | **`map/mapStyles.ts`** | `getPolarityPalette(polarity)`, `getGlobalPointStyle(point, variableId)`, `getSelectedCellStyle(slot)` | `MapView` (`PROD-1`) |
 | **`map/legendConfig.ts`** | `buildMapLegendConfig(variableId): MapLegendConfig` | Legenda (`PROD-1`) |
-| **`map/mapIntegration.ts`** | `useMapSelectionController(options?)` (`mapProps: MapViewContractProps`, `runAnalysis`, `notification`), `applyCellToggle`, `applySlotVariableChange`, `buildAnalyzeRequestInput` | `MapView` (`PROD-1`), `App.tsx` |
+| **`map/mapIntegration.ts`** | `useMapSelectionController(options?)` (`mapProps`, `analysisData`, `isLoading`, `notification`, `runAnalysis`), `executeStateAnalysis`, `applyCellToggle`, `applySlotVariableChange`, `buildAnalyzeRequestInput` | `MapView` (`PROD-1`), `App.tsx` |
 | **`services/idbCache.ts`** | `RegionAnalysisCache`, `defaultRegionCache` | Adapter |
 | **`services/regionDataAdapter.ts`** | `SemanticApiError`, `getGlobalGrid(variableId, signal?)`, `getRegionData(...)`, `createRegionDataAdapter(overrides?)`, `buildRegionCacheKey(...)` | `PROD-1`, `PROD-2` |
 
