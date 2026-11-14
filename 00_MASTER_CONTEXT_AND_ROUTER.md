@@ -85,6 +85,8 @@ Use a tabela abaixo para saltar diretamente para o documento (e seção) exato s
 
 ## 5. Catálogo Completo de Todos os Documentos Markdown (`.md`) do Projeto
 
+- [Documentação do frontend](frontend/README.md) — execução, arquitetura, catálogo e integração.
+
 Abaixo estão os documentos Markdown do projeto, organizados por módulo funcional, com tamanho aproximado e resumo cirúrgico de conteúdo:
 
 ### 🏛️ Camada 0: Roteador Central (Raiz)
@@ -134,6 +136,8 @@ Abaixo estão os documentos Markdown do projeto, organizados por módulo funcion
 ---
 
 ## 6. Slot para Novos Documentos Markdown (Atualização Contínua antes e durante o Hackathon)
+
+- [Documentação do frontend](frontend/README.md) — execução, arquitetura, catálogo e integração.
 
 > **Regra de Manutenção para Agentes de IA:** Sempre que realizar qualquer alteração essencial (novos documentos `.md`, scripts, endpoints, regras de ingestão ou decisões arquiteturais), atualize imediatamente o índice da respectiva pasta e o registro abaixo (bem como as Seções 4 e 5, quando aplicável):
 

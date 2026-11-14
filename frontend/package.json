@@ -11,6 +11,10 @@
     "test": "vitest run"
   },
   "dependencies": {
+    "@mantine/core": "^9.8.0",
+    "@mantine/dates": "^9.8.0",
+    "@mantine/hooks": "^9.8.0",
+    "dayjs": "^1.11.23",
     "leaflet": "^1.9.4",
     "plotly.js-basic-dist-min": "^4.3.0",
     "react": "^19.0.0",

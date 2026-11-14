@@ -1,0 +1,209 @@
+[
+  {
+    "group": "Temperatura e Calor (Atmosfera e Superfície)",
+    "items": [
+      {
+        "label": "Temperatura Média do Ar (2m)",
+        "value": "T2M"
+      },
+      {
+        "label": "Temperatura Máxima do Ar (2m)",
+        "value": "T2M_MAX"
+      },
+      {
+        "label": "Temperatura Mínima do Ar (2m)",
+        "value": "T2M_MIN"
+      },
+      {
+        "label": "Amplitude Térmica Diária",
+        "value": "T2M_RANGE"
+      },
+      {
+        "label": "Temperatura da Superfície (Solo/Piso)",
+        "value": "TS"
+      },
+      {
+        "label": "Temp. de Superfície Diurna (Satélite)",
+        "value": "LST_Day_CMG"
+      },
+      {
+        "label": "Temp. de Superfície Noturna (Satélite)",
+        "value": "LST_Night_CMG"
+      },
+      {
+        "label": "Ponto de Orvalho (2m)",
+        "value": "T2MDEW"
+      }
+    ]
+  },
+  {
+    "group": "Chuva e Umidade Atmosférica",
+    "items": [
+      {
+        "label": "Precipitação Total Corrigida (Chuva)",
+        "value": "PRECTOTCORR"
+      },
+      {
+        "label": "Precipitação por Satélite (Alta Res.)",
+        "value": "GPM_3IMERGM"
+      },
+      {
+        "label": "Umidade Relativa do Ar (2m)",
+        "value": "RH2M"
+      },
+      {
+        "label": "Umidade Específica do Ar (2m)",
+        "value": "QV2M"
+      },
+      {
+        "label": "Água Precipitável na Atmosfera",
+        "value": "TQV"
+      }
+    ]
+  },
+  {
+    "group": "Solo, Seca Agrícola e Evapotranspiração",
+    "items": [
+      {
+        "label": "Umidade Superficial do Solo",
+        "value": "GWETTOP"
+      },
+      {
+        "label": "Umidade na Zona das Raízes",
+        "value": "GWETROOT"
+      },
+      {
+        "label": "Umidade Profunda do Solo (Perfil)",
+        "value": "GWETPROF"
+      },
+      {
+        "label": "Evapotranspiração Total",
+        "value": "Evap_tavg"
+      },
+      {
+        "label": "Escoamento Superficial (Runoff)",
+        "value": "Qs_acc"
+      }
+    ]
+  },
+  {
+    "group": "Rios, Vazão e Bacias Hidrográficas",
+    "items": [
+      {
+        "label": "Vazão do Rio (Série Histórica)",
+        "value": "river_discharge"
+      },
+      {
+        "label": "Vazão Média do Rio",
+        "value": "river_discharge_mean"
+      },
+      {
+        "label": "Pico Máximo de Cheia",
+        "value": "river_discharge_max"
+      },
+      {
+        "label": "Vazão Mínima Crítica (Estiagem)",
+        "value": "river_discharge_min"
+      }
+    ]
+  },
+  {
+    "group": "Vegetação, Florestas e Uso da Terra",
+    "items": [
+      {
+        "label": "Índice de Vegetação (NDVI)",
+        "value": "_1_km_monthly_NDVI"
+      },
+      {
+        "label": "Índice de Vegetação Melhorado (EVI)",
+        "value": "_1_km_monthly_EVI"
+      },
+      {
+        "label": "Índice de Área Foliar (LAI)",
+        "value": "Lai_500m"
+      },
+      {
+        "label": "Albedo da Superfície",
+        "value": "ALLSKY_SRF_ALB"
+      }
+    ]
+  },
+  {
+    "group": "Radiação Solar, Nuvens, Ventos e Atmosfera",
+    "items": [
+      {
+        "label": "Radiação Solar Incidente",
+        "value": "ALLSKY_SFC_SW_DWN"
+      },
+      {
+        "label": "Radiação Solar de Céu Limpo",
+        "value": "CLRSKY_SFC_SW_DWN"
+      },
+      {
+        "label": "Radiação Infravermelha (Efeito Estufa)",
+        "value": "ALLSKY_SFC_LW_DWN"
+      },
+      {
+        "label": "Cobertura de Nuvens",
+        "value": "CLOUD_AMT"
+      },
+      {
+        "label": "Velocidade do Vento (2m)",
+        "value": "WS2M"
+      },
+      {
+        "label": "Velocidade do Vento (10m)",
+        "value": "WS10M"
+      },
+      {
+        "label": "Velocidade do Vento p/ Turbinas (50m)",
+        "value": "WS50M"
+      },
+      {
+        "label": "Pressão Atmosférica na Superfície",
+        "value": "PS"
+      },
+      {
+        "label": "Espessura Óptica de Aerossóis (Fumaça)",
+        "value": "AOD_550"
+      },
+      {
+        "label": "Cobertura Total de Nuvens",
+        "value": "CLDTOT"
+      }
+    ]
+  },
+  {
+    "group": "Estações Meteorológicas em Solo (Validação Local)",
+    "items": [
+      {
+        "label": "Chuva na Estação (Pluviômetro)",
+        "value": "PRCP"
+      },
+      {
+        "label": "Temperatura Média na Estação",
+        "value": "TAVG"
+      },
+      {
+        "label": "Temperatura Máxima na Estação",
+        "value": "TMAX"
+      },
+      {
+        "label": "Temperatura Mínima na Estação",
+        "value": "TMIN"
+      },
+      {
+        "label": "Queda de Neve (Estação)",
+        "value": "SNOW"
+      },
+      {
+        "label": "Acúmulo de Neve no Solo",
+        "value": "SNWD"
+      },
+      {
+        "label": "Velocidade Média do Vento (Solo)",
+        "value": "AWND"
+      }
+    ]
+  }
+]
