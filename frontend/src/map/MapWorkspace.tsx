@@ -5,7 +5,9 @@ import type { RegionSelection, RegionSlot, VariableId } from '../contracts/types
 import { getVariableMetadata } from '../contracts/catalog';
 import {
   buildRegionSelection,
+  clampLatLon,
   mirrorRegionSelection,
+  selectCellsInBoundingBox,
   snapCoordToCell,
   toggleCellInSelection,
 } from '../geo/gridGeometry';
@@ -53,8 +55,11 @@ export function MapWorkspace({
   const mapRef = useRef<L.Map | null>(null);
   const selectionsLayerRef = useRef<L.LayerGroup | null>(null);
   const gridLayerRef = useRef<L.LayerGroup | null>(null);
+  const dragBoxLayerRef = useRef<L.LayerGroup | null>(null);
   const previewLayerRef = useRef<L.Rectangle | null>(null);
   const previewCellIdRef = useRef('');
+  const isDraggingBoxRef = useRef(false);
+  const suppressNextClickRef = useRef(false);
   const historyRef = useRef<Array<{ regionA: RegionSelection | null; regionB: RegionSelection | null }>>([]);
   const stateRef = useRef({
     variableA,
@@ -63,18 +68,25 @@ export function MapWorkspace({
     regionB,
     periodReady,
     sameLocation: false,
+    dragSelectMode: false,
   });
   const callbacksRef = useRef({ onRegionAChange, onRegionBChange });
   const [activeSlot, setActiveSlot] = useState<RegionSlot>('A');
   const [sameLocation, setSameLocation] = useState(false);
+  const [dragSelectMode, setDragSelectMode] = useState(false);
+  const [dragPreview, setDragPreview] = useState<{
+    readonly slot: RegionSlot;
+    readonly count: number;
+    readonly wasClamped: boolean;
+  } | null>(null);
   const activeSlotRef = useRef<RegionSlot>('A');
-  const [notice, setNotice] = useState('Escolha A ou B e clique no mapa para compor a região.');
+  const [notice, setNotice] = useState('Escolha A ou B e clique no mapa (ou use Arrastar Seleção / Shift+Arrastar).');
   const [noticeKind, setNoticeKind] = useState<'info' | 'success' | 'error'>('info');
   const [elapsedSeconds, setElapsedSeconds] = useState(0);
   const [historyDepth, setHistoryDepth] = useState(0);
   const [gridNotice, setGridNotice] = useState('');
 
-  stateRef.current = { variableA, variableB, regionA, regionB, periodReady, sameLocation };
+  stateRef.current = { variableA, variableB, regionA, regionB, periodReady, sameLocation, dragSelectMode };
   callbacksRef.current = { onRegionAChange, onRegionBChange };
   activeSlotRef.current = activeSlot;
 
@@ -109,6 +121,8 @@ export function MapWorkspace({
       maxZoom: 10,
       preferCanvas: true,
       zoomControl: false,
+      // Desativa o boxZoom nativo para reservar Shift+Arrastar à seleção de células.
+      boxZoom: false,
     });
     L.control.zoom({ position: 'topright' }).addTo(map);
 
@@ -147,11 +161,18 @@ export function MapWorkspace({
 
     const gridLayer = L.layerGroup().addTo(map);
     const selectionsLayer = L.layerGroup().addTo(map);
+    const dragBoxLayer = L.layerGroup().addTo(map);
     selectionsLayerRef.current = selectionsLayer;
     gridLayerRef.current = gridLayer;
+    dragBoxLayerRef.current = dragBoxLayer;
     mapRef.current = map;
 
     map.on('click', ({ latlng }) => {
+      if (suppressNextClickRef.current) {
+        suppressNextClickRef.current = false;
+        return;
+      }
+
       const current = stateRef.current;
       const slot: RegionSlot = current.sameLocation ? 'A' : activeSlotRef.current;
       const variable = slot === 'A' ? current.variableA : current.variableB;
@@ -189,8 +210,9 @@ export function MapWorkspace({
     });
 
     map.on('mousemove', ({ latlng }) => {
+      if (isDraggingBoxRef.current) return;
       const current = stateRef.current;
-      const slot = activeSlotRef.current;
+      const slot: RegionSlot = current.sameLocation ? 'A' : activeSlotRef.current;
       const variable = slot === 'A' ? current.variableA : current.variableB;
       if (!variable) return;
       const cell = snapCoordToCell(latlng.lat, latlng.lng, variable);
@@ -216,19 +238,214 @@ export function MapWorkspace({
       previewCellIdRef.current = '';
     });
 
+    const mapContainer = map.getContainer();
+    let activeDrag: {
+      startClientX: number;
+      startClientY: number;
+      startLatLng: { readonly lat: number; readonly lon: number };
+      slot: RegionSlot;
+      variable: VariableId | null;
+      movedBeyondThreshold: boolean;
+      lastPreviewKey: string;
+    } | null = null;
+
+    const clearBoxDragVisuals = () => {
+      dragBoxLayer.clearLayers();
+      isDraggingBoxRef.current = false;
+      setDragPreview(null);
+    };
+
+    const restorePanIfNeeded = () => {
+      if (!stateRef.current.dragSelectMode) {
+        map.dragging.enable();
+      }
+    };
+
+    const onMouseDown = (event: MouseEvent) => {
+      if (event.button !== 0) return;
+      const targetEl = event.target as HTMLElement | null;
+      if (targetEl?.closest('.leaflet-control')) return;
+
+      const current = stateRef.current;
+      if (!current.dragSelectMode && !event.shiftKey) return;
+
+      event.preventDefault();
+      map.dragging.disable();
+
+      const slot: RegionSlot = current.sameLocation ? 'A' : activeSlotRef.current;
+      const variable = slot === 'A' ? current.variableA : current.variableB;
+      const rawStart = map.mouseEventToLatLng(event);
+      activeDrag = {
+        startClientX: event.clientX,
+        startClientY: event.clientY,
+        startLatLng: clampLatLon(rawStart.lat, rawStart.lng),
+        slot,
+        variable,
+        movedBeyondThreshold: false,
+        lastPreviewKey: '',
+      };
+    };
+
+    const onWindowMouseMove = (event: MouseEvent) => {
+      if (!activeDrag) return;
+      const dx = event.clientX - activeDrag.startClientX;
+      const dy = event.clientY - activeDrag.startClientY;
+      if (!activeDrag.movedBeyondThreshold && Math.hypot(dx, dy) < 6) {
+        return;
+      }
+
+      if (!activeDrag.movedBeyondThreshold) {
+        activeDrag.movedBeyondThreshold = true;
+        isDraggingBoxRef.current = true;
+        previewLayerRef.current?.remove();
+        previewLayerRef.current = null;
+        previewCellIdRef.current = '';
+      }
+
+      if (!stateRef.current.periodReady || !activeDrag.variable) {
+        return;
+      }
+
+      const rawCurrent = map.mouseEventToLatLng(event);
+      const endLatLng = clampLatLon(rawCurrent.lat, rawCurrent.lng);
+      const selection = selectCellsInBoundingBox(activeDrag.startLatLng, endLatLng, activeDrag.variable);
+      const selectedStyle = getSelectedCellStyle(activeDrag.slot);
+
+      dragBoxLayer.clearLayers();
+      for (const cell of selection.cells) {
+        L.rectangle(
+          L.latLngBounds(
+            [cell.bounds_leaflet[0][0], cell.bounds_leaflet[0][1]],
+            [cell.bounds_leaflet[1][0], cell.bounds_leaflet[1][1]],
+          ),
+          {
+            color: selectedStyle.color,
+            fillColor: selectedStyle.fillColor,
+            fillOpacity: 0.16,
+            weight: 1.4,
+            dashArray: '4 3',
+            interactive: false,
+          },
+        ).addTo(dragBoxLayer);
+      }
+
+      L.rectangle(
+        L.latLngBounds(
+          [activeDrag.startLatLng.lat, activeDrag.startLatLng.lon],
+          [endLatLng.lat, endLatLng.lon],
+        ),
+        {
+          color: selectedStyle.color,
+          fillColor: selectedStyle.fillColor,
+          fillOpacity: 0.2,
+          weight: 2,
+          dashArray: activeDrag.slot === 'B' ? '6 4' : undefined,
+          interactive: false,
+        },
+      ).addTo(dragBoxLayer);
+
+      const previewKey = `${activeDrag.slot}:${selection.cells.length}:${selection.wasClamped}`;
+      if (activeDrag.lastPreviewKey !== previewKey) {
+        activeDrag.lastPreviewKey = previewKey;
+        setDragPreview({
+          slot: activeDrag.slot,
+          count: selection.cells.length,
+          wasClamped: selection.wasClamped,
+        });
+      }
+    };
+
+    const onWindowMouseUp = (event: MouseEvent) => {
+      if (!activeDrag) return;
+      const finished = activeDrag;
+      activeDrag = null;
+      clearBoxDragVisuals();
+      restorePanIfNeeded();
+
+      if (!finished.movedBeyondThreshold) {
+        return;
+      }
+
+      // Evita que o evento `click` disparado após `mouseup` alterne uma célula extra.
+      suppressNextClickRef.current = true;
+      window.setTimeout(() => {
+        suppressNextClickRef.current = false;
+      }, 60);
+
+      const current = stateRef.current;
+      if (!current.periodReady) {
+        setNotice('Defina as duas variáveis e o período antes de selecionar os locais.');
+        setNoticeKind('error');
+        return;
+      }
+      if (!finished.variable) {
+        setNotice(`Selecione a variável ${finished.slot} antes de marcar o local.`);
+        setNoticeKind('error');
+        return;
+      }
+
+      const rawEnd = map.mouseEventToLatLng(event);
+      const endLatLng = clampLatLon(rawEnd.lat, rawEnd.lng);
+      const boxResult = selectCellsInBoundingBox(finished.startLatLng, endLatLng, finished.variable);
+      recordHistory(current.regionA, current.regionB);
+
+      const updateRegion = finished.slot === 'A'
+        ? callbacksRef.current.onRegionAChange
+        : callbacksRef.current.onRegionBChange;
+      updateRegion(buildRegionSelection(finished.slot, finished.variable, boxResult.cells));
+
+      const clampNote = boxResult.wasClamped
+        ? ' (limitado às 9 mais próximas do início do arraste).'
+        : '.';
+      setNotice(
+        current.sameLocation
+          ? `Mesmo Local (A=B): ${boxResult.cells.length}/9 célula(s) em A espelhadas em B${clampNote}`
+          : `Região ${finished.slot}: ${boxResult.cells.length}/9 célula(s) selecionada(s)${clampNote}`,
+      );
+      setNoticeKind(boxResult.wasClamped ? 'info' : 'success');
+    };
+
+    const onWindowKeyDown = (event: KeyboardEvent) => {
+      if (event.key === 'Escape' && activeDrag) {
+        activeDrag = null;
+        clearBoxDragVisuals();
+        restorePanIfNeeded();
+      }
+    };
+
+    mapContainer.addEventListener('mousedown', onMouseDown, { capture: true });
+    window.addEventListener('mousemove', onWindowMouseMove);
+    window.addEventListener('mouseup', onWindowMouseUp);
+    window.addEventListener('keydown', onWindowKeyDown);
+
     const resizeObserver = new ResizeObserver(() => map.invalidateSize());
     resizeObserver.observe(containerRef.current);
     setTimeout(() => map.invalidateSize(), 0);
 
     return () => {
+      mapContainer.removeEventListener('mousedown', onMouseDown, { capture: true });
+      window.removeEventListener('mousemove', onWindowMouseMove);
+      window.removeEventListener('mouseup', onWindowMouseUp);
+      window.removeEventListener('keydown', onWindowKeyDown);
       resizeObserver.disconnect();
       map.remove();
       mapRef.current = null;
       selectionsLayerRef.current = null;
       gridLayerRef.current = null;
+      dragBoxLayerRef.current = null;
       previewLayerRef.current = null;
     };
   }, []);
+
+  useEffect(() => {
+    const map = mapRef.current;
+    if (!map) return;
+    if (dragSelectMode) {
+      map.dragging.disable();
+    } else {
+      map.dragging.enable();
+    }
+  }, [dragSelectMode]);
 
   useEffect(() => {
     if (!sameLocation) return;
@@ -401,6 +618,27 @@ export function MapWorkspace({
           >
             Mesmo Local (A=B)
           </button>
+          <button
+            type="button"
+            className={`drag-select-toggle${dragSelectMode ? ' active' : ''}`}
+            aria-pressed={dragSelectMode}
+            disabled={!variableA && !variableB}
+            title="Arraste para selecionar até 9 células (atalho: Shift + Arrastar)"
+            onClick={() => {
+              setDragSelectMode(prev => {
+                const next = !prev;
+                setNotice(
+                  next
+                    ? 'Modo Arrastar Seleção ativo: arraste para selecionar células (clique simples continua ativo).'
+                    : 'Modo de navegação ativo: use Shift + Arrastar para selecionar em caixa a qualquer momento.',
+                );
+                setNoticeKind('info');
+                return next;
+              });
+            }}
+          >
+            Arrastar Seleção
+          </button>
         </div>
         <div className="map-actions">
           {isAnalyzing && <button type="button" className="cancel-button" onClick={onCancel}>Cancelar</button>}
@@ -420,7 +658,14 @@ export function MapWorkspace({
         <small>A primeira consulta pode levar mais tempo enquanto o cache é preenchido.</small>
       </div>}
       <div className="map-stage">
-        <div ref={containerRef} className="map-container" />
+        <div ref={containerRef} className={`map-container${dragSelectMode ? ' drag-select-mode' : ''}`} />
+        {dragPreview && (
+          <div className={`box-select-badge slot-${dragPreview.slot.toLowerCase()}`} aria-live="polite">
+            <span>Local {dragPreview.slot} · </span>
+            <strong>{dragPreview.count}/9 células</strong>
+            {dragPreview.wasClamped && <small> (máx. 9)</small>}
+          </div>
+        )}
         <aside className="map-legend" aria-label="Legenda do mapa">
           <strong>Seleção espacial</strong>
           <span><i className="legend-swatch legend-a" aria-hidden="true">A</i> Região A (contorno sólido)</span>
