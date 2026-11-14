@@ -10,3 +10,12 @@ __pycache__/
 *.pyc
 data/cache/storage/
 
+# Dependências e builds Node / Vite
+node_modules/
+**/node_modules/
+dist/
+**/dist/
+.vite/
+**/.vite/
+
+

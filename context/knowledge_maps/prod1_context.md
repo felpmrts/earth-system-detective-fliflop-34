@@ -81,8 +81,8 @@ export interface MapSelectionPayload {
   variable_x: string;               // Variável primária (Área A)
   variable_y?: string;              // Variável secundária (Área B) - opcional para comparação univariada ou bivariada
   grid_resolution: {
-    dlat: number;                   // Passo de latitude da grade nativa (ex: 0.5)
-    dlon: number;                   // Passo de longitude da grade nativa (ex: 0.625)
+    dLat: number;                   // Passo de latitude da grade nativa (ex: 0.5)
+    dLon: number;                   // Passo de longitude da grade nativa (ex: 0.625)
   };
   cells_a: [number, number][];      // Células da Área A: 1 <= cells_a.length <= 9, coordenadas em [lat, lon]
   cells_b?: [number, number][];     // Células da Área B: 1 <= cells_b.length <= 9, coordenadas em [lat, lon] (opcional)
@@ -98,8 +98,8 @@ Exemplo real de JSON emitido pelo mapa:
   "variable_x": "T2M",
   "variable_y": "PRECTOTCORR",
   "grid_resolution": {
-    "dlat": 0.5,
-    "dlon": 0.625
+    "dLat": 0.5,
+    "dLon": 0.625
   },
   "cells_a": [
     [-3.0, -60.0],
@@ -119,7 +119,7 @@ Exemplo real de JSON emitido pelo mapa:
 1. **Coordenadas `[lat, lon]`:** Toda célula é um par `[latitude, longitude]`, exatamente como exigido pela API Leaflet. Proibido inverter para `[lon, lat]` no payload.
 2. **Restrição de Células ($1 \le \text{cells.length} \le 9$):** Cada área (`cells_a` e `cells_b`) suporta de 1 até 9 células adjacentes. Células isoladas ou desconectadas dentro da mesma área são inválidas.
 3. **Escopo MVP de Variáveis:** O MVP inicia com 1 variável por área (`variable_x` para Área A e `variable_y` opcional para Área B, viabilizando comparação da mesma variável entre duas regiões ou correlação bivariada entre variáveis distintas), preparando o terreno para futuras famílias ambientais com múltiplas variáveis simultâneas.
-4. **Resolução de Grade Explícita:** `grid_resolution: { dlat, dlon }` vincula a seleção à geometria nativa da fonte (ex.: MERRA-2 $0{,}5^\circ \times 0{,}625^\circ$), permitindo ao backend compor a requisição via `/point` ou `/regional`.
+4. **Resolução de Grade Explícita:** `grid_resolution: { dLat, dLon }` vincula a seleção à geometria nativa da fonte (ex.: MERRA-2 $0{,}5^\circ \times 0{,}625^\circ$), permitindo ao backend compor a requisição via `/point` ou `/regional`.
 
 ### ⚠️ Regra de Ouro sobre a NASA Earthdata
 
@@ -207,7 +207,7 @@ Exemplo real de JSON emitido pelo mapa:
 
 2. **Dados Globais Reais:** Substituir mock por `{var_id}_grid.json` + estilização de tendência e significância via Canvas.
 
-3. **Seleção A/B com Composição:** Clique destaca Área A e Área B com composição de até 9 células adjacentes ($1 \le \text{cells.length} \le 9$, coordenadas `[lat, lon]`) e emite o payload `{ variable_x, variable_y?, grid_resolution: { dlat, dlon }, cells_a, cells_b?, start_year, end_year }` para o estado global.
+3. **Seleção A/B com Composição:** Clique destaca Área A e Área B com composição de até 9 células adjacentes ($1 \le \text{cells.length} \le 9$, coordenadas `[lat, lon]`) e emite o payload `{ variable_x, variable_y?, grid_resolution: { dLat, dLon }, cells_a, cells_b?, start_year, end_year }` para o estado global.
 
 4. **Dados Dinâmicos:** Conectar `getRegionData(payload)` à API científica/backend com fallback local em IndexedDB *(apenas após validar viabilidade da API)*.
 
@@ -341,7 +341,7 @@ Para cada problema, indique arquivo e trecho/causa.
 
 * **Geográfico:** Pontos e polígonos das células caem nas coordenadas exatas em `[lat, lon]` (ordem do Leaflet, sem inversão).
 
-* **Payload:** O payload emitido pelo mapa valida a interface `MapSelectionPayload` com $1 \le \text{cells.length} \le 9$, `{ dlat, dlon }` e anos inicial/final.
+* **Payload:** O payload emitido pelo mapa valida a interface `MapSelectionPayload` com $1 \le \text{cells.length} \le 9$, `{ dLat, dLon }` e anos inicial/final.
 
 * **Visual:** Direção, magnitude e significância são claramente distintas e batem com a legenda sobre Canvas.
 
@@ -357,7 +357,7 @@ Para cada problema, indique arquivo e trecho/causa.
 
 - [ ] **Mapa & Dados:** Leaflet integrado com renderer Canvas, carrega `{var_id}_grid.json` real e coordenadas validadas em `[lat, lon]`.
 
-- [ ] **Payload de Seleção:** Emissão funcional de `{ variable_x, variable_y?, grid_resolution: { dlat, dlon }, cells_a, cells_b?, start_year, end_year }` respeitando $1 \le \text{cells.length} \le 9$.
+- [ ] **Payload de Seleção:** Emissão funcional de `{ variable_x, variable_y?, grid_resolution: { dLat, dLon }, cells_a, cells_b?, start_year, end_year }` respeitando $1 \le \text{cells.length} \le 9$.
 
 - [ ] **Visualização:** Direção, magnitude (`abs(slope)`) e significância (`is_sig`/`q_value_fdr`) distinguíveis + legenda coerente.
 
