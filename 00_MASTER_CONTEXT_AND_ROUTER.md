@@ -1,5 +1,12 @@
 # 00. Master Context & Router de Conhecimento — NASA Space Apps 2026 (*Be An Earth System Trend Detective!*)
 
+## PROTOCOLO DE AUTO-SINCRONIZAÇÃO GIT
+
+> **REGRA PERMANENTE E OBRIGATÓRIA DE AUTONOMIA PARA AGENTES DE IA:**
+> - **Gatilho:** Sempre que iniciar uma nova sessão, ou quando o usuário pedir *"sincronize"*, *"próximo passo"* ou *"atualize o contexto"*.
+> - **Passo 1 — Sincronização Git:** Verificar `git status`; se não houver alterações locais pendentes, executar `git fetch --all`, conferir commits recentes nas branches ativas (`mapa`, `frontend`, `data`, `main`/`develop`) e atualizar a branch ativa (`git pull`) antes de propor ou editar código.
+> - **Passo 2 — Diagnóstico de Diff:** Inspecionar os últimos commits (`git log -n 5 --stat` na branch ativa e comparações com `origin/frontend` e `origin/data`) para identificar alterações recentes das outras frentes (`PROD-2` e `DADOS`) e evitar conflitos de merge ou retrabalho.
+
 > **INSTRUÇÃO DE SISTEMA PARA AGENTES DE IA (PROGRESSIVE DISCLOSURE PROTOCOL):**
 > Este arquivo (`00_MASTER_CONTEXT_AND_ROUTER.md`) é o **Ponto de Entrada Único (Single Source of Truth)** de todo o projeto.
 > **NÃO leia todos os arquivos do repositório de uma vez.** Para economizar tokens, preservar a janela de atenção e evitar degradação de raciocínio (*context rot*), siga estritamente este protocolo:

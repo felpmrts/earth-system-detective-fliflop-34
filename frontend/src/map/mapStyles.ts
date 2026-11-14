@@ -1,3 +1,4 @@
+import { resolveGridVariableId } from '../contracts/catalog.ts';
 import type { GlobalGridPoint, RegionSlot, VariableId } from '../contracts/types.ts';
 
 export interface CircleMarkerVisualStyle {
@@ -45,7 +46,7 @@ export function getGlobalPointStyle(
   const isNeutral = point.slope_sen_decade === 0;
 
   const baseColor = isNeutral ? '#64748b' : isPositive ? '#d9480f' : '#1864ab';
-  const refScale = MAGNITUDE_REFERENCE_BY_VAR[variableId] ?? 1;
+  const refScale = MAGNITUDE_REFERENCE_BY_VAR[resolveGridVariableId(variableId)] ?? 1;
   const normalizedMag = Math.min(Math.abs(point.slope_sen_decade) / refScale, 1.5);
   const radius = Math.round((3.5 + normalizedMag * 4.5) * 10) / 10;
 
