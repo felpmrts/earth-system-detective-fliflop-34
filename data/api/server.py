@@ -3,6 +3,7 @@
 Endpoints:
 - GET  /api/health
 - GET  /api/catalog
+- POST /api/analyze        (Contrato oficial `RegionAnalysisRequest -> RegionAnalysisResponse`)
 - POST /api/location/fetch
 - POST /api/compare
 
@@ -22,6 +23,8 @@ from data.cache.store import CellCacheStore
 from data.catalog.environmental_catalog import get_catalog_tree
 from data.models.contracts import LocationQuery
 from data.services.comparison_service import (
+    ContractSemanticError,
+    analyze_regions_contract,
     compare_locations_multi_variable,
     compare_locations_single_variable,
 )
@@ -46,6 +49,9 @@ class BackendRouter:
 
     def handle_post(self, path: str, body: dict[str, Any]) -> tuple[int, dict[str, Any]]:
         try:
+            if path == "/api/analyze":
+                return HTTPStatus.OK, analyze_regions_contract(body, cache=self.cache)
+
             start_year = int(body.get("start_year", 2001))
             end_year = int(body.get("end_year", 2023))
 
@@ -61,6 +67,8 @@ class BackendRouter:
                 )
 
             if path == "/api/compare":
+                if "region_a" in body:
+                    return HTTPStatus.OK, analyze_regions_contract(body, cache=self.cache)
                 loc_a = LocationQuery.from_dict(body["location_a"], default_name="Local A")
                 loc_b = LocationQuery.from_dict(body["location_b"], default_name="Local B")
                 if len(loc_a.get_variables()) == 1 and len(loc_b.get_variables()) == 1:
@@ -72,6 +80,8 @@ class BackendRouter:
                 )
 
             return HTTPStatus.NOT_FOUND, {"error": f"Rota POST desconhecida: {path}"}
+        except ContractSemanticError as exc:
+            return exc.status_code, {"code": exc.code, "error": str(exc)}
         except (KeyError, TypeError, ValueError) as exc:
             return HTTPStatus.BAD_REQUEST, {"error": str(exc)}
 

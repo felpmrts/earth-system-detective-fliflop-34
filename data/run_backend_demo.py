@@ -16,6 +16,7 @@ Execução recomendada (a partir da raiz do repositório):
 from __future__ import annotations
 
 import json
+import math
 import sys
 from pathlib import Path
 from typing import Any
@@ -41,6 +42,78 @@ from data.services.comparison_service import (  # noqa: E402
 from data.services.ingestion_service import fetch_location_single_variable  # noqa: E402
 
 OUTPUT_PATH = Path(__file__).resolve().parent / "sample_backend_contract_output.json"
+
+_FRONTEND_VARIABLE_IDS = {
+    "T2M", "T2M_MAX", "T2M_MIN", "PRECTOTCORR", "GWETTOP", "GWETROOT",
+    "RH2M", "WS10M", "PS", "ALLSKY_SFC_SW_DWN", "CLDTOT", "ALLSKY_SFC_LW_DWN",
+}
+_ALLOWED_REGIME_SHAPES = {
+    "linear", "accelerating_rise", "accelerating_decline", "saturating", "non_monotonic",
+}
+_ALLOWED_CONFIDENCE_TIERS = {
+    "CONFIRMED_HIGH", "CONFIRMED_MODERATE", "INSUFFICIENT_SIGNAL", "NO_TREND",
+}
+
+
+def _assert_variable_statistics_contract(stats: dict[str, Any], prefix: str) -> None:
+    """Espelho fiel de `validateVariableStatistics()` em `frontend/src/contracts/contractValidator.ts`."""
+    assert stats["variable_id"] in _FRONTEND_VARIABLE_IDS, f"{prefix}.variable_id inválido: {stats['variable_id']}"
+    assert stats["scale_type"] in {"interval", "ratio"}
+    assert isinstance(stats["allow_percentage_change"], bool)
+    if stats["scale_type"] == "interval":
+        assert not stats["allow_percentage_change"], f"Invariante #3 violado em {prefix}"
+    assert math.isfinite(stats["period"]["n_observations"])
+    assert math.isfinite(stats["period"]["n_effective_ar1"])
+    reg = stats["regression"]
+    assert math.isfinite(reg["slope_per_decade_ols"])
+    assert math.isfinite(reg["slope_per_decade_sen"])
+    assert reg["regime_shape"] in _ALLOWED_REGIME_SHAPES, f"Regime inválido: {reg['regime_shape']}"
+    sig = stats["significance"]
+    for p_field in ("p_value_naive", "p_value_ar1_corrected", "fdr_q_value"):
+        assert 0.0 <= sig[p_field] <= 1.0, f"{prefix}.{p_field} fora de [0,1]: {sig[p_field]}"
+    assert isinstance(sig["is_significant_fdr05"], bool)
+    assert sig["confidence_tier"] in _ALLOWED_CONFIDENCE_TIERS, f"Tier inválido: {sig['confidence_tier']}"
+    for outlier in stats["outliers_mahalanobis"]:
+        assert outlier["direction"] in {"above_ellipse", "below_ellipse"}
+        assert isinstance(outlier["diagnostic_hint"], str) and outlier["diagnostic_hint"].strip()
+    series = stats["series"]
+    n_pts = len(series["dates"])
+    assert n_pts >= 12
+    for vec_key in ("raw_values", "anomaly_values", "linear_fit", "gam_smooth_fit"):
+        assert len(series[vec_key]) == n_pts, f"Tamanho inconsistente em {prefix}.series.{vec_key}"
+
+
+def _assert_frontend_analysis_contract(payload: dict[str, Any]) -> None:
+    """Espelho fiel de `validateAnalysisResponse()` de `origin/frontend`."""
+    meta = payload["request_meta"]
+    assert 1 <= meta["cells_count_a"] <= 9
+    assert meta["spatial_aggregation"] == "nanmean"
+    assert meta["source"] == "backend_api"
+    _assert_variable_statistics_contract(payload["region_a_analysis"], "region_a_analysis")
+
+    if meta.get("region_b_id") is not None:
+        assert isinstance(meta["region_b_id"], str) and meta["region_b_id"].strip()
+        assert 1 <= meta["cells_count_b"] <= 9
+        assert payload["region_b_analysis"] is not None
+    else:
+        assert 0 <= meta["cells_count_b"] <= 9
+
+    if payload["region_b_analysis"] is not None:
+        _assert_variable_statistics_contract(payload["region_b_analysis"], "region_b_analysis")
+        assert payload["comparison_pair"] is not None
+
+    if payload["comparison_pair"] is not None:
+        pair = payload["comparison_pair"]
+        assert isinstance(pair["region_a_id"], str) and pair["region_a_id"].strip()
+        assert isinstance(pair["region_b_id"], str) and pair["region_b_id"].strip()
+        assert isinstance(pair["spatial_divergence_detected"], bool)
+        if pair["slope_difference_per_decade"] is not None:
+            assert math.isfinite(pair["slope_difference_per_decade"])
+        mc = pair["multiscale_correlation"]
+        assert -1.0 <= mc["long_term_secular_r"] <= 1.0
+        assert -1.0 <= mc["short_term_detrended_r"] <= 1.0
+        assert isinstance(mc["paradox_type"], str) and mc["paradox_type"].strip()
+        assert isinstance(mc["interpretation"], str) and mc["interpretation"].strip()
 
 
 def _compact_pair_summary(result: dict[str, Any]) -> dict[str, Any]:
@@ -229,6 +302,108 @@ def main() -> None:
         f"GET /api/catalog={status_cat} | POST /api/compare={status_cmp} (cache hit 100%)"
     )
 
+    print("\n=== 8. Validação 100% Contrato Frontend (`POST /api/analyze` / `CONTRATO_DE_DADOS.md`) ===")
+    status_anz_ab, body_anz_ab = router.handle_post(
+        "/api/analyze",
+        {
+            "variable_a": "PRECTOTCORR",
+            "variable_b": "T2M",
+            "region_a": {
+                "slot": "A",
+                "region_id": "MERRA-2__r173_c239",
+                "source_model": "MERRA-2",
+                "grid_resolution": {"dLat": 0.5, "dLon": 0.625},
+                "cells": [{"cell_id": "r173_c239", "row": 173, "col": 239, "lat": -3.12, "lon": -60.02}],
+            },
+            "region_b": {
+                "slot": "B",
+                "region_id": "MERRA-2__r161_c271",
+                "source_model": "MERRA-2",
+                "grid_resolution": {"dLat": 0.5, "dLon": 0.625},
+                "cells": [{"cell_id": "r161_c271", "row": 161, "col": 271, "lat": -9.39, "lon": -40.50}],
+            },
+            "start_date": "2001-01",
+            "end_date": "2023-12",
+        },
+    )
+    assert status_anz_ab == 200, f"Erro POST /api/analyze A/B: {body_anz_ab}"
+    _assert_frontend_analysis_contract(body_anz_ab)
+
+    # Caso 2: mesma Região A com 2 variáveis distintas (region_b=None, variable_b="T2M_MAX")
+    status_anz_same, body_anz_same = router.handle_post(
+        "/api/analyze",
+        {
+            "variable_a": "T2M",
+            "variable_b": "T2M_MAX",
+            "region_a": {
+                "slot": "A",
+                "region_id": "MERRA-2__r173_c239",
+                "source_model": "MERRA-2",
+                "grid_resolution": {"dLat": 0.5, "dLon": 0.625},
+                "cells": [{"cell_id": "r173_c239", "row": 173, "col": 239, "lat": -3.12, "lon": -60.02}],
+            },
+            "region_b": None,
+            "start_date": "2001-01",
+            "end_date": "2023-12",
+        },
+    )
+    assert status_anz_same == 200, f"Erro POST /api/analyze mesma região: {body_anz_same}"
+    _assert_frontend_analysis_contract(body_anz_same)
+    assert body_anz_same["request_meta"]["region_b_id"] is None
+    assert body_anz_same["request_meta"]["cells_count_b"] == 0
+    assert body_anz_same["comparison_pair"]["slope_difference_per_decade"] is not None
+
+    # Caso 3: região isolada + alias CLDTOT -> CLOUD_AMT e escala intervalar PS
+    status_anz_cldtot, body_anz_cldtot = router.handle_post(
+        "/api/analyze",
+        {
+            "variable_a": "CLDTOT",
+            "variable_b": None,
+            "region_a": {
+                "slot": "A",
+                "region_id": "CERES__r86_c119",
+                "source_model": "CERES_SYN1deg",
+                "grid_resolution": {"dLat": 1.0, "dLon": 1.0},
+                "cells": [{"cell_id": "r86_c119", "row": 86, "col": 119, "lat": -3.5, "lon": -60.5}],
+            },
+            "region_b": None,
+            "start_date": "2001-01",
+            "end_date": "2023-12",
+        },
+    )
+    assert status_anz_cldtot == 200, f"Erro POST /api/analyze CLDTOT: {body_anz_cldtot}"
+    _assert_frontend_analysis_contract(body_anz_cldtot)
+    assert body_anz_cldtot["region_a_analysis"]["variable_id"] == "CLDTOT"
+    assert body_anz_cldtot["region_b_analysis"] is None
+    assert body_anz_cldtot["comparison_pair"] is None
+
+    # Caso 4: Máscara oceânica para GWETTOP no meio do Atlântico deve retornar OCEAN_MASK_NO_DATA
+    status_ocean, body_ocean = router.handle_post(
+        "/api/analyze",
+        {
+            "variable_a": "GWETTOP",
+            "variable_b": None,
+            "region_a": {
+                "slot": "A",
+                "region_id": "MERRA-2__r180_c240",
+                "source_model": "MERRA-2",
+                "grid_resolution": {"dLat": 0.5, "dLon": 0.625},
+                "cells": [{"cell_id": "r180_c240", "row": 180, "col": 240, "lat": 0.0, "lon": -30.0}],
+            },
+            "region_b": None,
+            "start_date": "2010-01",
+            "end_date": "2015-12",
+        },
+    )
+    assert status_ocean == 422 and body_ocean.get("code") == "OCEAN_MASK_NO_DATA", (
+        f"Esperado OCEAN_MASK_NO_DATA, obtido HTTP {status_ocean}: {body_ocean}"
+    )
+
+    print(
+        f"Contrato Frontend 100% OK -> A/B={status_anz_ab} | Mesma Região 2 vars={status_anz_same} | "
+        f"CLDTOT isolado={status_anz_cldtot} | Máscara oceânica={status_ocean} ({body_ocean['code']})"
+    )
+
     contract_output = {
         "catalog_summary": {
             "total_families": catalog["total_families"],
@@ -274,6 +449,14 @@ def main() -> None:
                 "mode": body_cmp["mode"],
                 "status": body_cmp["status"],
                 "comparison_pair": body_cmp["comparison_pair"],
+            },
+            "post_analyze_frontend_contract": {
+                "ab_http_status": status_anz_ab,
+                "same_region_http_status": status_anz_same,
+                "cldtot_http_status": status_anz_cldtot,
+                "ocean_mask_check": {"http_status": status_ocean, **body_ocean},
+                "ab_request_meta": body_anz_ab["request_meta"],
+                "ab_comparison_pair": body_anz_ab["comparison_pair"],
             },
         },
     }
