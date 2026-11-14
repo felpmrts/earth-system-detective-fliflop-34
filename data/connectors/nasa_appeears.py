@@ -12,6 +12,7 @@ from data.catalog.environmental_catalog import get_variable_spec
 from data.models.contracts import CellCoord
 
 from .base import http_request, log_api_pull
+from .nasa_giovanni import fetch_cmr_sample_granule
 
 API_NAME = "NASA AppEEARS API (MODIS)"
 
@@ -67,9 +68,14 @@ def fetch_single_variable(
     log_api_pull(label, API_NAME, base_url, f"{product_id}/{variable}")
     catalog_resp = http_request(f"{base_url}/product/{product_id}", timeout=25)
     total_elapsed = catalog_resp["elapsed_s"]
-    layer_meta = {}
+    http_calls = 1
+    layer_meta: dict[str, Any] = {}
     if catalog_resp["ok"]:
-        layer_meta = json.loads(catalog_resp["body"] or "{}").get(variable, {})
+        layers = json.loads(catalog_resp["body"] or "{}")
+        layer_meta = layers.get(variable) or next(
+            (meta for key, meta in layers.items() if key.lower() == variable.lower()),
+            {},
+        )
 
     username = os.environ.get("EARTHDATA_USERNAME", "").strip()
     password = os.environ.get("EARTHDATA_PASSWORD", "").strip()
@@ -82,8 +88,17 @@ def fetch_single_variable(
             headers={"Authorization": f"Basic {creds}"},
             timeout=25,
         )
+        http_calls += 1
         total_elapsed += login_resp["elapsed_s"]
         auth_status = "OK_AUTENTICADO" if login_resp["ok"] else f"ERRO_LOGIN ({login_resp['error']})"
+
+    cmr_short_name = product_id.split(".", 1)[0]
+    earthdata_token = os.environ.get("EARTHDATA_TOKEN", "").strip()
+    sample_granule, gran_calls, gran_elapsed = fetch_cmr_sample_granule(
+        cmr_short_name, anchor.lat, anchor.lon, start_year, end_year, token=earthdata_token
+    )
+    http_calls += gran_calls
+    total_elapsed += gran_elapsed
 
     return {
         "api_puxada": API_NAME,
@@ -101,10 +116,11 @@ def fetch_single_variable(
             "Units": layer_meta.get("Units"),
             "Available": layer_meta.get("Available"),
         },
+        "sample_granule": sample_granule,
         "snapped_cells": [anchor.to_dict()],
         "months_count": 0,
         "cache_hits": 0,
-        "http_calls": 2 if (username and password) else 1,
+        "http_calls": http_calls,
         "elapsed_s": round(total_elapsed, 3),
         "series": {},
         "note": "AppEEARS processa extrações em fila assíncrona (/task). Para tempo real na demo, popular cache local.",

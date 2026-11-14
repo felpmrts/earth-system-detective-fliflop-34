@@ -17,6 +17,61 @@ from data.models.contracts import CellCoord
 from .base import http_request, log_api_pull
 
 API_NAME = "NASA Giovanni / GES DISC"
+_CMR_BASE = "https://cmr.earthdata.nasa.gov/search"
+
+
+def _extract_online_url(entry: dict[str, Any]) -> str | None:
+    links = entry.get("links") or []
+    for link in links:
+        rel = str(link.get("rel", ""))
+        href = str(link.get("href", ""))
+        if href.startswith("http") and ("data#" in rel or href.endswith((".nc4", ".hdf", ".h5"))):
+            return href
+    for link in links:
+        href = str(link.get("href", ""))
+        if href.startswith("http"):
+            return href
+    return None
+
+
+def fetch_cmr_sample_granule(
+    short_name: str,
+    lat: float,
+    lon: float,
+    start_year: int,
+    end_year: int,
+    *,
+    token: str = "",
+    timeout: int = 25,
+) -> tuple[dict[str, Any] | None, int, float]:
+    """Busca 1 granule real no NASA CMR para o produto/ponto/janela informados."""
+    headers = {"Authorization": f"Bearer {token}"} if token else {}
+    temporal = f"{start_year}-01-01T00:00:00Z,{end_year}-12-31T23:59:59Z"
+    base_params: dict[str, Any] = {
+        "short_name": short_name,
+        "temporal": temporal,
+        "page_size": 1,
+        "sort_key": "-start_date",
+    }
+    calls = 0
+    elapsed = 0.0
+    for query_params in ({**base_params, "point": f"{lon},{lat}"}, base_params):
+        url = f"{_CMR_BASE}/granules.json?{urllib.parse.urlencode(query_params)}"
+        resp = http_request(url, headers=headers, timeout=timeout)
+        calls += 1
+        elapsed += resp["elapsed_s"]
+        if not resp["ok"]:
+            continue
+        entries = json.loads(resp["body"] or "{}").get("feed", {}).get("entry", [])
+        if entries:
+            entry = entries[0]
+            return {
+                "granule_id": entry.get("title") or entry.get("id"),
+                "time_start": entry.get("time_start"),
+                "time_end": entry.get("time_end"),
+                "online_url": _extract_online_url(entry),
+            }, calls, elapsed
+    return None, calls, elapsed
 
 
 def parse_giovanni_csv(csv_text: str) -> dict[str, float]:
@@ -76,16 +131,30 @@ def fetch_single_variable(
 
     log_api_pull(label, API_NAME, giovanni_url, f"{product_id}/{variable}")
     auth_headers = {"Authorization": f"Bearer {token}"} if token else {}
-    cmr_url = "https://cmr.earthdata.nasa.gov/search/collections.json?" + urllib.parse.urlencode({
-        "provider": "GES_DISC",
-        "short_name": product_id,
-    })
-    cmr_resp = http_request(cmr_url, headers=auth_headers, timeout=25)
+    http_calls = 0
+    total_elapsed = 0.0
     collection_title = None
-    if cmr_resp["ok"]:
-        entries = json.loads(cmr_resp["body"] or "{}").get("feed", {}).get("entry", [])
-        if entries:
-            collection_title = entries[0].get("title")
+    cmr_resp: dict[str, Any] = {"status_code": None}
+
+    for col_params in (
+        {"provider": "GES_DISC", "short_name": product_id},
+        {"short_name": product_id},
+    ):
+        cmr_url = f"{_CMR_BASE}/collections.json?{urllib.parse.urlencode(col_params)}"
+        cmr_resp = http_request(cmr_url, headers=auth_headers, timeout=25)
+        http_calls += 1
+        total_elapsed += cmr_resp["elapsed_s"]
+        if cmr_resp["ok"]:
+            entries = json.loads(cmr_resp["body"] or "{}").get("feed", {}).get("entry", [])
+            if entries:
+                collection_title = entries[0].get("title")
+                break
+
+    sample_granule, gran_calls, gran_elapsed = fetch_cmr_sample_granule(
+        product_id, anchor.lat, anchor.lon, start_year, end_year, token=token
+    )
+    http_calls += gran_calls
+    total_elapsed += gran_elapsed
 
     return {
         "api_puxada": API_NAME,
@@ -98,11 +167,12 @@ def fetch_single_variable(
         "earthdata_token_configured": bool(token),
         "cmr_http_status": cmr_resp["status_code"],
         "collection_title": collection_title,
+        "sample_granule": sample_granule,
         "snapped_cells": [anchor.to_dict()],
         "months_count": 0,
         "cache_hits": 0,
-        "http_calls": 1,
-        "elapsed_s": cmr_resp["elapsed_s"],
+        "http_calls": http_calls,
+        "elapsed_s": round(total_elapsed, 3),
         "series": {},
         "note": "Giovanni atua como validação/demo com CSVs exportados (endpoint legado Data Rods em transição).",
     }

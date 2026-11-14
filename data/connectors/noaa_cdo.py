@@ -10,6 +10,7 @@ from __future__ import annotations
 
 import json
 import os
+import statistics
 import time
 import urllib.parse
 from collections import defaultdict
@@ -106,6 +107,8 @@ def _fetch_chunk_paginated(
     variables: list[str],
     chunk_start: int,
     chunk_end: int,
+    *,
+    dataset_id: str = "GSOM",
 ) -> tuple[list[dict[str, Any]], int, float, str | None]:
     """Busca todos os registros de um bloco de até 10 anos tratando paginação (`offset`)."""
     records: list[dict[str, Any]] = []
@@ -116,7 +119,7 @@ def _fetch_chunk_paginated(
     while True:
         time.sleep(0.22)  # respeita limite da NOAA CDO (5 req/s)
         query_pairs: list[tuple[str, str | int]] = [
-            ("datasetid", "GSOM"),
+            ("datasetid", dataset_id),
             ("stationid", station_id),
             *[("datatypeid", var) for var in variables],
             ("startdate", f"{chunk_start}-01-01"),
@@ -147,6 +150,50 @@ def _fetch_chunk_paginated(
         offset = next_offset
 
     return records, http_calls, elapsed, None
+
+
+def _fetch_ghcnd_monthly_series(
+    base_url: str,
+    token: str,
+    station_id: str,
+    variable: str,
+    start_year: int,
+    end_year: int,
+    *,
+    label: str = "NOAA CDO",
+) -> tuple[dict[str, float], int, float]:
+    """Fallback para variáveis publicadas apenas no dataset diário GHCND (ex.: SNWD), agregando por mês."""
+    buckets: dict[str, list[float]] = defaultdict(list)
+    http_calls = 0
+    elapsed = 0.0
+
+    for year in range(start_year, end_year + 1):
+        log_api_pull(f"{label} | GHCND {year} ({station_id})", API_NAME, f"{base_url}/data", variable)
+        records, year_calls, year_elapsed, err = _fetch_chunk_paginated(
+            base_url,
+            token,
+            station_id,
+            [variable],
+            year,
+            year,
+            dataset_id="GHCND",
+        )
+        http_calls += year_calls
+        elapsed += year_elapsed
+        if err:
+            continue
+        for rec in records:
+            ym = str(rec.get("date", ""))[:7]
+            val = rec.get("value")
+            if str(rec.get("datatype", "")) == variable and len(ym) == 7 and val is not None:
+                buckets[ym].append(float(val))
+
+    monthly = {
+        ym: round(statistics.fmean(vals), 4)
+        for ym, vals in sorted(buckets.items())
+        if vals
+    }
+    return monthly, http_calls, elapsed
 
 
 def fetch_multi_variables_batch(
@@ -196,8 +243,8 @@ def fetch_multi_variables_batch(
     for var in variables:
         spec = get_variable_spec(var)
         cached = cache_store.get("noaa_cdo", var, anchor.lat, anchor.lon, start_year, end_year, cache_extra)
-        if cached is not None and "chunks_10y" in cached:
-            series = cached.get("series", {})
+        if cached is not None and "chunks_10y" in cached and cached.get("series"):
+            series = cached["series"]
             results[var] = {
                 "api_puxada": API_NAME,
                 "endpoint_consultado": f"{base_url}/data",
@@ -300,16 +347,32 @@ def fetch_multi_variables_batch(
     for var in missing_vars:
         spec = get_variable_spec(var)
         series = series_by_var[var]
-        cache_store.set(
-            "noaa_cdo",
-            var,
-            anchor.lat,
-            anchor.lon,
-            start_year,
-            end_year,
-            {"station_id": resolved_station, "chunks_10y": chunk_labels, "series": series},
-            cache_extra,
-        )
+        if not series:
+            ghcnd_series, g_calls, g_elapsed = _fetch_ghcnd_monthly_series(
+                base_url,
+                token,
+                resolved_station,
+                var,
+                start_year,
+                end_year,
+                label=label,
+            )
+            http_calls += g_calls
+            total_elapsed += g_elapsed
+            if ghcnd_series:
+                series = ghcnd_series
+
+        if series:
+            cache_store.set(
+                "noaa_cdo",
+                var,
+                anchor.lat,
+                anchor.lon,
+                start_year,
+                end_year,
+                {"station_id": resolved_station, "chunks_10y": chunk_labels, "series": series},
+                cache_extra,
+            )
         results[var] = {
             "api_puxada": API_NAME,
             "endpoint_consultado": f"{base_url}/data",
