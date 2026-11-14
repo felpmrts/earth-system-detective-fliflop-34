@@ -4,6 +4,7 @@ from __future__ import annotations
 
 import math
 import os
+import socket
 import time
 import urllib.error
 import urllib.request
@@ -11,6 +12,20 @@ from pathlib import Path
 from typing import Any
 
 DATA_ROOT = Path(__file__).resolve().parent.parent
+DEFAULT_USER_AGENT = "TrendDetective-NASASpaceApps/1.0"
+
+_ORIG_GETADDRINFO = socket.getaddrinfo
+
+
+def _ipv4_preferred_getaddrinfo(*args: Any, **kwargs: Any) -> list[Any]:
+    """Prioriza endereços IPv4 (AF_INET) para evitar timeouts/WinError 10013 em IPv6."""
+    results = _ORIG_GETADDRINFO(*args, **kwargs)
+    ipv4 = [entry for entry in results if entry[0] == socket.AF_INET]
+    return ipv4 or results
+
+
+if socket.getaddrinfo is not _ipv4_preferred_getaddrinfo:
+    socket.getaddrinfo = _ipv4_preferred_getaddrinfo
 
 
 def load_env_file(env_path: Path | None = None) -> None:
@@ -65,6 +80,15 @@ class _NoRedirectHandler(urllib.request.HTTPRedirectHandler):
         return None
 
 
+def _build_opener(follow_redirects: bool, bypass_proxy: bool) -> urllib.request.OpenerDirector:
+    handlers: list[Any] = []
+    if bypass_proxy:
+        handlers.append(urllib.request.ProxyHandler({}))
+    if not follow_redirects:
+        handlers.append(_NoRedirectHandler())
+    return urllib.request.build_opener(*handlers)
+
+
 def http_request(
     url: str,
     *,
@@ -74,40 +98,61 @@ def http_request(
     follow_redirects: bool = True,
 ) -> dict[str, Any]:
     """Executa requisição HTTP/HTTPS usando stdlib e retorna dicionário padronizado."""
-    req = urllib.request.Request(url, method=method, headers=headers or {})
+    merged_headers = {"User-Agent": DEFAULT_USER_AGENT}
+    if headers:
+        merged_headers.update(headers)
+    req = urllib.request.Request(url, method=method, headers=merged_headers)
     t0 = time.monotonic()
-    opener = (
-        urllib.request.build_opener()
-        if follow_redirects
-        else urllib.request.build_opener(_NoRedirectHandler())
-    )
-    try:
-        with opener.open(req, timeout=timeout) as resp:
-            body = resp.read().decode("utf-8", errors="replace")
+
+    for bypass_proxy in (False, True):
+        opener = _build_opener(follow_redirects=follow_redirects, bypass_proxy=bypass_proxy)
+        try:
+            with opener.open(req, timeout=timeout) as resp:
+                body = resp.read().decode("utf-8", errors="replace")
+                return {
+                    "ok": True,
+                    "status_code": resp.status,
+                    "elapsed_s": round(time.monotonic() - t0, 3),
+                    "headers": dict(resp.headers.items()),
+                    "body": body,
+                    "error": None,
+                }
+        except urllib.error.HTTPError as exc:
+            body = exc.read().decode("utf-8", errors="replace") if exc.fp else ""
             return {
-                "ok": True,
-                "status_code": resp.status,
+                "ok": False,
+                "status_code": exc.code,
                 "elapsed_s": round(time.monotonic() - t0, 3),
-                "headers": dict(resp.headers.items()),
+                "headers": dict(exc.headers.items()) if exc.headers else {},
                 "body": body,
-                "error": None,
+                "error": f"HTTP {exc.code}: {exc.reason}",
             }
-    except urllib.error.HTTPError as exc:
-        body = exc.read().decode("utf-8", errors="replace") if exc.fp else ""
-        return {
-            "ok": False,
-            "status_code": exc.code,
-            "elapsed_s": round(time.monotonic() - t0, 3),
-            "headers": dict(exc.headers.items()) if exc.headers else {},
-            "body": body,
-            "error": f"HTTP {exc.code}: {exc.reason}",
-        }
-    except Exception as exc:  # noqa: BLE001
-        return {
-            "ok": False,
-            "status_code": None,
-            "elapsed_s": round(time.monotonic() - t0, 3),
-            "headers": {},
-            "body": "",
-            "error": str(exc),
-        }
+        except urllib.error.URLError as exc:
+            if not bypass_proxy:
+                continue
+            return {
+                "ok": False,
+                "status_code": None,
+                "elapsed_s": round(time.monotonic() - t0, 3),
+                "headers": {},
+                "body": "",
+                "error": str(exc),
+            }
+        except Exception as exc:  # noqa: BLE001
+            return {
+                "ok": False,
+                "status_code": None,
+                "elapsed_s": round(time.monotonic() - t0, 3),
+                "headers": {},
+                "body": "",
+                "error": str(exc),
+            }
+
+    return {
+        "ok": False,
+        "status_code": None,
+        "elapsed_s": round(time.monotonic() - t0, 3),
+        "headers": {},
+        "body": "",
+        "error": "Falha desconhecida ao executar requisição HTTP.",
+    }
