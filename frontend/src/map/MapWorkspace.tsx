@@ -2,6 +2,7 @@ import L from 'leaflet';
 import 'leaflet/dist/leaflet.css';
 import { useEffect, useRef, useState } from 'react';
 import type { RegionSelection, RegionSlot, VariableId } from '../contracts/types';
+import { getVariableMetadata } from '../contracts/catalog';
 import {
   buildRegionSelection,
   mirrorRegionSelection,
@@ -15,6 +16,8 @@ interface MapWorkspaceProps {
   readonly variableA: VariableId | null;
   readonly variableB: VariableId | null;
   readonly periodReady: boolean;
+  readonly startMonth: string;
+  readonly endMonth: string;
   readonly regionA: RegionSelection | null;
   readonly regionB: RegionSelection | null;
   readonly onRegionAChange: (region: RegionSelection | null) => void;
@@ -22,6 +25,7 @@ interface MapWorkspaceProps {
   readonly isAnalyzing: boolean;
   readonly analysisError: string;
   readonly onAnalyze: () => void | Promise<void>;
+  readonly onCancel: () => void;
 }
 
 const selectionErrorMessages = {
@@ -34,6 +38,8 @@ export function MapWorkspace({
   variableA,
   variableB,
   periodReady,
+  startMonth,
+  endMonth,
   regionA,
   regionB,
   onRegionAChange,
@@ -41,11 +47,15 @@ export function MapWorkspace({
   isAnalyzing,
   analysisError,
   onAnalyze,
+  onCancel,
 }: MapWorkspaceProps) {
   const containerRef = useRef<HTMLDivElement>(null);
   const mapRef = useRef<L.Map | null>(null);
   const selectionsLayerRef = useRef<L.LayerGroup | null>(null);
   const gridLayerRef = useRef<L.LayerGroup | null>(null);
+  const previewLayerRef = useRef<L.Rectangle | null>(null);
+  const previewCellIdRef = useRef('');
+  const historyRef = useRef<Array<{ regionA: RegionSelection | null; regionB: RegionSelection | null }>>([]);
   const stateRef = useRef({
     variableA,
     variableB,
@@ -60,11 +70,34 @@ export function MapWorkspace({
   const activeSlotRef = useRef<RegionSlot>('A');
   const [notice, setNotice] = useState('Escolha A ou B e clique no mapa para compor a região.');
   const [noticeKind, setNoticeKind] = useState<'info' | 'success' | 'error'>('info');
+  const [elapsedSeconds, setElapsedSeconds] = useState(0);
+  const [historyDepth, setHistoryDepth] = useState(0);
   const [gridNotice, setGridNotice] = useState('');
 
   stateRef.current = { variableA, variableB, regionA, regionB, periodReady, sameLocation };
   callbacksRef.current = { onRegionAChange, onRegionBChange };
   activeSlotRef.current = activeSlot;
+
+  const recordHistory = (previousA: RegionSelection | null, previousB: RegionSelection | null) => {
+    historyRef.current.push({ regionA: previousA, regionB: previousB });
+    if (historyRef.current.length > 30) historyRef.current.shift();
+    setHistoryDepth(historyRef.current.length);
+  };
+
+  useEffect(() => {
+    historyRef.current = [];
+    setHistoryDepth(0);
+  }, [variableA, variableB]);
+
+  useEffect(() => {
+    if (!isAnalyzing) {
+      setElapsedSeconds(0);
+      return;
+    }
+    const startedAt = Date.now();
+    const timer = window.setInterval(() => setElapsedSeconds(Math.floor((Date.now() - startedAt) / 1000)), 1000);
+    return () => window.clearInterval(timer);
+  }, [isAnalyzing]);
 
   useEffect(() => {
     if (!containerRef.current || mapRef.current) return;
@@ -87,10 +120,30 @@ export function MapWorkspace({
       attribution: '© OpenStreetMap contributors',
       maxZoom: 19,
     });
-    L.control.layers({ 'NASA GIBS': nasaGibs, OpenStreetMap: osm }, undefined, {
-      position: 'topright',
-      collapsed: true,
-    }).addTo(map);
+    const relief = L.tileLayer('https://{s}.tile.opentopomap.org/{z}/{x}/{y}.png', {
+      attribution: '© OpenTopoMap (CC-BY-SA) · SRTM',
+      maxZoom: 17,
+    });
+    const layersControl = L.control.layers(
+      { 'Satélite NASA': nasaGibs, 'Mapa de ruas': osm, 'Relevo': relief },
+      undefined,
+      { position: 'topright', collapsed: true },
+    ).addTo(map);
+
+    const layerTooltips: Record<string, string> = {
+      'Satélite NASA': 'NASA Earthdata GIBS — Blue Marble Shaded Relief (Level 8)',
+      'Mapa de ruas': 'OpenStreetMap — Cartografia vetorial padrão',
+      'Relevo': 'OpenTopoMap — Curvas de nível e sombreamento topográfico (SRTM)',
+    };
+    const controlEl = layersControl.getContainer();
+    if (controlEl) {
+      for (const label of controlEl.querySelectorAll('.leaflet-control-layers-base label')) {
+        const text = label.textContent?.trim() ?? '';
+        if (layerTooltips[text]) {
+          (label as HTMLElement).title = layerTooltips[text];
+        }
+      }
+    }
 
     const gridLayer = L.layerGroup().addTo(map);
     const selectionsLayer = L.layerGroup().addTo(map);
@@ -125,6 +178,7 @@ export function MapWorkspace({
         setNoticeKind('error');
         return;
       }
+      recordHistory(current.regionA, current.regionB);
       updateRegion(result.cells.length ? buildRegionSelection(slot, variable, result.cells) : null);
       setNotice(
         current.sameLocation
@@ -132,6 +186,34 @@ export function MapWorkspace({
           : `Região ${slot}: ${result.cells.length} célula(s) selecionada(s).`,
       );
       setNoticeKind('success');
+    });
+
+    map.on('mousemove', ({ latlng }) => {
+      const current = stateRef.current;
+      const slot = activeSlotRef.current;
+      const variable = slot === 'A' ? current.variableA : current.variableB;
+      if (!variable) return;
+      const cell = snapCoordToCell(latlng.lat, latlng.lng, variable);
+      if (previewCellIdRef.current === `${slot}:${cell.cell_id}`) return;
+      previewLayerRef.current?.remove();
+      const selectedStyle = getSelectedCellStyle(slot);
+      previewLayerRef.current = L.rectangle(
+        L.latLngBounds(
+          [cell.bounds_leaflet[0][0], cell.bounds_leaflet[0][1]],
+          [cell.bounds_leaflet[1][0], cell.bounds_leaflet[1][1]],
+        ),
+        { ...selectedStyle, fillOpacity: 0.12, weight: 1.5, dashArray: '4 4', interactive: false },
+      ).bindTooltip(
+        `${slot} · ${cell.cell_id}<br>${cell.lat.toFixed(4)}, ${cell.lon.toFixed(4)}`,
+        { direction: 'top', opacity: 0.92 },
+      ).addTo(map).openTooltip();
+      previewCellIdRef.current = `${slot}:${cell.cell_id}`;
+    });
+
+    map.on('mouseout', () => {
+      previewLayerRef.current?.remove();
+      previewLayerRef.current = null;
+      previewCellIdRef.current = '';
     });
 
     const resizeObserver = new ResizeObserver(() => map.invalidateSize());
@@ -144,6 +226,7 @@ export function MapWorkspace({
       mapRef.current = null;
       selectionsLayerRef.current = null;
       gridLayerRef.current = null;
+      previewLayerRef.current = null;
     };
   }, []);
 
@@ -222,6 +305,51 @@ export function MapWorkspace({
   }, [activeVariable]);
 
   const readyToAnalyze = periodReady && Boolean(regionA && regionB);
+  const metadataA = variableA ? getVariableMetadata(variableA) : null;
+  const metadataB = variableB ? getVariableMetadata(variableB) : null;
+  const formatMonth = (month: string) => month
+    ? new Intl.DateTimeFormat('pt-BR', { month: 'short', year: 'numeric', timeZone: 'UTC' })
+      .format(new Date(`${month}-01T00:00:00Z`)).replace('.', '')
+    : 'pendente';
+
+  const focusRegions = (regions: readonly (RegionSelection | null)[]) => {
+    const cells = regions.flatMap(region => region?.cells ?? []);
+    if (!mapRef.current || cells.length === 0) return;
+    const bounds = L.latLngBounds(
+      cells.flatMap(cell => [
+        [cell.bounds_leaflet[0][0], cell.bounds_leaflet[0][1]] as [number, number],
+        [cell.bounds_leaflet[1][0], cell.bounds_leaflet[1][1]] as [number, number],
+      ]),
+    );
+    mapRef.current.fitBounds(bounds.pad(0.35), { maxZoom: 7, animate: true });
+  };
+
+  const clearRegion = (slot: RegionSlot) => {
+    recordHistory(regionA, regionB);
+    if (slot === 'A') onRegionAChange(null);
+    else onRegionBChange(null);
+    setNotice(`Região ${slot} limpa.`);
+    setNoticeKind('info');
+  };
+
+  const clearAll = () => {
+    if (!regionA && !regionB) return;
+    recordHistory(regionA, regionB);
+    onRegionAChange(null);
+    onRegionBChange(null);
+    setNotice('Regiões A e B limpas.');
+    setNoticeKind('info');
+  };
+
+  const undoLastSelection = () => {
+    const previous = historyRef.current.pop();
+    if (!previous) return;
+    onRegionAChange(previous.regionA);
+    onRegionBChange(previous.regionB);
+    setHistoryDepth(historyRef.current.length);
+    setNotice('Última alteração espacial desfeita.');
+    setNoticeKind('info');
+  };
 
   function handleToggleSameLocation() {
     setSameLocation(prev => {
@@ -274,12 +402,34 @@ export function MapWorkspace({
             Mesmo Local (A=B)
           </button>
         </div>
-        <button type="button" className="analyze-button" disabled={!readyToAnalyze || isAnalyzing} onClick={onAnalyze}>
-          {isAnalyzing ? 'Consultando NASA POWER…' : 'Analisar seleção'}
-        </button>
+        <div className="map-actions">
+          {isAnalyzing && <button type="button" className="cancel-button" onClick={onCancel}>Cancelar</button>}
+          <button type="button" className="analyze-button" disabled={!readyToAnalyze || isAnalyzing} onClick={onAnalyze}>
+            {isAnalyzing ? 'Consultando NASA POWER…' : 'Analisar seleção'}
+          </button>
+        </div>
       </div>
-      <div ref={containerRef} className="map-container" />
-      <div className="map-status" role="status">
+      <div className="query-summary" aria-label="Resumo da consulta preparada">
+        <div className="summary-region summary-a"><b>A</b><span><strong>{metadataA?.variable_name ?? 'Variável pendente'}</strong><small>{regionA?.cells.length ?? 0} célula(s) · {metadataA?.source_model ?? '—'}</small></span></div>
+        <div className="summary-region summary-b"><b>B</b><span><strong>{metadataB?.variable_name ?? 'Variável pendente'}</strong><small>{regionB?.cells.length ?? 0} célula(s) · {metadataB?.source_model ?? '—'}</small></span></div>
+        <div className="summary-period"><span>Período</span><strong>{formatMonth(startMonth)} — {formatMonth(endMonth)}</strong></div>
+      </div>
+      {isAnalyzing && <div className="analysis-progress" role="status" aria-live="polite">
+        <div><strong>Consultando duas regiões na NASA POWER</strong><span>{elapsedSeconds}s</span></div>
+        <div className="progress-track"><span /></div>
+        <small>A primeira consulta pode levar mais tempo enquanto o cache é preenchido.</small>
+      </div>}
+      <div className="map-stage">
+        <div ref={containerRef} className="map-container" />
+        <aside className="map-legend" aria-label="Legenda do mapa">
+          <strong>Seleção espacial</strong>
+          <span><i className="legend-swatch legend-a" aria-hidden="true">A</i> Região A (contorno sólido)</span>
+          <span><i className="legend-swatch legend-b" aria-hidden="true">B</i> Região B (contorno tracejado)</span>
+          <small>Grade ativa: {activeVariable ? `${getVariableMetadata(activeVariable).resolution.dLat}° × ${getVariableMetadata(activeVariable).resolution.dLon}°` : '—'}</small>
+          <small>Até 9 células conectadas</small>
+        </aside>
+      </div>
+      <div className="map-status" role="status" aria-live="polite">
         <span
           className={`map-message ${analysisError ? 'error' : noticeKind}`}
           role={analysisError || noticeKind === 'error' ? 'alert' : undefined}
@@ -287,19 +437,14 @@ export function MapWorkspace({
           {analysisError || notice}
           {!analysisError && gridNotice && <span className="map-grid-note"> · {gridNotice}</span>}
         </span>
-        <div>
-          {regionA && <button type="button" onClick={() => onRegionAChange(null)}>Limpar A</button>}
-          {regionB && (
-            <button
-              type="button"
-              onClick={() => {
-                if (sameLocation) setSameLocation(false);
-                onRegionBChange(null);
-              }}
-            >
-              Limpar B
-            </button>
-          )}
+        <div className="map-tools">
+          <button type="button" disabled={!regionA} onClick={() => focusRegions([regionA])}>Ir para A</button>
+          <button type="button" disabled={!regionB} onClick={() => focusRegions([regionB])}>Ir para B</button>
+          <button type="button" disabled={!regionA && !regionB} onClick={() => focusRegions([regionA, regionB])} title="Enquadrar regiões A e B no mapa">Enquadrar A + B</button>
+          <button type="button" disabled={!historyDepth} onClick={undoLastSelection}>Desfazer</button>
+          <button type="button" disabled={!regionA && !regionB} onClick={clearAll}>Limpar tudo</button>
+          {regionA && <button type="button" className="compact-clear" aria-label="Limpar região A" onClick={() => clearRegion('A')}>× A</button>}
+          {regionB && <button type="button" className="compact-clear" aria-label="Limpar região B" onClick={() => { if (sameLocation) setSameLocation(false); clearRegion('B'); }}>× B</button>}
         </div>
       </div>
     </section>
