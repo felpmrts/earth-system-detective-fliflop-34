@@ -19,6 +19,8 @@ from collections import defaultdict
 from typing import Any
 
 from data.cache.store import CellCacheStore
+from data.catalog.environmental_catalog import get_variable_spec
+from data.connectors.base import snap_ceres, snap_merra2
 from data.models.contracts import CellCoord, LocationQuery
 
 from .ingestion_service import (
@@ -632,7 +634,96 @@ def _parse_contract_region(
             "MAX_CELLS_EXCEEDED",
             f"'{slot_label}' excedeu o limite máximo de 9 células adjacentes ({len(raw_cells)}).",
         )
-    cells = [CellCoord(lat=float(item["lat"]), lon=float(item["lon"])) for item in raw_cells]
+    spec = get_variable_spec(backend_var_code)
+    grid_contracts = {
+        "merra2": ("MERRA-2", 0.5, 0.625, snap_merra2),
+        "ceres": ("CERES_SYN1deg", 1.0, 1.0, snap_ceres),
+    }
+    grid_contract = grid_contracts.get(spec.grid_type)
+
+    if grid_contract:
+        expected_model, expected_dlat, expected_dlon, _ = grid_contract
+        if raw_region.get("source_model") != expected_model:
+            raise ContractSemanticError(
+                "CONTRACT_VIOLATION",
+                f"'{slot_label}.source_model' incompatível com {backend_var_code}: esperado {expected_model}.",
+                400,
+            )
+        resolution = raw_region.get("grid_resolution")
+        if not isinstance(resolution, dict) or not math.isclose(
+            float(resolution.get("dLat", math.nan)), expected_dlat
+        ) or not math.isclose(float(resolution.get("dLon", math.nan)), expected_dlon):
+            raise ContractSemanticError(
+                "CONTRACT_VIOLATION",
+                f"'{slot_label}.grid_resolution' incompatível com {backend_var_code}.",
+                400,
+            )
+
+    cells: list[CellCoord] = []
+    grid_indices: list[tuple[int, int]] = []
+    seen_coords: set[tuple[float, float]] = set()
+    for index, item in enumerate(raw_cells):
+        if not isinstance(item, dict):
+            raise ContractSemanticError(
+                "CONTRACT_VIOLATION", f"'{slot_label}.cells[{index}]' inválida.", 400
+            )
+        lat, lon = float(item["lat"]), float(item["lon"])
+        if not math.isfinite(lat) or not math.isfinite(lon) or not (-90 <= lat <= 90) or not (-180 <= lon <= 180):
+            raise ContractSemanticError(
+                "CONTRACT_VIOLATION",
+                f"Coordenadas fora do domínio em '{slot_label}.cells[{index}]'.",
+                400,
+            )
+        coord = (round(lat, 4), round(lon, 4))
+        if coord in seen_coords:
+            raise ContractSemanticError(
+                "CONTRACT_VIOLATION", f"Célula duplicada em '{slot_label}': {coord}.", 400
+            )
+        seen_coords.add(coord)
+
+        if grid_contract:
+            _, _, _, snap_fn = grid_contract
+            snapped = snap_fn(lat, lon)
+            if coord != snapped:
+                raise ContractSemanticError(
+                    "CONTRACT_VIOLATION",
+                    f"Célula {coord} não está no centro da grade nativa de {backend_var_code}.",
+                    400,
+                )
+            if spec.grid_type == "ceres":
+                expected_row, expected_col = math.floor(lat), math.floor(lon)
+            else:
+                expected_row, expected_col = round(lat / 0.5), round(lon / 0.625)
+            if item.get("row") != expected_row or item.get("col") != expected_col:
+                raise ContractSemanticError(
+                    "CONTRACT_VIOLATION",
+                    f"Índices de grade inválidos em '{slot_label}.cells[{index}]'.",
+                    400,
+                )
+            expected_cell_id = f"r{expected_row}_c{expected_col}"
+            if item.get("cell_id") != expected_cell_id:
+                raise ContractSemanticError(
+                    "CONTRACT_VIOLATION",
+                    f"cell_id inválido em '{slot_label}.cells[{index}]': esperado {expected_cell_id}.",
+                    400,
+                )
+            grid_indices.append((expected_row, expected_col))
+        cells.append(CellCoord(lat=lat, lon=lon))
+
+    if grid_contract and len(grid_indices) > 1:
+        visited = {grid_indices[0]}
+        pending = [grid_indices[0]]
+        while pending:
+            row, col = pending.pop()
+            for candidate in grid_indices:
+                if candidate not in visited and max(abs(candidate[0] - row), abs(candidate[1] - col)) <= 1:
+                    visited.add(candidate)
+                    pending.append(candidate)
+        if len(visited) != len(grid_indices):
+            raise ContractSemanticError(
+                "NOT_ADJACENT",
+                f"As células de '{slot_label}' precisam formar uma região conexa em 8 vizinhos.",
+            )
     station_id = raw_region.get("station_id")
     query = LocationQuery(
         name=region_id,
