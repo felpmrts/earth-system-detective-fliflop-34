@@ -31,6 +31,12 @@ describe('regionDataAdapter — modo API, cache e AbortController', () => {
     expect(second.request_meta.source).toBe('idb_cache');
   });
 
+  it('não reutiliza entrada expirada do cache', async () => {
+    const cache = new RegionAnalysisCache(-1);
+    await cache.set('expired', mockAnalysisJson as never);
+    await expect(cache.get('expired')).resolves.toBeNull();
+  });
+
   it('propaga erro do backend sem mascarar a falha com dados mock', async () => {
     const fetchMock = vi.fn(async (input: RequestInfo | URL, _init?: RequestInit) => {
       const url = String(input);

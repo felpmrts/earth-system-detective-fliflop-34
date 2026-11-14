@@ -1,4 +1,4 @@
-import { isValidVariableId } from './catalog.ts';
+import { getVariableMetadata, isValidVariableId } from './catalog.ts';
 import type {
   ComparisonPair,
   GlobalGridFile,
@@ -47,6 +47,39 @@ function assertNonEmptyString(value: unknown, fieldPath: string): string {
     throw new ContractValidationError(`String obrigatória ausente em "${fieldPath}"`);
   }
   return value;
+}
+
+function assertMonthlyDates(value: unknown, fieldPath: string): readonly string[] {
+  if (!Array.isArray(value)) {
+    throw new ContractValidationError(`${fieldPath} deve ser um array.`);
+  }
+  let previous = '';
+  return value.map((item, index) => {
+    const date = assertNonEmptyString(item, `${fieldPath}[${index}]`);
+    if (!/^\d{4}-(0[1-9]|1[0-2])$/.test(date)) {
+      throw new ContractValidationError(`Mês inválido em ${fieldPath}[${index}]: ${date}`);
+    }
+    if (previous && date <= previous) {
+      throw new ContractValidationError(`${fieldPath} deve estar em ordem crescente e sem duplicatas.`);
+    }
+    previous = date;
+    return date;
+  });
+}
+
+function assertNumericSeries(
+  value: unknown,
+  fieldPath: string,
+  expectedLen: number,
+  allowNull: boolean,
+): void {
+  if (!Array.isArray(value) || value.length !== expectedLen) {
+    throw new ContractValidationError(`${fieldPath} deve conter ${expectedLen} observações.`);
+  }
+  value.forEach((item, index) => {
+    if (allowNull && item === null) return;
+    assertFiniteNumber(item, `${fieldPath}[${index}]`);
+  });
 }
 
 /** Valida arquivo pré-processado da camada global Canvas ({var_id}_grid.json). */
@@ -105,6 +138,12 @@ export function validateVariableStatistics(data: unknown, prefix = 'statistics')
   if (scaleType !== 'interval' && scaleType !== 'ratio') {
     throw new ContractValidationError(`${prefix}.scale_type inválido: ${scaleType}`);
   }
+  const expectedScaleType = getVariableMetadata(varId).scale_type;
+  if (scaleType !== expectedScaleType) {
+    throw new ContractValidationError(
+      `${prefix}.scale_type diverge do catálogo para ${varId}: ${scaleType} != ${expectedScaleType}`,
+    );
+  }
 
   if (typeof data.allow_percentage_change !== 'boolean') {
     throw new ContractValidationError(`${prefix}.allow_percentage_change deve ser boolean.`);
@@ -149,34 +188,17 @@ export function validateVariableStatistics(data: unknown, prefix = 'statistics')
   }
 
   const { dates, raw_values, anomaly_values, linear_fit, gam_smooth_fit, sen_fit, z_scores } = data.series;
-  if (
-    !Array.isArray(dates) ||
-    !Array.isArray(raw_values) ||
-    !Array.isArray(anomaly_values) ||
-    !Array.isArray(linear_fit) ||
-    !Array.isArray(gam_smooth_fit)
-  ) {
-    throw new ContractValidationError(`${prefix}.series deve conter arrays válidos.`);
+  const validDates = assertMonthlyDates(dates, `${prefix}.series.dates`);
+  const expectedLen = validDates.length;
+  assertNumericSeries(raw_values, `${prefix}.series.raw_values`, expectedLen, true);
+  assertNumericSeries(anomaly_values, `${prefix}.series.anomaly_values`, expectedLen, true);
+  assertNumericSeries(linear_fit, `${prefix}.series.linear_fit`, expectedLen, false);
+  assertNumericSeries(gam_smooth_fit, `${prefix}.series.gam_smooth_fit`, expectedLen, false);
+  if (sen_fit !== undefined) {
+    assertNumericSeries(sen_fit, `${prefix}.series.sen_fit`, expectedLen, false);
   }
-  if (sen_fit !== undefined && !Array.isArray(sen_fit)) {
-    throw new ContractValidationError(`${prefix}.series.sen_fit deve ser um array quando presente.`);
-  }
-  if (z_scores !== undefined && !Array.isArray(z_scores)) {
-    throw new ContractValidationError(`${prefix}.series.z_scores deve ser um array quando presente.`);
-  }
-
-  const expectedLen = dates.length;
-  if (
-    raw_values.length !== expectedLen ||
-    anomaly_values.length !== expectedLen ||
-    linear_fit.length !== expectedLen ||
-    gam_smooth_fit.length !== expectedLen ||
-    (sen_fit !== undefined && sen_fit.length !== expectedLen) ||
-    (z_scores !== undefined && z_scores.length !== expectedLen)
-  ) {
-    throw new ContractValidationError(
-      `Comprimento inconsistente nos vetores de ${prefix}.series (esperado ${expectedLen}).`,
-    );
+  if (z_scores !== undefined) {
+    assertNumericSeries(z_scores, `${prefix}.series.z_scores`, expectedLen, true);
   }
 
   return data as unknown as VariableStatistics;
