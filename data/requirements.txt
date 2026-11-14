@@ -1,0 +1,1 @@
+# Backend 100% Python 3 stdlib (sem dependencias externas de terceiros)
