@@ -115,6 +115,146 @@ _CONTRACT_METADATA_OVERRIDES: dict[str, dict[str, Any]] = {
         "allow_percentage_change": True,
         "min_year": 1984,
     },
+    "LST_Day_CMG": {
+        "scale_type": "interval",
+        "unit": "°C",
+        "trend_unit": "°C/década",
+        "allow_percentage_change": False,
+        "min_year": 2000,
+    },
+    "LST_Night_CMG": {
+        "scale_type": "interval",
+        "unit": "°C",
+        "trend_unit": "°C/década",
+        "allow_percentage_change": False,
+        "min_year": 2000,
+    },
+    "_1_km_monthly_NDVI": {
+        "scale_type": "interval",
+        "unit": "Índice (-1 a +1)",
+        "trend_unit": "NDVI/década",
+        "allow_percentage_change": False,
+        "min_year": 2000,
+    },
+    "_1_km_monthly_EVI": {
+        "scale_type": "interval",
+        "unit": "Índice (-1 a +1)",
+        "trend_unit": "EVI/década",
+        "allow_percentage_change": False,
+        "min_year": 2000,
+    },
+    "Lai_500m": {
+        "scale_type": "ratio",
+        "unit": "m²/m²",
+        "trend_unit": "m²/m²/década",
+        "allow_percentage_change": True,
+        "min_year": 2000,
+    },
+    "GPM_3IMERGM": {
+        "scale_type": "ratio",
+        "unit": "mm/mês",
+        "trend_unit": "mm/mês/década",
+        "allow_percentage_change": True,
+        "min_year": 2000,
+    },
+    "Evap_tavg": {
+        "scale_type": "ratio",
+        "unit": "mm/dia",
+        "trend_unit": "mm/dia/década",
+        "allow_percentage_change": True,
+        "min_year": 2000,
+    },
+    "Qs_acc": {
+        "scale_type": "ratio",
+        "unit": "kg/m²",
+        "trend_unit": "kg/m²/década",
+        "allow_percentage_change": True,
+        "min_year": 2000,
+    },
+    "AOD_550": {
+        "scale_type": "ratio",
+        "unit": "Adimensional",
+        "trend_unit": "AOD/década",
+        "allow_percentage_change": True,
+        "min_year": 2000,
+    },
+    "river_discharge": {
+        "scale_type": "ratio",
+        "unit": "m³/s",
+        "trend_unit": "m³/s/década",
+        "allow_percentage_change": True,
+        "min_year": 1984,
+    },
+    "river_discharge_mean": {
+        "scale_type": "ratio",
+        "unit": "m³/s",
+        "trend_unit": "m³/s/década",
+        "allow_percentage_change": True,
+        "min_year": 1984,
+    },
+    "river_discharge_max": {
+        "scale_type": "ratio",
+        "unit": "m³/s",
+        "trend_unit": "m³/s/década",
+        "allow_percentage_change": True,
+        "min_year": 1984,
+    },
+    "river_discharge_min": {
+        "scale_type": "ratio",
+        "unit": "m³/s",
+        "trend_unit": "m³/s/década",
+        "allow_percentage_change": True,
+        "min_year": 1984,
+    },
+    "PRCP": {
+        "scale_type": "ratio",
+        "unit": "mm",
+        "trend_unit": "mm/década",
+        "allow_percentage_change": True,
+        "min_year": 1981,
+    },
+    "TAVG": {
+        "scale_type": "interval",
+        "unit": "°C",
+        "trend_unit": "°C/década",
+        "allow_percentage_change": False,
+        "min_year": 1981,
+    },
+    "TMAX": {
+        "scale_type": "interval",
+        "unit": "°C",
+        "trend_unit": "°C/década",
+        "allow_percentage_change": False,
+        "min_year": 1981,
+    },
+    "TMIN": {
+        "scale_type": "interval",
+        "unit": "°C",
+        "trend_unit": "°C/década",
+        "allow_percentage_change": False,
+        "min_year": 1981,
+    },
+    "SNOW": {
+        "scale_type": "ratio",
+        "unit": "mm",
+        "trend_unit": "mm/década",
+        "allow_percentage_change": True,
+        "min_year": 1981,
+    },
+    "SNWD": {
+        "scale_type": "ratio",
+        "unit": "mm",
+        "trend_unit": "mm/década",
+        "allow_percentage_change": True,
+        "min_year": 1981,
+    },
+    "AWND": {
+        "scale_type": "ratio",
+        "unit": "m/s",
+        "trend_unit": "m/s/década",
+        "allow_percentage_change": True,
+        "min_year": 1981,
+    },
 }
 
 
@@ -875,14 +1015,16 @@ def _parse_contract_region(
 
 
 def _resolve_min_year(requested_var_id: str, backend_var_code: str) -> int:
-    """Resolve o ano inicial válido da variável respeitando fronteiras MERRA-2 (1981) e CERES (1984)."""
+    """Resolve o ano inicial válido respeitando fronteiras MERRA-2/NOAA (1981), CERES/GloFAS (1984) e MODIS/GLDAS (2000)."""
     override_year = _CONTRACT_METADATA_OVERRIDES.get(requested_var_id, {}).get("min_year")
     if isinstance(override_year, int):
         return override_year
     try:
         spec = get_variable_spec(backend_var_code)
-        if spec.grid_type == "ceres":
+        if spec.grid_type in {"ceres", "point"}:
             return 1984
+        if spec.grid_type in {"modis", "gldas"}:
+            return 2000
     except KeyError:
         pass
     return 1981

@@ -1,11 +1,15 @@
 from __future__ import annotations
 
 import math
+import tempfile
 import unittest
+from contextlib import ExitStack
+from pathlib import Path
 from typing import Any
 from unittest.mock import patch
 
-from data.catalog.environmental_catalog import get_variable_spec
+from data.cache.store import CellCacheStore
+from data.catalog.environmental_catalog import get_catalog_tree, get_variable_spec
 from data.services.comparison_service import (
     ContractSemanticError,
     _parse_contract_region,
@@ -222,6 +226,96 @@ class CatalogInvariantTests(unittest.TestCase):
             self.assertEqual(reg_b["trend_unit"], expected_trend_unit)
             self.assertEqual(len(reg_a["series"]["dates"]), 480)
             self.assertEqual(len(reg_b["series"]["dates"]), 480)
+
+    def test_all_42_catalog_variables_have_valid_specs_and_scale_rules(self) -> None:
+        tree = get_catalog_tree()
+        all_vars = [var for family in tree["families"] for var in family["variables"]]
+        self.assertEqual(len(all_vars), 42)
+        for entry in all_vars:
+            spec = get_variable_spec(entry["code"])
+            self.assertEqual(spec.code, entry["code"])
+            if spec.scale_type == "interval":
+                self.assertFalse(spec.allow_percentage_change)
+
+
+def _custom_region(slot: str, source_model: str, cells: list[dict[str, object]]) -> dict[str, object]:
+    return {
+        "slot": slot,
+        "region_id": f"test-{source_model.lower()}-{slot.lower()}",
+        "source_model": source_model,
+        "grid_resolution": {"dLat": 0.5, "dLon": 0.5},
+        "cells": cells,
+    }
+
+
+def _half_deg_cell(row: int, col: int) -> dict[str, object]:
+    return {
+        "cell_id": f"r{row}_c{col}",
+        "row": row,
+        "col": col,
+        "lat": row * 0.5,
+        "lon": col * 0.5,
+    }
+
+
+class ContractAnalysisTests(unittest.TestCase):
+    def test_all_non_power_connectors_analyze_end_to_end_with_clamping_and_zero_nan(self) -> None:
+        offline_resp = {
+            "ok": False,
+            "status_code": 503,
+            "elapsed_s": 0.0,
+            "headers": {},
+            "body": None,
+            "error": "mock offline",
+        }
+        patch_targets = (
+            "data.connectors.open_meteo_flood.http_request",
+            "data.connectors.noaa_cdo.http_request",
+            "data.connectors.nasa_appeears.http_request",
+            "data.connectors.nasa_giovanni.http_request",
+        )
+        cells_a = [_half_deg_cell(-12, -94), _half_deg_cell(-12, -93)]
+        cells_b = [_half_deg_cell(80, 10)]
+
+        with tempfile.TemporaryDirectory() as tmpdir, ExitStack() as stack:
+            for target in patch_targets:
+                stack.enter_context(patch(target, return_value=offline_resp))
+            cache = CellCacheStore(Path(tmpdir))
+
+            flood_vs_noaa = analyze_regions_contract(
+                {
+                    "variable_a": "river_discharge",
+                    "variable_b": "TAVG",
+                    "region_a": _custom_region("A", "GloFAS", cells_a),
+                    "region_b": _custom_region("B", "NOAA_CDO", cells_b),
+                    "start_date": "1981-01",
+                    "end_date": "2023-12",
+                },
+                cache=cache,
+            )
+            _assert_all_numbers_finite(flood_vs_noaa)
+            self.assertEqual(flood_vs_noaa["region_a_analysis"]["period"]["start"], "1984-01")
+            self.assertEqual(flood_vs_noaa["region_a_analysis"]["period"]["end"], "2023-12")
+            self.assertEqual(flood_vs_noaa["region_a_analysis"]["period"]["n_observations"], 480)
+            self.assertEqual(flood_vs_noaa["region_b_analysis"]["period"]["n_observations"], 480)
+            self.assertFalse(flood_vs_noaa["region_b_analysis"]["allow_percentage_change"])
+
+            modis_vs_giovanni = analyze_regions_contract(
+                {
+                    "variable_a": "_1_km_monthly_NDVI",
+                    "variable_b": "GPM_3IMERGM",
+                    "region_a": _custom_region("A", "MODIS_AppEEARS", cells_a),
+                    "region_b": _custom_region("B", "NASA_Giovanni", cells_b),
+                    "start_date": "1981-01",
+                    "end_date": "2023-12",
+                },
+                cache=cache,
+            )
+            _assert_all_numbers_finite(modis_vs_giovanni)
+            self.assertEqual(modis_vs_giovanni["region_a_analysis"]["period"]["start"], "2000-01")
+            self.assertEqual(modis_vs_giovanni["region_a_analysis"]["period"]["end"], "2023-12")
+            self.assertEqual(modis_vs_giovanni["region_a_analysis"]["period"]["n_observations"], 288)
+            self.assertEqual(modis_vs_giovanni["region_b_analysis"]["period"]["n_observations"], 288)
 
 
 if __name__ == "__main__":

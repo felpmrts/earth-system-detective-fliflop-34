@@ -9,8 +9,8 @@ import {
 } from '../contracts/contractValidator.ts';
 
 describe('catalog & contractValidator — blindagem dos 7 Invariantes', () => {
-  it('catálogo cobre as variáveis NASA POWER em tempo real e proíbe % em variáveis intervalares', () => {
-    expect(VARIABLE_LIST).toHaveLength(23);
+  it('catálogo cobre todas as 42 variáveis (+ alias CLDTOT) e proíbe % em variáveis intervalares', () => {
+    expect(VARIABLE_LIST).toHaveLength(43);
     for (const v of VARIABLE_LIST) {
       if (v.scale_type === 'interval') {
         expect(v.allow_percentage_change).toBe(false);
