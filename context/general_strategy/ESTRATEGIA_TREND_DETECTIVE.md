@@ -149,16 +149,22 @@ O MVP do Sistema de Análise de Dados está concluído quando, para quaisquer co
 
 ### 2.1 Consumo de Dados em Tempo Real via NASA POWER API
 
-A **NASA POWER API** (Prediction Of Worldwide Energy Resources) é a espinha dorsal de dados do projeto. Ela sintetiza terabytes de dados brutos de satélites e reanálises climáticas em endpoints REST de alta performance, devolvendo tabelas limpas e estruturadas em JSON:
+A **NASA POWER API v2** (Prediction Of Worldwide Energy Resources) é a espinha dorsal de dados do projeto. Ela sintetiza terabytes de dados brutos de satélites e reanálises climáticas em endpoints REST de alta performance, devolvendo tabelas limpas e estruturadas em JSON:
 
-- **Endpoint Oficial Utilizado:** `/api/temporal/monthly/point`
-- **URL Base:**  
+- **Endpoints Oficiais:**
+  - `/api/temporal/monthly/point` (1 coordenada, aceita até **20 parâmetros** na mesma chamada; latência $\approx 0{,}8\text{--}1{,}8\text{ s}$).
+  - `/api/temporal/monthly/regional` (retângulo `bbox` com tamanho mínimo de **$2^\circ \times 2^\circ$** e máximo síncrono de **$10^\circ \times 10^\circ$**; aceita apenas **1 parâmetro por requisição**, senão retorna `422 Unprocessable Entity`; latência $\approx 1{,}5\text{--}3{,}5\text{ s}$).
+- **URL Base (`/point`):**  
   `https://power.larc.nasa.gov/api/temporal/monthly/point?parameters={PARAMS}&community=AG&longitude={LON}&latitude={LAT}&start={START_YEAR}&end={END_YEAR}&format=JSON`
 - **Autenticação:** Aberta ao público, **não exige chave de API privada**. Requer apenas cabeçalho `User-Agent` informativo (ex.: `User-Agent: TrendDetective-NASASpaceApps/1.0`).
-- **Formato da Resposta:** JSON com estrutura `properties.parameter.{VAR_NAME}.{YYYYMM}`, onde os valores mensais vêm associados à chave cronológica (ex.: `198101: 24.32`).
-- **Camada de Resiliência e Cache Local:**
-  - Toda requisição bem-sucedida é gravada imediatamente em armazenamento local do navegador (**IndexedDB** ou **localStorage**) e no cache em disco do backend/proxy local.
-  - Se o usuário selecionar novamente a mesma célula da grade ou se houver instabilidade momentânea na conexão de internet durante a apresentação aos jurados, a consulta retorna em **$< 50\text{ ms}$**, garantindo risco zero no pitch ao vivo.
+- **Formato da Resposta e Limpeza Obrigatória no Backend:**
+  - Estrutura `properties.parameter.{VAR_NAME}.{YYYYMM}` (ex.: `198101: 24.32`).
+  - **Filtro de `YYYY13`:** A NASA POWER inclui a chave anual `YYYY13` junto aos meses `01..12`; o backend **deve descartar `YYYY13`** antes de qualquer cálculo.
+  - **Valores Faltantes e Máscara Oceânica (`-999`):** O *fill value* padrão da API é **`-999`** (ou `-999.0`), inclusive quando `GWETTOP`/`GWETROOT` (MERRA-2 Land) caem no oceano. O backend deve converter `-999` para `np.nan` (`df.replace(-999, np.nan)`) e usar `np.nanmean()` na agregação espacial costeira/regional.
+  - **Conversão de `PRECTOTCORR` (`mm/day` $\to$ `mm/mês`):** Na comunidade `AG`, `PRECTOTCORR` vem em taxa média diária (`"units": "mm/day"`). Para exibir volume mensal acumulado (`mm/mês`), multiplicar pelo número de dias de cada mês (`calendar.monthrange(ano, mes)[1]`, tratando anos bissextos).
+- **Rate Limits e Camada de Resiliência/Cache Local:**
+  - Limite oficial de **30 requisições/minuto por IP** e tolerância a rajadas de **3 a 5 chamadas simultâneas** (disparar 9 chamadas de uma vez causa `429 Too Many Requests`).
+  - O backend controla concorrência com **`asyncio.Semaphore(3)`** + *backoff* exponencial e grava cada célula `(lat, lon, var)` em cache local (disco/SQLite/memória no backend e **IndexedDB** no navegador), retornando consultas repetidas em **$< 50\text{ ms}$**.
 
 ---
 
@@ -171,8 +177,8 @@ flowchart TD
     Click["Clique do Usuário no Mapa (lat, lon)"] --> Resolve["Resolução da Célula Nativa na Grade"]
     Resolve --> ModeCheck{"Composição de Células Adjacentes (K <= 9)"}
     
-    ModeCheck -->|K = 1: Mínimo Físico| G1["1 Célula Nativa\nMERRA-2: 0.5° x 0.625° (~55x69 km)\nCERES: 1.0° x 1.0° (~111x111 km)\n1 Requisição (< 400 ms)"]
-    ModeCheck -->|K = 2..9: Composição Livre| G2["K Células Adjacentes em Paralelo\nEx: 1x3, 2x1, 2x2, 3x3 (pelo menos 1 ponto em comum)\nMédia Espacial: Y_bar(t) = sum(Y_i(t))/K\nTeto Máximo: K <= 9 (< 2 s)"]
+    ModeCheck -->|K = 1: Mínimo Físico| G1["1 Célula Nativa\nMERRA-2: 0.5° x 0.625° (~55x69 km)\nCERES: 1.0° x 1.0° (~111x111 km)\n1 Requisição /point (~0.8-1.8 s)"]
+    ModeCheck -->|K = 2..9: Composição Livre| G2["K Células Adjacentes (Semaphore(3) + Cache por Célula)\nEx: 1x3, 2x1, 2x2, 3x3 (pelo menos 1 ponto em comum)\nMédia Espacial: Y_bar(t) = nanmean(Y_i(t))\nTeto Máximo: K <= 9"]
 
     G1 --> Series["Série Temporal Unificada da Região"]
     G2 --> Series
@@ -185,9 +191,9 @@ flowchart TD
 2. **Composição Livre de Células Adjacentes ($1\times 3$, $2\times 1$, $2\times 2$, etc.):**
    - O cientista pode acompanhar um rio, faixa costeira, bacia ou região escolhendo qualquer composição de $K$ células **adjacentes** (regra: cada nova célula precisa ter **pelo menos um ponto/vértice em comum** com o conjunto já selecionado, i.e., $\max(|\Delta i|, |\Delta j|) \le 1$ na grade discreta).
    - **Independência entre $X$ e $Y$:** O cientista pode selecionar, por exemplo, uma área **$1\times 3$** para o dado $X$ e outra área **$2\times 1$** para o dado $Y$.
-   - **Agregação Espacial:** O sistema dispara $K$ requisições pontuais em paralelo (`Promise.all`) e calcula a média aritmética mensal dos $K$ pontos:
-     $$Y_{\text{área}}(t) = \frac{1}{K} \sum_{i=1}^{K} Y_i(t)$$
-   - **Limite Estrito de Segurança:** O teto máximo é **$K \le 9$ células por região** (equivalente a no máximo $3\times 3$). Esse limite garante tempo de agregação $< 2\text{ s}$, protege a aplicação contra bloqueios por excesso de chamadas e mantém a interface ultra-responsiva.
+   - **Agregação Espacial Segura (`Semaphore(3)` + `nanmean`):** Como composições de até $3\times 3$ no MERRA-2 ($1{,}5^\circ \times 1{,}875^\circ$) são menores que o mínimo de $2^\circ \times 2^\circ$ exigido pelo `/regional`, o backend consulta as células não cacheadas via `/point` usando **`asyncio.Semaphore(3)`** (ou usa `/regional` quando a caixa atingir $\ge 2^\circ \times 2^\circ$ com 1 variável) e calcula a média espacial ignorando células oceânicas (`-999` $\to$ `NaN`):
+     $$Y_{\text{área}}(t) = \operatorname{nanmean}_{i=1..K}\big(Y_i(t)\big)$$
+   - **Limite Estrito de Segurança:** O teto máximo é **$K \le 9$ células por região**, protegendo contra erro `429 Too Many Requests` (limite de 30 req/min).
 
 ---
 
@@ -200,9 +206,9 @@ O catálogo abrange os domínios essenciais das Ciências do Sistema Terra, alim
 | **1** | `T2M` | Atmosfera | Temperatura Média do Ar a 2m | MERRA-2 | $0{,}5^\circ \times 0{,}625^\circ$ | $^\circ\text{C}$ | 1981 |
 | **2** | `T2M_MAX` | Climatologia / Extremos | Temperatura Máxima Diária a 2m | MERRA-2 | $0{,}5^\circ \times 0{,}625^\circ$ | $^\circ\text{C}$ | 1981 |
 | **3** | `T2M_MIN` | Climatologia / Extremos | Temperatura Mínima Diária a 2m | MERRA-2 | $0{,}5^\circ \times 0{,}625^\circ$ | $^\circ\text{C}$ | 1981 |
-| **4** | `PRECTOTCORR` | Hidrologia / Chuva | Precipitação Total Corrigida | MERRA-2 | $0{,}5^\circ \times 0{,}625^\circ$ | $\text{mm/mês}$ | 1981 |
-| **5** | `GWETTOP` | Hidrologia / Agronomia | Umidade do Solo Superficial ($0\text{--}5\text{ cm}$) | MERRA-2 | $0{,}5^\circ \times 0{,}625^\circ$ | $0\text{ a }1$ (fração) | 1981 |
-| **6** | `GWETROOT` | Hidrologia / Geologia | Umidade do Solo Radicular ($0\text{--}100\text{ cm}$) | MERRA-2 | $0{,}5^\circ \times 0{,}625^\circ$ | $0\text{ a }1$ (fração) | 1981 |
+| **4** | `PRECTOTCORR` | Hidrologia / Chuva | Precipitação Total Corrigida | MERRA-2 | $0{,}5^\circ \times 0{,}625^\circ$ | $\text{mm/mês}$ *(API: `mm/day` $\times$ dias do mês)* | 1981 |
+| **5** | `GWETTOP` | Hidrologia / Agronomia | Umidade do Solo Superficial ($0\text{--}5\text{ cm}$) | MERRA-2 | $0{,}5^\circ \times 0{,}625^\circ$ | $0\text{ a }1$ (fração; oceano = `-999`) | 1981 |
+| **6** | `GWETROOT` | Hidrologia / Geologia | Umidade do Solo Radicular ($0\text{--}100\text{ cm}$) | MERRA-2 | $0{,}5^\circ \times 0{,}625^\circ$ | $0\text{ a }1$ (fração; oceano = `-999`) | 1981 |
 | **7** | `RH2M` | Meteorologia | Umidade Relativa do Ar a 2m | MERRA-2 | $0{,}5^\circ \times 0{,}625^\circ$ | $\%$ | 1981 |
 | **8** | `WS10M` | Dinâmica Atmosférica | Velocidade do Vento a 10m | MERRA-2 | $0{,}5^\circ \times 0{,}625^\circ$ | $\text{m/s}$ | 1981 |
 | **9** | `PS` | Dinâmica Atmosférica | Pressão de Superfície | MERRA-2 | $0{,}5^\circ \times 0{,}625^\circ$ | $\text{kPa}$ | 1981 |
@@ -557,7 +563,7 @@ flowchart TD
 | # | Risco Crítico | Sinal de Alerta / Gatilho | Resposta Operacional Imediata |
 | :--- | :--- | :--- | :--- |
 | **R1** | **Instabilidade ou Lentidão na NASA POWER API** | Chamada pontual demorando $> 3\text{ s}$ ou timeout | O **Cache Local** assume instantaneamente; requisições repetidas retornam em $< 50\text{ ms}$; manter pré-carregados os dados dos casos do pitch. |
-| **R2** | **Sobrecarga de Chamadas na Expansão $3\times 3$** | 9 requisições paralelas bloqueadas por *rate limit* | Implementar fila com delay de $50\text{ ms}$ entre requisições ou reutilizar pontos de grade sobrepostos já armazenados no cache local. |
+| **R2** | **Rate Limit (`429`) na Composição de Múltiplas Células ($K \le 9$)** | Mais de 3–5 chamadas `/point` simultâneas ou $> 30\text{ req/min}$ | Usar `asyncio.Semaphore(3)` com *backoff* exponencial, cachear cada célula `(lat, lon, var)` individualmente e usar `/regional` quando a caixa for $\ge 2^\circ \times 2^\circ$ (1 variável). |
 | **R3** | **Distorção Visual ao Comparar Variáveis com Unidades Distintas ($X \neq Y$)** | Curva de temperatura ($^\circ\text{C}$) achatando a curva de umidade de solo ($0\text{--}1$) | Aplicar imediatamente a **Tripla Normalização**: Eixo Y Duplo independente e alternador para $Z\text{-Score}$ universal ($\sigma$). |
 | **R4** | **Incompatibilidade Temporal de Datas Iniciais (ex.: 1981 vs. 1984)** | Regressão falhando por tamanhos de vetores divergentes | A rotina de **Interseção Automática de Datas** trunca as duas séries para a janela temporal comum antes de alimentar o motor estatístico. |
 | **R5** | **Erro Conceitual Estatístico no Código ou no Pitch** | Código gerando taxa por $Y_{\text{fim}} - Y_{\text{início}}$ ou porcentagem em $^\circ\text{C}$ | `DADOS-2` mantém travas estritas no código (`allow_percentage: false`) e o Chatbot Co-Piloto emite alerta explícito se detectar violação dos 7 Invariantes. |

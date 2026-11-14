@@ -108,8 +108,20 @@ Abaixo estão **todos os 9 documentos Markdown existentes atualmente no workspac
    - **Resumo:** Dissipação física e saturação (experimento da xícara no micro-ondas); perigo de polinômios livres; uso de **GAMs (Generalized Additive Models)**, *Splines* penalizadas e regressão com constrição monotônica; distinção entre logística e GAM via derivadas $f'(x), f''(x)$; árvore de decisão forense para diagnosticar "corcovas" (anomalias locais) separando erro de sensor, pulso de El Niño e mudança estrutural de regime.
 9. **[`knowledge_base_estatistica/05_OUTLIERS_ROBUSTEZ_E_SIGNIFICANCIA_ESPACIAL.md`](file:///home/zrhyan/Principal/Computation/Space%20Apps/knowledge_base_estatistica/05_OUTLIERS_ROBUSTEZ_E_SIGNIFICANCIA_ESPACIAL.md)** *(~13 KB)*
    - **Resumo:** Detecção bivariada de *outliers* via **Elipse e Distância de Mahalanobis ($D_M$)**; alerta sobre distribuições de caudas pesadas vs. Normal Gaussiana; dupla validação OLS + Theil-Sen; estado da arte em significância estatística com correção para **autocorrelação serial $\text{AR}(1)$** ($N_{\text{efetivo}}$ de Santer / Hamed-Rao) e controle de falsos positivos espaciais em massa no mapa via **FDR de Benjamini-Hochberg ($q < 0{,}05$)**.
-10. **[`knowledge_base_estatistica/06_GUIA_OPERACIONAL_PARA_AGENTES_DE_IA_NO_HACKATHON.md`](file:///home/zrhyan/Principal/Computation/Space%20Apps/knowledge_base_estatistica/06_GUIA_OPERACIONAL_PARA_AGENTES_DE_IA_NO_HACKATHON.md)** *(~11 KB)*
+10. **[`context/knowledge_base_estatistica/06_GUIA_OPERACIONAL_PARA_AGENTES_DE_IA_NO_HACKATHON.md`](file:///home/zrhyan/Principal/Computation/Space%20Apps/earth-system-detective-fliflop-34/context/knowledge_base_estatistica/06_GUIA_OPERACIONAL_PARA_AGENTES_DE_IA_NO_HACKATHON.md)** *(~11 KB)*
     - **Resumo:** Manual executável direto para o hackathon. Contém a matriz matemática das 4 perguntas, o **schema JSON completo do Contrato de Dados** (com suporte a regressão dupla, GAM, Mahalanobis, $\text{AR}(1)$ + FDR e comparador multiescala de 2 regiões), o checklist de 10 pontos para auditoria de achados e o pitch de 20 segundos sobre rigor científico.
+
+### 🛰️ Camada 3: Engenharia de Dados e APIs da NASA (`context/knowledge_data/`)
+11. **[`context/knowledge_data/NASA_POWER_API_SPECS.md`](file:///home/zrhyan/Principal/Computation/Space%20Apps/earth-system-detective-fliflop-34/context/knowledge_data/NASA_POWER_API_SPECS.md)** *(~4 KB)*
+    - **Resumo:** Especificações técnicas validadas por `DADOS-1`: máscara oceânica (`-999` $\to$ `np.nan` + `nanmean`), exclusão de `YYYY13`, conversão de `PRECTOTCORR` (`mm/day` $\to$ `mm/mês`), limites de `/point` vs. `/regional` (`2°×2°` a `10°×10°`), *rate limit* (`30 req/min`, `Semaphore(3)`), composição livre de células adjacentes ($1\times 3$, $2\times 1$) e avaliação de Parquet vs. JSON.
+12. **[`context/knowledge_data/nasa_final_resources.md`](file:///home/zrhyan/Principal/Computation/Space%20Apps/earth-system-detective-fliflop-34/context/knowledge_data/nasa_final_resources.md)** *(~6 KB)*
+    - **Resumo:** Matriz de fontes (NASA POWER, AppEEARS, Open-Meteo GloFAS, NOAA CDO, Giovanni), camada de descoberta guiada por bioma e pipeline estatístico do backend.
+13. **[`context/knowledge_data/NASA_RESOURCES.md`](file:///home/zrhyan/Principal/Computation/Space%20Apps/earth-system-detective-fliflop-34/context/knowledge_data/NASA_RESOURCES.md)** *(~24 KB)*
+    - **Resumo:** Levantamento completo dos 13 recursos oficiais da aba *Resources* do desafio, formatos de arquivo e estimativas de volume.
+
+### 🗺️ Camada 4: Mapas e Visualização Geoespacial (`context/knowledge_maps/`)
+14. **[`context/knowledge_maps/prod1_context.md`](file:///home/zrhyan/Principal/Computation/Space%20Apps/earth-system-detective-fliflop-34/context/knowledge_maps/prod1_context.md)**
+    - **Resumo:** Contexto técnico da frente de Mapas 2D (`PROD-1`).
 
 ---
 
@@ -119,7 +131,10 @@ Abaixo estão **todos os 9 documentos Markdown existentes atualmente no workspac
 
 | Status | Caminho Planejado / Criado | Papel do Documento | Responsável |
 | :---: | :--- | :--- | :---: |
-| ⏳ *Planejado* | `DATA_STRATEGY_AND_SOURCES.md` *(Tarefa 2)* | Caminhos práticos para buscar, baixar e processar dados da NASA (APIs, recortes, Plano A e Plano B). | Preparação / `DADOS-1` |
+| ✅ *Criado* | `context/knowledge_data/NASA_POWER_API_SPECS.md` | Regras técnicas validadas da NASA POWER API (`-999`, `YYYY13`, `mm/day`, `/point` vs `/regional`, `Semaphore(3)`, Parquet vs JSON). | `DADOS-1` |
+| ✅ *Criado* | `context/knowledge_data/nasa_final_resources.md` | Arquitetura de fontes de dados e pipeline de ingestão do backend. | `DADOS-1` |
+| ✅ *Criado* | `context/knowledge_data/NASA_RESOURCES.md` | Catálogo dos recursos oficiais da NASA para o desafio. | `DADOS-1` |
+| ✅ *Criado* | `context/knowledge_maps/prod1_context.md` | Especificação e contexto da frente de Mapa 2D. | `PROD-1` |
 | ⏳ *Fase 1 (Sáb 10:30)* | `CONTRATO_DE_DADOS.md` | Especificação congelada do JSON entre Backend (`DADOS-1/2`) e Frontend (`PROD-1/2`). | `DADOS-1` + `PROD-1` |
 | ⏳ *Fase 1 (Sáb 10:30)* | `DECISOES.md` | Log cronológico de decisões de escopo e arquitetura (2 linhas por decisão). | `COORD` |
 | ⏳ *Fase 4/6* | `DATA_SOURCES.md` | Citação oficial dos datasets da NASA, DOIs, resolução, período e limitações conhecidas. | `DADOS-1` + `NARR` |
