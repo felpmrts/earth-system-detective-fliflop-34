@@ -1,16 +1,27 @@
-/** Identificadores oficiais das 12 variáveis da NASA POWER suportadas no MVP. */
+/** Variáveis NASA POWER em tempo real expostas pelo catálogo do backend de dados. */
 export type VariableId =
   | 'T2M'
   | 'T2M_MAX'
   | 'T2M_MIN'
+  | 'T2M_RANGE'
+  | 'TS'
+  | 'T2MDEW'
   | 'PRECTOTCORR'
   | 'GWETTOP'
   | 'GWETROOT'
+  | 'GWETPROF'
   | 'RH2M'
+  | 'QV2M'
+  | 'TQV'
+  | 'WS2M'
   | 'WS10M'
+  | 'WS50M'
   | 'PS'
+  | 'ALLSKY_SRF_ALB'
   | 'ALLSKY_SFC_SW_DWN'
+  | 'CLRSKY_SFC_SW_DWN'
   | 'CLDTOT'
+  | 'CLOUD_AMT'
   | 'ALLSKY_SFC_LW_DWN';
 
 export type SourceModel = 'MERRA-2' | 'CERES_SYN1deg';

@@ -18,8 +18,8 @@ Abra o endereço indicado pelo Vite. Para verificar alterações, execute `npm r
 
 1. Escolha as variáveis A e B nos seletores agrupados por família. Os dois lados podem usar a mesma variável.
 2. Selecione o mês inicial e o mês final. O início mínimo vem do maior ano inicial entre as duas variáveis. O limite superior é o mês corrente. A cobertura efetiva depende da consulta.
-3. A área Mapa mostra a seleção e o período. O mapa da PROD-1 será integrado nessa área para associar uma região a cada lado.
-4. A Bancada pode ser aberta pela navegação ou pelo botão da demonstração. Hoje ela lê a fixture local e filtra por variável e período. Na integração final, a tela deve chamar a API após a confirmação das duas regiões e do período.
+3. A área Mapa usa NASA GIBS no Leaflet. Escolha o lado ativo e clique nas células para compor as regiões A e B. Cada região aceita até nove células conexas.
+4. `Analisar seleção` envia uma única requisição `POST /api/analyze` depois que variáveis, período e regiões A/B estão completos. A Bancada recebe a resposta real e apresenta o erro do backend sem substituir silenciosamente a consulta por dados sintéticos.
 
 O estado está em `src/App.tsx`. A aplicação inicia na aba Mapa e mantém as escolhas durante a troca de abas. Os controles de gráficos alternam série bruta e anomalia, curvas juntas e separadas, eixo Y duplo e tendências OLS/Theil–Sen. Unidades diferentes são separadas quando o eixo duplo está desativado. O recorte temporal preserva o alinhamento entre datas, valores e tendências e limita a navegação horizontal. O recorte usa os ajustes pré-calculados da fixture, válidos para o período original da análise.
 
@@ -37,8 +37,8 @@ Ao atualizar as famílias, confira se todos os códigos em `src/contracts/catalo
 | `src/App.tsx` e `src/bench.css`   | Estado de exploração, seletores, navegação, painel reservado ao mapa, gráfico e layout responsivo. |
 | `src/contracts/`                    | Tipos da consulta e da resposta, catálogo, famílias e validação do payload.                         |
 | `src/geo/gridGeometry.ts`           | Geometria, encaixe na grade nativa e composição de até nove células conectadas.                     |
-| `src/map/`                          | Estilos cartográficos e configuração da legenda.                                                     |
-| `src/services/regionDataAdapter.ts` | Acesso a grades e análises, validação, timeout e fallback local.                                     |
+| `src/map/`                          | Mapa React/Leaflet, camadas NASA GIBS e OSM, seleção A/B, estilos e legenda.                           |
+| `src/services/regionDataAdapter.ts` | Catálogo do backend, análises reais, validação, timeout, cache e modo offline explícito.             |
 | `src/services/idbCache.ts`          | Persistência de análises no IndexedDB.                                                                |
 | `public/data/`                      | Grades pré-processadas e fixture sintética da bancada.                                                |
 | `src/__tests__/`                    | Testes do contrato, da geometria, da legenda e do adaptador.                                            |
@@ -51,16 +51,26 @@ O [contrato de dados](../CONTRATO_DE_DADOS.md) define `POST /api/analyze` com va
 
 ### Configuração de dados e offline
 
-Copie `.env.example` para `.env.local` quando precisar configurar o adaptador. `VITE_DATA_MODE=offline` usa arquivos locais e `VITE_DATA_MODE=api` usa `VITE_API_BASE_URL` (exemplo local `http://localhost:8000`). Variáveis `VITE_*` são públicas. Guarde credenciais no backend.
+O modo padrão é `api`. Copie `.env.example` para `.env.local` apenas quando precisar alterar a URL. `VITE_DATA_MODE=offline` ativa deliberadamente os arquivos sintéticos locais; `VITE_DATA_MODE=api` usa `VITE_API_BASE_URL` (exemplo local `http://localhost:8000`). Variáveis `VITE_*` são públicas. Guarde credenciais no backend.
 
-O adaptador contempla cache e fallback, mas a bancada atual busca `public/data/mock_analysis.json` diretamente. Alterar a configuração do adaptador, por si só, ainda não conecta a tela à API. O mock tem duas séries sintéticas de 2000 a 2009 e as respectivas tendências. A interface indica quando a variável ou o período escolhido não está coberto. A demo pode ser servida localmente sem consultar NASA ou Python.
+O front carrega famílias e disponibilidade por `GET /api/catalog`. As 22 variáveis NASA POWER em modo `realtime` ficam habilitadas; conectores de fila, demonstração ou que dependem de outras credenciais permanecem indisponíveis. Na confirmação final, o adaptador chama `POST /api/analyze`, valida a resposta e grava o resultado no IndexedDB. Em modo API, falhas são exibidas como falhas reais. O mock é usado somente quando `VITE_DATA_MODE=offline` é configurado explicitamente.
+
+Para executar a integração local completa, inicie os dois processos em terminais separados:
+
+```powershell
+python -m data.api.server --port 8000
+cd frontend
+npm run dev
+```
+
+O backend espera meses no formato `YYYY-MM`. O front converte a seleção do Mantine para esse contrato e mantém datas completas apenas na apresentação do eixo do gráfico.
 
 ## Verificação antes de integrar
 
 - Rode a checagem de tipos, os testes e o build.
 - Valide os seletores A/B no desktop e no celular, incluindo busca, limpeza, nomes longos e meses nos limites.
 - Confira as séries com A/B invertidos, duas unidades, série indisponível, período sem pontos e alternância entre bruto e anomalia.
-- Na integração do mapa, confira o encaixe geográfico, as células A/B e a preservação do estado ao alternar abas.
-- Na integração da API, confirme payloads de sucesso, ausência de dados, timeout e fallback offline.
+- Confira o encaixe geográfico, as células A/B, o limite de nove células e a preservação do estado ao alternar abas.
+- Na integração da API, confirme payloads de sucesso, ausência de dados, timeout, erro explícito e modo offline deliberado.
 
-Desenvolvimento de interface ocorre em `frontend`, com integração em `develop` e produção em `main`. O mapa interativo, o disparo da análise pelo fluxo completo e o painel do copiloto ainda dependem de integração. Veja também a [decisão de stack](../general_strategy/STACK_FRONTEND.md).
+Desenvolvimento de interface ocorre em `frontend`, com integração em `develop` e produção em `main`. O mapa alimenta o estado espacial A/B e a chamada real ao backend já ocorre após `Analisar seleção`. O painel do copiloto ainda depende de integração. Veja também a [decisão de stack](../general_strategy/STACK_FRONTEND.md).

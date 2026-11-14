@@ -24,7 +24,8 @@ export interface CellToggleResult {
 
 /** Arredonda com precisão fixa para evitar ruído de ponto flutuante (ex.: 0.625 * 3). */
 function roundCoord(value: number): number {
-  return Math.round(value * 1_000_000) / 1_000_000;
+  const rounded = Math.round(value * 10_000) / 10_000;
+  return rounded === 0 ? 0 : rounded;
 }
 
 /** Valida latitude [-90, 90] e longitude [-180, 180] contra NaN/Infinity/inversão. */
@@ -49,24 +50,30 @@ export function snapCoordToCell(lat: number, lon: number, variableId: VariableId
 
   const meta = getVariableMetadata(variableId);
   const { dLat, dLon } = meta.resolution;
-  const { lat0, lon0 } = meta.grid_origin;
+  let row: number;
+  let col: number;
+  let centerLat: number;
+  let centerLon: number;
 
-  const maxRow = Math.round(180 / dLat) - 1;
-  const maxCol = Math.round(360 / dLon) - 1;
+  // Mantém paridade com data/connectors/base.py e NASA_POWER_API_SPECS.md.
+  if (meta.source_model === 'CERES_SYN1deg') {
+    row = Math.floor(Math.min(lat, 89.9999));
+    col = Math.floor(Math.min(lon, 179.9999));
+    centerLat = roundCoord(row + 0.5);
+    centerLon = roundCoord(col + 0.5);
+  } else {
+    row = Math.round(lat / dLat);
+    col = Math.round(lon / dLon);
+    centerLat = roundCoord(row * dLat);
+    centerLon = roundCoord(col * dLon);
+  }
+  row = row === 0 ? 0 : row;
+  col = col === 0 ? 0 : col;
 
-  // Clamp no limite superior (+90 / +180) para cair dentro da última célula válida.
-  const rawRow = Math.floor((lat - lat0) / dLat);
-  const rawCol = Math.floor((lon - lon0) / dLon);
-  const row = Math.min(Math.max(rawRow, 0), maxRow);
-  const col = Math.min(Math.max(rawCol, 0), maxCol);
-
-  const south = roundCoord(lat0 + row * dLat);
-  const north = roundCoord(south + dLat);
-  const west = roundCoord(lon0 + col * dLon);
-  const east = roundCoord(west + dLon);
-
-  const centerLat = roundCoord(south + dLat / 2);
-  const centerLon = roundCoord(west + dLon / 2);
+  const south = Math.max(-90, roundCoord(centerLat - dLat / 2));
+  const north = Math.min(90, roundCoord(centerLat + dLat / 2));
+  const west = Math.max(-180, roundCoord(centerLon - dLon / 2));
+  const east = Math.min(180, roundCoord(centerLon + dLon / 2));
 
   const boundsLeaflet: LeafletBounds = [
     [south, west],

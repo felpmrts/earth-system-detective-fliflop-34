@@ -4,7 +4,7 @@ import { buildRegionSelection, snapCoordToCell } from '../geo/gridGeometry.ts';
 import { RegionAnalysisCache } from '../services/idbCache.ts';
 import { createRegionDataAdapter } from '../services/regionDataAdapter.ts';
 
-describe('regionDataAdapter — modo API, cache, AbortController e fallback offline', () => {
+describe('regionDataAdapter — modo API, cache e AbortController', () => {
   const cell = snapCoordToCell(-18.91, -48.27, 'GWETTOP');
   const regionA = buildRegionSelection('A', 'GWETTOP', [cell]);
 
@@ -31,13 +31,13 @@ describe('regionDataAdapter — modo API, cache, AbortController e fallback offl
     expect(second.request_meta.source).toBe('idb_cache');
   });
 
-  it('aciona fallback offline automaticamente quando o backend retorna HTTP 500', async () => {
+  it('propaga erro do backend sem mascarar a falha com dados mock', async () => {
     const fetchMock = vi.fn(async (input: RequestInfo | URL, _init?: RequestInit) => {
       const url = String(input);
       if (url.includes('/api/analyze')) {
-        return new Response('Internal Error', { status: 500 });
+        return new Response(JSON.stringify({ error: 'NASA POWER indisponível' }), { status: 500 });
       }
-      return new Response(JSON.stringify(mockAnalysisJson), { status: 200 });
+      return new Response(JSON.stringify({ error: 'NASA POWER indisponível' }), { status: 500 });
     });
 
     const adapter = createRegionDataAdapter({
@@ -47,9 +47,9 @@ describe('regionDataAdapter — modo API, cache, AbortController e fallback offl
       cache: new RegionAnalysisCache(),
     });
 
-    const res = await adapter.getRegionData({ variable: 'GWETTOP', region: regionA });
-    expect(res.request_meta.source).toBe('offline_fallback');
-    expect(fetchMock).toHaveBeenCalledTimes(2);
+    await expect(adapter.getRegionData({ variable: 'GWETTOP', region: regionA }))
+      .rejects.toThrow('NASA POWER indisponível');
+    expect(fetchMock).toHaveBeenCalledTimes(1);
   });
 
   it('propaga cancelamento quando AbortController externo é abortado antes ou durante o fetch', async () => {

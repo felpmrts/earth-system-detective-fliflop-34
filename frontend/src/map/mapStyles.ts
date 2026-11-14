@@ -18,7 +18,7 @@ export interface RegionPolygonVisualStyle {
 }
 
 /** Escalas típicas de magnitude decadal para normalização visual do raio no mapa global. */
-const MAGNITUDE_REFERENCE_BY_VAR: Readonly<Record<VariableId, number>> = {
+const MAGNITUDE_REFERENCE_BY_VAR: Readonly<Partial<Record<VariableId, number>>> = {
   T2M: 0.6,
   T2M_MAX: 0.7,
   T2M_MIN: 0.6,
@@ -45,7 +45,7 @@ export function getGlobalPointStyle(
   const isNeutral = point.slope_sen_decade === 0;
 
   const baseColor = isNeutral ? '#64748b' : isPositive ? '#d9480f' : '#1864ab';
-  const refScale = MAGNITUDE_REFERENCE_BY_VAR[variableId];
+  const refScale = MAGNITUDE_REFERENCE_BY_VAR[variableId] ?? 1;
   const normalizedMag = Math.min(Math.abs(point.slope_sen_decade) / refScale, 1.5);
   const radius = Math.round((3.5 + normalizedMag * 4.5) * 10) / 10;
 

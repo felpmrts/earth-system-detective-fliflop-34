@@ -1,17 +1,20 @@
 import environmentalFamilies from './contracts/environmentalFamilies.json';
 import { Select } from '@mantine/core';
 import { MonthPickerInput } from '@mantine/dates';
-import { useEffect, useState } from 'react';
+import { useEffect, useRef, useState } from 'react';
 import createPlotlyComponent from 'react-plotly.js/factory';
 import Plotly from 'plotly.js-basic-dist-min';
 import type { RegionAnalysisResponse } from './contracts/types';
-import { VARIABLE_LIST } from './contracts/catalog';
+import type { RegionSelection, VariableId } from './contracts/types';
+import { isValidVariableId, VARIABLE_LIST } from './contracts/catalog';
+import { MapWorkspace } from './map/MapWorkspace';
+import { getBackendCatalog, getRegionData } from './services/regionDataAdapter';
 import './bench.css';
 
 const Plot = createPlotlyComponent(Plotly);
 
 const supportedVariables = new Set<string>(VARIABLE_LIST.map(variable => variable.variable_id));
-const variableOptions = environmentalFamilies.map(({ group, items }) => ({
+const fallbackVariableOptions = environmentalFamilies.map(({ group, items }) => ({
   group,
   items: items.map(option => ({
     ...option,
@@ -21,12 +24,18 @@ const variableOptions = environmentalFamilies.map(({ group, items }) => ({
 
 export default function App() {
   const [analysis, setAnalysis] = useState<RegionAnalysisResponse>();
-  const [error, setError] = useState(false);
+  const [variableOptions, setVariableOptions] = useState(fallbackVariableOptions);
+  const [catalogError, setCatalogError] = useState('');
   const [tab, setTab] = useState<'map' | 'bench'>('map');
   const [variableA, setVariableA] = useState('GWETTOP');
   const [variableB, setVariableB] = useState('T2M_MAX');
+  const [regionA, setRegionA] = useState<RegionSelection | null>(null);
+  const [regionB, setRegionB] = useState<RegionSelection | null>(null);
   const [startMonth, setStartMonth] = useState('');
   const [endMonth, setEndMonth] = useState('');
+  const [isAnalyzing, setIsAnalyzing] = useState(false);
+  const [analysisError, setAnalysisError] = useState('');
+  const analysisControllerRef = useRef<AbortController | null>(null);
   const metadataA = VARIABLE_LIST.find(variable => variable.variable_id === variableA);
   const metadataB = VARIABLE_LIST.find(variable => variable.variable_id === variableB);
   const minimumMonth = metadataA && metadataB
@@ -42,17 +51,62 @@ export default function App() {
   const [dual, setDual] = useState(true);
   const [trend, setTrend] = useState(true);
 
+  useEffect(() => setRegionA(null), [variableA]);
+  useEffect(() => setRegionB(null), [variableB]);
+
   useEffect(() => {
     const controller = new AbortController();
-    fetch(import.meta.env.BASE_URL + 'data/mock_analysis.json', { signal: controller.signal })
-      .then(response => {
-        if (!response.ok) throw new Error('Fixture indisponível');
-        return response.json();
-      })
-      .then(setAnalysis)
-      .catch(() => { if (!controller.signal.aborted) setError(true); });
+    getBackendCatalog(controller.signal)
+      .then(catalog => setVariableOptions(catalog.families.map(family => ({
+        group: family.name,
+        items: family.variables.map(variable => ({
+          value: variable.code,
+          label: variable.ui_name,
+          disabled: variable.connector_id !== 'nasa_power' || variable.mode !== 'realtime' || !isValidVariableId(variable.code),
+        })),
+      }))))
+      .catch(catalogRequestError => {
+        if (!controller.signal.aborted) {
+          setCatalogError(catalogRequestError instanceof Error ? catalogRequestError.message : 'Catálogo indisponível.');
+        }
+      });
     return () => controller.abort();
   }, []);
+
+  useEffect(() => () => analysisControllerRef.current?.abort(), []);
+
+  async function analyzeSelection() {
+    if (!variableA || !variableB || !regionA || !regionB || !periodReady) return;
+
+    analysisControllerRef.current?.abort();
+    const controller = new AbortController();
+    analysisControllerRef.current = controller;
+    setIsAnalyzing(true);
+    setAnalysisError('');
+
+    try {
+      const result = await getRegionData({
+        variable: variableA as VariableId,
+        variableB: variableB as VariableId,
+        region: regionA,
+        regionB,
+        startDate: start,
+        endDate: end,
+        signal: controller.signal,
+      });
+      setAnalysis(result);
+      setTab('bench');
+    } catch (requestError) {
+      if (!controller.signal.aborted) {
+        setAnalysisError(requestError instanceof Error ? requestError.message : 'Não foi possível analisar a seleção.');
+      }
+    } finally {
+      if (analysisControllerRef.current === controller) {
+        analysisControllerRef.current = null;
+        setIsAnalyzing(false);
+      }
+    }
+  }
 
   const available = [analysis?.region_a_analysis, analysis?.region_b_analysis];
   const selections = [{ slot: 'A', id: variableA }, { slot: 'B', id: variableB }];
@@ -95,6 +149,7 @@ export default function App() {
       <div className="workspace">
         <aside aria-label="Catálogo de variáveis">
           <h2>Variáveis</h2>
+          {catalogError && <p className="catalog-warning" role="alert">{catalogError} Usando catálogo local.</p>}
           {([
             { slot: 'A', value: variableA, onChange: setVariableA },
             { slot: 'B', value: variableB, onChange: setVariableB },
@@ -125,16 +180,18 @@ export default function App() {
             <button aria-current={tab === 'map' ? 'page' : undefined} onClick={() => setTab('map')}>Mapa</button>
             <button aria-current={tab === 'bench' ? 'page' : undefined} onClick={() => setTab('bench')}>Bancada científica</button>
           </nav>
-          {tab === 'map' ? <section className="map-preview" aria-label="Área reservada para o mapa">
-            <div className="map-caption">
-              <h2>Seleção de variáveis</h2>
-              <p>A · {VARIABLE_LIST.find(variable => variable.variable_id === variableA)?.variable_name ?? 'A selecionar'}</p>
-              <p>B · {VARIABLE_LIST.find(variable => variable.variable_id === variableB)?.variable_name ?? 'A selecionar'}</p>
-                            <p>{periodReady ? 'Período: ' + start + ' a ' + end : 'Defina o período antes de selecionar os locais.'}</p>
-              <p>O mapa interativo será integrado aqui.</p>
-              <button onClick={() => setTab('bench')}>Abrir análise de demonstração</button>
-            </div>
-          </section> : (
+          {tab === 'map' ? <MapWorkspace
+            variableA={variableA ? variableA as VariableId : null}
+            variableB={variableB ? variableB as VariableId : null}
+            periodReady={periodReady}
+            regionA={regionA}
+            regionB={regionB}
+            onRegionAChange={setRegionA}
+            onRegionBChange={setRegionB}
+            isAnalyzing={isAnalyzing}
+            analysisError={analysisError}
+            onAnalyze={analyzeSelection}
+          /> : (
       <section className="bench-panel" aria-label="Séries temporais">
         <div className="controls">
           <label><input type="checkbox" checked={anomaly} onChange={event => setAnomaly(event.target.checked)} /> Anomalia</label>
@@ -142,8 +199,7 @@ export default function App() {
           <label><input type="checkbox" checked={dual} disabled={separate || regions.length < 2} onChange={event => setDual(event.target.checked)} /> Eixo Y duplo</label>
           <label><input type="checkbox" checked={trend} disabled={!anomaly} onChange={event => setTrend(event.target.checked)} /> OLS e Theil–Sen</label>
         </div>
-        {error && <p role="alert">Não foi possível carregar os dados de demonstração.</p>}
-        {!analysis && !error && <p role="status">Carregando séries…</p>}
+        {!analysis && <p role="status">Defina variáveis, período e regiões no mapa para consultar o backend.</p>}
                 {analysis && missing.map(({ slot, id }) => (
           <p className="note" role="status" key={slot}>
             Variável {slot} · {VARIABLE_LIST.find(variable => variable.variable_id === id)?.variable_name}
@@ -164,7 +220,10 @@ export default function App() {
               : { title: { text: regions[1]?.unit }, automargin: true, overlaying: 'y', side: 'right' },
             legend: { orientation: 'h', y: -0.18 },
           }} />
-          <p className="note">Dados de demonstração. As tendências são exibidas na visão de anomalia.</p>
+          <p className="note">
+            Fonte: {analysis.request_meta.source === 'backend_api' ? 'NASA POWER via backend' : analysis.request_meta.source === 'idb_cache' ? 'cache local' : 'dados de demonstração (fallback offline)'}.
+            {' '}As tendências são exibidas na visão de anomalia.
+          </p>
           {anomaly && trend && regions.some(region => !('sen_fit' in region.series)) && <p className="note">A curva Theil–Sen depende da série ajustada fornecida pelo backend.</p>}
         </>}
       </section>
