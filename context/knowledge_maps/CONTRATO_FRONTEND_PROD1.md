@@ -11,24 +11,32 @@
 frontend/
 ├── .env.example                 # VITE_DATA_MODE=offline|api, VITE_API_BASE_URL
 ├── public/data/
-│   ├── mock_analysis.json       # Payload auditado (120 meses, GWETTOP + T2M_MAX + comparison_pair)
-│   ├── T2M_grid.json            # Amostra Fluxo A (MERRA-2 térmica)
-│   └── GWETTOP_grid.json        # Amostra Fluxo A (MERRA-2 hidrológica)
+│   ├── mock_analysis.json         # Payload auditado (120 meses, GWETTOP + T2M_MAX + comparison_pair)
+│   ├── T2M_grid.json              # Fluxo A MERRA-2 térmica (15 pontos sentinela)
+│   ├── GWETTOP_grid.json          # Fluxo A MERRA-2 hidrológica (15 pontos sentinela)
+│   ├── T2M_MAX_grid.json          # Fluxo A MERRA-2 temp. máxima (15 pontos sentinela)
+│   ├── PRECTOTCORR_grid.json      # Fluxo A MERRA-2 precipitação (15 pontos sentinela)
+│   ├── ALLSKY_SFC_SW_DWN_grid.json # Fluxo A CERES irradiância solar (15 pontos sentinela)
+│   └── CLDTOT_grid.json           # Fluxo A CERES nuvens / alias CLOUD_AMT (15 pontos sentinela)
 └── src/
+    ├── components/
+    │   └── MapCanvas.tsx          # Host React do MapView, Story Presets, toasts e loading
     ├── contracts/
-    │   ├── types.ts             # Tipagem estrita (LeafletLatLng, GridCell, MapViewContractProps, sen_fit?, etc.)
-    │   ├── catalog.ts           # Catálogo das 12 variáveis canônicas + alias CLOUD_AMT + interseção temporal
-    │   └── contractValidator.ts # Validadores runtime + trava dos 7 Invariantes + isSemanticErrorPayload
+    │   ├── types.ts               # Tipagem estrita (LeafletLatLng, GridCell, MapViewContractProps, sen_fit?, etc.)
+    │   ├── catalog.ts             # Catálogo das 12 variáveis canônicas + alias CLOUD_AMT + interseção temporal
+    │   └── contractValidator.ts   # Validadores runtime + trava dos 7 Invariantes + isSemanticErrorPayload
     ├── geo/
-    │   └── gridGeometry.ts      # Snapping exato NASA POWER, BFS 8-vizinhos (1 <= K <= 9), reconcileCellsOnVariableChange
+    │   └── gridGeometry.ts        # Snapping exato NASA POWER, BFS 8-vizinhos (1 <= K <= 9), reconcileCellsOnVariableChange
     ├── map/
-    │   ├── mapStyles.ts         # Estilos Canvas cientes de polaridade (thermal/hydrological/neutral)
-    │   ├── legendConfig.ts      # Configuração reativa de legenda por variável e polaridade
-    │   └── mapIntegration.ts    # Reducer puro + useMapSelectionController (MapViewContractProps)
+    │   ├── MapView.ts             # Núcleo Leaflet Canvas + applyPresetSelection + seleção A/B
+    │   ├── map.css                # Estilos do mapa, toolbar, presets e inspetor de payload
+    │   ├── mapStyles.ts           # Estilos Canvas cientes de polaridade (thermal/hydrological/neutral)
+    │   ├── legendConfig.ts        # Configuração reativa de legenda por variável e polaridade
+    │   └── mapIntegration.ts      # Reducer puro + useMapSelectionController + mapErrorToNotification
     ├── services/
-    │   ├── idbCache.ts          # Cache IndexedDB com fallback em memória
-    │   └── regionDataAdapter.ts # getGlobalGrid() (com alias CLOUD_AMT) + getRegionData() + SemanticApiError
-    └── __tests__/               # 5 suítes Vitest (27 testes)
+    │   ├── idbCache.ts            # Cache IndexedDB com fallback em memória
+    │   └── regionDataAdapter.ts   # getGlobalGrid() (com alias CLOUD_AMT) + getRegionData() + SemanticApiError
+    └── __tests__/                 # 6 suítes Vitest (33 testes)
 ```
 
 ---
@@ -43,7 +51,9 @@ frontend/
 | **`geo/gridGeometry.ts`** | `MAX_CELLS_PER_REGION` (`9`), `assertValidLatLon(lat, lon)`, `snapCoordToCell(lat, lon, variableId)`, `isAdjacent8(a, b)`, `isConnectedComponent(cells)`, `toggleCellInSelection(current, target, maxCells?)`, `reconcileCellsOnVariableChange(prev, next, cells)`, `buildRegionSelection(slot, variableId, cells)`, `toBackendCells(cells)` | `MapView` (`PROD-1`) |
 | **`map/mapStyles.ts`** | `getPolarityPalette(polarity)`, `getGlobalPointStyle(point, variableId)`, `getSelectedCellStyle(slot)` | `MapView` (`PROD-1`) |
 | **`map/legendConfig.ts`** | `buildMapLegendConfig(variableId): MapLegendConfig` | Legenda (`PROD-1`) |
-| **`map/mapIntegration.ts`** | `useMapSelectionController(options?)` (`mapProps`, `analysisData`, `isLoading`, `notification`, `runAnalysis`), `executeStateAnalysis`, `applyCellToggle`, `applySlotVariableChange`, `buildAnalyzeRequestInput` | `MapView` (`PROD-1`), `App.tsx` |
+| **`map/mapIntegration.ts`** | `useMapSelectionController(options?)` (`mapProps`, `analysisData`, `isLoading`, `notification`, `runAnalysis`), `executeStateAnalysis`, `applyCellToggle`, `applySlotVariableChange`, `buildAnalyzeRequestInput`, `mapErrorToNotification(err)` | `MapView` (`PROD-1`), `MapCanvas`, `App.tsx` |
+| **`map/MapView.ts`** | `MapView` (`setVariable`, `setSecondaryVariable`, `renderGlobalGrid`, `applyPresetSelection`, `clearSlot`, `resetView`, `getSelectionPayload`) | `MapCanvas` (`PROD-1`) |
+| **`components/MapCanvas.tsx`** | `MapCanvas`, `StoryPresetId`, `MapCanvasProps` (barra de Story Presets, toasts via `externalNotification`, indicador `isAnalyzing`) | `App.tsx` (`PROD-2`) |
 | **`services/idbCache.ts`** | `RegionAnalysisCache`, `defaultRegionCache` | Adapter |
 | **`services/regionDataAdapter.ts`** | `SemanticApiError`, `getGlobalGrid(variableId, signal?)`, `getRegionData(...)`, `createRegionDataAdapter(overrides?)`, `buildRegionCacheKey(...)` | `PROD-1`, `PROD-2` |
 
@@ -75,7 +85,7 @@ frontend/
 
 ```bash
 cd frontend
-npx vitest run        # 5 arquivos, 27 testes unitários (geometria, snapping, polaridade, mapIntegration, adapter)
+npx vitest run        # 6 arquivos, 33 testes unitários (geometria, contratos/6 grids, estilos/legenda, mapIntegration, adapter, walking skeleton)
 npx tsc --noEmit      # TypeScript strict (0 erros)
 npm run build         # tsc --noEmit && vite build (gera dist/ offline-ready)
 ```

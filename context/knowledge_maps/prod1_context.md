@@ -353,16 +353,16 @@ Para cada problema, indique arquivo e trecho/causa.
 
 ### Checklist Final (MVP Pronto)
 
-- [ ] **Stack Validada:** `Leaflet (Canvas) + React + TypeScript + Vite` rodando com build limpo e tipagem estrita.
+- [x] **Stack Validada:** `Leaflet (Canvas) + React + TypeScript + Vite` rodando com `tsc --noEmit`, `vite build` e 6 suítes Vitest (33 testes passando).
 
-- [ ] **Mapa & Dados:** Leaflet integrado com renderer Canvas, carrega `{var_id}_grid.json` real e coordenadas validadas em `[lat, lon]`.
+- [x] **Mapa & Dados:** Leaflet integrado com renderer Canvas (`preferCanvas: true`), carrega as 6 grades pré-computadas (`T2M`, `GWETTOP`, `T2M_MAX`, `PRECTOTCORR`, `ALLSKY_SFC_SW_DWN`, `CLDTOT`, 15 pontos sentinela cada) e coordenadas validadas em `[lat, lon]`.
 
-- [ ] **Payload de Seleção:** Emissão funcional de `{ variable_x, variable_y?, grid_resolution: { dLat, dLon }, cells_a, cells_b?, start_year, end_year }` respeitando $1 \le \text{cells.length} \le 9$.
+- [x] **Payload de Seleção:** Emissão funcional de `MapSelectionPayload` (`{ variable_x, variable_y?, grid_resolution: { dLat, dLon }, cells_a, cells_b?, start_year, end_year, regionA, regionB }`) respeitando $1 \le \text{cells.length} \le 9$ e 3 atalhos *Story Presets* (`applyPresetSelection`).
 
-- [ ] **Visualização:** Direção, magnitude (`abs(slope)`) e significância (`is_sig`/`q_value_fdr`) distinguíveis + legenda coerente.
+- [x] **Visualização:** Direção (com polaridade térmica/hidrológica), magnitude (`abs(slope)`) e significância (`is_sig`/`q_value_fdr`) distinguíveis + legenda coerente.
 
-- [ ] **Interação:** Seleção flexível de até 2 áreas (A/B) com até 9 células adjacentes alimentando o comparador da `PROD-2`.
+- [x] **Interação:** Seleção flexível de até 2 áreas (A/B) com até 9 células adjacentes alimentando a Bancada Científica da `PROD-2` (incluindo comparação espacial de mesma variável).
 
-- [ ] **Arquitetura:** Zero cálculo estatístico no mapa; API desacoplada recebendo `MapSelectionPayload`.
+- [x] **Arquitetura:** Zero cálculo estatístico no mapa; backend Python expõe `POST /api/analyze` desacoplado recebendo `RegionAnalysisRequest` e retornando `RegionAnalysisResponse` / `422 OCEAN_MASK_NO_DATA`.
 
-- [ ] **Resiliência:** Controle de chamadas (cache/debounce), fallback local funcional em IndexedDB e zero dependências desnecessárias.
+- [x] **Resiliência:** Controle de chamadas (`AbortController`), cache em IndexedDB (`RegionAnalysisCache`), fallback local funcional e toasts de erro semântico via `mapErrorToNotification`.

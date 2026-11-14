@@ -14,7 +14,7 @@ O repositório mantém duas entregas complementares na camada geoespacial (**PRO
    - Serve como ambiente isolado de demonstração e validação rápida do núcleo geoespacial.
 
 2. **`frontend/` (Aplicação Oficial React 19 + TypeScript + Plotly + Vitest + Leaflet):**
-   - Base oficial herdada de `origin/frontend` com **PROD-2** (`App.tsx`, `bench.css`, Plotly, `regionDataAdapter.ts`, `contractValidator.ts`, `idbCache.ts`, 4 suítes Vitest) integrada ao núcleo **PROD-1** (`MapView.ts`, `MapCanvas.tsx`, `map.css`, `mapStyles.ts`, `legendConfig.ts`, `gridGeometry.ts`).
+   - Base oficial herdada de `origin/frontend` com **PROD-2** (`App.tsx`, `bench.css`, Plotly, `regionDataAdapter.ts`, `contractValidator.ts`, `idbCache.ts`, 6 suítes Vitest / 33 testes) integrada ao núcleo **PROD-1** (`MapView.ts`, `MapCanvas.tsx`, `map.css`, `mapStyles.ts`, `legendConfig.ts`, `gridGeometry.ts`).
 
 ### Fronteiras de Escopo (PROD-1)
 - **Responsabilidade de PROD-1:** mapa Leaflet com `preferCanvas: true`, renderização de grade global (Fluxo A) em 3 dimensões independentes (Direção por cor, Magnitude por raio, Significância por opacidade/traço), snapping nativo NASA (`MERRA-2` e `CERES_SYN1deg`), composição conexa em 8-vizinhos (`1 <= K <= 9`), alternância de basemaps/modo offline e emissão do `MapSelectionPayload`.
@@ -65,17 +65,18 @@ O repositório mantém duas entregas complementares na camada geoespacial (**PRO
 | `frontend/src/geo/gridGeometry.ts` | Implementa `assertValidLatLon`, `snapCoordToCell` alinhado à física NASA (`MERRA-2`: `Math.round` centrado em múltiplos exatos `-90 + 0.5*j` / `-180 + 0.625*i` compatível com `data/connectors/base.py:35-37`; `CERES_SYN1deg`: `Math.floor + 0.5`), `isAdjacent8`, `isConnectedComponent` (BFS), `toggleCellInSelection` (com `reason`: `'MAX_CELLS_EXCEEDED'`, `'NOT_ADJACENT'`, `'WOULD_DISCONNECT'`), `buildRegionSelection` e `toBackendCells`. |
 | `frontend/src/map/mapStyles.ts` | Exporta `isThermalOrEnergyVariable`, `getGlobalPointStyle` (3 dimensões independentes com polaridade térmica `#d9480f`/`#1864ab` vs. hídrica `#00b0ff`/`#ff7043`) e `getSelectedCellStyle` (Região A em Ciano `#00e5ff`, Região B em Magenta `#ff007f`). |
 | `frontend/src/map/legendConfig.ts` | Exporta `buildMapLegendConfig(variableId)` preservando a interface `MapLegendConfig` e diferenciando legenda térmica vs. hídrica via `isThermalOrEnergyVariable`. |
-| `frontend/src/map/MapView.ts` | **[NOVO — PROD-1]** Núcleo Leaflet 2D com `preferCanvas: true`, basemaps `dark`, `satellite` (`/{z}/{y}/{x}`) e `osm`, listener `tileerror` para modo offline, troca segura de variável (`land_only_mask` + limpeza ao trocar resolução), `renderGlobalGrid`, seleção A/B em 8-vizinhos (`K <= 9`) e emissão de `MapSelectionPayload`. |
+| `frontend/src/map/MapView.ts` | **[NOVO — PROD-1]** Núcleo Leaflet 2D com `preferCanvas: true`, basemaps `dark`, `satellite` (`/{z}/{y}/{x}`) e `osm`, listener `tileerror` para modo offline, troca segura de variável (`land_only_mask` + limpeza ao trocar resolução), `renderGlobalGrid`, seleção A/B em 8-vizinhos (`K <= 9`), `applyPresetSelection` para Story Presets e emissão de `MapSelectionPayload`. |
 | `frontend/src/map/map.css` | **[NOVO — PROD-1]** Estilos do host Leaflet, toolbar de slots A/B, basemaps, toast offline, legenda 3D, cards espaciais e inspetor de payload JSON. |
-| `frontend/src/components/MapCanvas.tsx` | **[NOVO — PROD-1]** Componente React que monta `MapView` (`useEffect`/`useRef`), carrega `{var_id}_grid.json` via `getGlobalGrid` (com fallback visual `T2M`), exibe controles A/B, basemaps, legenda dinâmica e inspetor de payload emitido. |
+| `frontend/src/components/MapCanvas.tsx` | **[NOVO — PROD-1]** Componente React que monta `MapView` (`useEffect`/`useRef`), carrega `{var_id}_grid.json` via `getGlobalGrid` (com fallback visual `GWETTOP`/`T2M`), exibe controles A/B, 3 botões de Story Presets, basemaps, loading/erros mapeados, legenda dinâmica e inspetor de payload emitido. |
 
 ### 3.4 Aplicação React, Serviços, Testes e Mocks (`frontend/`)
 | Arquivo | Função |
 | :--- | :--- |
-| `frontend/src/App.tsx` e `bench.css` | Interface principal React 19 (**PROD-2** + integração **PROD-1**): sidebar das 12 variáveis por domínio, aba `Mapa` renderizando `<MapCanvas />` e conectando `onSelectionChange` a `getRegionData(...)`, e aba `Bancada científica` com Plotly. |
+| `frontend/src/App.tsx` e `bench.css` | Interface principal React 19 (**PROD-2** + integração **PROD-1**): sidebar das 12 variáveis por domínio, aba `Mapa` renderizando `<MapCanvas />` e conectando `onSelectionChange` a `getRegionData(...)` com notificações semânticas (`mapErrorToNotification`), e aba `Bancada científica` com Plotly (bruto/anomalia, OLS/Theil–Sen, GAM e extremos Mahalanobis) e painel **"4 Respostas do Detetive"** + comparação multiescala. |
 | `frontend/src/services/regionDataAdapter.ts` e `idbCache.ts` | Adapter de dados (`offline` / `api` com `AbortController`, fallback garantido e cache IndexedDB). |
-| `frontend/src/__tests__/*.test.ts` | 4 suítes Vitest (`gridGeometry.test.ts`, `mapStylesAndLegend.test.ts`, `contractValidator.test.ts`, `regionDataAdapter.test.ts`). |
-| `frontend/public/data/T2M_grid.json` e `mock_analysis.json` | Fixtures offline alinhadas aos centros exatos do MERRA-2 (`-18.5, -48.125`, etc.). |
+| `frontend/src/__tests__/*.test.ts` | 6 suítes Vitest (`gridGeometry.test.ts`, `mapStylesAndLegend.test.ts`, `contractValidator.test.ts`, `mapIntegration.test.ts`, `regionDataAdapter.test.ts`, `walkingSkeletonIntegration.test.ts`). |
+| `frontend/public/data/*_grid.json` e `mock_analysis.json` | 6 grades globais offline (`T2M`, `GWETTOP`, `T2M_MAX`, `PRECTOTCORR`, `ALLSKY_SFC_SW_DWN`, `CLDTOT`, cada uma com 15 pontos sentinela alinhados a `MERRA-2` / `CERES_SYN1deg`) e fixture sintética `mock_analysis.json`. |
+| `data/api/server.py` e `data/services/comparison_service.py` | Backend Python leve (`POST /api/analyze` aderente ao `RegionAnalysisResponse`, incluindo `fdr_q_value`, `is_significant_fdr05`, `sen_fit`, `comparison_pair` e erro HTTP `422 OCEAN_MASK_NO_DATA`). |
 
 ---
 
@@ -117,8 +118,8 @@ Sempre que o usuário adiciona/remove uma célula ou troca a variável ativa, `M
 ### Regras Geométricas Garantidas
 1. **Coordenadas:** `cells_a`, `cells_b` e `bounds_leaflet` usam `[latitude, longitude]`; `geojson_ring` usa `[longitude, latitude]` em anel fechado de 5 vértices.
 2. **Snapping Nativo:**
-   - `MERRA-2` (`frontend/`): `row = round((lat - lat0) / 0.5)`, `col = round((lon - lon0) / 0.625)`, centros em `lat0 + row * 0.5` e `lon0 + col * 0.625`.
-   - `CERES_SYN1deg` (`frontend/`): `row = floor((lat - lat0) / 1.0)`, `col = floor((lon - lon0) / 1.0)`, centros em `.5`.
+   - `MERRA-2` (`frontend/`): `row = round(lat / 0.5)`, `col = round(lon / 0.625)`, centros em `row * 0.5` e `col * 0.625` (alinhado a `snap_merra2`).
+   - `CERES_SYN1deg` (`frontend/`): `row = floor(lat)`, `col = floor(lon)` (clamp em `89.9999`/`179.9999`), centros em `row + 0.5` e `col + 0.5`.
 3. **Conectividade e Limite:** máximo `9` células (`MAX_CELLS_EXCEEDED`), inserção em 8-vizinhos (`NOT_ADJACENT`) e remoção protegida por BFS (`WOULD_DISCONNECT`).
 
 ---

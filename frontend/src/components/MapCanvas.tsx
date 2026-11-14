@@ -2,6 +2,7 @@ import { useEffect, useMemo, useRef, useState } from 'react';
 import 'leaflet/dist/leaflet.css';
 import { getIntersectingDateBounds, getVariableMetadata } from '../contracts/catalog.ts';
 import type {
+  MapNotification,
   MapSelectionPayload,
   RegionSelection,
   RegionSlot,
@@ -12,12 +13,72 @@ import { buildMapLegendConfig } from '../map/legendConfig.ts';
 import { MapView, type BasemapId, type NotificationType } from '../map/MapView.ts';
 import '../map/map.css';
 
+export type StoryPresetId = 'cerrado_pantanal' | 'amazonia_fluxo' | 'semi_arido';
+
+interface StoryPresetDefinition {
+  readonly id: StoryPresetId;
+  readonly label: string;
+  readonly variableA: VariableId;
+  readonly variableB: VariableId;
+  readonly coordsA: ReadonlyArray<{ readonly lat: number; readonly lon: number }>;
+  readonly coordsB: ReadonlyArray<{ readonly lat: number; readonly lon: number }>;
+}
+
+const STORY_PRESETS: readonly StoryPresetDefinition[] = [
+  {
+    id: 'cerrado_pantanal',
+    label: 'Caso 1 · Cerrado vs. Pantanal',
+    variableA: 'GWETTOP',
+    variableB: 'T2M_MAX',
+    coordsA: [
+      { lat: -12.0, lon: -46.25 },
+      { lat: -12.5, lon: -46.25 },
+    ],
+    coordsB: [
+      { lat: -18.5, lon: -56.875 },
+      { lat: -19.0, lon: -56.875 },
+    ],
+  },
+  {
+    id: 'amazonia_fluxo',
+    label: 'Caso 2 · Amazônia Radiação × Nuvens',
+    variableA: 'ALLSKY_SFC_SW_DWN',
+    variableB: 'CLDTOT',
+    coordsA: [
+      { lat: -3.5, lon: -61.5 },
+      { lat: -3.5, lon: -62.5 },
+    ],
+    coordsB: [],
+  },
+  {
+    id: 'semi_arido',
+    label: 'Caso 3 · Semiárido vs. Sul',
+    variableA: 'PRECTOTCORR',
+    variableB: 'T2M_MAX',
+    coordsA: [
+      { lat: -8.0, lon: -38.75 },
+      { lat: -8.5, lon: -38.75 },
+    ],
+    coordsB: [
+      { lat: -29.0, lon: -51.875 },
+      { lat: -29.5, lon: -51.875 },
+    ],
+  },
+];
+
 export interface MapCanvasProps {
   readonly activeVariable: VariableId;
   readonly secondaryVariable?: VariableId | null;
   readonly periodLabel?: string;
+  readonly externalNotification?: MapNotification | null;
+  readonly isAnalyzing?: boolean;
   readonly onSelectionChange?: (payload: MapSelectionPayload) => void;
   readonly onOpenBench?: () => void;
+  readonly onSelectPreset?: (preset: {
+    id: StoryPresetId;
+    variableA: VariableId;
+    variableB: VariableId;
+  }) => void;
 }
 
 function buildInitialPayload(
@@ -90,8 +151,11 @@ export function MapCanvas({
   activeVariable,
   secondaryVariable = null,
   periodLabel,
+  externalNotification = null,
+  isAnalyzing = false,
   onSelectionChange,
   onOpenBench,
+  onSelectPreset,
 }: MapCanvasProps) {
   const containerRef = useRef<HTMLDivElement | null>(null);
   const mapViewRef = useRef<MapView | null>(null);
@@ -108,6 +172,14 @@ export function MapCanvas({
 
   const displayedVar = activeSlot === 'B' && secondaryVariable ? secondaryVariable : activeVariable;
   const legend = useMemo(() => buildMapLegendConfig(displayedVar), [displayedVar]);
+
+  useEffect(() => {
+    if (!externalNotification) return;
+    setToast({
+      msg: externalNotification.message,
+      type: externalNotification.level,
+    });
+  }, [externalNotification]);
 
   useEffect(() => {
     if (!toast) return;
@@ -210,6 +282,23 @@ export function MapCanvas({
     mapViewRef.current?.clearSlot(slot);
   };
 
+  const handlePresetClick = (preset: StoryPresetDefinition) => {
+    mapViewRef.current?.applyPresetSelection({
+      variableX: preset.variableA,
+      variableY: preset.variableB,
+      coordsA: preset.coordsA,
+      coordsB: preset.coordsB,
+    });
+    if (mapViewRef.current) {
+      setPayload(mapViewRef.current.getSelectionPayload());
+    }
+    onSelectPreset?.({
+      id: preset.id,
+      variableA: preset.variableA,
+      variableB: preset.variableB,
+    });
+  };
+
   return (
     <section className="map-workspace" aria-label="Mapa interativo de grade NASA">
       <div className="map-toolbar">
@@ -262,6 +351,25 @@ export function MapCanvas({
               Abrir Bancada Científica
             </button>
           )}
+          {isAnalyzing && (
+            <span className="map-legend-note" role="status">
+              Calculando análise…
+            </span>
+          )}
+        </div>
+
+        <div className="map-preset-bar" aria-label="Casos de investigação guiada">
+          <span className="map-legend-note">Casos rápidos:</span>
+          {STORY_PRESETS.map((preset) => (
+            <button
+              key={preset.id}
+              type="button"
+              className="map-preset-btn"
+              onClick={() => handlePresetClick(preset)}
+            >
+              {preset.label}
+            </button>
+          ))}
         </div>
       </div>
 

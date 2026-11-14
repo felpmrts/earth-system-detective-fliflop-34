@@ -33,3 +33,72 @@ nav { display: flex; flex-wrap: wrap; gap: .5rem; margin-bottom: .75rem; }
 .variable-picker .selection-input:focus-within { border-color: #67e8f9; }
 .selection-dropdown { max-width: calc(100vw - 24px); background: #121e30; border-color: #39516d; }
 .selection-option { white-space: normal; line-height: 1.35; }
+
+.detective-summary-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(290px, 1fr));
+  gap: 0.75rem;
+  margin-top: 0.85rem;
+}
+
+.detective-card {
+  background: #17263b;
+  border: 1px solid #2a3c54;
+  border-radius: 10px;
+  padding: 0.75rem 0.9rem;
+  font-size: 0.83rem;
+}
+
+.detective-card h3 {
+  margin: 0 0 0.55rem;
+  font-size: 0.92rem;
+  color: #67e8f9;
+}
+
+.detective-card.comparison-card {
+  border-color: rgba(251, 191, 36, 0.45);
+}
+
+.detective-card.comparison-card h3 {
+  color: #fbbf24;
+}
+
+.detective-answers {
+  margin: 0;
+  display: grid;
+  gap: 0.45rem;
+}
+
+.detective-answers dt {
+  font-weight: 700;
+  color: #cbd5e1;
+  font-size: 0.78rem;
+}
+
+.detective-answers dd {
+  margin: 0.1rem 0 0;
+  color: #e1edf8;
+  line-height: 1.35;
+}
+
+.badge-sig {
+  display: inline-block;
+  padding: 0.1rem 0.45rem;
+  border-radius: 999px;
+  background: rgba(16, 185, 129, 0.18);
+  border: 1px solid #10b981;
+  color: #6ee7b7;
+  font-size: 0.74rem;
+  font-weight: 600;
+}
+
+.badge-ns {
+  display: inline-block;
+  padding: 0.1rem 0.45rem;
+  border-radius: 999px;
+  background: rgba(148, 163, 184, 0.15);
+  border: 1px solid #64748b;
+  color: #cbd5e1;
+  font-size: 0.74rem;
+  font-weight: 600;
+}

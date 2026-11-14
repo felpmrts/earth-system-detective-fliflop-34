@@ -18,10 +18,10 @@ Abra o endereço indicado pelo Vite. Para verificar alterações, execute `npm r
 
 1. Escolha as variáveis A e B nos seletores agrupados por família. Os dois lados podem usar a mesma variável.
 2. Selecione o mês inicial e o mês final. O início mínimo vem do maior ano inicial entre as duas variáveis. O limite superior é o mês corrente. A cobertura efetiva depende da consulta.
-3. A área Mapa mostra a seleção e o período. O mapa da PROD-1 será integrado nessa área para associar uma região a cada lado.
-4. A Bancada pode ser aberta pela navegação ou pelo botão da demonstração. Hoje ela lê a fixture local e filtra por variável e período. Na integração final, a tela deve chamar a API após a confirmação das duas regiões e do período.
+3. A área **Mapa** renderiza `MapCanvas` + `MapView` (Leaflet Canvas), carrega as 6 grades globais (`T2M`, `GWETTOP`, `T2M_MAX`, `PRECTOTCORR`, `ALLSKY_SFC_SW_DWN`, `CLDTOT`), oferece 3 atalhos de **Story Presets** (*Caso 1 · Cerrado vs. Pantanal*, *Caso 2 · Amazônia Radiação × Nuvens* e *Caso 3 · Semiárido vs. Sul*) e dispara `getRegionData(...)` conforme as células A/B são compostas, exibindo estado de carregamento e toasts semânticos (`mapErrorToNotification`).
+4. A **Bancada científica** plota série bruta ou anomalia, ajustes OLS e Theil–Sen, curva não-linear GAM, marcadores de eventos extremos (`Mahalanobis`), além do painel **"4 Respostas do Detetive"** e do card de comparação multiescala (`comparison_pair`). Suporta também comparação espacial da mesma variável (`variableA === variableB`) entre Região A e Região B.
 
-O estado está em `src/App.tsx`. A aplicação inicia na aba Mapa e mantém as escolhas durante a troca de abas. Os controles de gráficos alternam série bruta e anomalia, curvas juntas e separadas, eixo Y duplo e tendências OLS/Theil–Sen. Unidades diferentes são separadas quando o eixo duplo está desativado. O recorte temporal preserva o alinhamento entre datas, valores e tendências e limita a navegação horizontal. O recorte usa os ajustes pré-calculados da fixture, válidos para o período original da análise.
+O estado está em `src/App.tsx`. A aplicação inicia na aba Mapa e mantém as variáveis e o período durante a troca de abas. Os controles de gráficos alternam série bruta e anomalia, curvas juntas e separadas, eixo Y duplo, tendências OLS/Theil–Sen e camada GAM + Mahalanobis. Unidades diferentes são separadas quando o eixo duplo está desativado. O recorte temporal preserva o alinhamento entre datas, valores, tendências e outliers, limitando a navegação horizontal.
 
 ## Catálogo ambiental
 
@@ -40,20 +40,20 @@ Ao atualizar as famílias, confira se todos os códigos em `src/contracts/catalo
 | `src/map/`                          | Estilos cartográficos e configuração da legenda.                                                     |
 | `src/services/regionDataAdapter.ts` | Acesso a grades e análises, validação, timeout e fallback local.                                     |
 | `src/services/idbCache.ts`          | Persistência de análises no IndexedDB.                                                                |
-| `public/data/`                      | Grades pré-processadas e fixture sintética da bancada.                                                |
-| `src/__tests__/`                    | Testes do contrato, da geometria, da legenda e do adaptador.                                            |
+| `public/data/`                      | 6 grades globais pré-processadas (`*_grid.json`) e fixture `mock_analysis.json`.                     |
+| `src/__tests__/`                    | 6 suítes de testes do contrato, geometria, legenda, mapa integrado, adaptador e walking skeleton.     |
 
 ## Integração com PROD-1 e Dados
 
 A tela de exploração coordena o fluxo. O mapa recebe a variável pertinente a A ou B e devolve a seleção espacial tipada. As células de uma região seguem o modelo e a resolução daquela variável. Leaflet usa latitude/longitude, enquanto GeoJSON usa longitude/latitude. Confira os detalhes no [contrato da PROD-1](../context/knowledge_maps/CONTRATO_FRONTEND_PROD1.md).
 
-O [contrato de dados](../CONTRATO_DE_DADOS.md) define `POST /api/analyze` com variáveis, regiões e datas mensais e uma resposta com análise de A, análise de B opcional e métricas de comparação. O backend agrega células, consulta as fontes e calcula as estatísticas. O navegador usa os valores já calculados. `series.linear_fit` alimenta OLS e a série opcional `sen_fit` alimenta Theil–Sen quando disponível. No mapa global, direção, magnitude e significância são dimensões distintas da legenda.
+O [contrato de dados](../CONTRATO_DE_DADOS.md) define `POST /api/analyze` (exposto em `data/api/server.py` e `analyze_region_contract` em `data/services/comparison_service.py`) com variáveis, regiões e datas mensais, retornando análise de A (`fdr_q_value`, `is_significant_fdr05`, `sen_fit`, `gam_smooth_fit`, `outliers_mahalanobis`), análise de B opcional, métricas multiescala (`comparison_pair`) e erro semântico HTTP `422 OCEAN_MASK_NO_DATA`. `series.linear_fit` alimenta OLS, `sen_fit` alimenta Theil–Sen e `gam_smooth_fit` alimenta GAM. No mapa global, direção, magnitude e significância são dimensões distintas da legenda.
 
 ### Configuração de dados e offline
 
-Copie `.env.example` para `.env.local` quando precisar configurar o adaptador. `VITE_DATA_MODE=offline` usa arquivos locais e `VITE_DATA_MODE=api` usa `VITE_API_BASE_URL` (exemplo local `http://localhost:8000`). Variáveis `VITE_*` são públicas. Guarde credenciais no backend.
+Copie `.env.example` para `.env.local` quando precisar configurar o adaptador. `VITE_DATA_MODE=offline` usa arquivos locais (`public/data/*_grid.json` e `mock_analysis.json`) e `VITE_DATA_MODE=api` usa `VITE_API_BASE_URL` (exemplo local `http://localhost:8000` apontando para `python -m data.api.server --port 8000`). Variáveis `VITE_*` são públicas. Guarde credenciais no backend.
 
-O adaptador contempla cache e fallback, mas a bancada atual busca `public/data/mock_analysis.json` diretamente. Alterar a configuração do adaptador, por si só, ainda não conecta a tela à API. O mock tem duas séries sintéticas de 2000 a 2009 e as respectivas tendências. A interface indica quando a variável ou o período escolhido não está coberto. A demo pode ser servida localmente sem consultar NASA ou Python.
+A tela chama `getRegionData(...)` automaticamente ao compor células no mapa ou acionar um dos 3 Story Presets, utilizando o cache IndexedDB (`RegionAnalysisCache`), fallback offline para demonstração e exposição de erros reais da API via `mapErrorToNotification`.
 
 ## Verificação antes de integrar
 

@@ -107,6 +107,9 @@ export class MapView {
   }
 
   public setVariable(variableId: VariableId): void {
+    if (this.activeVariable === variableId) {
+      return;
+    }
     const prevVar = this.activeVariable;
     const nextMeta = getVariableMetadata(variableId);
     const reconciledA = reconcileCellsOnVariableChange(prevVar, variableId, this.cellsA);
@@ -231,6 +234,53 @@ export class MapView {
       this.cellsB = [];
     }
     this.renderSelectedRegions();
+    this.emitSelection();
+  }
+
+  public applyPresetSelection(params: {
+    variableX: VariableId;
+    variableY: VariableId | null;
+    coordsA: ReadonlyArray<{ lat: number; lon: number }>;
+    coordsB?: ReadonlyArray<{ lat: number; lon: number }>;
+  }): void {
+    this.activeVariable = params.variableX;
+    this.secondaryVariable = params.variableY;
+
+    const buildSnappedCells = (
+      coords: ReadonlyArray<{ lat: number; lon: number }>,
+      variableId: VariableId,
+    ): GridCell[] => {
+      let acc: readonly GridCell[] = [];
+      const seen = new Set<string>();
+      for (const coord of coords) {
+        const snapped = snapCoordToCell(coord.lat, coord.lon, variableId);
+        if (seen.has(snapped.cell_id)) continue;
+        const toggled = toggleCellInSelection(acc, snapped, MAX_CELLS_PER_REGION);
+        if (toggled.ok) {
+          acc = toggled.cells;
+          seen.add(snapped.cell_id);
+        }
+      }
+      return [...acc];
+    };
+
+    const nextCellsA = buildSnappedCells(params.coordsA, params.variableX);
+    const varB = params.variableY ?? params.variableX;
+    const nextCellsB = params.coordsB?.length ? buildSnappedCells(params.coordsB, varB) : [];
+
+    this.cellsA = nextCellsA;
+    this.cellsB = nextCellsB;
+    this.renderSelectedRegions();
+
+    const cornerPoints: [number, number][] = [];
+    for (const cell of [...nextCellsA, ...nextCellsB]) {
+      const [[south, west], [north, east]] = cell.bounds_leaflet;
+      cornerPoints.push([south, west], [north, east]);
+    }
+    if (cornerPoints.length > 0) {
+      this.map.fitBounds(L.latLngBounds(cornerPoints), { padding: [48, 48], maxZoom: 6 });
+    }
+
     this.emitSelection();
   }
 

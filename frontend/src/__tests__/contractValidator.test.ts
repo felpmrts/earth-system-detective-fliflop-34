@@ -1,7 +1,11 @@
 import { describe, expect, it } from 'vitest';
+import allskyGridJson from '../../public/data/ALLSKY_SFC_SW_DWN_grid.json';
+import cldtotGridJson from '../../public/data/CLDTOT_grid.json';
 import gwettopGridJson from '../../public/data/GWETTOP_grid.json';
 import mockAnalysisJson from '../../public/data/mock_analysis.json';
+import prectotcorrGridJson from '../../public/data/PRECTOTCORR_grid.json';
 import t2mGridJson from '../../public/data/T2M_grid.json';
+import t2mMaxGridJson from '../../public/data/T2M_MAX_grid.json';
 import {
   getIntersectingDateBounds,
   getVariableMetadata,
@@ -40,12 +44,18 @@ describe('catalog & contractValidator — blindagem dos 7 Invariantes', () => {
   });
 
   it('valida os arquivos JSON reais de public/data/', () => {
-    const validatedGrid = validateGlobalGrid(t2mGridJson);
-    expect(validatedGrid.points.length).toBeGreaterThan(0);
-
-    const validatedGwettop = validateGlobalGrid(gwettopGridJson);
-    expect(validatedGwettop.variable_id).toBe('GWETTOP');
-    expect(validatedGwettop.points.length).toBeGreaterThan(0);
+    for (const [expectedVar, rawGrid] of [
+      ['T2M', t2mGridJson],
+      ['GWETTOP', gwettopGridJson],
+      ['T2M_MAX', t2mMaxGridJson],
+      ['PRECTOTCORR', prectotcorrGridJson],
+      ['ALLSKY_SFC_SW_DWN', allskyGridJson],
+      ['CLDTOT', cldtotGridJson],
+    ] as const) {
+      const validatedGrid = validateGlobalGrid(rawGrid);
+      expect(validatedGrid.variable_id).toBe(expectedVar);
+      expect(validatedGrid.points.length).toBeGreaterThanOrEqual(15);
+    }
 
     const validatedAnalysis = validateAnalysisResponse(mockAnalysisJson);
     expect(validatedAnalysis.region_a_analysis.variable_id).toBe('GWETTOP');

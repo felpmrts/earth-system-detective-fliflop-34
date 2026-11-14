@@ -124,6 +124,28 @@
   line-height: 1.3;
 }
 
+.map-preset-bar {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 0.45rem;
+  flex-basis: 100%;
+  padding-top: 0.25rem;
+  border-top: 1px solid #1e2d42;
+}
+
+.map-preset-btn {
+  font-size: 0.78rem;
+  border-color: #39516d;
+  background: #132236;
+  color: #cbd5e1;
+}
+
+.map-preset-btn:hover {
+  border-color: #67e8f9;
+  color: #e1edf8;
+}
+
 .map-inspector-grid {
   display: grid;
   grid-template-columns: repeat(auto-fit, minmax(220px, 1fr));

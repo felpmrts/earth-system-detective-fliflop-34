@@ -1,0 +1,26 @@
+{
+  "variable_id": "T2M_MAX",
+  "unit": "°C",
+  "trend_unit": "°C/década",
+  "period": {
+    "start": "1981-01",
+    "end": "2025-12"
+  },
+  "points": [
+    { "lat": -3.5, "lon": -61.875, "slope_sen_decade": 0.42, "q_value_fdr": 0.002, "is_sig": true },
+    { "lat": -8.5, "lon": -55.0, "slope_sen_decade": 0.51, "q_value_fdr": 0.001, "is_sig": true },
+    { "lat": -12.0, "lon": -46.25, "slope_sen_decade": 0.58, "q_value_fdr": 0.0005, "is_sig": true },
+    { "lat": -8.0, "lon": -38.75, "slope_sen_decade": 0.46, "q_value_fdr": 0.002, "is_sig": true },
+    { "lat": -18.5, "lon": -56.875, "slope_sen_decade": 0.55, "q_value_fdr": 0.0008, "is_sig": true },
+    { "lat": -29.0, "lon": -51.875, "slope_sen_decade": 0.16, "q_value_fdr": 0.18, "is_sig": false },
+    { "lat": 23.0, "lon": 11.875, "slope_sen_decade": 0.53, "q_value_fdr": 0.001, "is_sig": true },
+    { "lat": 14.5, "lon": 1.875, "slope_sen_decade": 0.44, "q_value_fdr": 0.006, "is_sig": true },
+    { "lat": -1.0, "lon": 21.875, "slope_sen_decade": 0.31, "q_value_fdr": 0.015, "is_sig": true },
+    { "lat": 72.0, "lon": -40.0, "slope_sen_decade": 0.88, "q_value_fdr": 0.0001, "is_sig": true },
+    { "lat": 38.0, "lon": 15.0, "slope_sen_decade": 0.47, "q_value_fdr": 0.002, "is_sig": true },
+    { "lat": -24.0, "lon": 133.125, "slope_sen_decade": 0.39, "q_value_fdr": 0.008, "is_sig": true },
+    { "lat": 27.0, "lon": 78.125, "slope_sen_decade": 0.35, "q_value_fdr": 0.009, "is_sig": true },
+    { "lat": 36.5, "lon": -119.375, "slope_sen_decade": 0.49, "q_value_fdr": 0.001, "is_sig": true },
+    { "lat": -55.0, "lon": -68.125, "slope_sen_decade": -0.11, "q_value_fdr": 0.12, "is_sig": false }
+  ]
+}

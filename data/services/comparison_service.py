@@ -18,7 +18,7 @@ from collections import defaultdict
 from typing import Any
 
 from data.cache.store import CellCacheStore
-from data.models.contracts import LocationQuery
+from data.models.contracts import CellCoord, LocationQuery
 
 from .ingestion_service import (
     fetch_location_multiple_variables,
@@ -147,7 +147,9 @@ def _ar1_significance(xs: list[float], ys: list[float], residuals: list[float], 
             "n_effective_ar1": float(n),
             "p_value_naive": 1.0,
             "p_value_ar1_corrected": 1.0,
+            "fdr_q_value": 1.0,
             "is_significant_ar1_05": False,
+            "is_significant_fdr05": False,
             "confidence_tier": "INSUFFICIENT_DATA",
         }
     rho1 = _pearson_r(residuals[:-1], residuals[1:])
@@ -173,7 +175,9 @@ def _ar1_significance(xs: list[float], ys: list[float], residuals: list[float], 
         "n_effective_ar1": round(n_eff, 2),
         "p_value_naive": round(p_naive, 6),
         "p_value_ar1_corrected": round(p_ar1, 6),
+        "fdr_q_value": round(p_ar1, 6),
         "is_significant_ar1_05": p_ar1 < 0.05,
+        "is_significant_fdr05": bool(p_ar1 < 0.05),
         "confidence_tier": tier,
     }
 
@@ -210,6 +214,7 @@ def _mahalanobis_outliers(
                 "expected_regression": round(y_hat, 4),
                 "mahalanobis_d": round(d_m, 3),
                 "direction": "above_ellipse" if y > y_hat else "below_ellipse",
+                "diagnostic_hint": f"Anomalia {'positiva' if y > y_hat else 'negativa'} extrema (D_M={d_m:.2f})",
             })
     outliers.sort(key=lambda item: item["mahalanobis_d"], reverse=True)
     return outliers[:10]
@@ -229,6 +234,12 @@ def build_variable_statistics(
     a0, slope_ols_yr, residuals = _ols_fit(xs_years, anomalies)
     slope_sen_yr, sen_low_yr, sen_high_yr = _theil_sen_with_ci(xs_years, anomalies)
     linear_fit = [round(a0 + slope_ols_yr * x, 4) for x in xs_years]
+    sen_intercept = (
+        statistics.fmean(anomalies) - slope_sen_yr * statistics.fmean(xs_years)
+        if anomalies and xs_years
+        else 0.0
+    )
+    sen_fit = [round(sen_intercept + slope_sen_yr * x, 4) for x in xs_years]
     gam_fit = _gaussian_smooth_curve(xs_years, anomalies)
     b2 = _quadratic_acceleration(xs_years, anomalies)
 
@@ -284,6 +295,7 @@ def build_variable_statistics(
             "raw_values": raw_values,
             "anomaly_values": anomalies,
             "linear_fit": linear_fit,
+            "sen_fit": sen_fit,
             "gam_smooth_fit": gam_fit,
         },
     }
@@ -462,4 +474,248 @@ def compare_locations_multi_variable(
         "location_a": {code: vals[0] for code, vals in stats_a.items()},
         "location_b": {code: vals[0] for code, vals in stats_b.items()},
         "cross_comparison_matrix": cross_matrix,
+    }
+
+
+_BACKEND_VAR_ALIAS: dict[str, str] = {
+    "CLDTOT": "CLOUD_AMT",
+}
+
+_CONFIDENCE_TIER_MAP: dict[str, str] = {
+    "CONFIRMED_HIGH": "CONFIRMED_HIGH",
+    "CONFIRMED_MODERATE": "CONFIRMED_MODERATE",
+    "NOT_SIGNIFICANT": "NO_TREND",
+    "INSUFFICIENT_DATA": "INSUFFICIENT_SIGNAL",
+}
+
+_PARADOX_INTERPRETATIONS: dict[str, str] = {
+    "OPPOSING_SHORT_TERM_WITH_SECULAR_CO_MOVEMENT": (
+        "As regiões caminham juntas na tendência secular de longo prazo, "
+        "mas exibem resposta oposta na variabilidade interanual sem tendência."
+    ),
+    "OPPOSING_SECULAR_WITH_COUPLED_SHORT_TERM": (
+        "As tendências seculares divergem em direção oposta, "
+        "embora as flutuações climáticas de curto prazo continuem acopladas positivamente."
+    ),
+    "OPPOSING_SECULAR_DIVERGENCE": (
+        "Tendências seculares em direções opostas entre A e B, "
+        "indicando contrastes regionais ou acoplamentos físicos divergentes."
+    ),
+    "ALIGNED_OR_WEAK_COUPLING": (
+        "Dinâmicas alinhadas ou fracamente acopladas sem inversão paradoxal entre escalas."
+    ),
+}
+
+
+def _apply_bh_fdr(blocks: list[dict[str, Any]]) -> None:
+    """Aplica correção Benjamini-Hochberg aos p-valores AR(1) dos blocos analisados."""
+    m = len(blocks)
+    if m == 0:
+        return
+    indexed = sorted(
+        enumerate(blocks),
+        key=lambda item: float(item[1]["significance"]["p_value_ar1_corrected"]),
+    )
+    q_values = [1.0] * m
+    running_min = 1.0
+    for rank_idx in range(m - 1, -1, -1):
+        orig_idx, block = indexed[rank_idx]
+        p_val = float(block["significance"]["p_value_ar1_corrected"])
+        bh_val = min(1.0, p_val * m / (rank_idx + 1))
+        running_min = min(running_min, bh_val)
+        q_values[orig_idx] = round(max(0.0, min(1.0, running_min)), 6)
+
+    for idx, block in enumerate(blocks):
+        q_val = q_values[idx]
+        block["significance"]["fdr_q_value"] = q_val
+        block["significance"]["is_significant_fdr05"] = q_val < 0.05
+        raw_tier = str(block["significance"].get("confidence_tier", "NO_TREND"))
+        block["significance"]["confidence_tier"] = _CONFIDENCE_TIER_MAP.get(raw_tier, "NO_TREND")
+
+
+def analyze_region_contract(
+    body: dict[str, Any],
+    *,
+    cache: CellCacheStore | None = None,
+) -> tuple[int, dict[str, Any]]:
+    """Endpoint POST /api/analyze aderente ao RegionAnalysisResponse do frontend."""
+    raw_var_a = str(body.get("variable_a") or "").strip()
+    raw_var_b_raw = body.get("variable_b")
+    raw_var_b = str(raw_var_b_raw).strip() if raw_var_b_raw else None
+
+    if not raw_var_a:
+        return 400, {"code": "CONTRACT_VIOLATION", "error": "variable_a é obrigatória."}
+
+    region_a = body.get("region_a")
+    region_b = body.get("region_b")
+    if not isinstance(region_a, dict):
+        return 400, {"code": "CONTRACT_VIOLATION", "error": "region_a é obrigatória."}
+
+    raw_cells_a = region_a.get("cells") or []
+    if len(raw_cells_a) == 0:
+        return 400, {"code": "CONTRACT_VIOLATION", "error": "region_a deve conter ao menos 1 célula."}
+    if len(raw_cells_a) > 9:
+        return 400, {"code": "MAX_CELLS_EXCEEDED", "error": "Limite máximo de 9 células na Região A excedido."}
+
+    raw_cells_b: list[dict[str, Any]] = []
+    if region_b is not None:
+        if not isinstance(region_b, dict):
+            return 400, {"code": "CONTRACT_VIOLATION", "error": "region_b inválida."}
+        raw_cells_b = region_b.get("cells") or []
+        if len(raw_cells_b) == 0:
+            return 400, {"code": "CONTRACT_VIOLATION", "error": "region_b deve conter ao menos 1 célula."}
+        if len(raw_cells_b) > 9:
+            return 400, {"code": "MAX_CELLS_EXCEEDED", "error": "Limite máximo de 9 células na Região B excedido."}
+
+    start_date = str(body.get("start_date") or "1981-01")
+    end_date = str(body.get("end_date") or "2025-12")
+    try:
+        start_year = int(start_date[:4])
+        end_year = int(end_date[:4])
+    except ValueError:
+        return 400, {"code": "INVALID_DATE_INTERSECTION", "error": "Datas de início/fim inválidas."}
+
+    if start_year > end_year:
+        return 400, {"code": "INVALID_DATE_INTERSECTION", "error": "Intervalo de datas sem sobreposição."}
+
+    start_ym = start_date[:7] if len(start_date) >= 7 else f"{start_year:04d}-01"
+    end_ym = end_date[:7] if len(end_date) >= 7 else f"{end_year:04d}-12"
+    if start_ym > end_ym:
+        return 400, {"code": "INVALID_DATE_INTERSECTION", "error": "Intervalo de meses inválido."}
+
+    region_a_id = str(region_a.get("region_id") or "region_a")
+    region_b_id = str(region_b.get("region_id") or "region_b") if region_b is not None else None
+
+    backend_var_a = _BACKEND_VAR_ALIAS.get(raw_var_a, raw_var_a)
+    cells_a = [CellCoord(lat=float(c["lat"]), lon=float(c["lon"])) for c in raw_cells_a]
+    loc_a = LocationQuery(name=region_a_id, cells=cells_a, variable=backend_var_a)
+
+    has_slot_b = region_b is not None or bool(raw_var_b)
+    effective_var_b = raw_var_b or raw_var_a
+    backend_var_b = _BACKEND_VAR_ALIAS.get(effective_var_b, effective_var_b)
+
+    cache_store = cache or CellCacheStore()
+    fetched_a = fetch_location_single_variable(
+        loc_a, start_year, end_year, cache=cache_store, label="Região A"
+    )
+    if fetched_a["status"] == "ERRO":
+        return 502, {
+            "code": "BACKEND_UNAVAILABLE",
+            "error": str(fetched_a.get("error") or "Falha ao consultar a NASA POWER API."),
+        }
+    if fetched_a["status"] != "OK" or not fetched_a.get("series"):
+        return 422, {
+            "code": "OCEAN_MASK_NO_DATA",
+            "error": "Célula oceânica ou sem cobertura terrestre válida na Região A.",
+        }
+
+    series_a = {
+        ym: val for ym, val in fetched_a["series"].items() if start_ym <= ym <= end_ym
+    }
+    fetched_a_filtered = {**fetched_a, "series": series_a}
+
+    fetched_b_filtered: dict[str, Any] | None = None
+    if has_slot_b:
+        cells_b = (
+            [CellCoord(lat=float(c["lat"]), lon=float(c["lon"])) for c in raw_cells_b]
+            if region_b is not None
+            else cells_a
+        )
+        loc_b = LocationQuery(
+            name=region_b_id or region_a_id,
+            cells=cells_b,
+            variable=backend_var_b,
+        )
+        fetched_b = fetch_location_single_variable(
+            loc_b, start_year, end_year, cache=cache_store, label="Região B"
+        )
+        if fetched_b["status"] == "ERRO":
+            return 502, {
+                "code": "BACKEND_UNAVAILABLE",
+                "error": str(fetched_b.get("error") or "Falha ao consultar a NASA POWER API."),
+            }
+        if fetched_b["status"] != "OK" or not fetched_b.get("series"):
+            return 422, {
+                "code": "OCEAN_MASK_NO_DATA",
+                "error": "Célula oceânica ou sem cobertura terrestre válida na Região B.",
+            }
+        series_b = {
+            ym: val for ym, val in fetched_b["series"].items() if start_ym <= ym <= end_ym
+        }
+        fetched_b_filtered = {**fetched_b, "series": series_b}
+
+    series_for_axis = [series_a] + ([fetched_b_filtered["series"]] if fetched_b_filtered else [])
+    common_months, xs_years = _common_months_and_axis(series_for_axis)
+    if len(common_months) < 12:
+        return 400, {
+            "code": "INVALID_DATE_INTERSECTION",
+            "error": f"Janela temporal comum insuficiente ({len(common_months)} meses; mínimo de 12).",
+        }
+
+    block_a, anom_a, res_a = build_variable_statistics(
+        region_a_id, fetched_a_filtered, common_months, xs_years
+    )
+    block_a["variable_id"] = raw_var_a
+
+    block_b: dict[str, Any] | None = None
+    anom_b: list[float] = []
+    res_b: list[float] = []
+    if fetched_b_filtered is not None:
+        block_b, anom_b, res_b = build_variable_statistics(
+            region_b_id or region_a_id, fetched_b_filtered, common_months, xs_years
+        )
+        block_b["variable_id"] = effective_var_b
+
+    _apply_bh_fdr([block_a] + ([block_b] if block_b is not None else []))
+
+    comparison_pair: dict[str, Any] | None = None
+    if block_b is not None:
+        raw_pair = _compute_pair_comparison(
+            region_a_id,
+            block_a,
+            anom_a,
+            res_a,
+            region_b_id or region_a_id,
+            block_b,
+            anom_b,
+            res_b,
+        )
+        mc = raw_pair["multiscale_correlation"]
+        paradox_type = str(mc["paradox_type"])
+        r_sec = max(-1.0, min(1.0, float(mc["long_term_secular_r"])))
+        r_det = max(-1.0, min(1.0, float(mc["short_term_detrended_r"])))
+        slope_a = float(block_a["regression"]["slope_per_decade_sen"])
+        slope_b = float(block_b["regression"]["slope_per_decade_sen"])
+        slope_diff = round(slope_a - slope_b, 4) if block_a["unit"] == block_b["unit"] else None
+
+        comparison_pair = {
+            "region_a_id": region_a_id,
+            "region_b_id": region_b_id or region_a_id,
+            "spatial_divergence_detected": bool(raw_pair["spatial_divergence_detected"]),
+            "slope_difference_per_decade": slope_diff,
+            "multiscale_correlation": {
+                "long_term_secular_r": r_sec,
+                "short_term_detrended_r": r_det,
+                "paradox_type": paradox_type,
+                "interpretation": (
+                    f"{_PARADOX_INTERPRETATIONS.get(paradox_type, '')} "
+                    f"(r_secular={r_sec:.3f}, r_curto_prazo={r_det:.3f})."
+                ).strip(),
+            },
+        }
+
+    return 200, {
+        "request_meta": {
+            "variable_a": raw_var_a,
+            "variable_b": raw_var_b,
+            "region_a_id": region_a_id,
+            "region_b_id": region_b_id,
+            "cells_count_a": len(cells_a),
+            "cells_count_b": len(raw_cells_b) if region_b is not None else 0,
+            "spatial_aggregation": "nanmean",
+            "source": "backend_api",
+        },
+        "region_a_analysis": block_a,
+        "region_b_analysis": block_b,
+        "comparison_pair": comparison_pair,
     }

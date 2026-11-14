@@ -1,0 +1,26 @@
+{
+  "variable_id": "ALLSKY_SFC_SW_DWN",
+  "unit": "MJ/m²/dia",
+  "trend_unit": "MJ/m²/dia/década",
+  "period": {
+    "start": "1984-01",
+    "end": "2025-12"
+  },
+  "points": [
+    { "lat": -3.5, "lon": -61.5, "slope_sen_decade": 0.48, "q_value_fdr": 0.004, "is_sig": true },
+    { "lat": -8.5, "lon": -55.5, "slope_sen_decade": 0.62, "q_value_fdr": 0.001, "is_sig": true },
+    { "lat": -12.5, "lon": -46.5, "slope_sen_decade": 0.54, "q_value_fdr": 0.003, "is_sig": true },
+    { "lat": -8.5, "lon": -38.5, "slope_sen_decade": 0.41, "q_value_fdr": 0.009, "is_sig": true },
+    { "lat": -18.5, "lon": -56.5, "slope_sen_decade": 0.45, "q_value_fdr": 0.005, "is_sig": true },
+    { "lat": -29.5, "lon": -51.5, "slope_sen_decade": -0.22, "q_value_fdr": 0.036, "is_sig": true },
+    { "lat": 23.5, "lon": 11.5, "slope_sen_decade": 0.14, "q_value_fdr": 0.24, "is_sig": false },
+    { "lat": 14.5, "lon": 1.5, "slope_sen_decade": 0.19, "q_value_fdr": 0.16, "is_sig": false },
+    { "lat": -1.5, "lon": 21.5, "slope_sen_decade": 0.27, "q_value_fdr": 0.042, "is_sig": true },
+    { "lat": 72.5, "lon": -40.5, "slope_sen_decade": -0.35, "q_value_fdr": 0.012, "is_sig": true },
+    { "lat": 38.5, "lon": 15.5, "slope_sen_decade": 0.38, "q_value_fdr": 0.006, "is_sig": true },
+    { "lat": -24.5, "lon": 133.5, "slope_sen_decade": 0.21, "q_value_fdr": 0.085, "is_sig": false },
+    { "lat": 27.5, "lon": 78.5, "slope_sen_decade": -0.49, "q_value_fdr": 0.002, "is_sig": true },
+    { "lat": 36.5, "lon": -119.5, "slope_sen_decade": 0.33, "q_value_fdr": 0.014, "is_sig": true },
+    { "lat": -55.5, "lon": -68.5, "slope_sen_decade": -0.18, "q_value_fdr": 0.19, "is_sig": false }
+  ]
+}

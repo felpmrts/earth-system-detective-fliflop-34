@@ -3,6 +3,7 @@
 Endpoints:
 - GET  /api/health
 - GET  /api/catalog
+- POST /api/analyze
 - POST /api/location/fetch
 - POST /api/compare
 
@@ -22,6 +23,7 @@ from data.cache.store import CellCacheStore
 from data.catalog.environmental_catalog import get_catalog_tree
 from data.models.contracts import LocationQuery
 from data.services.comparison_service import (
+    analyze_region_contract,
     compare_locations_multi_variable,
     compare_locations_single_variable,
 )
@@ -46,6 +48,9 @@ class BackendRouter:
 
     def handle_post(self, path: str, body: dict[str, Any]) -> tuple[int, dict[str, Any]]:
         try:
+            if path == "/api/analyze":
+                return analyze_region_contract(body, cache=self.cache)
+
             start_year = int(body.get("start_year", 2001))
             end_year = int(body.get("end_year", 2023))
 

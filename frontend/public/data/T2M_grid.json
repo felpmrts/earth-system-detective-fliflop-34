@@ -12,6 +12,15 @@
     { "lat": -30.0, "lon": -51.25, "slope_sen_decade": 0.18, "q_value_fdr": 0.19, "is_sig": false },
     { "lat": 65.5, "lon": -147.5, "slope_sen_decade": 0.79, "q_value_fdr": 0.0001, "is_sig": true },
     { "lat": -55.0, "lon": -68.125, "slope_sen_decade": -0.14, "q_value_fdr": 0.032, "is_sig": true },
-    { "lat": 14.5, "lon": -17.5, "slope_sen_decade": 0.52, "q_value_fdr": 0.085, "is_sig": false }
+    { "lat": 14.5, "lon": -17.5, "slope_sen_decade": 0.52, "q_value_fdr": 0.085, "is_sig": false },
+    { "lat": -3.5, "lon": -61.875, "slope_sen_decade": 0.34, "q_value_fdr": 0.003, "is_sig": true },
+    { "lat": -8.5, "lon": -55.0, "slope_sen_decade": 0.39, "q_value_fdr": 0.002, "is_sig": true },
+    { "lat": -12.0, "lon": -46.25, "slope_sen_decade": 0.44, "q_value_fdr": 0.001, "is_sig": true },
+    { "lat": -8.0, "lon": -38.75, "slope_sen_decade": 0.37, "q_value_fdr": 0.004, "is_sig": true },
+    { "lat": -18.5, "lon": -56.875, "slope_sen_decade": 0.42, "q_value_fdr": 0.002, "is_sig": true },
+    { "lat": 23.0, "lon": 11.875, "slope_sen_decade": 0.48, "q_value_fdr": 0.001, "is_sig": true },
+    { "lat": 72.0, "lon": -40.0, "slope_sen_decade": 0.85, "q_value_fdr": 0.0001, "is_sig": true },
+    { "lat": 27.0, "lon": 78.125, "slope_sen_decade": 0.29, "q_value_fdr": 0.012, "is_sig": true },
+    { "lat": 36.5, "lon": -119.375, "slope_sen_decade": 0.41, "q_value_fdr": 0.002, "is_sig": true }
   ]
 }
