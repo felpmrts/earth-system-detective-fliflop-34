@@ -83,6 +83,8 @@ Use a tabela abaixo para saltar diretamente para o documento (e seção) exato s
 
 ## 5. Catálogo Completo de Todos os Documentos Markdown (`.md`) do Projeto
 
+- [Stack do frontend](general_strategy/STACK_FRONTEND.md)
+
 Abaixo estão **todos os 9 documentos Markdown existentes atualmente no workspace**, organizados por módulo funcional, com tamanho aproximado e resumo cirúrgico de conteúdo:
 
 ### 🏛️ Camada 0: Roteador Central (Raiz)
