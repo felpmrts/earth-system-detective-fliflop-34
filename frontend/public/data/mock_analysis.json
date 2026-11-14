@@ -1,0 +1,123 @@
+{
+  "request_meta": {
+    "variable_a": "GWETTOP",
+    "variable_b": "T2M_MAX",
+    "region_a_id": "MERRA-2__r142_c210+r142_c211",
+    "region_b_id": "MERRA-2__r173_c191+r173_c192",
+    "cells_count_a": 2,
+    "cells_count_b": 2,
+    "spatial_aggregation": "nanmean",
+    "source": "offline_fallback"
+  },
+  "region_a_analysis": {
+    "variable_id": "GWETTOP",
+    "variable_name": "Umidade do Solo Superficial (0–5 cm)",
+    "scale_type": "ratio",
+    "unit": "fração (0–1)",
+    "trend_unit": "fração/década",
+    "allow_percentage_change": false,
+    "period": {
+      "start": "1981-01",
+      "end": "1981-06",
+      "n_observations": 6,
+      "n_effective_ar1": 4.2
+    },
+    "regression": {
+      "intercept_at_start_A0": 0.642,
+      "slope_per_decade_ols": -0.028,
+      "slope_per_decade_sen": -0.026,
+      "slope_ci95_low": -0.035,
+      "slope_ci95_high": -0.017,
+      "cumulative_model_change": -0.014,
+      "quadratic_acceleration_B2": -0.0014,
+      "regime_shape": "accelerating_decline"
+    },
+    "correlation_and_coupling": {
+      "pearson_r": -0.68,
+      "kendall_tau": -0.51,
+      "r_squared": 0.46,
+      "ellipse_aspect_ratio": 0.44
+    },
+    "significance": {
+      "p_value_naive": 0.00012,
+      "p_value_ar1_corrected": 0.0042,
+      "fdr_q_value": 0.011,
+      "is_significant_fdr05": true,
+      "confidence_tier": "CONFIRMED_HIGH"
+    },
+    "outliers_mahalanobis": [
+      {
+        "date": "1981-05",
+        "observed_anomaly": -0.145,
+        "expected_regression": -0.012,
+        "mahalanobis_d": 3.08,
+        "direction": "below_ellipse",
+        "diagnostic_hint": "Estresse hídrico severo fora da elipse bivariada (DM > 2.5)"
+      }
+    ],
+    "series": {
+      "dates": ["1981-01", "1981-02", "1981-03", "1981-04", "1981-05", "1981-06"],
+      "raw_values": [0.65, 0.67, 0.63, 0.59, 0.48, 0.54],
+      "anomaly_values": [0.01, 0.02, -0.01, -0.03, -0.145, -0.04],
+      "linear_fit": [0.0, -0.0002, -0.0004, -0.0006, -0.0008, -0.001],
+      "gam_smooth_fit": [0.005, 0.003, -0.002, -0.012, -0.035, -0.028]
+    }
+  },
+  "region_b_analysis": {
+    "variable_id": "T2M_MAX",
+    "variable_name": "Temperatura Máxima Diária a 2m",
+    "scale_type": "interval",
+    "unit": "°C",
+    "trend_unit": "°C/década",
+    "allow_percentage_change": false,
+    "period": {
+      "start": "1981-01",
+      "end": "1981-06",
+      "n_observations": 6,
+      "n_effective_ar1": 3.9
+    },
+    "regression": {
+      "intercept_at_start_A0": 31.2,
+      "slope_per_decade_ols": 0.48,
+      "slope_per_decade_sen": 0.45,
+      "slope_ci95_low": 0.25,
+      "slope_ci95_high": 0.69,
+      "cumulative_model_change": 0.23,
+      "quadratic_acceleration_B2": 0.008,
+      "regime_shape": "accelerating_rise"
+    },
+    "correlation_and_coupling": {
+      "pearson_r": 0.72,
+      "kendall_tau": 0.56,
+      "r_squared": 0.52,
+      "ellipse_aspect_ratio": 0.39
+    },
+    "significance": {
+      "p_value_naive": 0.0004,
+      "p_value_ar1_corrected": 0.0091,
+      "fdr_q_value": 0.021,
+      "is_significant_fdr05": true,
+      "confidence_tier": "CONFIRMED_HIGH"
+    },
+    "outliers_mahalanobis": [],
+    "series": {
+      "dates": ["1981-01", "1981-02", "1981-03", "1981-04", "1981-05", "1981-06"],
+      "raw_values": [31.1, 31.4, 31.8, 32.0, 33.1, 32.2],
+      "anomaly_values": [-0.1, 0.2, 0.4, 0.5, 1.5, 0.7],
+      "linear_fit": [0.0, 0.04, 0.08, 0.12, 0.16, 0.20],
+      "gam_smooth_fit": [0.02, 0.05, 0.11, 0.22, 0.41, 0.36]
+    }
+  },
+  "comparison_pair": {
+    "region_a_id": "MERRA-2__r142_c210+r142_c211",
+    "region_b_id": "MERRA-2__r173_c191+r173_c192",
+    "spatial_divergence_detected": true,
+    "slope_difference_per_decade": -0.476,
+    "multiscale_correlation": {
+      "long_term_secular_r": -0.74,
+      "short_term_detrended_r": -0.61,
+      "paradox_type": "OPPOSING_SECULAR_AND_COUPLED_DIPOLE",
+      "interpretation": "Aumento de T2M_MAX acompanha perda de umidade superficial (GWETTOP) tanto na tendência secular quanto na variabilidade de curto prazo."
+    }
+  }
+}

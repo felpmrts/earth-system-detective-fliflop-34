@@ -80,6 +80,7 @@ Use a tabela abaixo para saltar diretamente para o documento (e seção) exato s
 | **"Preciso estruturar o roteiro do Vídeo de Pitch, auditar se um achado climático é real ou defender nosso rigor para os jurados"**                          | 👉 [`knowledge_base_estatistica/06_GUIA_OPERACIONAL_PARA_AGENTES_DE_IA_NO_HACKATHON.md`](file:///home/zrhyan/Principal/Computation/Space%20Apps/knowledge_base_estatistica/06_GUIA_OPERACIONAL_PARA_AGENTES_DE_IA_NO_HACKATHON.md#L102-L130) + [`general_strategy/ESTRATEGIA_TREND_DETECTIVE.md`](file:///home/zrhyan/Principal/Computation/Space%20Apps/general_strategy/ESTRATEGIA_TREND_DETECTIVE.md#L303-L382) |
 | **"Quero ver o panorama geral dos 14 desafios da NASA Space Apps 2026 e os 4 critérios de avaliação de 25%"**                                                | 👉 [`general_strategy/RELATORIO_ESTRATEGICO_SPACEAPPS_2026.md`](file:///home/zrhyan/Principal/Computation/Space%20Apps/general_strategy/RELATORIO_ESTRATEGICO_SPACEAPPS_2026.md#L39-L110)                                                                                                                                                                                                                          |
 | **"Preciso consultar Fontes de Dados, APIs (NASA POWER, AppEEARS, GloFAS, NOAA), Regras de Ingestão (`-999`, `YYYY13`, `mm/day`, `/point` vs `/regional`) ou o Catálogo das 7 Famílias Ambientais"** | 👉 [`context/knowledge_data/00_INDICE_E_ARQUITETURA_DADOS.md`](file:///home/felipe-martins/dev/repository/earth-system-detective-fliflop-34/context/knowledge_data/00_INDICE_E_ARQUITETURA_DADOS.md#L1-L86) *(Índice central de `context/knowledge_data/` com roteador por linha para APIs, variáveis e regras de ingestão)* |
+| **"Preciso integrar o `MapView` (`PROD-1`) ou gráficos (`PROD-2`) ao contrato TypeScript, snapping $K \le 9$, estilos ou `getRegionData()`"**                   | 👉 [`context/knowledge_maps/CONTRATO_FRONTEND_PROD1.md`](file:///d:/SpaceApp/earth-system-detective-fliflop-34/context/knowledge_maps/CONTRATO_FRONTEND_PROD1.md) + [`CONTRATO_DE_DADOS.md`](file:///d:/SpaceApp/earth-system-detective-fliflop-34/CONTRATO_DE_DADOS.md)                                                                                                                                  |
 
 ---
 
@@ -130,6 +131,8 @@ Abaixo estão os documentos Markdown do projeto, organizados por módulo funcion
 ### 🗺️ Camada 4: Mapas e Visualização Geoespacial (`context/knowledge_maps/`)
 17. **[`context/knowledge_maps/prod1_context.md`](file:///home/zrhyan/Principal/Computation/Space%20Apps/earth-system-detective-fliflop-34/context/knowledge_maps/prod1_context.md)**
     - **Resumo:** Contexto técnico da frente de Mapas 2D (`PROD-1`).
+18. **[`context/knowledge_maps/CONTRATO_FRONTEND_PROD1.md`](file:///d:/SpaceApp/earth-system-detective-fliflop-34/context/knowledge_maps/CONTRATO_FRONTEND_PROD1.md)** *(80 linhas)*
+    - **Resumo:** Guia técnico enxuto dos módulos implementados pelo Dev Parceiro em `frontend/` (`contracts/`, `geo/`, `map/`, `services/`, `public/data/`, `__tests__/`): assinaturas, regras `[lat, lon]` vs `[lon, lat]`, snapping $K \le 9$ (8-vizinhos), trava de escala intervalar e fluxo `getRegionData()` + IndexedDB.
 
 ---
 
@@ -146,7 +149,8 @@ Abaixo estão os documentos Markdown do projeto, organizados por módulo funcion
 | ✅ *Criado* | `context/knowledge_data/environmental_family.md` | Catálogo das 7 Famílias Ambientais (códigos de API, modos, unidades e descrições para UI). | `DADOS-1` + `PROD-2` |
 | ✅ *Criado* | `context/knowledge_data/NASA_RESOURCES.md` | Catálogo dos recursos oficiais da NASA para o desafio. | `DADOS-1` |
 | ✅ *Criado* | `context/knowledge_maps/prod1_context.md` | Especificação e contexto da frente de Mapa 2D. | `PROD-1` |
-| ⏳ *Fase 1 (Sáb 10:30)* | `CONTRATO_DE_DADOS.md` | Especificação congelada do JSON entre Backend (`DADOS-1/2`) e Frontend (`PROD-1/2`). | `DADOS-1` + `PROD-1` |
+| ✅ *Criado (Fase 1)* | [`CONTRATO_DE_DADOS.md`](file:///d:/SpaceApp/earth-system-detective-fliflop-34/CONTRATO_DE_DADOS.md) | Especificação congelada do JSON entre Backend (`DADOS-1/2`) e Frontend (`PROD-1/2`) com grade $K \le 9$ e 12 variáveis. | `DADOS-1` + `PROD-1` |
+| ✅ *Criado (Fase 1)* | [`context/knowledge_maps/CONTRATO_FRONTEND_PROD1.md`](file:///d:/SpaceApp/earth-system-detective-fliflop-34/context/knowledge_maps/CONTRATO_FRONTEND_PROD1.md) | Documentação técnica de integração da camada TypeScript (`frontend/`): contratos, geometria $K \le 9$, estilos e adapter `getRegionData()`. | `PROD-1` (Parceria) |
 | ⏳ *Fase 1 (Sáb 10:30)* | `DECISOES.md` | Log cronológico de decisões de escopo e arquitetura (2 linhas por decisão). | `COORD` |
 | ⏳ *Fase 4/6* | `DATA_SOURCES.md` | Citação oficial dos datasets da NASA, DOIs, resolução, período e limitações conhecidas. | `DADOS-1` + `NARR` |
 | ⏳ *Fase 6* | `README.md` | Documentação pública do repositório para os jurados da NASA (instruções de uso e reprodução). | `COORD` + `NARR` |
