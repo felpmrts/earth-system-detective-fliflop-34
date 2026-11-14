@@ -26,6 +26,7 @@ describe('catalog & contractValidator — blindagem dos 7 Invariantes', () => {
     const crossModel = getIntersectingDateBounds('T2M', 'ALLSKY_SFC_SW_DWN');
     expect(crossModel.minYear).toBe(1984);
     expect(crossModel.startDate).toBe('1984-01');
+    expect(crossModel.endDate).toBe(`${new Date().getUTCFullYear()}-12`);
   });
 
   it('valida os arquivos JSON reais de public/data/', () => {
@@ -54,6 +55,29 @@ describe('catalog & contractValidator — blindagem dos 7 Invariantes', () => {
     };
     broken.region_a_analysis.series.dates.pop();
 
+    expect(() => validateAnalysisResponse(broken)).toThrow(ContractValidationError);
+  });
+
+  it('rejeita meses desordenados e valores não numéricos nas séries', () => {
+    const badDates = structuredClone(mockAnalysisJson) as {
+      region_a_analysis: { series: { dates: string[] } };
+    };
+    badDates.region_a_analysis.series.dates[1] = badDates.region_a_analysis.series.dates[0]!;
+    expect(() => validateAnalysisResponse(badDates)).toThrow(ContractValidationError);
+
+    const badValues = structuredClone(mockAnalysisJson) as {
+      region_a_analysis: { series: { linear_fit: unknown[] } };
+    };
+    badValues.region_a_analysis.series.linear_fit[0] = Number.NaN;
+    expect(() => validateAnalysisResponse(badValues)).toThrow(ContractValidationError);
+  });
+
+  it('rejeita escala divergente do catálogo oficial da variável', () => {
+    const broken = structuredClone(mockAnalysisJson) as {
+      region_a_analysis: { scale_type: string; allow_percentage_change: boolean };
+    };
+    broken.region_a_analysis.scale_type = 'interval';
+    broken.region_a_analysis.allow_percentage_change = false;
     expect(() => validateAnalysisResponse(broken)).toThrow(ContractValidationError);
   });
 
