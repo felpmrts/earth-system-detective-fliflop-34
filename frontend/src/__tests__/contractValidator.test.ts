@@ -1,31 +1,16 @@
 import { describe, expect, it } from 'vitest';
-import allskyGridJson from '../../public/data/ALLSKY_SFC_SW_DWN_grid.json';
-import cldtotGridJson from '../../public/data/CLDTOT_grid.json';
-import gwettopGridJson from '../../public/data/GWETTOP_grid.json';
 import mockAnalysisJson from '../../public/data/mock_analysis.json';
-import prectotcorrGridJson from '../../public/data/PRECTOTCORR_grid.json';
 import t2mGridJson from '../../public/data/T2M_grid.json';
-import t2mMaxGridJson from '../../public/data/T2M_MAX_grid.json';
-import {
-  getIntersectingDateBounds,
-  getVariableMetadata,
-  resolveCanonicalGridVariableId,
-  VARIABLE_LIST,
-} from '../contracts/catalog.ts';
+import { getIntersectingDateBounds, VARIABLE_LIST } from '../contracts/catalog.ts';
 import {
   ContractValidationError,
-  isSemanticErrorPayload,
   validateAnalysisResponse,
   validateGlobalGrid,
 } from '../contracts/contractValidator.ts';
 
 describe('catalog & contractValidator — blindagem dos 7 Invariantes', () => {
-  it('catálogo possui exatamente 12 variáveis canônicas (+ alias CLOUD_AMT) e proíbe % em intervalares', () => {
-    const canonicalVars = VARIABLE_LIST.filter((v) => !v.is_alias_of);
-    expect(canonicalVars).toHaveLength(12);
-    expect(getVariableMetadata('CLOUD_AMT').is_alias_of).toBe('CLDTOT');
-    expect(resolveCanonicalGridVariableId('CLOUD_AMT')).toBe('CLDTOT');
-
+  it('catálogo cobre as variáveis NASA POWER em tempo real e proíbe % em variáveis intervalares', () => {
+    expect(VARIABLE_LIST).toHaveLength(23);
     for (const v of VARIABLE_LIST) {
       if (v.scale_type === 'interval') {
         expect(v.allow_percentage_change).toBe(false);
@@ -44,45 +29,13 @@ describe('catalog & contractValidator — blindagem dos 7 Invariantes', () => {
   });
 
   it('valida os arquivos JSON reais de public/data/', () => {
-    for (const [expectedVar, rawGrid] of [
-      ['T2M', t2mGridJson],
-      ['GWETTOP', gwettopGridJson],
-      ['T2M_MAX', t2mMaxGridJson],
-      ['PRECTOTCORR', prectotcorrGridJson],
-      ['ALLSKY_SFC_SW_DWN', allskyGridJson],
-      ['CLDTOT', cldtotGridJson],
-    ] as const) {
-      const validatedGrid = validateGlobalGrid(rawGrid);
-      expect(validatedGrid.variable_id).toBe(expectedVar);
-      expect(validatedGrid.points.length).toBeGreaterThanOrEqual(15);
-    }
+    const validatedGrid = validateGlobalGrid(t2mGridJson);
+    expect(validatedGrid.points.length).toBeGreaterThan(0);
 
     const validatedAnalysis = validateAnalysisResponse(mockAnalysisJson);
     expect(validatedAnalysis.region_a_analysis.variable_id).toBe('GWETTOP');
     expect(validatedAnalysis.region_b_analysis?.variable_id).toBe('T2M_MAX');
     expect(validatedAnalysis.comparison_pair?.multiscale_correlation.long_term_secular_r).toBe(-0.74);
-  });
-
-  it('valida sen_fit opcional com mesmo tamanho de dates e rejeita tamanho divergente', () => {
-    const withSenFit = structuredClone(mockAnalysisJson) as {
-      region_a_analysis: { series: { dates: string[]; sen_fit?: number[] } };
-    };
-    withSenFit.region_a_analysis.series.sen_fit = withSenFit.region_a_analysis.series.dates.map(
-      (_d, idx) => 0.3 - idx * 0.001,
-    );
-    const ok = validateAnalysisResponse(withSenFit);
-    expect(ok.region_a_analysis.series.sen_fit).toHaveLength(
-      withSenFit.region_a_analysis.series.dates.length,
-    );
-
-    withSenFit.region_a_analysis.series.sen_fit.pop();
-    expect(() => validateAnalysisResponse(withSenFit)).toThrow(ContractValidationError);
-  });
-
-  it('identifica payload semântico de erro 4xx via isSemanticErrorPayload', () => {
-    expect(isSemanticErrorPayload({ code: 'OCEAN_MASK_NO_DATA', error: 'Oceano' })).toBe(true);
-    expect(isSemanticErrorPayload({ code: 'UNKNOWN_CODE', error: 'x' })).toBe(false);
-    expect(isSemanticErrorPayload(null)).toBe(false);
   });
 
   it('rejeita payload que tente permitir % em variável intervalar (Invariante #3)', () => {

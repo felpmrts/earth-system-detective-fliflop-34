@@ -1,35 +1,15 @@
-import {
-  getIntersectingDateBounds,
-  resolveCanonicalGridVariableId,
-} from '../contracts/catalog.ts';
-import {
-  isSemanticErrorPayload,
-  validateAnalysisResponse,
-  validateGlobalGrid,
-} from '../contracts/contractValidator.ts';
+import { getIntersectingDateBounds } from '../contracts/catalog.ts';
+import { validateAnalysisResponse, validateGlobalGrid } from '../contracts/contractValidator.ts';
 import type {
   DataMode,
   GlobalGridFile,
   RegionAnalysisRequest,
   RegionAnalysisResponse,
   RegionSelection,
-  SemanticErrorCode,
   VariableId,
 } from '../contracts/types.ts';
 import { toBackendCells } from '../geo/gridGeometry.ts';
 import { defaultRegionCache, type RegionAnalysisCache } from './idbCache.ts';
-
-export class SemanticApiError extends Error {
-  readonly code: SemanticErrorCode;
-  readonly status: number;
-
-  constructor(code: SemanticErrorCode, message: string, status: number) {
-    super(message);
-    this.name = 'SemanticApiError';
-    this.code = code;
-    this.status = status;
-  }
-}
 
 export interface GetRegionDataParams {
   readonly variable: VariableId;
@@ -49,10 +29,30 @@ export interface AdapterConfig {
   readonly cache: RegionAnalysisCache;
 }
 
+export interface BackendCatalogVariable {
+  readonly code: string;
+  readonly ui_name: string;
+  readonly connector_id: string;
+  readonly mode: string;
+  readonly grid_type: string;
+  readonly unit: string;
+}
+
+export interface BackendCatalogFamily {
+  readonly family_id: string;
+  readonly name: string;
+  readonly variables: readonly BackendCatalogVariable[];
+}
+
+export interface BackendCatalog {
+  readonly total_variables: number;
+  readonly families: readonly BackendCatalogFamily[];
+}
+
 function readEnvConfig(): Pick<AdapterConfig, 'mode' | 'apiBaseUrl'> {
   const env = (import.meta as unknown as { env?: Record<string, string | undefined> }).env;
   const rawMode = env?.VITE_DATA_MODE;
-  const mode: DataMode = rawMode === 'api' ? 'api' : 'offline';
+  const mode: DataMode = rawMode === 'offline' ? 'offline' : 'api';
   const apiBaseUrl = (env?.VITE_API_BASE_URL ?? 'http://localhost:8000').replace(/\/+$/, '');
   return { mode, apiBaseUrl };
 }
@@ -140,8 +140,11 @@ export function createRegionDataAdapter(overrides: Partial<AdapterConfig> = {}) 
   const config: AdapterConfig = {
     mode: overrides.mode ?? envDefaults.mode,
     apiBaseUrl: overrides.apiBaseUrl ?? envDefaults.apiBaseUrl,
-    timeoutMs: overrides.timeoutMs ?? 5000,
-    fetchFn: overrides.fetchFn ?? fetch,
+    // A primeira consulta pode incluir duas séries mensais e preencher o cache do backend.
+    timeoutMs: overrides.timeoutMs ?? 30000,
+    // Não armazene `window.fetch` diretamente: alguns navegadores exigem que ele
+    // seja invocado com o contexto global e lançam "Illegal invocation" caso contrário.
+    fetchFn: overrides.fetchFn ?? ((input, init) => globalThis.fetch(input, init)),
     cache: overrides.cache ?? defaultRegionCache,
   };
 
@@ -163,10 +166,9 @@ export function createRegionDataAdapter(overrides: Partial<AdapterConfig> = {}) 
 
   /** Fluxo A: carrega a camada global pré-processada ({var_id}_grid.json) de public/data/. */
   async function getGlobalGrid(variableId: VariableId, signal?: AbortSignal): Promise<GlobalGridFile> {
-    const canonicalId = resolveCanonicalGridVariableId(variableId);
-    const res = await config.fetchFn(`/data/${canonicalId}_grid.json`, { signal });
+    const res = await config.fetchFn(`/data/${variableId}_grid.json`, { signal });
     if (!res.ok) {
-      throw new Error(`Falha ao carregar grid global de ${canonicalId} (${res.status})`);
+      throw new Error(`Falha ao carregar grid global de ${variableId} (${res.status})`);
     }
     const raw: unknown = await res.json();
     return validateGlobalGrid(raw);
@@ -178,14 +180,14 @@ export function createRegionDataAdapter(overrides: Partial<AdapterConfig> = {}) 
    */
   async function getRegionData(params: GetRegionDataParams): Promise<RegionAnalysisResponse> {
     const requestBody = buildRequestBody(params);
-    const cacheKey = buildRegionCacheKey({
+    const cacheKey = `${config.mode}|${buildRegionCacheKey({
       variableA: requestBody.variable_a,
       variableB: requestBody.variable_b,
       regionAId: requestBody.region_a.region_id,
       regionBId: requestBody.region_b?.region_id ?? null,
       startDate: requestBody.start_date,
       endDate: requestBody.end_date,
-    });
+    })}`;
 
     const cached = await config.cache.get(cacheKey);
     if (params.signal?.aborted) {
@@ -220,18 +222,14 @@ export function createRegionDataAdapter(overrides: Partial<AdapterConfig> = {}) 
       });
 
       if (!res.ok) {
-        if (res.status >= 400 && res.status < 500) {
-          let errBody: unknown = null;
-          try {
-            errBody = await res.json();
-          } catch {
-            errBody = null;
-          }
-          if (isSemanticErrorPayload(errBody)) {
-            throw new SemanticApiError(errBody.code, errBody.error, res.status);
-          }
+        let message = `HTTP ${res.status} do backend Python`;
+        try {
+          const payload = await res.json() as { error?: unknown };
+          if (typeof payload.error === 'string' && payload.error.trim()) message = payload.error;
+        } catch {
+          // Mantém a mensagem HTTP quando a resposta não contém JSON.
         }
-        throw new Error(`HTTP ${res.status} do backend Python`);
+        throw new Error(message);
       }
 
       const raw: unknown = await res.json();
@@ -239,24 +237,31 @@ export function createRegionDataAdapter(overrides: Partial<AdapterConfig> = {}) 
       await config.cache.set(cacheKey, validated);
       return validated;
     } catch (err) {
-      // Se o próprio chamador cancelou a requisição ou o backend retornou erro semântico 4xx
-      // (ex.: OCEAN_MASK_NO_DATA), propaga o erro sem mascarar com fallback offline.
-      if (params.signal?.aborted || err instanceof SemanticApiError) {
-        throw err;
-      }
-      // Em falha de rede, 5xx ou timeout do backend, aciona o fallback offline local garantido.
-      return await loadOfflineFallback(params.signal);
+      // Em modo API, nunca substitui silenciosamente dados reais pelo mock.
+      throw err;
     } finally {
       cleanup();
     }
   }
 
+  async function getBackendCatalog(signal?: AbortSignal): Promise<BackendCatalog> {
+    const res = await config.fetchFn(`${config.apiBaseUrl}/api/catalog`, { signal });
+    if (!res.ok) throw new Error(`Catálogo do backend indisponível (HTTP ${res.status})`);
+    const raw: unknown = await res.json();
+    if (!raw || typeof raw !== 'object' || !Array.isArray((raw as BackendCatalog).families)) {
+      throw new Error('Resposta inválida de /api/catalog');
+    }
+    return raw as BackendCatalog;
+  }
+
   return {
     getGlobalGrid,
     getRegionData,
+    getBackendCatalog,
   };
 }
 
 const defaultAdapter = createRegionDataAdapter();
 export const getGlobalGrid = defaultAdapter.getGlobalGrid;
 export const getRegionData = defaultAdapter.getRegionData;
+export const getBackendCatalog = defaultAdapter.getBackendCatalog;

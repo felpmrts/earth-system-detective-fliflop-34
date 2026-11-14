@@ -80,7 +80,6 @@ Use a tabela abaixo para saltar diretamente para o documento (e seção) exato s
 | **"Preciso estruturar o roteiro do Vídeo de Pitch, auditar se um achado climático é real ou defender nosso rigor para os jurados"**                          | 👉 [`knowledge_base_estatistica/06_GUIA_OPERACIONAL_PARA_AGENTES_DE_IA_NO_HACKATHON.md`](file:///home/zrhyan/Principal/Computation/Space%20Apps/knowledge_base_estatistica/06_GUIA_OPERACIONAL_PARA_AGENTES_DE_IA_NO_HACKATHON.md#L102-L130) + [`general_strategy/ESTRATEGIA_TREND_DETECTIVE.md`](file:///home/zrhyan/Principal/Computation/Space%20Apps/general_strategy/ESTRATEGIA_TREND_DETECTIVE.md#L303-L382) |
 | **"Quero ver o panorama geral dos 14 desafios da NASA Space Apps 2026 e os 4 critérios de avaliação de 25%"**                                                | 👉 [`general_strategy/RELATORIO_ESTRATEGICO_SPACEAPPS_2026.md`](file:///home/zrhyan/Principal/Computation/Space%20Apps/general_strategy/RELATORIO_ESTRATEGICO_SPACEAPPS_2026.md#L39-L110)                                                                                                                                                                                                                          |
 | **"Preciso consultar Fontes de Dados, APIs (NASA POWER, AppEEARS, GloFAS, NOAA), Regras de Ingestão (`-999`, `YYYY13`, `mm/day`, `/point` vs `/regional`) ou o Catálogo das 7 Famílias Ambientais"** | 👉 [`context/knowledge_data/00_INDICE_E_ARQUITETURA_DADOS.md`](file:///home/felipe-martins/dev/repository/earth-system-detective-fliflop-34/context/knowledge_data/00_INDICE_E_ARQUITETURA_DADOS.md#L1-L86) *(Índice central de `context/knowledge_data/` com roteador por linha para APIs, variáveis e regras de ingestão)* |
-| **"Preciso integrar ou manter o Mapa 2D Leaflet (`MapView`, `MapCanvas`, snapping $K \le 9$, estilos por polaridade, `useMapSelectionController`, `getRegionData`)"** | 👉 [`context/knowledge_maps/CONTRATO_FRONTEND_PROD1.md`](context/knowledge_maps/CONTRATO_FRONTEND_PROD1.md) + [`context/knowledge_maps/DOCUMENTACAO_MAPAS_E_FRONTEND.md`](context/knowledge_maps/DOCUMENTACAO_MAPAS_E_FRONTEND.md) + [`context/knowledge_maps/prod1_context.md`](context/knowledge_maps/prod1_context.md) |
 
 ---
 
@@ -132,11 +131,7 @@ Abaixo estão os documentos Markdown do projeto, organizados por módulo funcion
 
 ### 🗺️ Camada 4: Mapas e Visualização Geoespacial (`context/knowledge_maps/`)
 17. **[`context/knowledge_maps/prod1_context.md`](file:///home/zrhyan/Principal/Computation/Space%20Apps/earth-system-detective-fliflop-34/context/knowledge_maps/prod1_context.md)**
-    - **Resumo:** Contexto técnico da frente de Mapas 2D (`PROD-1`), escopo, requisitos Canvas e validação de `MapSelectionPayload`.
-18. **[`context/knowledge_maps/CONTRATO_FRONTEND_PROD1.md`](context/knowledge_maps/CONTRATO_FRONTEND_PROD1.md)**
-    - **Resumo:** Guia técnico da camada de parceria e contratos em `frontend/` (`types.ts`, `catalog.ts`, `contractValidator.ts`, `gridGeometry.ts`, `mapStyles.ts`, `legendConfig.ts`, `mapIntegration.ts`, `MapView.ts`, `MapCanvas.tsx`, `regionDataAdapter.ts` e suítes Vitest).
-19. **[`context/knowledge_maps/DOCUMENTACAO_MAPAS_E_FRONTEND.md`](context/knowledge_maps/DOCUMENTACAO_MAPAS_E_FRONTEND.md)**
-    - **Resumo:** Inventário técnico integrado de `mapasparte1/` (protótipo estático) e `frontend/` (`MapView.ts`, `MapCanvas.tsx`, `map.css`, `mapIntegration.ts`, `App.tsx` e fixtures/testes na branch `mapa`).
+    - **Resumo:** Contexto técnico da frente de Mapas 2D (`PROD-1`).
 
 ---
 
@@ -157,8 +152,7 @@ Abaixo estão os documentos Markdown do projeto, organizados por módulo funcion
 | ✅ *Criado* | `data/README.md` + subpacotes `data/{catalog,models,cache,connectors,services,api}/` + `data/run_backend_demo.py` | Arquitetura modular do backend de dados (7 Famílias / 42 variáveis, loop 10 anos NOAA CDO, cache JSON, comparação `1 → N` variáveis e servidor REST `/api/analyze` + `/api/compare` 100% compatível com `regionDataAdapter.ts`). | `DADOS-1`, `DADOS-2`, `STAT-1`, `PROD-1` |
 | ✅ *Criado* | `context/knowledge_data/NASA_RESOURCES.md` | Catálogo dos recursos oficiais da NASA para o desafio. | `DADOS-1` |
 | ✅ *Criado* | `context/knowledge_maps/prod1_context.md` | Especificação e contexto da frente de Mapa 2D. | `PROD-1` |
-| ✅ *Criado* | `context/knowledge_maps/CONTRATO_FRONTEND_PROD1.md` | Especificação da camada de contrato, snapping $K \le 9$, estilos por polaridade, `mapIntegration.ts` e integração `MapView`/`MapCanvas` no `PROD-1`. | `PROD-1` |
-| ✅ *Criado* | `context/knowledge_maps/DOCUMENTACAO_MAPAS_E_FRONTEND.md` | Inventário técnico integrado de `mapasparte1/` e `frontend/` (`MapView.ts`, `MapCanvas.tsx`, `mapIntegration.ts`, `App.tsx`, fixtures e 6 suítes Vitest). | `PROD-1` |
+| ✅ *Criado* | `context/knowledge_maps/CONTRATO_FRONTEND_PROD1.md` | Especificação de arquitetura de mapa/UI, conectividade 8-vizinhos e integração do `PROD-1`. | `PROD-1` |
 | ✅ *Criado* | `CONTRATO_DE_DADOS.md` | Especificação congelada do JSON (`RegionAnalysisRequest -> RegionAnalysisResponse`) entre Backend (`DADOS-1/2`) e Frontend (`PROD-1/2`). | `DADOS-1` + `PROD-1` |
 | ✅ *Criado* | `backend/stats_engine.py`, `backend/test_stats_engine.py` & `backend/requirements.txt` | Motor estatístico completo (`DADOS-2`) 100% Estado da Arte (`scipy`, `statsmodels`, `scikit-learn`, `pymannkendall` + fallback puro) com testes unitários e `backend/mock_analysis.json`. | `DADOS-2` |
 | ✅ *Criado* | `context/general_strategy/CASOS_DEMO_E_DESCOBERTA_NARR.md` | Coordenadas exatas (*snapped* MERRA-2/CERES) dos 3 Casos Clássicos de Demonstração (*Story Presets*) e 4 Temas do Sistema de Descoberta por Bioma. | `NARR` |

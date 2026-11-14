@@ -81,8 +81,8 @@ export interface MapSelectionPayload {
   variable_x: string;               // Variável primária (Área A)
   variable_y?: string;              // Variável secundária (Área B) - opcional para comparação univariada ou bivariada
   grid_resolution: {
-    dLat: number;                   // Passo de latitude da grade nativa (ex: 0.5)
-    dLon: number;                   // Passo de longitude da grade nativa (ex: 0.625)
+    dlat: number;                   // Passo de latitude da grade nativa (ex: 0.5)
+    dlon: number;                   // Passo de longitude da grade nativa (ex: 0.625)
   };
   cells_a: [number, number][];      // Células da Área A: 1 <= cells_a.length <= 9, coordenadas em [lat, lon]
   cells_b?: [number, number][];     // Células da Área B: 1 <= cells_b.length <= 9, coordenadas em [lat, lon] (opcional)
@@ -98,8 +98,8 @@ Exemplo real de JSON emitido pelo mapa:
   "variable_x": "T2M",
   "variable_y": "PRECTOTCORR",
   "grid_resolution": {
-    "dLat": 0.5,
-    "dLon": 0.625
+    "dlat": 0.5,
+    "dlon": 0.625
   },
   "cells_a": [
     [-3.0, -60.0],
@@ -119,7 +119,7 @@ Exemplo real de JSON emitido pelo mapa:
 1. **Coordenadas `[lat, lon]`:** Toda célula é um par `[latitude, longitude]`, exatamente como exigido pela API Leaflet. Proibido inverter para `[lon, lat]` no payload.
 2. **Restrição de Células ($1 \le \text{cells.length} \le 9$):** Cada área (`cells_a` e `cells_b`) suporta de 1 até 9 células adjacentes. Células isoladas ou desconectadas dentro da mesma área são inválidas.
 3. **Escopo MVP de Variáveis:** O MVP inicia com 1 variável por área (`variable_x` para Área A e `variable_y` opcional para Área B, viabilizando comparação da mesma variável entre duas regiões ou correlação bivariada entre variáveis distintas), preparando o terreno para futuras famílias ambientais com múltiplas variáveis simultâneas.
-4. **Resolução de Grade Explícita:** `grid_resolution: { dLat, dLon }` vincula a seleção à geometria nativa da fonte (ex.: MERRA-2 $0{,}5^\circ \times 0{,}625^\circ$), permitindo ao backend compor a requisição via `/point` ou `/regional`.
+4. **Resolução de Grade Explícita:** `grid_resolution: { dlat, dlon }` vincula a seleção à geometria nativa da fonte (ex.: MERRA-2 $0{,}5^\circ \times 0{,}625^\circ$), permitindo ao backend compor a requisição via `/point` ou `/regional`.
 
 ### ⚠️ Regra de Ouro sobre a NASA Earthdata
 
@@ -207,7 +207,7 @@ Exemplo real de JSON emitido pelo mapa:
 
 2. **Dados Globais Reais:** Substituir mock por `{var_id}_grid.json` + estilização de tendência e significância via Canvas.
 
-3. **Seleção A/B com Composição:** Clique destaca Área A e Área B com composição de até 9 células adjacentes ($1 \le \text{cells.length} \le 9$, coordenadas `[lat, lon]`) e emite o payload `{ variable_x, variable_y?, grid_resolution: { dLat, dLon }, cells_a, cells_b?, start_year, end_year }` para o estado global.
+3. **Seleção A/B com Composição:** Clique destaca Área A e Área B com composição de até 9 células adjacentes ($1 \le \text{cells.length} \le 9$, coordenadas `[lat, lon]`) e emite o payload `{ variable_x, variable_y?, grid_resolution: { dlat, dlon }, cells_a, cells_b?, start_year, end_year }` para o estado global.
 
 4. **Dados Dinâmicos:** Conectar `getRegionData(payload)` à API científica/backend com fallback local em IndexedDB *(apenas após validar viabilidade da API)*.
 
@@ -341,7 +341,7 @@ Para cada problema, indique arquivo e trecho/causa.
 
 * **Geográfico:** Pontos e polígonos das células caem nas coordenadas exatas em `[lat, lon]` (ordem do Leaflet, sem inversão).
 
-* **Payload:** O payload emitido pelo mapa valida a interface `MapSelectionPayload` com $1 \le \text{cells.length} \le 9$, `{ dLat, dLon }` e anos inicial/final.
+* **Payload:** O payload emitido pelo mapa valida a interface `MapSelectionPayload` com $1 \le \text{cells.length} \le 9$, `{ dlat, dlon }` e anos inicial/final.
 
 * **Visual:** Direção, magnitude e significância são claramente distintas e batem com a legenda sobre Canvas.
 
@@ -353,16 +353,16 @@ Para cada problema, indique arquivo e trecho/causa.
 
 ### Checklist Final (MVP Pronto)
 
-- [x] **Stack Validada:** `Leaflet (Canvas) + React + TypeScript + Vite` rodando com `tsc --noEmit`, `vite build` e 6 suítes Vitest (33 testes passando).
+- [ ] **Stack Validada:** `Leaflet (Canvas) + React + TypeScript + Vite` rodando com build limpo e tipagem estrita.
 
-- [x] **Mapa & Dados:** Leaflet integrado com renderer Canvas (`preferCanvas: true`), carrega as 6 grades pré-computadas (`T2M`, `GWETTOP`, `T2M_MAX`, `PRECTOTCORR`, `ALLSKY_SFC_SW_DWN`, `CLDTOT`, 15 pontos sentinela cada) e coordenadas validadas em `[lat, lon]`.
+- [ ] **Mapa & Dados:** Leaflet integrado com renderer Canvas, carrega `{var_id}_grid.json` real e coordenadas validadas em `[lat, lon]`.
 
-- [x] **Payload de Seleção:** Emissão funcional de `MapSelectionPayload` (`{ variable_x, variable_y?, grid_resolution: { dLat, dLon }, cells_a, cells_b?, start_year, end_year, regionA, regionB }`) respeitando $1 \le \text{cells.length} \le 9$ e 3 atalhos *Story Presets* (`applyPresetSelection`).
+- [ ] **Payload de Seleção:** Emissão funcional de `{ variable_x, variable_y?, grid_resolution: { dlat, dlon }, cells_a, cells_b?, start_year, end_year }` respeitando $1 \le \text{cells.length} \le 9$.
 
-- [x] **Visualização:** Direção (com polaridade térmica/hidrológica), magnitude (`abs(slope)`) e significância (`is_sig`/`q_value_fdr`) distinguíveis + legenda coerente.
+- [ ] **Visualização:** Direção, magnitude (`abs(slope)`) e significância (`is_sig`/`q_value_fdr`) distinguíveis + legenda coerente.
 
-- [x] **Interação:** Seleção flexível de até 2 áreas (A/B) com até 9 células adjacentes alimentando a Bancada Científica da `PROD-2` (incluindo comparação espacial de mesma variável).
+- [ ] **Interação:** Seleção flexível de até 2 áreas (A/B) com até 9 células adjacentes alimentando o comparador da `PROD-2`.
 
-- [x] **Arquitetura:** Zero cálculo estatístico no mapa; backend Python expõe `POST /api/analyze` desacoplado recebendo `RegionAnalysisRequest` e retornando `RegionAnalysisResponse` / `422 OCEAN_MASK_NO_DATA`.
+- [ ] **Arquitetura:** Zero cálculo estatístico no mapa; API desacoplada recebendo `MapSelectionPayload`.
 
-- [x] **Resiliência:** Controle de chamadas (`AbortController`), cache em IndexedDB (`RegionAnalysisCache`), fallback local funcional e toasts de erro semântico via `mapErrorToNotification`.
+- [ ] **Resiliência:** Controle de chamadas (cache/debounce), fallback local funcional em IndexedDB e zero dependências desnecessárias.
