@@ -1,15 +1,35 @@
-import { getIntersectingDateBounds } from '../contracts/catalog.ts';
-import { validateAnalysisResponse, validateGlobalGrid } from '../contracts/contractValidator.ts';
+import {
+  getIntersectingDateBounds,
+  resolveCanonicalGridVariableId,
+} from '../contracts/catalog.ts';
+import {
+  isSemanticErrorPayload,
+  validateAnalysisResponse,
+  validateGlobalGrid,
+} from '../contracts/contractValidator.ts';
 import type {
   DataMode,
   GlobalGridFile,
   RegionAnalysisRequest,
   RegionAnalysisResponse,
   RegionSelection,
+  SemanticErrorCode,
   VariableId,
 } from '../contracts/types.ts';
 import { toBackendCells } from '../geo/gridGeometry.ts';
 import { defaultRegionCache, type RegionAnalysisCache } from './idbCache.ts';
+
+export class SemanticApiError extends Error {
+  readonly code: SemanticErrorCode;
+  readonly status: number;
+
+  constructor(code: SemanticErrorCode, message: string, status: number) {
+    super(message);
+    this.name = 'SemanticApiError';
+    this.code = code;
+    this.status = status;
+  }
+}
 
 export interface GetRegionDataParams {
   readonly variable: VariableId;
@@ -143,9 +163,10 @@ export function createRegionDataAdapter(overrides: Partial<AdapterConfig> = {}) 
 
   /** Fluxo A: carrega a camada global pré-processada ({var_id}_grid.json) de public/data/. */
   async function getGlobalGrid(variableId: VariableId, signal?: AbortSignal): Promise<GlobalGridFile> {
-    const res = await config.fetchFn(`/data/${variableId}_grid.json`, { signal });
+    const canonicalId = resolveCanonicalGridVariableId(variableId);
+    const res = await config.fetchFn(`/data/${canonicalId}_grid.json`, { signal });
     if (!res.ok) {
-      throw new Error(`Falha ao carregar grid global de ${variableId} (${res.status})`);
+      throw new Error(`Falha ao carregar grid global de ${canonicalId} (${res.status})`);
     }
     const raw: unknown = await res.json();
     return validateGlobalGrid(raw);
@@ -199,6 +220,17 @@ export function createRegionDataAdapter(overrides: Partial<AdapterConfig> = {}) 
       });
 
       if (!res.ok) {
+        if (res.status >= 400 && res.status < 500) {
+          let errBody: unknown = null;
+          try {
+            errBody = await res.json();
+          } catch {
+            errBody = null;
+          }
+          if (isSemanticErrorPayload(errBody)) {
+            throw new SemanticApiError(errBody.code, errBody.error, res.status);
+          }
+        }
         throw new Error(`HTTP ${res.status} do backend Python`);
       }
 
@@ -207,11 +239,12 @@ export function createRegionDataAdapter(overrides: Partial<AdapterConfig> = {}) 
       await config.cache.set(cacheKey, validated);
       return validated;
     } catch (err) {
-      // Se o próprio chamador cancelou a requisição (novo clique no mapa), propaga o abort.
-      if (params.signal?.aborted) {
+      // Se o próprio chamador cancelou a requisição ou o backend retornou erro semântico 4xx
+      // (ex.: OCEAN_MASK_NO_DATA), propaga o erro sem mascarar com fallback offline.
+      if (params.signal?.aborted || err instanceof SemanticApiError) {
         throw err;
       }
-      // Em falha de rede ou timeout do backend, aciona o fallback offline local garantido.
+      // Em falha de rede, 5xx ou timeout do backend, aciona o fallback offline local garantido.
       return await loadOfflineFallback(params.signal);
     } finally {
       cleanup();

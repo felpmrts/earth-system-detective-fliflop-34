@@ -3,9 +3,21 @@ import type {
   ComparisonPair,
   GlobalGridFile,
   RegionAnalysisResponse,
+  SemanticApiErrorPayload,
+  SemanticErrorCode,
   VariableStatistics,
 } from './types.ts';
 import { assertValidLatLon } from '../geo/gridGeometry.ts';
+
+const VALID_SEMANTIC_ERROR_CODES: ReadonlySet<SemanticErrorCode> = new Set([
+  'OCEAN_MASK_NO_DATA',
+  'MAX_CELLS_EXCEEDED',
+  'NOT_ADJACENT',
+  'WOULD_DISCONNECT',
+  'INVALID_DATE_INTERSECTION',
+  'CONTRACT_VIOLATION',
+  'BACKEND_UNAVAILABLE',
+]);
 
 export class ContractValidationError extends Error {
   readonly code = 'CONTRACT_VIOLATION' as const;
@@ -47,6 +59,19 @@ function assertNonEmptyString(value: unknown, fieldPath: string): string {
     throw new ContractValidationError(`String obrigatória ausente em "${fieldPath}"`);
   }
   return value;
+}
+
+/** Type guard para erros semânticos estruturados retornados pelo backend Python ({ code, error }). */
+export function isSemanticErrorPayload(data: unknown): data is SemanticApiErrorPayload {
+  if (!isRecord(data)) {
+    return false;
+  }
+  return (
+    typeof data.code === 'string' &&
+    VALID_SEMANTIC_ERROR_CODES.has(data.code as SemanticErrorCode) &&
+    typeof data.error === 'string' &&
+    data.error.trim().length > 0
+  );
 }
 
 /** Valida arquivo pré-processado da camada global Canvas ({var_id}_grid.json). */
@@ -148,7 +173,7 @@ export function validateVariableStatistics(data: unknown, prefix = 'statistics')
     throw new ContractValidationError(`${prefix}.series ausente.`);
   }
 
-  const { dates, raw_values, anomaly_values, linear_fit, gam_smooth_fit } = data.series;
+  const { dates, raw_values, anomaly_values, linear_fit, sen_fit, gam_smooth_fit } = data.series;
   if (
     !Array.isArray(dates) ||
     !Array.isArray(raw_values) ||
@@ -169,6 +194,14 @@ export function validateVariableStatistics(data: unknown, prefix = 'statistics')
     throw new ContractValidationError(
       `Comprimento inconsistente nos vetores de ${prefix}.series (esperado ${expectedLen}).`,
     );
+  }
+
+  if (sen_fit !== undefined) {
+    if (!Array.isArray(sen_fit) || sen_fit.length !== expectedLen) {
+      throw new ContractValidationError(
+        `Comprimento inconsistente em ${prefix}.series.sen_fit (esperado ${expectedLen}).`,
+      );
+    }
   }
 
   return data as unknown as VariableStatistics;
@@ -214,7 +247,6 @@ export function validateComparisonPair(data: unknown): ComparisonPair {
   assertNonEmptyString(mc.paradox_type, 'comparison_pair.multiscale_correlation.paradox_type');
   assertNonEmptyString(mc.interpretation, 'comparison_pair.multiscale_correlation.interpretation');
 
-  // Se o backend enviar p-valores de correlação multiescala no comparison_pair, valida intervalo [0, 1].
   for (const pField of [
     'p_value_naive',
     'p_value_ar1_corrected',

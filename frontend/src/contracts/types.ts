@@ -1,4 +1,4 @@
-/** Identificadores oficiais das 12 variáveis da NASA POWER suportadas no MVP. */
+/** Identificadores oficiais das 12 variáveis NASA POWER suportadas no MVP + alias CLOUD_AMT. */
 export type VariableId =
   | 'T2M'
   | 'T2M_MAX'
@@ -11,10 +11,12 @@ export type VariableId =
   | 'PS'
   | 'ALLSKY_SFC_SW_DWN'
   | 'CLDTOT'
+  | 'CLOUD_AMT'
   | 'ALLSKY_SFC_LW_DWN';
 
 export type SourceModel = 'MERRA-2' | 'CERES_SYN1deg';
 export type ScaleType = 'interval' | 'ratio';
+export type VisualPolarity = 'thermal' | 'hydrological' | 'neutral';
 export type RegionSlot = 'A' | 'B';
 export type DataMode = 'api' | 'offline';
 export type DataSourceOrigin = 'backend_api' | 'idb_cache' | 'offline_fallback';
@@ -33,25 +35,21 @@ export interface GridResolution {
   readonly dLon: number;
 }
 
-export interface GridOrigin {
-  readonly lat0: number;
-  readonly lon0: number;
-}
-
 export interface VariableMetadata {
   readonly variable_id: VariableId;
   readonly variable_name: string;
   readonly domain: string;
   readonly source_model: SourceModel;
   readonly resolution: GridResolution;
-  /** Origem parametrizável da grade (alinhada com DADOS-1 no endpoint NASA POWER). */
-  readonly grid_origin: GridOrigin;
   readonly min_year: number;
   readonly scale_type: ScaleType;
+  readonly visual_polarity: VisualPolarity;
   readonly unit: string;
   readonly trend_unit: string;
   readonly allow_percentage_change: boolean;
   readonly land_only_mask: boolean;
+  /** Quando definido, indica que o código é alias operacional de outra variável canônica. */
+  readonly is_alias_of?: VariableId;
 }
 
 export interface GridCell {
@@ -188,6 +186,7 @@ export interface VariableStatistics {
     readonly raw_values: readonly (number | null)[];
     readonly anomaly_values: readonly (number | null)[];
     readonly linear_fit: readonly number[];
+    readonly sen_fit?: readonly number[];
     readonly gam_smooth_fit: readonly number[];
   };
 }
@@ -229,3 +228,27 @@ export type SemanticErrorCode =
   | 'INVALID_DATE_INTERSECTION'
   | 'CONTRACT_VIOLATION'
   | 'BACKEND_UNAVAILABLE';
+
+export interface SemanticApiErrorPayload {
+  readonly code: SemanticErrorCode;
+  readonly error: string;
+}
+
+export interface MapNotification {
+  readonly code?: SemanticErrorCode;
+  readonly level: 'info' | 'warn' | 'error';
+  readonly message: string;
+}
+
+/** Contrato de props entre App.tsx (estado global) e MapView (Dev Núcleo Leaflet). */
+export interface MapViewContractProps {
+  readonly activeSlot: RegionSlot;
+  readonly variableA: VariableId | null;
+  readonly variableB: VariableId | null;
+  readonly gridData: GlobalGridFile | null;
+  readonly cellsA: readonly GridCell[];
+  readonly cellsB: readonly GridCell[];
+  readonly onCellToggle: (slot: RegionSlot, lat: number, lon: number) => void;
+  readonly onClearSlot: (slot: RegionSlot) => void;
+  readonly onNotification?: (notification: MapNotification) => void;
+}

@@ -22,9 +22,15 @@ export interface CellToggleResult {
   >;
 }
 
-/** Arredonda com precisão fixa para evitar ruído de ponto flutuante (ex.: 0.625 * 3). */
-function roundCoord(value: number): number {
-  return Math.round(value * 1_000_000) / 1_000_000;
+/** Arredonda para 4 casas decimais e normaliza -0 para +0 (paridade com data/connectors/base.py). */
+function roundCoord4(value: number): number {
+  const rounded = Math.round(value * 10_000) / 10_000;
+  return rounded === 0 ? 0 : rounded;
+}
+
+/** Normaliza -0 para +0 em índices inteiros (evita cell_id "r-0_c0"). */
+function normInt(value: number): number {
+  return value === 0 ? 0 : value;
 }
 
 /** Valida latitude [-90, 90] e longitude [-180, 180] contra NaN/Infinity/inversão. */
@@ -41,7 +47,10 @@ export function assertValidLatLon(lat: number, lon: number): void {
 }
 
 /**
- * Converte um clique (lat, lon) para a célula nativa exata da variável NASA selecionada.
+ * Converte um clique (lat, lon) para a célula nativa exata da variável NASA selecionada,
+ * seguindo estritamente NASA_POWER_API_SPECS.md Seção 6 (e data/connectors/base.py):
+ * - MERRA-2 (0.5° × 0.625°): round(lat / 0.5) * 0.5 e round(lon / 0.625) * 0.625
+ * - CERES_SYN1deg (1.0° × 1.0°): floor(lat) + 0.5 e floor(lon) + 0.5
  * Mantém Leaflet em [lat, lon] e anel GeoJSON em [lon, lat].
  */
 export function snapCoordToCell(lat: number, lon: number, variableId: VariableId): GridCell {
@@ -49,24 +58,30 @@ export function snapCoordToCell(lat: number, lon: number, variableId: VariableId
 
   const meta = getVariableMetadata(variableId);
   const { dLat, dLon } = meta.resolution;
-  const { lat0, lon0 } = meta.grid_origin;
 
-  const maxRow = Math.round(180 / dLat) - 1;
-  const maxCol = Math.round(360 / dLon) - 1;
+  let row: number;
+  let col: number;
+  let centerLat: number;
+  let centerLon: number;
 
-  // Clamp no limite superior (+90 / +180) para cair dentro da última célula válida.
-  const rawRow = Math.floor((lat - lat0) / dLat);
-  const rawCol = Math.floor((lon - lon0) / dLon);
-  const row = Math.min(Math.max(rawRow, 0), maxRow);
-  const col = Math.min(Math.max(rawCol, 0), maxCol);
+  if (meta.source_model === 'CERES_SYN1deg') {
+    const safeLat = Math.min(lat, 89.9999);
+    const safeLon = Math.min(lon, 179.9999);
+    row = normInt(Math.floor(safeLat));
+    col = normInt(Math.floor(safeLon));
+    centerLat = roundCoord4(row + 0.5);
+    centerLon = roundCoord4(col + 0.5);
+  } else {
+    row = normInt(Math.round(lat / dLat));
+    col = normInt(Math.round(lon / dLon));
+    centerLat = roundCoord4(row * dLat);
+    centerLon = roundCoord4(col * dLon);
+  }
 
-  const south = roundCoord(lat0 + row * dLat);
-  const north = roundCoord(south + dLat);
-  const west = roundCoord(lon0 + col * dLon);
-  const east = roundCoord(west + dLon);
-
-  const centerLat = roundCoord(south + dLat / 2);
-  const centerLon = roundCoord(west + dLon / 2);
+  const south = Math.max(-90, roundCoord4(centerLat - dLat / 2));
+  const north = Math.min(90, roundCoord4(centerLat + dLat / 2));
+  const west = Math.max(-180, roundCoord4(centerLon - dLon / 2));
+  const east = Math.min(180, roundCoord4(centerLon + dLon / 2));
 
   const boundsLeaflet: LeafletBounds = [
     [south, west],
@@ -188,6 +203,34 @@ export function toggleCellInSelection(
     cells: [...current, target],
     action: 'added',
   };
+}
+
+/**
+ * Quando o usuário troca a variável do slot A ou B:
+ * - Se o modelo/resolução mudou (ex.: MERRA-2 <-> CERES), limpa a seleção para evitar
+ *   polígonos de 0.5°×0.625° misturados com 1.0°×1.0°.
+ * - Se a resolução permanece a mesma, preserva as células já selecionadas.
+ */
+export function reconcileCellsOnVariableChange(
+  previousVar: VariableId | null,
+  nextVar: VariableId | null,
+  currentCells: readonly GridCell[],
+): { readonly cells: readonly GridCell[]; readonly clearedForResolutionChange: boolean } {
+  if (!nextVar || currentCells.length === 0) {
+    return { cells: nextVar ? currentCells : [], clearedForResolutionChange: false };
+  }
+  if (!previousVar) {
+    return { cells: currentCells, clearedForResolutionChange: false };
+  }
+
+  const prevRes = getVariableMetadata(previousVar).resolution;
+  const nextRes = getVariableMetadata(nextVar).resolution;
+  const sameResolution = prevRes.dLat === nextRes.dLat && prevRes.dLon === nextRes.dLon;
+
+  if (!sameResolution) {
+    return { cells: [], clearedForResolutionChange: true };
+  }
+  return { cells: currentCells, clearedForResolutionChange: false };
 }
 
 /**

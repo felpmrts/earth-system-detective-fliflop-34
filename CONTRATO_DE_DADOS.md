@@ -26,7 +26,11 @@
 | `CLDTOT` | Cobertura Total de Nuvens | `CERES_SYN1deg` | `1.0° × 1.0°` | `1984` | `ratio` | `%` | `p.p./década` | `false` | `false` |
 | `ALLSKY_SFC_LW_DWN` | Irradiância Térmica Onda Longa Descendente | `CERES_SYN1deg` | `1.0° × 1.0°` | `1984` | `ratio` | `MJ/m²/dia` | `MJ/m²/dia/década` | `true` | `false` |
 
-> **Regra de Interseção Temporal:** Ao comparar `(variable_a, variable_b)`, a data inicial válida mínima é `max(min_year_a, min_year_b)` (ex.: `T2M` 1981 + `CLDTOT` 1984 $\implies$ início travado em `1984-01`).
+> **Regra de Interseção Temporal & Alias:** Ao comparar `(variable_a, variable_b)`, a data inicial válida mínima é `max(min_year_a, min_year_b)` (ex.: `T2M` 1981 + `CLDTOT` 1984 $\implies$ início travado em `1984-01`). O código `CLOUD_AMT` é aceito como alias operacional de `CLDTOT` (`CERES_SYN1deg`, `1.0° × 1.0°`).
+>
+> **Regra Exata de Snapping (`gridGeometry.ts` $\leftrightarrow$ `data/connectors/base.py`):**
+> - `MERRA-2`: `lat = round(lat / 0.5) * 0.5`, `lon = round(lon / 0.625) * 0.625`.
+> - `CERES_SYN1deg`: `lat = floor(lat) + 0.5`, `lon = floor(lon) + 0.5`.
 
 ---
 
@@ -160,6 +164,7 @@ Ao clicar no mapa, o frontend faz o *snapping* para a célula nativa da variáve
       "raw_values": [0.65, 0.67],
       "anomaly_values": [0.01, 0.02],
       "linear_fit": [0.0, -0.0002],
+      "sen_fit": [0.0, -0.00022],
       "gam_smooth_fit": [0.005, 0.003]
     }
   },
@@ -186,7 +191,7 @@ Ao clicar no mapa, o frontend faz o *snapping* para a célula nativa da variáve
 ## 5. Erros Semânticos Padronizados e Modos do Adapter
 
 O adapter `getRegionData()` opera em dois modos chaveáveis por `VITE_DATA_MODE`:
-- `api`: consulta `POST ${VITE_API_BASE_URL}/api/analyze` usando `AbortController` e armazena resultado no **IndexedDB**. Em falha de rede/timeout (`> 5000 ms`), aciona fallback para `public/data/`.
+- `api`: consulta `POST ${VITE_API_BASE_URL}/api/analyze` usando `AbortController` e armazena resultado no **IndexedDB**. Em erro semântico `4xx` tipado (`OCEAN_MASK_NO_DATA`, etc.), lança `SemanticApiError` sem mascarar o erro; apenas em falha de rede/`5xx`/timeout (`> 5000 ms`) aciona fallback para `public/data/`.
 - `offline`: lê diretamente os pacotes pré-computados de `public/data/`.
 
 | Código de Erro | Quando Ocorre | Ação Esperada na UI |

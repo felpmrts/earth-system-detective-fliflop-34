@@ -1,4 +1,33 @@
-import type { GlobalGridPoint, RegionSlot, VariableId } from '../contracts/types.ts';
+import { getVariableMetadata } from '../contracts/catalog.ts';
+import type { GlobalGridPoint, RegionSlot, VariableId, VisualPolarity } from '../contracts/types.ts';
+
+export interface PolarityPalette {
+  readonly positiveColor: string;
+  readonly negativeColor: string;
+  readonly neutralColor: string;
+}
+
+const POLARITY_PALETTES: Readonly<Record<VisualPolarity, PolarityPalette>> = {
+  thermal: {
+    positiveColor: '#d9480f',
+    negativeColor: '#1864ab',
+    neutralColor: '#64748b',
+  },
+  hydrological: {
+    positiveColor: '#1864ab',
+    negativeColor: '#d9480f',
+    neutralColor: '#64748b',
+  },
+  neutral: {
+    positiveColor: '#0f766e',
+    negativeColor: '#6d28d9',
+    neutralColor: '#64748b',
+  },
+};
+
+export function getPolarityPalette(polarity: VisualPolarity): PolarityPalette {
+  return POLARITY_PALETTES[polarity];
+}
 
 export interface CircleMarkerVisualStyle {
   readonly color: string;
@@ -30,11 +59,12 @@ const MAGNITUDE_REFERENCE_BY_VAR: Readonly<Record<VariableId, number>> = {
   PS: 0.15,
   ALLSKY_SFC_SW_DWN: 0.6,
   CLDTOT: 4.0,
+  CLOUD_AMT: 4.0,
   ALLSKY_SFC_LW_DWN: 0.6,
 };
 
 /**
- * Paleta divergente acessível (azul/teal para negativo vs. laranja/vermelho para positivo).
+ * Paleta divergente consciente de polaridade física (thermal vs. hydrological vs. neutral).
  * Separa rigorosamente Direção (cor), Magnitude (raio) e Significância (opacidade e borda).
  */
 export function getGlobalPointStyle(
@@ -43,8 +73,14 @@ export function getGlobalPointStyle(
 ): CircleMarkerVisualStyle {
   const isPositive = point.slope_sen_decade > 0;
   const isNeutral = point.slope_sen_decade === 0;
+  const meta = getVariableMetadata(variableId);
+  const palette = getPolarityPalette(meta.visual_polarity);
 
-  const baseColor = isNeutral ? '#64748b' : isPositive ? '#d9480f' : '#1864ab';
+  const baseColor = isNeutral
+    ? palette.neutralColor
+    : isPositive
+      ? palette.positiveColor
+      : palette.negativeColor;
   const refScale = MAGNITUDE_REFERENCE_BY_VAR[variableId];
   const normalizedMag = Math.min(Math.abs(point.slope_sen_decade) / refScale, 1.5);
   const radius = Math.round((3.5 + normalizedMag * 4.5) * 10) / 10;

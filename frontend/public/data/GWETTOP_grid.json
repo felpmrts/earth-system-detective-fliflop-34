@@ -1,0 +1,17 @@
+{
+  "variable_id": "GWETTOP",
+  "unit": "fraç. 0–1",
+  "trend_unit": "fraç. 0–1/década",
+  "period": {
+    "start": "1981-01",
+    "end": "2025-12"
+  },
+  "points": [
+    { "lat": -19.0, "lon": -48.125, "slope_sen_decade": -0.032, "q_value_fdr": 0.004, "is_sig": true },
+    { "lat": -3.0, "lon": -60.0, "slope_sen_decade": 0.024, "q_value_fdr": 0.011, "is_sig": true },
+    { "lat": -30.0, "lon": -51.25, "slope_sen_decade": 0.018, "q_value_fdr": 0.038, "is_sig": true },
+    { "lat": 14.0, "lon": -17.5, "slope_sen_decade": -0.021, "q_value_fdr": 0.095, "is_sig": false },
+    { "lat": 36.5, "lon": -119.375, "slope_sen_decade": -0.041, "q_value_fdr": 0.001, "is_sig": true },
+    { "lat": -2.5, "lon": 23.75, "slope_sen_decade": 0.006, "q_value_fdr": 0.42, "is_sig": false }
+  ]
+}
