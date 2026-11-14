@@ -80,6 +80,18 @@ export interface RegionSelection {
   readonly cells: readonly GridCell[];
 }
 
+export interface MapSelectionPayload {
+  readonly variable_x: VariableId;
+  readonly variable_y?: VariableId | null;
+  readonly grid_resolution: GridResolution;
+  readonly start_year: number;
+  readonly end_year: number;
+  readonly cells_a: readonly LeafletLatLng[];
+  readonly cells_b: readonly LeafletLatLng[];
+  readonly regionA: RegionSelection | null;
+  readonly regionB: RegionSelection | null;
+}
+
 /** Fluxo A: ponto pré-processado da camada global Canvas ({var_id}_grid.json). */
 export interface GlobalGridPoint {
   readonly lat: number;

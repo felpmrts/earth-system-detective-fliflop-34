@@ -107,12 +107,12 @@ export function getGlobalPointStyle(
   };
 }
 
-/** Estilo dos retângulos de grade nativa selecionados para Local A ou Local B. */
+/** Estilo dos retângulos de grade nativa selecionados para Local A (Ciano) ou Local B (Magenta). */
 export function getSelectedCellStyle(slot: RegionSlot): RegionPolygonVisualStyle {
   if (slot === 'A') {
     return {
-      color: '#0284c7',
-      fillColor: '#38bdf8',
+      color: '#00e5ff',
+      fillColor: '#00e5ff',
       fillOpacity: 0.28,
       weight: 2.5,
       dashArray: undefined,
@@ -120,8 +120,8 @@ export function getSelectedCellStyle(slot: RegionSlot): RegionPolygonVisualStyle
   }
 
   return {
-    color: '#c2410c',
-    fillColor: '#fb923c',
+    color: '#ff007f',
+    fillColor: '#ff007f',
     fillOpacity: 0.28,
     weight: 2.5,
     dashArray: '6 4',

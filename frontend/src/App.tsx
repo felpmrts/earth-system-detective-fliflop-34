@@ -1,11 +1,17 @@
 import environmentalFamilies from './contracts/environmentalFamilies.json';
 import { Select } from '@mantine/core';
 import { MonthPickerInput } from '@mantine/dates';
-import { useEffect, useState } from 'react';
+import { useEffect, useRef, useState } from 'react';
 import createPlotlyComponent from 'react-plotly.js/factory';
 import Plotly from 'plotly.js-basic-dist-min';
-import type { RegionAnalysisResponse } from './contracts/types';
+import type {
+  MapSelectionPayload,
+  RegionAnalysisResponse,
+  VariableId,
+} from './contracts/types';
 import { VARIABLE_LIST } from './contracts/catalog';
+import { getRegionData } from './services/regionDataAdapter';
+import { MapCanvas } from './components/MapCanvas';
 import './bench.css';
 
 const Plot = createPlotlyComponent(Plotly);
@@ -41,6 +47,7 @@ export default function App() {
   const [separate, setSeparate] = useState(false);
   const [dual, setDual] = useState(true);
   const [trend, setTrend] = useState(true);
+  const selectionAbortRef = useRef<AbortController | null>(null);
 
   useEffect(() => {
     const controller = new AbortController();
@@ -51,8 +58,40 @@ export default function App() {
       })
       .then(setAnalysis)
       .catch(() => { if (!controller.signal.aborted) setError(true); });
-    return () => controller.abort();
+    return () => {
+      controller.abort();
+      selectionAbortRef.current?.abort();
+    };
   }, []);
+
+  const handleMapSelectionChange = (payload: MapSelectionPayload) => {
+    if (!payload.regionA) return;
+
+    selectionAbortRef.current?.abort();
+    const controller = new AbortController();
+    selectionAbortRef.current = controller;
+
+    getRegionData({
+      variable: payload.variable_x,
+      variableB: payload.variable_y,
+      region: payload.regionA,
+      regionB: payload.regionB,
+      startDate: start || undefined,
+      endDate: end || undefined,
+      signal: controller.signal,
+    })
+      .then((res) => {
+        if (!controller.signal.aborted) {
+          setAnalysis(res);
+          setError(false);
+        }
+      })
+      .catch(() => {
+        if (!controller.signal.aborted) {
+          setError(true);
+        }
+      });
+  };
 
   const available = [analysis?.region_a_analysis, analysis?.region_b_analysis];
   const selections = [{ slot: 'A', id: variableA }, { slot: 'B', id: variableB }];
@@ -125,16 +164,19 @@ export default function App() {
             <button aria-current={tab === 'map' ? 'page' : undefined} onClick={() => setTab('map')}>Mapa</button>
             <button aria-current={tab === 'bench' ? 'page' : undefined} onClick={() => setTab('bench')}>Bancada científica</button>
           </nav>
-          {tab === 'map' ? <section className="map-preview" aria-label="Área reservada para o mapa">
-            <div className="map-caption">
-              <h2>Seleção de variáveis</h2>
-              <p>A · {VARIABLE_LIST.find(variable => variable.variable_id === variableA)?.variable_name ?? 'A selecionar'}</p>
-              <p>B · {VARIABLE_LIST.find(variable => variable.variable_id === variableB)?.variable_name ?? 'A selecionar'}</p>
-                            <p>{periodReady ? 'Período: ' + start + ' a ' + end : 'Defina o período antes de selecionar os locais.'}</p>
-              <p>O mapa interativo será integrado aqui.</p>
-              <button onClick={() => setTab('bench')}>Abrir análise de demonstração</button>
-            </div>
-          </section> : (
+          {tab === 'map' ? (
+            <MapCanvas
+              activeVariable={(variableA || variableB || 'GWETTOP') as VariableId}
+              secondaryVariable={(variableB || null) as VariableId | null}
+              periodLabel={
+                periodReady
+                  ? 'Período: ' + start + ' a ' + end
+                  : 'Defina o período ao lado ou use o intervalo completo NASA'
+              }
+              onSelectionChange={handleMapSelectionChange}
+              onOpenBench={() => setTab('bench')}
+            />
+          ) : (
       <section className="bench-panel" aria-label="Séries temporais">
         <div className="controls">
           <label><input type="checkbox" checked={anomaly} onChange={event => setAnomaly(event.target.checked)} /> Anomalia</label>
