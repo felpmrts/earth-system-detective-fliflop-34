@@ -6,7 +6,7 @@
 > 1. Absorva o **Contexto Ultra-Denso do Projeto** nas Seções 1, 2 e 3 abaixo (isso já contém 80% das decisões globais).
 > 2. Consulte a **Árvore de Decisão ("Qual Pergunta Você Precisa Responder?")** na Seção 4 ou o **Catálogo Completo de Documentos Markdown** na Seção 5.
 > 3. Abra **apenas** os arquivos (ou intervalos de linhas `#L...`) necessários para a sua subtarefa atual.
-> 4. Sempre que criar um novo documento `.md` durante o hackathon, **registre-o imediatamente na Seção 5 e 6 deste arquivo**.
+> 4. **Atualização Contínua dos Índices (Regra Obrigatória):** Sempre que realizar qualquer alteração relevante (novos scripts, endpoints, regras de dados/estatística ou novos documentos `.md`), **atualize imediatamente o que for essencial** no índice do respectivo domínio (`context/knowledge_data/00_INDICE_E_ARQUITETURA_DADOS.md`, `context/knowledge_base_estatistica/00_INDICE_E_ARQUITETURA_ESTATISTICA.md`, etc.) e nas Seções 4, 5 e 6 deste arquivo.
 > 5. **Estrutura de Pastas de Contexto:** Apenas este arquivo (`00_MASTER_CONTEXT_AND_ROUTER.md`) fica na raiz. Todos os arquivos de contexto específicos de cada área estão organizados em subpastas dentro de `context/` (`context/general_strategy/`, `context/knowledge_base_estatistica/`, `context/knowledge_data/`, `context/knowledge_maps/`).
 
 ---
@@ -78,7 +78,7 @@ Use a tabela abaixo para saltar diretamente para o documento (e seção) exato s
 | **"Preciso programar o teste de significância ($p\text{-valor}$ com $\text{AR}(1)$ + FDR no mapa), Theil-Sen ou detectar outliers com Mahalanobis"**         | 👉 [`knowledge_base_estatistica/05_OUTLIERS_ROBUSTEZ_E_SIGNIFICANCIA_ESPACIAL.md`](file:///home/zrhyan/Principal/Computation/Space%20Apps/knowledge_base_estatistica/05_OUTLIERS_ROBUSTEZ_E_SIGNIFICANCIA_ESPACIAL.md#L19-L115)                                                                                                                                                                                    |
 | **"Preciso estruturar o roteiro do Vídeo de Pitch, auditar se um achado climático é real ou defender nosso rigor para os jurados"**                          | 👉 [`knowledge_base_estatistica/06_GUIA_OPERACIONAL_PARA_AGENTES_DE_IA_NO_HACKATHON.md`](file:///home/zrhyan/Principal/Computation/Space%20Apps/knowledge_base_estatistica/06_GUIA_OPERACIONAL_PARA_AGENTES_DE_IA_NO_HACKATHON.md#L102-L130) + [`general_strategy/ESTRATEGIA_TREND_DETECTIVE.md`](file:///home/zrhyan/Principal/Computation/Space%20Apps/general_strategy/ESTRATEGIA_TREND_DETECTIVE.md#L303-L382) |
 | **"Quero ver o panorama geral dos 14 desafios da NASA Space Apps 2026 e os 4 critérios de avaliação de 25%"**                                                | 👉 [`general_strategy/RELATORIO_ESTRATEGICO_SPACEAPPS_2026.md`](file:///home/zrhyan/Principal/Computation/Space%20Apps/general_strategy/RELATORIO_ESTRATEGICO_SPACEAPPS_2026.md#L39-L110)                                                                                                                                                                                                                          |
-| **"Preciso consultar Fontes de Dados, APIs (NASA POWER, AppEEARS, GloFAS, NOAA), Regras de Ingestão (`-999`, `YYYY13`, `mm/day`, `/point` vs `/regional`) ou o Catálogo das 7 Famílias Ambientais"** | 👉 [`context/knowledge_data/00_INDICE_E_ARQUITETURA_DADOS.md`](file:///home/felipe-martins/dev/repository/earth-system-detective-fliflop-34/context/knowledge_data/00_INDICE_E_ARQUITETURA_DADOS.md#L1-L84) *(Índice central de `context/knowledge_data/` com roteador por linha para APIs, variáveis e regras de ingestão)* |
+| **"Preciso consultar Fontes de Dados, APIs (NASA POWER, AppEEARS, GloFAS, NOAA), Regras de Ingestão (`-999`, `YYYY13`, `mm/day`, `/point` vs `/regional`) ou o Catálogo das 7 Famílias Ambientais"** | 👉 [`context/knowledge_data/00_INDICE_E_ARQUITETURA_DADOS.md`](file:///home/felipe-martins/dev/repository/earth-system-detective-fliflop-34/context/knowledge_data/00_INDICE_E_ARQUITETURA_DADOS.md#L1-L86) *(Índice central de `context/knowledge_data/` com roteador por linha para APIs, variáveis e regras de ingestão)* |
 
 ---
 
@@ -134,7 +134,7 @@ Abaixo estão **todos os 9 documentos Markdown existentes atualmente no workspac
 
 ## 6. Slot para Novos Documentos Markdown (Atualização Contínua antes e durante o Hackathon)
 
-> **Regra de Manutenção para Agentes de IA:** Sempre que um novo documento `.md` for criado (seja hoje na preparação da Tarefa 2 sobre fontes de dados da NASA, seja amanhã durante a execução das Fases 1 a 8), adicione-o imediatamente na tabela abaixo:
+> **Regra de Manutenção para Agentes de IA:** Sempre que realizar qualquer alteração essencial (novos documentos `.md`, scripts, endpoints, regras de ingestão ou decisões arquiteturais), atualize imediatamente o índice da respectiva pasta e o registro abaixo (bem como as Seções 4 e 5, quando aplicável):
 
 | Status | Caminho Planejado / Criado | Papel do Documento | Responsável |
 | :---: | :--- | :--- | :---: |

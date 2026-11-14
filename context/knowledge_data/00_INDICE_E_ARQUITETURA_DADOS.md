@@ -5,6 +5,8 @@
 >
 > **Protocolo de Leitura Seletiva:** Sempre que um agente de IA for trabalhar na parte de dados (`DADOS-1`, `DADOS-2`), seletores/unidades de interface (`PROD-1`, `PROD-2`) ou contexto investigativo (`NARR`), deve começar por este índice e abrir **apenas** os arquivos e intervalos de linhas necessários.
 >
+> **Regra de Atualização Contínua:** Toda vez que algo essencial da camada de dados mudar ou for criado (novos arquivos `.md` em `context/knowledge_data/`, scripts de ingestão/processamento, endpoints, variáveis ou regras de API), atualize imediatamente este índice (roteador por linhas, catálogo, diagrama ou regras) e sincronize o resumo essencial no [`00_MASTER_CONTEXT_AND_ROUTER.md`](file:///home/felipe-martins/dev/repository/earth-system-detective-fliflop-34/00_MASTER_CONTEXT_AND_ROUTER.md).
+>
 > **Documentos Relacionados:** [`00_MASTER_CONTEXT_AND_ROUTER.md`](file:///home/felipe-martins/dev/repository/earth-system-detective-fliflop-34/00_MASTER_CONTEXT_AND_ROUTER.md) (roteador geral) | [`00_INDICE_E_ARQUITETURA_ESTATISTICA.md`](file:///home/felipe-martins/dev/repository/earth-system-detective-fliflop-34/context/knowledge_base_estatistica/00_INDICE_E_ARQUITETURA_ESTATISTICA.md) (camada estatística).
 
 ---
