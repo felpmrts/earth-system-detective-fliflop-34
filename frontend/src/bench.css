@@ -71,13 +71,15 @@ nav { display: flex; flex-wrap: wrap; gap: .5rem; margin-bottom: .75rem; }
 
 .map-workspace { position: relative; min-height: 0; padding: 0; display: flex; flex-direction: column; }
 .map-toolbar, .map-status { z-index: 500; display: flex; align-items: center; justify-content: space-between; gap: .75rem; padding: .55rem .75rem; background: #121e30; }
-.map-toolbar { border-bottom: 1px solid #2a3c54; }
+.map-toolbar { border-bottom: 1px solid #2a3c54; flex-wrap: wrap; }
 .map-status { min-height: 1.8rem; color: #acc1d9; border-top: 1px solid #2a3c54; font-size: .85rem; }
-.map-status > div, .slot-switch { display: flex; gap: .45rem; }
+.map-status > div, .slot-switch, .map-toolbar-group { display: flex; gap: .45rem; flex-wrap: wrap; align-items: center; }
 .map-actions { display: flex; gap: .45rem; }
 .map-toolbar button, .map-status button { font: inherit; color: inherit; background: #1d3047; border: 1px solid #39516d; border-radius: 6px; padding: .45rem .7rem; cursor: pointer; }
 .map-toolbar button.active { border-color: #67e8f9; color: #a5f3fc; }
 .slot-switch button:last-child.active { border-color: #fb923c; color: #fed7aa; }
+.same-location-toggle.active { border-color: #38bdf8; box-shadow: inset 0 0 0 1px rgba(251, 146, 60, .65); color: #e0f2fe; }
+.map-grid-note { color: #94a3b8; font-weight: 400; }
 .slot-switch span { color: #acc1d9; font-size: .78rem; }
 .map-toolbar button:disabled, .map-status button:disabled { cursor: not-allowed; opacity: .45; }
 .map-toolbar .analyze-button:not(:disabled) { background: #0891b2; border-color: #22d3ee; color: #ecfeff; }

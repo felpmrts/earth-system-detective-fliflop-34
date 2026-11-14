@@ -1,9 +1,15 @@
 import L from 'leaflet';
 import 'leaflet/dist/leaflet.css';
 import { useEffect, useRef, useState } from 'react';
-import type { GlobalGridFile, RegionSelection, RegionSlot, VariableId } from '../contracts/types';
+import type { RegionSelection, RegionSlot, VariableId } from '../contracts/types';
 import { getVariableMetadata } from '../contracts/catalog';
-import { buildRegionSelection, snapCoordToCell, toggleCellInSelection } from '../geo/gridGeometry';
+import {
+  buildRegionSelection,
+  mirrorRegionSelection,
+  snapCoordToCell,
+  toggleCellInSelection,
+} from '../geo/gridGeometry';
+import { getGlobalGrid, GlobalGridLoadError } from '../services/regionDataAdapter';
 import { getGlobalPointStyle, getSelectedCellStyle } from './mapStyles';
 
 interface MapWorkspaceProps {
@@ -50,16 +56,25 @@ export function MapWorkspace({
   const previewLayerRef = useRef<L.Rectangle | null>(null);
   const previewCellIdRef = useRef('');
   const historyRef = useRef<Array<{ regionA: RegionSelection | null; regionB: RegionSelection | null }>>([]);
-  const stateRef = useRef({ variableA, variableB, regionA, regionB, periodReady });
+  const stateRef = useRef({
+    variableA,
+    variableB,
+    regionA,
+    regionB,
+    periodReady,
+    sameLocation: false,
+  });
   const callbacksRef = useRef({ onRegionAChange, onRegionBChange });
   const [activeSlot, setActiveSlot] = useState<RegionSlot>('A');
+  const [sameLocation, setSameLocation] = useState(false);
   const activeSlotRef = useRef<RegionSlot>('A');
   const [notice, setNotice] = useState('Escolha A ou B e clique no mapa para compor a região.');
   const [noticeKind, setNoticeKind] = useState<'info' | 'success' | 'error'>('info');
   const [elapsedSeconds, setElapsedSeconds] = useState(0);
   const [historyDepth, setHistoryDepth] = useState(0);
+  const [gridNotice, setGridNotice] = useState('');
 
-  stateRef.current = { variableA, variableB, regionA, regionB, periodReady };
+  stateRef.current = { variableA, variableB, regionA, regionB, periodReady, sameLocation };
   callbacksRef.current = { onRegionAChange, onRegionBChange };
   activeSlotRef.current = activeSlot;
 
@@ -138,7 +153,7 @@ export function MapWorkspace({
 
     map.on('click', ({ latlng }) => {
       const current = stateRef.current;
-      const slot = activeSlotRef.current;
+      const slot: RegionSlot = current.sameLocation ? 'A' : activeSlotRef.current;
       const variable = slot === 'A' ? current.variableA : current.variableB;
       const region = slot === 'A' ? current.regionA : current.regionB;
       const updateRegion = slot === 'A'
@@ -165,7 +180,11 @@ export function MapWorkspace({
       }
       recordHistory(current.regionA, current.regionB);
       updateRegion(result.cells.length ? buildRegionSelection(slot, variable, result.cells) : null);
-      setNotice(`Região ${slot}: ${result.cells.length} célula(s) selecionada(s).`);
+      setNotice(
+        current.sameLocation
+          ? `Mesmo Local (A=B): ${result.cells.length} célula(s) em A espelhadas em B.`
+          : `Região ${slot}: ${result.cells.length} célula(s) selecionada(s).`,
+      );
       setNoticeKind('success');
     });
 
@@ -212,6 +231,27 @@ export function MapWorkspace({
   }, []);
 
   useEffect(() => {
+    if (!sameLocation) return;
+    if (activeSlot !== 'A') setActiveSlot('A');
+
+    if (!regionA) {
+      if (regionB !== null) callbacksRef.current.onRegionBChange(null);
+      return;
+    }
+    if (!variableB) return;
+
+    const mirroredB = mirrorRegionSelection(regionA, 'B', variableB);
+    const alreadySynced =
+      regionB !== null &&
+      regionB.region_id === mirroredB.region_id &&
+      regionB.variable_id === mirroredB.variable_id;
+
+    if (!alreadySynced) {
+      callbacksRef.current.onRegionBChange(mirroredB);
+    }
+  }, [sameLocation, activeSlot, regionA, regionB, variableB]);
+
+  useEffect(() => {
     const layer = selectionsLayerRef.current;
     if (!layer) return;
     layer.clearLayers();
@@ -223,32 +263,44 @@ export function MapWorkspace({
           [cell.bounds_leaflet[0][0], cell.bounds_leaflet[0][1]],
           [cell.bounds_leaflet[1][0], cell.bounds_leaflet[1][1]],
         );
-        L.rectangle(bounds, style)
+        const rect = L.rectangle(bounds, style)
           .bindTooltip(`${region.slot} · ${cell.cell_id}`)
           .addTo(layer);
+        // Mantém contorno laranja tracejado de B visível sobre o azul sólido de A quando A=B.
+        if (region.slot === 'B') rect.bringToFront();
       }
     }
   }, [regionA, regionB]);
 
-  const activeVariable = activeSlot === 'A' ? variableA : variableB;
+  const activeVariable = sameLocation ? variableA : activeSlot === 'A' ? variableA : variableB;
   useEffect(() => {
     const layer = gridLayerRef.current;
     if (!layer) return;
     layer.clearLayers();
-    if (!activeVariable) return;
+    if (!activeVariable) {
+      setGridNotice('');
+      return;
+    }
 
     const controller = new AbortController();
-    fetch(`${import.meta.env.BASE_URL}data/${activeVariable}_grid.json`, { signal: controller.signal })
-      .then(response => response.ok ? response.json() as Promise<GlobalGridFile> : null)
+    setGridNotice('');
+    getGlobalGrid(activeVariable, controller.signal)
       .then(grid => {
-        if (!grid || controller.signal.aborted) return;
+        if (controller.signal.aborted) return;
         for (const point of grid.points) {
           L.circleMarker([point.lat, point.lon], getGlobalPointStyle(point, activeVariable))
             .bindTooltip(`${point.slope_sen_decade} ${grid.trend_unit}`)
             .addTo(layer);
         }
       })
-      .catch(() => undefined);
+      .catch(err => {
+        if (controller.signal.aborted) return;
+        if (err instanceof GlobalGridLoadError && err.status === 404) {
+          setGridNotice(`Camada global de ${err.gridVariableId} ainda não disponível; seleção manual segue ativa.`);
+          return;
+        }
+        setGridNotice(err instanceof Error ? `Camada global indisponível (${err.message}).` : '');
+      });
     return () => controller.abort();
   }, [activeVariable]);
 
@@ -299,18 +351,60 @@ export function MapWorkspace({
     setNoticeKind('info');
   };
 
+  function handleToggleSameLocation() {
+    setSameLocation(prev => {
+      const next = !prev;
+      if (next) {
+        setActiveSlot('A');
+        setNotice(
+          regionA
+            ? 'Modo Mesmo Local (A=B) ativo: B espelhada na grade de referência.'
+            : 'Modo Mesmo Local (A=B) ativo: marque células em A para espelhar em B.',
+        );
+        setNoticeKind('info');
+      } else {
+        setNotice('Modo A=B desativado: edite Local A (azul) e Local B (laranja) separadamente.');
+        setNoticeKind('info');
+      }
+      return next;
+    });
+  }
+
   return (
     <section className="map-workspace" aria-label="Seleção espacial">
       <div className="map-toolbar">
-        <div className="slot-switch" aria-label="Região ativa">
-          <button className={activeSlot === 'A' ? 'active' : ''} disabled={!variableA}
-            onClick={() => setActiveSlot('A')}>Selecionar A <span>{regionA?.cells.length ?? 0}/9</span></button>
-          <button className={activeSlot === 'B' ? 'active' : ''} disabled={!variableB}
-            onClick={() => setActiveSlot('B')}>Selecionar B <span>{regionB?.cells.length ?? 0}/9</span></button>
+        <div className="map-toolbar-group">
+          <div className="slot-switch" aria-label="Região ativa">
+            <button
+              type="button"
+              className={activeSlot === 'A' ? 'active' : ''}
+              disabled={!variableA}
+              onClick={() => setActiveSlot('A')}
+            >
+              Selecionar A <span>{regionA?.cells.length ?? 0}/9</span>
+            </button>
+            <button
+              type="button"
+              className={activeSlot === 'B' ? 'active' : ''}
+              disabled={!variableB || sameLocation}
+              onClick={() => setActiveSlot('B')}
+            >
+              Selecionar B <span>{regionB?.cells.length ?? 0}/9</span>
+            </button>
+          </div>
+          <button
+            type="button"
+            className={`same-location-toggle${sameLocation ? ' active' : ''}`}
+            aria-pressed={sameLocation}
+            disabled={!variableA || !variableB}
+            onClick={handleToggleSameLocation}
+          >
+            Mesmo Local (A=B)
+          </button>
         </div>
         <div className="map-actions">
-          {isAnalyzing && <button className="cancel-button" onClick={onCancel}>Cancelar</button>}
-          <button className="analyze-button" disabled={!readyToAnalyze || isAnalyzing} onClick={onAnalyze}>
+          {isAnalyzing && <button type="button" className="cancel-button" onClick={onCancel}>Cancelar</button>}
+          <button type="button" className="analyze-button" disabled={!readyToAnalyze || isAnalyzing} onClick={onAnalyze}>
             {isAnalyzing ? 'Consultando NASA POWER…' : 'Analisar seleção'}
           </button>
         </div>
@@ -341,6 +435,7 @@ export function MapWorkspace({
           role={analysisError || noticeKind === 'error' ? 'alert' : undefined}
         >
           {analysisError || notice}
+          {!analysisError && gridNotice && <span className="map-grid-note"> · {gridNotice}</span>}
         </span>
         <div className="map-tools">
           <button type="button" disabled={!regionA} onClick={() => focusRegions([regionA])}>Ir para A</button>
@@ -349,7 +444,7 @@ export function MapWorkspace({
           <button type="button" disabled={!historyDepth} onClick={undoLastSelection}>Desfazer</button>
           <button type="button" disabled={!regionA && !regionB} onClick={clearAll}>Limpar tudo</button>
           {regionA && <button type="button" className="compact-clear" aria-label="Limpar região A" onClick={() => clearRegion('A')}>× A</button>}
-          {regionB && <button type="button" className="compact-clear" aria-label="Limpar região B" onClick={() => clearRegion('B')}>× B</button>}
+          {regionB && <button type="button" className="compact-clear" aria-label="Limpar região B" onClick={() => { if (sameLocation) setSameLocation(false); clearRegion('B'); }}>× B</button>}
         </div>
       </div>
     </section>
