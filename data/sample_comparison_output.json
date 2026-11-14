@@ -1,0 +1,284 @@
+{
+  "api_smoke_tests": {
+    "1_nasa_power": {
+      "api": "NASA POWER API v2",
+      "api_puxada": "NASA POWER API v2",
+      "endpoint_consultado": "https://power.larc.nasa.gov/api/temporal/monthly/point",
+      "requires_registration": false,
+      "registration_info": "Aberta (sem cadastro/token; limite 30 req/min).",
+      "status": "OK",
+      "variable": "T2M",
+      "raw_api_unit": "C",
+      "unit": "C",
+      "snapped_cells": [
+        {
+          "lat": -3.0,
+          "lon": -60.0
+        }
+      ],
+      "months_count": 48,
+      "elapsed_s": 0.701
+    },
+    "2_open_meteo_flood": {
+      "api": "Open-Meteo Flood API (GloFAS)",
+      "api_puxada": "Open-Meteo Flood API (GloFAS)",
+      "endpoint_consultado": "https://flood-api.open-meteo.com/v1/flood",
+      "requires_registration": false,
+      "registration_info": "Aberta (sem cadastro para uso não-comercial).",
+      "status": "OK",
+      "variable": "river_discharge",
+      "unit": "m³/s",
+      "cells": [
+        {
+          "lat": -3.13,
+          "lon": -60.02
+        }
+      ],
+      "months_count": 48,
+      "elapsed_s": 1.187
+    },
+    "3_noaa_cdo": {
+      "api": "NOAA CDO API v2",
+      "api_puxada": "NOAA CDO API v2",
+      "endpoint_consultado": "https://www.ncei.noaa.gov/cdo-web/api/v2/data",
+      "requires_registration": true,
+      "status": "OK",
+      "station_id": "GHCND:BLM00085154",
+      "records_returned": 1,
+      "sample_records": [
+        {
+          "date": "2023-01-01T00:00:00",
+          "datatype": "TAVG",
+          "station": "GHCND:BLM00085154",
+          "attributes": "6,S",
+          "value": 27.9
+        }
+      ],
+      "elapsed_s": 1.206
+    },
+    "4_nasa_appeears": {
+      "api": "NASA AppEEARS API (MODIS)",
+      "api_puxada": "NASA AppEEARS API (MODIS)",
+      "endpoint_consultado": "https://appeears.earthdatacloud.nasa.gov/api",
+      "requires_registration": true,
+      "registration_info": "Catálogo de produtos é público, mas submeter/baixar tarefas (/api/login, /api/task) exige conta gratuita NASA Earthdata Login em https://urs.earthdata.nasa.gov/users/new (EARTHDATA_USERNAME e EARTHDATA_PASSWORD).",
+      "status": "OK",
+      "catalog_http_status": 200,
+      "auth_status": "OK_AUTENTICADO",
+      "tasks_http_status": 200,
+      "existing_tasks_count": 0,
+      "product_sample": {
+        "product": "MOD13A3.061",
+        "layers_count": 11,
+        "sample_layer": "_1_km_monthly_NDVI",
+        "Description": "1 km monthly NDVI",
+        "ScaleFactor": 0.0001,
+        "FillValue": -3000,
+        "Available": true
+      },
+      "elapsed_s": 2.038
+    },
+    "5_giovanni_hydrology": {
+      "api": "NASA Giovanni / GES DISC",
+      "api_puxada": "NASA Giovanni / GES DISC",
+      "endpoint_consultado": "https://giovanni.gsfc.nasa.gov/giovanni/",
+      "requires_registration": true,
+      "registration_info": "Exige conta gratuita NASA Earthdata Login (https://urs.earthdata.nasa.gov/users/new) para exportar CSVs no portal Giovanni ou acessar coleções/granules GES DISC com EARTHDATA_TOKEN.",
+      "status": "OK",
+      "earthdata_token_configured": true,
+      "giovanni_portal_http": 200,
+      "cmr_authenticated_collection_http": 200,
+      "cmr_authenticated_granules_http": 200,
+      "collection_title": "GLDAS Noah Land Surface Model L4 monthly 0.25 x 0.25 degree V2.1 (GLDAS_NOAH025_M)",
+      "granules_sample": [
+        {
+          "title": "GLDAS_NOAH025_M.2.1:GLDAS_NOAH025_M.A202301.021.nc4",
+          "time_start": "2023-01-01T00:00:00.000Z",
+          "time_end": "2023-01-31T23:59:59.000Z"
+        },
+        {
+          "title": "GLDAS_NOAH025_M.2.1:GLDAS_NOAH025_M.A202302.021.nc4",
+          "time_start": "2023-02-01T00:00:00.000Z",
+          "time_end": "2023-02-28T23:59:59.000Z"
+        }
+      ],
+      "hydrology_rods_legacy_http": 301,
+      "hydrology_rods_legacy_redirect": "https://disc.gsfc.nasa.gov/information/alerts?title=The%20Hydrology%20Data%20Rods%20service%20will%20be%20discontinued%20no%20earlier%20than%20October%2031,%202025%20and%20transitioned%20to%20a%20new%20data%20access%20method",
+      "elapsed_s": 2.504
+    }
+  },
+  "prototype_comparison_power_vs_power": {
+    "status": "OK",
+    "period": {
+      "start": "2001-01",
+      "end": "2023-12",
+      "n_common_months": 276
+    },
+    "location_a": {
+      "name": "Amazônia Central (Manaus)",
+      "api_puxada": "NASA POWER API v2",
+      "endpoint_consultado": "https://power.larc.nasa.gov/api/temporal/monthly/point",
+      "source": "NASA POWER API v2",
+      "variable": "PRECTOTCORR",
+      "unit": "mm/mês",
+      "scale_type": "ratio",
+      "allow_percentage_change": true,
+      "cells_requested": [
+        {
+          "lat": -3.12,
+          "lon": -60.02
+        }
+      ],
+      "cells_snapped": [
+        {
+          "lat": -3.0,
+          "lon": -60.0
+        }
+      ],
+      "n_months": 276,
+      "intercept_at_start_A0": -0.2833,
+      "slope_per_decade_ols": 0.2473,
+      "slope_per_decade_sen": 0.3875
+    },
+    "location_b": {
+      "name": "Semiárido (Petrolina)",
+      "api_puxada": "NASA POWER API v2",
+      "endpoint_consultado": "https://power.larc.nasa.gov/api/temporal/monthly/point",
+      "source": "NASA POWER API v2",
+      "variable": "T2M",
+      "unit": "C",
+      "scale_type": "interval",
+      "allow_percentage_change": false,
+      "cells_requested": [
+        {
+          "lat": -9.39,
+          "lon": -40.5
+        }
+      ],
+      "cells_snapped": [
+        {
+          "lat": -9.5,
+          "lon": -40.625
+        }
+      ],
+      "n_months": 276,
+      "intercept_at_start_A0": -0.4649,
+      "slope_per_decade_ols": 0.4057,
+      "slope_per_decade_sen": 0.4089
+    },
+    "comparison": {
+      "long_term_secular_r": -0.0913,
+      "short_term_detrended_r": -0.0957,
+      "sample_last_3_months": [
+        {
+          "month": "2023-10",
+          "a_raw": 53.94,
+          "a_anomaly": -51.2309,
+          "b_raw": 29.57,
+          "b_anomaly": 1.2087
+        },
+        {
+          "month": "2023-11",
+          "a_raw": 104.4,
+          "a_anomaly": -33.9261,
+          "b_raw": 30.08,
+          "b_anomaly": 1.3639
+        },
+        {
+          "month": "2023-12",
+          "a_raw": 244.59,
+          "a_anomaly": 29.6252,
+          "b_raw": 29.97,
+          "b_anomaly": 1.5274
+        }
+      ]
+    }
+  },
+  "prototype_comparison_power_vs_glofas": {
+    "status": "OK",
+    "period": {
+      "start": "2001-01",
+      "end": "2023-12",
+      "n_common_months": 276
+    },
+    "location_a": {
+      "name": "Amazônia Central (Manaus)",
+      "api_puxada": "NASA POWER API v2",
+      "endpoint_consultado": "https://power.larc.nasa.gov/api/temporal/monthly/point",
+      "source": "NASA POWER API v2",
+      "variable": "PRECTOTCORR",
+      "unit": "mm/mês",
+      "scale_type": "ratio",
+      "allow_percentage_change": true,
+      "cells_requested": [
+        {
+          "lat": -3.12,
+          "lon": -60.02
+        }
+      ],
+      "cells_snapped": [
+        {
+          "lat": -3.0,
+          "lon": -60.0
+        }
+      ],
+      "n_months": 276,
+      "intercept_at_start_A0": -0.2833,
+      "slope_per_decade_ols": 0.2473,
+      "slope_per_decade_sen": 0.3875
+    },
+    "location_b": {
+      "name": "Rio Negro / Amazonas (Manaus)",
+      "api_puxada": "Open-Meteo Flood API (GloFAS)",
+      "endpoint_consultado": "https://flood-api.open-meteo.com/v1/flood",
+      "source": "Open-Meteo Flood API (GloFAS)",
+      "variable": "river_discharge",
+      "unit": "m³/s",
+      "scale_type": "ratio",
+      "allow_percentage_change": true,
+      "cells_requested": [
+        {
+          "lat": -3.13,
+          "lon": -60.02
+        }
+      ],
+      "cells_snapped": [
+        {
+          "lat": -3.13,
+          "lon": -60.02
+        }
+      ],
+      "n_months": 276,
+      "intercept_at_start_A0": 0.1089,
+      "slope_per_decade_ols": -0.095,
+      "slope_per_decade_sen": -0.0911
+    },
+    "comparison": {
+      "long_term_secular_r": 0.5608,
+      "short_term_detrended_r": 0.5665,
+      "sample_last_3_months": [
+        {
+          "month": "2023-10",
+          "a_raw": 53.94,
+          "a_anomaly": -51.2309,
+          "b_raw": 0.7032,
+          "b_anomaly": -0.6717
+        },
+        {
+          "month": "2023-11",
+          "a_raw": 104.4,
+          "a_anomaly": -33.9261,
+          "b_raw": 0.864,
+          "b_anomaly": -0.787
+        },
+        {
+          "month": "2023-12",
+          "a_raw": 244.59,
+          "a_anomaly": 29.6252,
+          "b_raw": 1.2974,
+          "b_anomaly": -1.0188
+        }
+      ]
+    }
+  }
+}
