@@ -1,0 +1,209 @@
+:root {
+  --bg-primary: #0b0e14;
+  --bg-secondary: #131924;
+  --bg-card: #1a2232;
+  --border-color: #263347;
+  --text-main: #f0f4f8;
+  --text-muted: #8a99ad;
+  --color-cyan: #00e5ff;
+  --color-magenta: #ff007f;
+  --color-orange: #ff7043;
+  --color-blue: #29b6f6;
+  --sidebar-width: 400px;
+}
+
+* {
+  box-sizing: border-box;
+  margin: 0;
+  padding: 0;
+}
+
+body {
+  font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
+  background-color: var(--bg-primary);
+  color: var(--text-main);
+  height: 100vh;
+  display: flex;
+  overflow: hidden;
+}
+
+/* Sidebar Styles */
+.sidebar {
+  width: var(--sidebar-width);
+  height: 100vh;
+  background-color: var(--bg-secondary);
+  border-right: 1px solid var(--border-color);
+  display: flex;
+  flex-direction: column;
+  z-index: 1000;
+  box-shadow: 2px 0 16px rgba(0, 0, 0, 0.5);
+  overflow-y: auto;
+}
+
+.sidebar-header {
+  padding: 18px 20px;
+  background: linear-gradient(180deg, #18202e 0%, var(--bg-secondary) 100%);
+  border-bottom: 1px solid var(--border-color);
+}
+
+.badge-nasa {
+  display: inline-block;
+  font-size: 11px;
+  font-weight: 700;
+  letter-spacing: 1px;
+  text-transform: uppercase;
+  color: var(--color-cyan);
+  background: rgba(0, 229, 255, 0.12);
+  border: 1px solid rgba(0, 229, 255, 0.3);
+  padding: 3px 8px;
+  border-radius: 4px;
+  margin-bottom: 8px;
+}
+
+.sidebar-header h1 {
+  font-size: 18px;
+  font-weight: 700;
+  letter-spacing: -0.3px;
+  color: #fff;
+}
+
+.sidebar-header p {
+  font-size: 12px;
+  color: var(--text-muted);
+  margin-top: 4px;
+}
+
+.sidebar-content {
+  padding: 16px;
+  display: flex;
+  flex-direction: column;
+  gap: 16px;
+  flex: 1;
+}
+
+/* Variable Picker */
+.section-title {
+  font-size: 11px;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 0.8px;
+  color: var(--text-muted);
+  margin-bottom: 8px;
+}
+
+.selector-box {
+  background: var(--bg-card);
+  border: 1px solid var(--border-color);
+  border-radius: 8px;
+  padding: 10px 12px;
+}
+
+.selector-box select {
+  width: 100%;
+  background: transparent;
+  border: none;
+  color: #fff;
+  font-size: 13px;
+  font-weight: 600;
+  outline: none;
+  cursor: pointer;
+}
+
+/* Region Cards */
+.region-card {
+  background: var(--bg-card);
+  border-radius: 8px;
+  padding: 14px;
+  border-left: 4px solid var(--border-color);
+  transition: all 0.2s ease;
+}
+
+.region-card.empty {
+  border-left-style: dashed;
+  color: var(--text-muted);
+  font-size: 12px;
+  text-align: center;
+  padding: 20px 14px;
+}
+
+.region-card.region-a {
+  border-left-color: var(--color-cyan);
+  background: linear-gradient(90deg, rgba(0, 229, 255, 0.05) 0%, var(--bg-card) 100%);
+}
+
+.region-card.region-b {
+  border-left-color: var(--color-magenta);
+  background: linear-gradient(90deg, rgba(255, 0, 127, 0.05) 0%, var(--bg-card) 100%);
+}
+
+.card-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-bottom: 8px;
+}
+
+.card-title {
+  font-size: 13px;
+  font-weight: 700;
+  display: flex;
+  align-items: center;
+  gap: 6px;
+}
+
+.card-title.cyan { color: var(--color-cyan); }
+.card-title.magenta { color: var(--color-magenta); }
+
+.card-metric {
+  font-size: 18px;
+  font-weight: 800;
+  margin: 6px 0;
+}
+
+.card-metric.down { color: var(--color-orange); }
+.card-metric.up { color: var(--color-blue); }
+
+.card-meta {
+  font-size: 12px;
+  color: var(--text-muted);
+  line-height: 1.4;
+}
+
+/* Comparison Verdict Box */
+.verdict-box {
+  background: #152238;
+  border: 1px solid #284470;
+  border-radius: 8px;
+  padding: 14px;
+}
+
+.verdict-header {
+  font-size: 12px;
+  font-weight: 700;
+  text-transform: uppercase;
+  color: #79a8f2;
+  margin-bottom: 8px;
+  display: flex;
+  align-items: center;
+  gap: 6px;
+}
+
+.verdict-item {
+  font-size: 12px;
+  margin-bottom: 6px;
+  line-height: 1.4;
+}
+
+.verdict-item strong {
+  color: #fff;
+}
+
+/* Instructions */
+.hint-text {
+  font-size: 11px;
+  color: var(--text-muted);
+  text-align: center;
+  padding: 8px;
+  background: rgba(255, 255, 255, 0.03);
+  border-radius: 6px;
+}
