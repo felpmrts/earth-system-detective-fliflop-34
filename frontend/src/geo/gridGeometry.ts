@@ -41,34 +41,18 @@ export function assertValidLatLon(lat: number, lon: number): void {
   }
 }
 
-/**
- * Converte um clique (lat, lon) para a célula nativa exata da variável NASA selecionada.
- * Mantém Leaflet em [lat, lon] e anel GeoJSON em [lon, lat].
- */
-export function snapCoordToCell(lat: number, lon: number, variableId: VariableId): GridCell {
-  assertValidLatLon(lat, lon);
-
+function buildCellFromRowCol(rawRow: number, rawCol: number, variableId: VariableId): GridCell {
   const meta = getVariableMetadata(variableId);
   const { dLat, dLon } = meta.resolution;
-  let row: number;
-  let col: number;
-  let centerLat: number;
-  let centerLon: number;
+  const row = rawRow === 0 ? 0 : rawRow;
+  const col = rawCol === 0 ? 0 : rawCol;
 
-  // Mantém paridade com data/connectors/base.py e NASA_POWER_API_SPECS.md.
-  if (meta.source_model === 'CERES_SYN1deg') {
-    row = Math.floor(Math.min(lat, 89.9999));
-    col = Math.floor(Math.min(lon, 179.9999));
-    centerLat = roundCoord(row + 0.5);
-    centerLon = roundCoord(col + 0.5);
-  } else {
-    row = Math.round(lat / dLat);
-    col = Math.round(lon / dLon);
-    centerLat = roundCoord(row * dLat);
-    centerLon = roundCoord(col * dLon);
-  }
-  row = row === 0 ? 0 : row;
-  col = col === 0 ? 0 : col;
+  const centerLat = meta.source_model === 'CERES_SYN1deg'
+    ? roundCoord(row + 0.5)
+    : roundCoord(row * dLat);
+  const centerLon = meta.source_model === 'CERES_SYN1deg'
+    ? roundCoord(col + 0.5)
+    : roundCoord(col * dLon);
 
   const south = Math.max(-90, roundCoord(centerLat - dLat / 2));
   const north = Math.min(90, roundCoord(centerLat + dLat / 2));
@@ -98,6 +82,28 @@ export function snapCoordToCell(lat: number, lon: number, variableId: VariableId
     bounds_leaflet: boundsLeaflet,
     geojson_ring: geojsonRing,
   };
+}
+
+/**
+ * Converte um clique (lat, lon) para a célula nativa exata da variável NASA selecionada.
+ * Mantém Leaflet em [lat, lon] e anel GeoJSON em [lon, lat].
+ */
+export function snapCoordToCell(lat: number, lon: number, variableId: VariableId): GridCell {
+  assertValidLatLon(lat, lon);
+
+  const meta = getVariableMetadata(variableId);
+  const { dLat, dLon } = meta.resolution;
+
+  // Mantém paridade com data/connectors/base.py e NASA_POWER_API_SPECS.md.
+  if (meta.source_model === 'CERES_SYN1deg') {
+    const row = Math.floor(Math.min(lat, 89.9999));
+    const col = Math.floor(Math.min(lon, 179.9999));
+    return buildCellFromRowCol(row, col, variableId);
+  }
+
+  const row = Math.round(lat / dLat);
+  const col = Math.round(lon / dLon);
+  return buildCellFromRowCol(row, col, variableId);
 }
 
 /**
@@ -338,4 +344,75 @@ export function mirrorRegionSelection(
   const seedCell = snapCoordToCell(centroid.lat, centroid.lon, targetVariableId);
   const core = selectConnectedCore(bridged, centroid, seedCell);
   return buildRegionSelection(targetSlot, targetVariableId, core);
+}
+
+export interface LatLonCoord {
+  readonly lat: number;
+  readonly lon: number;
+}
+
+export interface BoundingBoxSelectionResult {
+  readonly cells: readonly GridCell[];
+  readonly totalInBox: number;
+  readonly wasClamped: boolean;
+}
+
+/** Garante coordenadas finitas dentro do domínio [-90, 90] × [-180, 180] durante arraste livre no mapa. */
+export function clampLatLon(lat: number, lon: number): LatLonCoord {
+  return {
+    lat: Number.isFinite(lat) ? Math.max(-90, Math.min(90, lat)) : 0,
+    lon: Number.isFinite(lon) ? Math.max(-180, Math.min(180, lon)) : 0,
+  };
+}
+
+/**
+ * Converte uma caixa arrastada (ponto inicial -> ponto final) nas células nativas da variável.
+ * Se a área abranger mais de MAX_CELLS_PER_REGION (9) células, limita automaticamente às 9 mais
+ * próximas do ponto inicial do arraste mantendo componente conexo em 8-vizinhos.
+ */
+export function selectCellsInBoundingBox(
+  startCoord: LatLonCoord,
+  endCoord: LatLonCoord,
+  variableId: VariableId,
+  maxCells = MAX_CELLS_PER_REGION,
+): BoundingBoxSelectionResult {
+  const start = clampLatLon(startCoord.lat, startCoord.lon);
+  const end = clampLatLon(endCoord.lat, endCoord.lon);
+
+  const south = Math.min(start.lat, end.lat);
+  const north = Math.max(start.lat, end.lat);
+  const west = Math.min(start.lon, end.lon);
+  const east = Math.max(start.lon, end.lon);
+
+  const swCell = snapCoordToCell(south, west, variableId);
+  const neCell = snapCoordToCell(north, east, variableId);
+  const anchorCell = snapCoordToCell(start.lat, start.lon, variableId);
+
+  const totalInBox = (neCell.row - swCell.row + 1) * (neCell.col - swCell.col + 1);
+  const rowStart = Math.max(swCell.row, anchorCell.row - maxCells);
+  const rowEnd = Math.min(neCell.row, anchorCell.row + maxCells);
+  const colStart = Math.max(swCell.col, anchorCell.col - maxCells);
+  const colEnd = Math.min(neCell.col, anchorCell.col + maxCells);
+
+  const candidates: GridCell[] = [];
+  for (let row = rowStart; row <= rowEnd; row += 1) {
+    for (let col = colStart; col <= colEnd; col += 1) {
+      candidates.push(buildCellFromRowCol(row, col, variableId));
+    }
+  }
+
+  if (totalInBox <= maxCells) {
+    return {
+      cells: candidates,
+      totalInBox,
+      wasClamped: false,
+    };
+  }
+
+  const clampedCells = selectConnectedCore(candidates, start, anchorCell, maxCells);
+  return {
+    cells: clampedCells,
+    totalInBox,
+    wasClamped: true,
+  };
 }
