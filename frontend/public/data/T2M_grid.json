@@ -1,0 +1,17 @@
+{
+  "variable_id": "T2M",
+  "unit": "°C",
+  "trend_unit": "°C/década",
+  "period": {
+    "start": "1981-01",
+    "end": "2025-12"
+  },
+  "points": [
+    { "lat": -18.75, "lon": -48.125, "slope_sen_decade": 0.41, "q_value_fdr": 0.002, "is_sig": true },
+    { "lat": -3.25, "lon": -60.0, "slope_sen_decade": 0.36, "q_value_fdr": 0.005, "is_sig": true },
+    { "lat": -30.25, "lon": -51.25, "slope_sen_decade": 0.18, "q_value_fdr": 0.19, "is_sig": false },
+    { "lat": 65.25, "lon": -147.5, "slope_sen_decade": 0.79, "q_value_fdr": 0.0001, "is_sig": true },
+    { "lat": -55.25, "lon": -68.125, "slope_sen_decade": -0.14, "q_value_fdr": 0.032, "is_sig": true },
+    { "lat": 14.25, "lon": -17.5, "slope_sen_decade": 0.52, "q_value_fdr": 0.085, "is_sig": false }
+  ]
+}
