@@ -78,6 +78,7 @@ Use a tabela abaixo para saltar diretamente para o documento (e seção) exato s
 | **"Preciso programar o teste de significância ($p\text{-valor}$ com $\text{AR}(1)$ + FDR no mapa), Theil-Sen ou detectar outliers com Mahalanobis"**         | 👉 [`knowledge_base_estatistica/05_OUTLIERS_ROBUSTEZ_E_SIGNIFICANCIA_ESPACIAL.md`](file:///home/zrhyan/Principal/Computation/Space%20Apps/knowledge_base_estatistica/05_OUTLIERS_ROBUSTEZ_E_SIGNIFICANCIA_ESPACIAL.md#L19-L115)                                                                                                                                                                                    |
 | **"Preciso estruturar o roteiro do Vídeo de Pitch, auditar se um achado climático é real ou defender nosso rigor para os jurados"**                          | 👉 [`knowledge_base_estatistica/06_GUIA_OPERACIONAL_PARA_AGENTES_DE_IA_NO_HACKATHON.md`](file:///home/zrhyan/Principal/Computation/Space%20Apps/knowledge_base_estatistica/06_GUIA_OPERACIONAL_PARA_AGENTES_DE_IA_NO_HACKATHON.md#L102-L130) + [`general_strategy/ESTRATEGIA_TREND_DETECTIVE.md`](file:///home/zrhyan/Principal/Computation/Space%20Apps/general_strategy/ESTRATEGIA_TREND_DETECTIVE.md#L303-L382) |
 | **"Quero ver o panorama geral dos 14 desafios da NASA Space Apps 2026 e os 4 critérios de avaliação de 25%"**                                                | 👉 [`general_strategy/RELATORIO_ESTRATEGICO_SPACEAPPS_2026.md`](file:///home/zrhyan/Principal/Computation/Space%20Apps/general_strategy/RELATORIO_ESTRATEGICO_SPACEAPPS_2026.md#L39-L110)                                                                                                                                                                                                                          |
+| **"Preciso consultar Fontes de Dados, APIs (NASA POWER, AppEEARS, GloFAS, NOAA), Regras de Ingestão (`-999`, `YYYY13`, `mm/day`, `/point` vs `/regional`) ou o Catálogo das 7 Famílias Ambientais"** | 👉 [`context/knowledge_data/00_INDICE_E_ARQUITETURA_DADOS.md`](file:///home/felipe-martins/dev/repository/earth-system-detective-fliflop-34/context/knowledge_data/00_INDICE_E_ARQUITETURA_DADOS.md#L1-L84) *(Índice central de `context/knowledge_data/` com roteador por linha para APIs, variáveis e regras de ingestão)* |
 
 ---
 
@@ -114,15 +115,19 @@ Abaixo estão **todos os 9 documentos Markdown existentes atualmente no workspac
     - **Resumo:** Manual executável direto para o hackathon. Contém a matriz matemática das 4 perguntas, o **schema JSON completo do Contrato de Dados** (com suporte a regressão dupla, GAM, Mahalanobis, $\text{AR}(1)$ + FDR e comparador multiescala de 2 regiões), o checklist de 10 pontos para auditoria de achados e o pitch de 20 segundos sobre rigor científico.
 
 ### 🛰️ Camada 3: Engenharia de Dados e APIs da NASA (`context/knowledge_data/`)
-11. **[`context/knowledge_data/NASA_POWER_API_SPECS.md`](file:///home/zrhyan/Principal/Computation/Space%20Apps/earth-system-detective-fliflop-34/context/knowledge_data/NASA_POWER_API_SPECS.md)** *(~4 KB)*
+11. **[`context/knowledge_data/00_INDICE_E_ARQUITETURA_DADOS.md`](file:///home/felipe-martins/dev/repository/earth-system-detective-fliflop-34/context/knowledge_data/00_INDICE_E_ARQUITETURA_DADOS.md)** *(~12 KB)*
+    - **Resumo:** Índice central e roteador de leitura seletiva da camada de dados. Mapeia por assunto e intervalo de linhas todas as especificações da NASA POWER API, a matriz de fontes de dados, o pipeline de ingestão/limpeza, as 7 Famílias Ambientais e as 5 regras invioláveis de engenharia de dados (`DADOS-1`).
+12. **[`context/knowledge_data/NASA_POWER_API_SPECS.md`](file:///home/felipe-martins/dev/repository/earth-system-detective-fliflop-34/context/knowledge_data/NASA_POWER_API_SPECS.md)** *(~5 KB)*
     - **Resumo:** Especificações técnicas validadas por `DADOS-1`: máscara oceânica (`-999` $\to$ `np.nan` + `nanmean`), exclusão de `YYYY13`, conversão de `PRECTOTCORR` (`mm/day` $\to$ `mm/mês`), limites de `/point` vs. `/regional` (`2°×2°` a `10°×10°`), *rate limit* (`30 req/min`, `Semaphore(3)`), composição livre de células adjacentes ($1\times 3$, $2\times 1$) e avaliação de Parquet vs. JSON.
-12. **[`context/knowledge_data/nasa_final_resources.md`](file:///home/zrhyan/Principal/Computation/Space%20Apps/earth-system-detective-fliflop-34/context/knowledge_data/nasa_final_resources.md)** *(~6 KB)*
+13. **[`context/knowledge_data/nasa_final_resources.md`](file:///home/felipe-martins/dev/repository/earth-system-detective-fliflop-34/context/knowledge_data/nasa_final_resources.md)** *(~6 KB)*
     - **Resumo:** Matriz de fontes (NASA POWER, AppEEARS, Open-Meteo GloFAS, NOAA CDO, Giovanni), camada de descoberta guiada por bioma e pipeline estatístico do backend.
-13. **[`context/knowledge_data/NASA_RESOURCES.md`](file:///home/zrhyan/Principal/Computation/Space%20Apps/earth-system-detective-fliflop-34/context/knowledge_data/NASA_RESOURCES.md)** *(~24 KB)*
+14. **[`context/knowledge_data/environmental_family.md`](file:///home/felipe-martins/dev/repository/earth-system-detective-fliflop-34/context/knowledge_data/environmental_family.md)** *(~11 KB)*
+    - **Resumo:** Catálogo completo das 7 Famílias Ambientais (39 entradas na UI / 42 códigos de parâmetros) com API/fonte, modo de operação (`Tempo Real`, `Fila / Cache`, `Validação / Demo`), unidade física e explicações para o usuário.
+15. **[`context/knowledge_data/NASA_RESOURCES.md`](file:///home/zrhyan/Principal/Computation/Space%20Apps/earth-system-detective-fliflop-34/context/knowledge_data/NASA_RESOURCES.md)** *(~24 KB)*
     - **Resumo:** Levantamento completo dos 13 recursos oficiais da aba *Resources* do desafio, formatos de arquivo e estimativas de volume.
 
 ### 🗺️ Camada 4: Mapas e Visualização Geoespacial (`context/knowledge_maps/`)
-14. **[`context/knowledge_maps/prod1_context.md`](file:///home/zrhyan/Principal/Computation/Space%20Apps/earth-system-detective-fliflop-34/context/knowledge_maps/prod1_context.md)**
+16. **[`context/knowledge_maps/prod1_context.md`](file:///home/zrhyan/Principal/Computation/Space%20Apps/earth-system-detective-fliflop-34/context/knowledge_maps/prod1_context.md)**
     - **Resumo:** Contexto técnico da frente de Mapas 2D (`PROD-1`).
 
 ---
@@ -133,8 +138,10 @@ Abaixo estão **todos os 9 documentos Markdown existentes atualmente no workspac
 
 | Status | Caminho Planejado / Criado | Papel do Documento | Responsável |
 | :---: | :--- | :--- | :---: |
+| ✅ *Criado* | `context/knowledge_data/00_INDICE_E_ARQUITETURA_DADOS.md` | Índice central e roteador de leitura seletiva da pasta `context/knowledge_data/`. | `DADOS-1` |
 | ✅ *Criado* | `context/knowledge_data/NASA_POWER_API_SPECS.md` | Regras técnicas validadas da NASA POWER API (`-999`, `YYYY13`, `mm/day`, `/point` vs `/regional`, `Semaphore(3)`, Parquet vs JSON). | `DADOS-1` |
 | ✅ *Criado* | `context/knowledge_data/nasa_final_resources.md` | Arquitetura de fontes de dados e pipeline de ingestão do backend. | `DADOS-1` |
+| ✅ *Criado* | `context/knowledge_data/environmental_family.md` | Catálogo das 7 Famílias Ambientais (códigos de API, modos, unidades e descrições para UI). | `DADOS-1` + `PROD-2` |
 | ✅ *Criado* | `context/knowledge_data/NASA_RESOURCES.md` | Catálogo dos recursos oficiais da NASA para o desafio. | `DADOS-1` |
 | ✅ *Criado* | `context/knowledge_maps/prod1_context.md` | Especificação e contexto da frente de Mapa 2D. | `PROD-1` |
 | ⏳ *Fase 1 (Sáb 10:30)* | `CONTRATO_DE_DADOS.md` | Especificação congelada do JSON entre Backend (`DADOS-1/2`) e Frontend (`PROD-1/2`). | `DADOS-1` + `PROD-1` |
