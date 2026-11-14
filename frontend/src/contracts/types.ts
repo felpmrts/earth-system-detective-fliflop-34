@@ -51,6 +51,7 @@ export interface GridOrigin {
 
 export interface VariableMetadata {
   readonly variable_id: VariableId;
+  readonly is_alias_of?: VariableId;
   readonly variable_name: string;
   readonly domain: string;
   readonly source_model: SourceModel;
