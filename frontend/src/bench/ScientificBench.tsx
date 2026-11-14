@@ -3,6 +3,7 @@ import createPlotlyComponent from 'react-plotly.js/factory';
 import Plotly from 'plotly.js-basic-dist-min';
 import { getVariableMetadata, VARIABLE_LIST } from '../contracts/catalog';
 import type { RegionAnalysisResponse, RegionSelection, VariableStatistics } from '../contracts/types';
+import { exportAnalysisAsCsv, exportAnalysisAsJson } from '../services/dataExporter';
 import {
   computeMahalanobisContourAndFit,
   CONFIDENCE_LABELS,
@@ -45,6 +46,47 @@ interface ScientificBenchProps {
 
 function formatPointValue(val: number | null | undefined): string {
   return val !== null && val !== undefined && Number.isFinite(val) ? val.toFixed(3) : '—';
+}
+
+function BenchExportActions({
+  disabled,
+  onExportCsv,
+  onExportJson,
+}: {
+  readonly disabled: boolean;
+  readonly onExportCsv: () => void;
+  readonly onExportJson: () => void;
+}) {
+  return (
+    <>
+      <button
+        type="button"
+        className="glossary-toggle export-action"
+        disabled={disabled}
+        onClick={onExportCsv}
+        title={
+          disabled
+            ? 'Realize uma análise para habilitar a exportação em CSV'
+            : 'Exportar séries temporais e resumo estatístico em CSV científico'
+        }
+      >
+        Exportar CSV
+      </button>
+      <button
+        type="button"
+        className="glossary-toggle export-action"
+        disabled={disabled}
+        onClick={onExportJson}
+        title={
+          disabled
+            ? 'Realize uma análise para habilitar a exportação em JSON'
+            : 'Exportar análise completa e metadados estruturados em JSON'
+        }
+      >
+        Exportar JSON
+      </button>
+    </>
+  );
 }
 
 function StatSummaryCard({
@@ -134,9 +176,22 @@ export function ScientificBench({
   const [showMahalanobis, setShowMahalanobis] = useState(true);
   const [showDiagnostics, setShowDiagnostics] = useState(true);
 
+  const exportOptions = {
+    regionA,
+    regionB,
+    startMonth: periodReady ? start : undefined,
+    endMonth: periodReady ? end : undefined,
+    analyzedAt,
+  };
+
   if (!analysis) {
     return (
       <section className="bench-panel" aria-label="Séries temporais">
+        <div className="bench-empty-bar">
+          <div className="bench-header-actions" role="group" aria-label="Exportação científica">
+            <BenchExportActions disabled onExportCsv={() => {}} onExportJson={() => {}} />
+          </div>
+        </div>
         <div className="bench-empty" role="status">
           <div className="bench-empty-icon" aria-hidden="true">⌁</div>
           <h2>Nenhuma análise realizada</h2>
@@ -422,6 +477,11 @@ export function ScientificBench({
             </p>
           </div>
           <div className="bench-header-actions">
+            <BenchExportActions
+              disabled={!analysis}
+              onExportCsv={() => exportAnalysisAsCsv(analysis, exportOptions)}
+              onExportJson={() => exportAnalysisAsJson(analysis, exportOptions)}
+            />
             <button
               type="button"
               className="glossary-toggle"
