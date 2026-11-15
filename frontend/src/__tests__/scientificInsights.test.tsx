@@ -447,7 +447,7 @@ describe('Scientific Insights Service & Bench Integration (Lag-Lead, Sazonal & 7
     expect(lagToggle?.getAttribute('aria-expanded')).toBe('true');
   });
 
-  it('updates bench-sections-toolbar counter, visible pills by viewMode, and toggles cards via pills', () => {
+  it('updates bench-sections-toolbar counter, visible pills by viewMode, and toggles cards via pills', async () => {
     const regionA = buildRegionSelection('A', 'GWETTOP', [snapCoordToCell(-15, -48, 'GWETTOP')]);
     const regionB = buildRegionSelection('B', 'T2M_MAX', [snapCoordToCell(-15, -48, 'T2M_MAX')]);
 
@@ -515,5 +515,21 @@ describe('Scientific Insights Service & Bench Integration (Lag-Lead, Sazonal & 7
     expect(container.querySelector('.copilot-drawer')).toBeNull();
     fireEvent.click(screen.getByRole('button', { name: /Statistical Co-Pilot/i }));
     expect(container.querySelector('.copilot-drawer')).toBeTruthy();
+
+    // Quick AI Summary button at the top of the bench opens/scrolls to Copilot and posts a simplified summary
+    const scrollSpy = vi.fn();
+    Element.prototype.scrollIntoView = scrollSpy;
+    fireEvent.click(screen.getByRole('button', { name: /Hide AI Co-Pilot/i }));
+    expect(container.querySelector('.copilot-drawer')).toBeNull();
+
+    const quickBtn = screen.getByTestId('quick-ai-summary-btn');
+    fireEvent.click(quickBtn);
+
+    await waitFor(() => {
+      const copilotEl = container.querySelector('.copilot-drawer');
+      expect(copilotEl).toBeTruthy();
+      expect(scrollSpy).toHaveBeenCalled();
+      expect(copilotEl?.textContent).toContain('Simple Summary');
+    });
   });
 });

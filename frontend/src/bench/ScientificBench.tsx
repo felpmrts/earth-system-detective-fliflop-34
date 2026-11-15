@@ -276,7 +276,7 @@ export function ScientificBench({
     shouldScrollCopilotRef.current = false;
     const copilotEl = copilotDrawerRef.current;
     if (typeof copilotEl?.scrollIntoView === 'function') {
-      copilotEl.scrollIntoView({ behavior: 'smooth', block: 'nearest' });
+      copilotEl.scrollIntoView({ behavior: 'smooth', block: 'start' });
     }
   }, [showCopilot]);
 
@@ -316,18 +316,32 @@ export function ScientificBench({
     }
   }
 
-  function handleExplainMlWithCopilot() {
+  function scrollToCopilotDrawer() {
     if (!showCopilot) {
       shouldScrollCopilotRef.current = true;
       setShowCopilot(true);
     } else if (typeof copilotDrawerRef.current?.scrollIntoView === 'function') {
-      copilotDrawerRef.current.scrollIntoView({ behavior: 'smooth', block: 'nearest' });
+      copilotDrawerRef.current.scrollIntoView({ behavior: 'smooth', block: 'start' });
     }
+  }
+
+  function handleExplainMlWithCopilot() {
+    scrollToCopilotDrawer();
     const promptText =
       copilotLang === 'en'
         ? 'Run ML discovery and explain the Layer 2 findings: AR(1) CUSUM regime break, partial ENSO/Atlantic ocean teleconnections (BH-FDR), detrended Ridge GCV + purged CV driver attribution, and ocean phases of Mahalanobis extremes.'
         : 'Execute a descoberta dinâmica ML e explique os achados da Camada 2: quebra de regime CUSUM AR(1), teleconexões oceânicas parciais (ENSO/Atlântico com BH-FDR), atribuição física Ridge GCV + purged CV e fases oceânicas dos extremos de Mahalanobis.';
     void submitCopilotQuestion(promptText);
+  }
+
+  function handleQuickAiSummary() {
+    if (!analysis || copilotLoading) return;
+    scrollToCopilotDrawer();
+    const promptText =
+      copilotLang === 'en'
+        ? 'Give me a simple, plain-language summary of the main statistical findings.'
+        : 'Faça um resumo simples e em linguagem acessível dos principais resultados estatísticos.';
+    void submitCopilotQuestion(promptText, { summaryMode: 'simple' });
   }
 
   function toggleCard(key: keyof typeof openCards) {
@@ -416,9 +430,13 @@ export function ScientificBench({
 
   const copilotSynthesis = buildClientCopilotResponse({ analysis, language: copilotLang });
 
-  async function submitCopilotQuestion(rawQuestion: string) {
+  async function submitCopilotQuestion(
+    rawQuestion: string,
+    options?: { readonly summaryMode?: 'standard' | 'simple' },
+  ) {
     const trimmed = rawQuestion.trim();
     if (!trimmed || copilotLoading || !analysis) return;
+    const summaryMode = options?.summaryMode;
 
     const nextHistory: CopilotHistoryTurn[] = [...copilotHistory, { role: 'user', content: trimmed }];
     setCopilotHistory(nextHistory);
@@ -429,6 +447,7 @@ export function ScientificBench({
         analysis,
         question: trimmed,
         language: copilotLang,
+        summary_mode: summaryMode,
         history: nextHistory,
       });
       setCopilotMeta({
@@ -449,6 +468,7 @@ export function ScientificBench({
         analysis,
         question: trimmed,
         language: copilotLang,
+        summary_mode: summaryMode,
       });
       setCopilotMeta({ mode: fallback.mode, model: fallback.model });
       setCopilotHistory(prev => [
@@ -1014,6 +1034,21 @@ export function ScientificBench({
             </p>
           </div>
           <div className="bench-header-actions">
+            <button
+              type="button"
+              data-testid="quick-ai-summary-btn"
+              className="glossary-toggle quick-ai-summary-btn"
+              disabled={copilotLoading}
+              onClick={handleQuickAiSummary}
+              title={
+                isEn
+                  ? 'Jump to the AI Co-Pilot and generate a plain-language summary of main stats'
+                  : 'Ir para o Co-Piloto IA e gerar um resumo simplificado dos principais dados'
+              }
+            >
+              <span className="quick-ai-summary-icon" aria-hidden="true">✦</span>
+              {isEn ? 'Simple AI Summary' : 'Resumo IA Simplificado'}
+            </button>
             <button
               type="button"
               data-testid="invariants-badge-btn"

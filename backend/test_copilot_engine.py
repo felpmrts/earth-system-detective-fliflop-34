@@ -301,6 +301,63 @@ class TestCopilotEngine(unittest.TestCase):
         self.assertIn("### Analysis", res_prose["reply_markdown"])
         self.assertIn("---", res_prose["reply_markdown"])
 
+    def test_simple_summary_mode_fast_compact_and_plain_language(self) -> None:
+        """summary_mode='simple' skips heavy tools, trims context to headline stats_engine metrics, and keeps invariants."""
+        from unittest.mock import patch
+
+        captured_payloads: list[Dict[str, Any]] = []
+
+        def fake_openrouter_simple(_url: str, payload: Dict[str, Any], _timeout: float) -> Dict[str, Any]:
+            captured_payloads.append(payload)
+            return {
+                "choices": [
+                    {
+                        "message": {
+                            "content": '{"direct_answer":"### Easy Overview\\n\\nMoisture dipped slightly over the period (+10% error).","reply_markdown":"### Easy Overview\\n\\nMoisture dipped slightly over the period (+10%)."}'
+                        }
+                    }
+                ]
+            }
+
+        with patch.dict(
+            os.environ,
+            {"GEMINI_API_KEY": "", "OPENROUTER_API_KEY": "sk-or-fake", "OPENROUTER_COPILOT_MODEL": "google/gemini-2.5-flash-lite"},
+        ):
+            res_simple = generate_copilot_response(
+                self.mock_analysis,
+                question="Summarize simply",
+                language="pt",
+                use_llm=True,
+                summary_mode="simple",
+                http_post_fn=fake_openrouter_simple,
+            )
+
+        self.assertEqual(len(captured_payloads), 1)
+        sent = captured_payloads[0]
+        self.assertNotIn("tools", sent)
+        self.assertEqual(sent["max_tokens"], 750)
+        # Prompt must contain headline stats_engine context, not verbose Mahalanobis outlier dicts
+        user_msg = sent["messages"][-1]["content"]
+        self.assertIn("slope_per_decade_sen", user_msg)
+        self.assertNotIn("attributed_physical_drivers", user_msg)
+        # Invariant #3 guardrail still blocks % on interval/bounded fraction variables
+        self.assertNotIn("10%", res_simple["reply_markdown"])
+
+        # Endpoint POST /api/copilot accepts summary_mode='simple' even in heuristic fallback
+        with tempfile.TemporaryDirectory() as tmpdir:
+            router = BackendRouter(cache=CellCacheStore(cache_dir=Path(tmpdir)))
+            status_ok, payload_ok = router.handle_post(
+                "/api/copilot",
+                {
+                    "analysis": self.mock_analysis,
+                    "question": "Simple overview",
+                    "language": "en",
+                    "summary_mode": "simple",
+                },
+            )
+        self.assertEqual(int(status_ok), 200)
+        self.assertIn("Simple Summary", payload_ok["reply_markdown"])
+
 
 if __name__ == "__main__":
     unittest.main()

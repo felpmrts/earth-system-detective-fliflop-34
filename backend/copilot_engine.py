@@ -98,6 +98,23 @@ Notice all newlines inside JSON string values MUST be escaped as \\n. If writing
 
 COPILOT_SYSTEM_PROMPT_PT = COPILOT_SYSTEM_PROMPT_EN
 
+COPILOT_SIMPLE_SYSTEM_PROMPT = """You are a friendly science communicator explaining "Earth System Trend Detective" (`stats_engine`) results in plain, accessible everyday language.
+
+RULES (NEVER BREAK THESE):
+1. Do NOT use endpoint-minus-start (`Y_end - Y_start`). Use the provided `slope_per_decade_sen` rate.
+2. If `allow_percentage_change` is false or `scale_type == "interval"`, NEVER use `%` for trends or changes; use the physical `trend_unit`.
+3. Do NOT write complex formulas or heavy statistical jargon. Briefly translate technical metrics into intuitive terms (e.g., explain whether a change is a real long-term shift or within natural year-to-year variability).
+4. Reply in the same language as the SCIENTIST QUESTION (English or Portuguese).
+5. Be concise (110–170 words total) structured in 3 short readable bullets or sections (`The Big Picture`, `Pace & Reliability`, `Extremes / Caution`, plus brief A vs B note if `comparison_pair` is present).
+
+FINAL OUTPUT FORMAT:
+Return ONLY a single valid compact JSON object:
+{
+  "direct_answer": "Friendly, well-spaced Markdown summary (use blank lines \\n\\n and bullets).",
+  "reply_markdown": "Same friendly Markdown summary.",
+  "suggested_questions": ["...", "...", "..."]
+}"""
+
 
 _REGIME_LABELS_EN: Dict[str, str] = {
     "linear": "persistent linear trend",
@@ -240,13 +257,84 @@ def _extract_region_summary(region: Dict[str, Any]) -> Dict[str, Any]:
     return summary
 
 
+def _extract_compact_overview(analysis: Mapping[str, Any]) -> Dict[str, Any]:
+    """Minimal headline summary of `stats_engine` outputs for fast, plain-language overviews."""
+    def _compact_reg(reg: Mapping[str, Any], region_id: Any) -> Dict[str, Any]:
+        period = reg.get("period") or {}
+        r = reg.get("regression") or {}
+        c = reg.get("correlation_and_coupling") or {}
+        s = reg.get("significance") or {}
+        outliers = reg.get("outliers_mahalanobis") or []
+        return {
+            "region_id": region_id,
+            "variable_id": reg.get("variable_id"),
+            "variable_name": reg.get("variable_name"),
+            "unit": reg.get("unit"),
+            "trend_unit": reg.get("trend_unit"),
+            "scale_type": reg.get("scale_type"),
+            "allow_percentage_change": bool(reg.get("allow_percentage_change", False)),
+            "period_start": period.get("start"),
+            "period_end": period.get("end"),
+            "n_months": period.get("n_observations"),
+            "n_effective_ar1": period.get("n_effective_ar1"),
+            "slope_per_decade_sen": r.get("slope_per_decade_sen"),
+            "slope_ci95_low": r.get("slope_ci95_low"),
+            "slope_ci95_high": r.get("slope_ci95_high"),
+            "regime_shape": r.get("regime_shape"),
+            "pearson_r": c.get("pearson_r"),
+            "p_value_ar1_corrected": s.get("p_value_ar1_corrected"),
+            "fdr_q_value": s.get("fdr_q_value"),
+            "is_significant_fdr05": bool(s.get("is_significant_fdr05", False)),
+            "confidence_tier": s.get("confidence_tier"),
+            "outliers_count": len(outliers) if isinstance(outliers, list) else 0,
+            "top_outlier_dates": [
+                o.get("date") for o in outliers[:2] if isinstance(o, dict) and o.get("date")
+            ],
+        }
+
+    meta = analysis.get("request_meta") or {}
+    reg_a = analysis.get("region_a_analysis")
+    if not isinstance(reg_a, dict):
+        raise ValueError("Payload 'analysis' must contain a valid 'region_a_analysis'.")
+
+    overview: Dict[str, Any] = {
+        "region_a": _compact_reg(reg_a, meta.get("region_a_id")),
+    }
+    reg_b = analysis.get("region_b_analysis")
+    if isinstance(reg_b, dict):
+        overview["region_b"] = _compact_reg(reg_b, meta.get("region_b_id"))
+    comp = analysis.get("comparison_pair")
+    if isinstance(comp, dict):
+        mc = comp.get("multiscale_correlation") or {}
+        overview["comparison_pair"] = {
+            "paradox_type": mc.get("paradox_type"),
+            "long_term_secular_r": mc.get("long_term_secular_r"),
+            "short_term_detrended_r": mc.get("short_term_detrended_r"),
+        }
+    return overview
+
+
 def build_copilot_prompt(
     analysis: Dict[str, Any],
     question: Optional[str] = None,
     language: str = "en",
+    summary_mode: str = "standard",
 ) -> str:
-    """Serializes the full statistical payload into a compact context (< 6 KB) for the LLM."""
-    lang = _normalize_language(language)
+    """Serializes the statistical payload into a compact context for the LLM."""
+    _ = _normalize_language(language)
+    is_simple = str(summary_mode or "standard").strip().lower() == "simple"
+
+    if is_simple:
+        compact_payload = _extract_compact_overview(analysis)
+        serialized = json.dumps(compact_payload, ensure_ascii=False, separators=(",", ":"))
+        user_q = (question or "").strip() or (
+            "Give a quick, plain-language summary of the headline findings."
+        )
+        return (
+            f"### HEADLINE STATS_ENGINE SUMMARY JSON\n```json\n{serialized}\n```\n\n"
+            f"### USER REQUEST\n{user_q}"
+        )
+
     reg_a = analysis.get("region_a_analysis")
     if not isinstance(reg_a, dict):
         raise ValueError("Payload 'analysis' must contain a valid 'region_a_analysis'.")
@@ -1242,6 +1330,8 @@ def _call_gemini_copilot(
     timeout_seconds: Optional[float] = None,
     cache: Optional[CellCacheStore] = None,
     language: str = "en",
+    disable_tools: bool = False,
+    max_tokens_override: Optional[int] = None,
     http_post_fn: Optional[Callable[[str, Dict[str, Any], float], Dict[str, Any]]] = None,
 ) -> Tuple[str, List[Dict[str, Any]]]:
     """Agentic query to the Gemini REST API with a Function Calling loop (up to 3 rounds)."""
@@ -1267,20 +1357,22 @@ def _call_gemini_copilot(
                 contents.append({"role": role, "parts": [{"text": text}]})
     contents.append({"role": "user", "parts": [{"text": user_prompt}]})
 
-    declarations = get_gemini_tool_declarations()
+    declarations = [] if disable_tools else get_gemini_tool_declarations()
     tools_used: List[Dict[str, Any]] = []
+    max_out = max_tokens_override or 2500
 
     for _round in range(MAX_TOOL_ROUNDS + 1):
         payload: Dict[str, Any] = {
             "system_instruction": {"parts": [{"text": system_prompt}]},
             "contents": contents,
-            "tools": [{"functionDeclarations": declarations}],
-            "toolConfig": {"functionCallingConfig": {"mode": "AUTO"}},
             "generationConfig": {
                 "temperature": 0.2,
-                "maxOutputTokens": 2500,
+                "maxOutputTokens": max_out,
             },
         }
+        if declarations:
+            payload["tools"] = [{"functionDeclarations": declarations}]
+            payload["toolConfig"] = {"functionCallingConfig": {"mode": "AUTO"}}
         data = poster(url, payload, timeout_seconds)
         candidates = data.get("candidates") or []
         content = (candidates[0].get("content") or {}) if candidates else {}
@@ -1345,6 +1437,8 @@ def _call_openrouter_copilot(
     history: Optional[List[Dict[str, str]]] = None,
     cache: Optional[CellCacheStore] = None,
     language: str = "pt",
+    disable_tools: bool = False,
+    max_tokens_override: Optional[int] = None,
     http_post_fn: Optional[Callable[[str, Dict[str, Any], float], Dict[str, Any]]] = None,
 ) -> Tuple[str, List[Dict[str, Any]]]:
     model = os.environ.get("OPENROUTER_COPILOT_MODEL", "deepseek/deepseek-chat").strip() or "deepseek/deepseek-chat"
@@ -1368,7 +1462,7 @@ def _call_openrouter_copilot(
                 messages.append({"role": role, "content": text})
     messages.append({"role": "user", "content": user_prompt})
 
-    declarations = get_gemini_tool_declarations()
+    declarations = [] if disable_tools else get_gemini_tool_declarations()
     openai_tools = [
         {
             "type": "function",
@@ -1381,16 +1475,18 @@ def _call_openrouter_copilot(
         for decl in declarations
     ]
     tools_used: List[Dict[str, Any]] = []
+    max_out = max_tokens_override or 2500
 
     for _round in range(MAX_TOOL_ROUNDS + 1):
         payload: Dict[str, Any] = {
             "model": model,
             "messages": messages,
-            "tools": openai_tools,
-            "tool_choice": "auto",
             "temperature": 0.2,
-            "max_tokens": 2500,
+            "max_tokens": max_out,
         }
+        if openai_tools:
+            payload["tools"] = openai_tools
+            payload["tool_choice"] = "auto"
         if http_post_fn is not None:
             data = http_post_fn(url, payload, timeout_seconds)
         else:
@@ -1494,6 +1590,65 @@ def _apply_invariant_guardrails(
     return out
 
 
+def _generate_simple_heuristic_summary(analysis: Dict[str, Any], requested_language: str) -> str:
+    """Plain-language summary derived directly from `stats_engine` headline metrics."""
+    overview = _extract_compact_overview(analysis)
+    a = overview["region_a"]
+    is_pt = str(requested_language or "en").strip().lower().startswith("pt")
+    sen = float(a.get("slope_per_decade_sen") or 0.0)
+    direction_en = "rising" if sen > 0 else "declining" if sen < 0 else "flat"
+    direction_pt = "em alta" if sen > 0 else "em queda" if sen < 0 else "estável"
+    sig = bool(a.get("is_significant_fdr05"))
+    outliers = int(a.get("outliers_count") or 0)
+    reg_b = overview.get("region_b")
+    comp = overview.get("comparison_pair")
+
+    if is_pt:
+        lines = [
+            f"### Resumo Simplificado — `{a['variable_id']}` ({a.get('period_start')} a {a.get('period_end')})",
+            f"- **O que está acontecendo:** Ao remover o efeito normal das estações do ano, a série está **{direction_pt}**, variando `{_fmt_signed(sen, 3)} {a['trend_unit']}`.",
+            f"- **Confiabilidade do sinal:** "
+            + (
+                f"O sinal **passa** no teste rigoroso contra memória temporal (`q_FDR = {_fmt_num(a.get('fdr_q_value'), 4)}`), indicando uma mudança consistente acima da oscilação natural."
+                if sig
+                else f"A mudança ainda **não se separa com folga** das variações naturais de ano para ano (`q_FDR = {_fmt_num(a.get('fdr_q_value'), 4)}`), exigindo cautela."
+            ),
+            f"- **Extremos e atenção:** Foram detectados **{outliers} mês(es) fora do padrão** (Mahalanobis). Como sempre em ciência climática, tendência indica direção média, não causalidade isolada.",
+        ]
+        if isinstance(reg_b, dict):
+            lines.append(
+                f"- **Comparação com Região B (`{reg_b['variable_id']}`):** Ritmo de `{_fmt_signed(reg_b.get('slope_per_decade_sen'), 3)} {reg_b['trend_unit']}`"
+                + (
+                    f" (`{comp.get('paradox_type')}`, correlação de curto prazo `{_fmt_signed(comp.get('short_term_detrended_r'), 2)}`)."
+                    if isinstance(comp, dict)
+                    else "."
+                )
+            )
+        return "\n\n".join(lines)
+
+    lines = [
+        f"### Simple Summary — `{a['variable_id']}` ({a.get('period_start')} to {a.get('period_end')})",
+        f"- **The Big Picture:** After removing regular seasonal swings, the indicator is **{direction_en}** at `{_fmt_signed(sen, 3)} {a['trend_unit']}`.",
+        f"- **Signal Reliability:** "
+        + (
+            f"This shift **passes** our strict check against natural year-to-year climate swings (`q_FDR = {_fmt_num(a.get('fdr_q_value'), 4)}`), pointing to a steady long-term change."
+            if sig
+            else f"This shift does **not yet stand clearly apart** from natural year-to-year swings (`q_FDR = {_fmt_num(a.get('fdr_q_value'), 4)}`), so interpret it with caution."
+        ),
+        f"- **Extremes & Caution:** **{outliers} unusual month(s)** stood out outside the normal envelope. Remember: an observed trend shows direction, not standalone cause.",
+    ]
+    if isinstance(reg_b, dict):
+        lines.append(
+            f"- **Region B Comparison (`{reg_b['variable_id']}`):** Moving at `{_fmt_signed(reg_b.get('slope_per_decade_sen'), 3)} {reg_b['trend_unit']}`"
+            + (
+                f" (`{comp.get('paradox_type')}`, short-term link `{_fmt_signed(comp.get('short_term_detrended_r'), 2)}`)."
+                if isinstance(comp, dict)
+                else "."
+            )
+        )
+    return "\n\n".join(lines)
+
+
 def generate_copilot_response(
     analysis: Dict[str, Any],
     question: Optional[str] = None,
@@ -1501,6 +1656,7 @@ def generate_copilot_response(
     history: Optional[List[Dict[str, str]]] = None,
     use_llm: bool = True,
     cache: Optional[CellCacheStore] = None,
+    summary_mode: str = "standard",
     http_post_fn: Optional[Callable[[str, Dict[str, Any], float], Dict[str, Any]]] = None,
 ) -> Dict[str, Any]:
     """
@@ -1511,15 +1667,32 @@ def generate_copilot_response(
     """
     _ensure_env_loaded()
     lang = _normalize_language(language)
+    is_simple = str(summary_mode or "standard").strip().lower() == "simple"
     heuristic = generate_heuristic_synthesis(analysis, question=question, language=lang, cache=cache)
+    if is_simple:
+        simple_text = _generate_simple_heuristic_summary(analysis, requested_language=language)
+        heuristic["answer"] = simple_text
+        heuristic["reply_markdown"] = simple_text
+
     gemini_key = os.environ.get("GEMINI_API_KEY", "").strip()
     openrouter_key = os.environ.get("OPENROUTER_API_KEY", "").strip()
 
     if not use_llm or (not gemini_key and not openrouter_key):
-        return heuristic
+        return _apply_invariant_guardrails(heuristic, analysis, lang) if is_simple else heuristic
 
-    system_prompt = COPILOT_SYSTEM_PROMPT_EN if lang == "en" else COPILOT_SYSTEM_PROMPT_PT
-    user_prompt = build_copilot_prompt(analysis, question=question, language=lang)
+    system_prompt = (
+        COPILOT_SIMPLE_SYSTEM_PROMPT
+        if is_simple
+        else (COPILOT_SYSTEM_PROMPT_EN if lang == "en" else COPILOT_SYSTEM_PROMPT_PT)
+    )
+    user_prompt = build_copilot_prompt(
+        analysis,
+        question=question,
+        language=lang,
+        summary_mode="simple" if is_simple else "standard",
+    )
+    llm_history = None if is_simple else history
+    token_limit = 750 if is_simple else None
 
     try:
         if gemini_key:
@@ -1528,9 +1701,11 @@ def generate_copilot_response(
                 user_prompt,
                 gemini_key,
                 analysis,
-                history=history,
+                history=llm_history,
                 cache=cache,
                 language=lang,
+                disable_tools=is_simple,
+                max_tokens_override=token_limit,
                 http_post_fn=http_post_fn,
             )
             active_model = os.environ.get("GEMINI_COPILOT_MODEL", "gemini-2.5-flash")
@@ -1540,9 +1715,11 @@ def generate_copilot_response(
                 user_prompt,
                 openrouter_key,
                 analysis,
-                history=history,
+                history=llm_history,
                 cache=cache,
                 language=lang,
+                disable_tools=is_simple,
+                max_tokens_override=token_limit,
                 http_post_fn=http_post_fn,
             )
             active_model = os.environ.get("OPENROUTER_COPILOT_MODEL", "deepseek/deepseek-chat")

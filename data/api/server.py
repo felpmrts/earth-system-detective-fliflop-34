@@ -138,6 +138,7 @@ class BackendRouter:
                     language=str(body.get("language") or "en"),
                     history=body.get("history"),
                     cache=self.cache,
+                    summary_mode=str(body.get("summary_mode") or "standard"),
                 )
                 if analysis_key:
                     response["analysis_key"] = analysis_key

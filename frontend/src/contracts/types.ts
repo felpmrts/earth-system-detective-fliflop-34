@@ -291,6 +291,7 @@ export interface CopilotRequest {
   readonly analysis_key?: string;
   readonly question?: string;
   readonly language?: 'pt' | 'en';
+  readonly summary_mode?: 'standard' | 'simple';
   readonly history?: readonly CopilotHistoryTurn[];
 }
 

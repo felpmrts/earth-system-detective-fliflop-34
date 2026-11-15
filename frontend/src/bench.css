@@ -734,6 +734,23 @@ main.story-mode section {
   box-shadow: 0 0 0 1px rgba(103, 232, 249, .4), 0 0 24px rgba(34, 211, 238, .34);
 }
 .glossary-toggle.copilot-toggle-active { font-weight: 700; }
+.glossary-toggle.quick-ai-summary-btn {
+  order: -2;
+  font-weight: 700;
+  padding: .45rem .9rem;
+  color: #f5f3ff;
+  border-color: rgba(167, 139, 250, .75);
+  background: linear-gradient(135deg, rgba(91, 33, 182, .65) 0%, rgba(14, 116, 144, .55) 100%);
+  box-shadow: 0 0 0 1px rgba(167, 139, 250, .24), 0 0 16px rgba(139, 92, 246, .22);
+}
+.glossary-toggle.quick-ai-summary-btn:hover:not(:disabled) {
+  border-color: #c4b5fd;
+  color: #ffffff;
+  background: linear-gradient(135deg, rgba(109, 40, 217, .82) 0%, rgba(8, 145, 178, .72) 100%);
+  box-shadow: 0 0 0 1px rgba(196, 181, 253, .42), 0 0 22px rgba(139, 92, 246, .35);
+}
+.glossary-toggle.quick-ai-summary-btn:disabled { opacity: .55; cursor: not-allowed; }
+.quick-ai-summary-icon { font-size: .82rem; color: #ddd6fe; }
 .copilot-toggle-dot {
   width: .5rem;
   height: .5rem;

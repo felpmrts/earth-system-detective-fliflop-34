@@ -361,6 +361,7 @@ export function createRegionDataAdapter(overrides: Partial<AdapterConfig> = {}) 
     const { controller, cleanup } = createLinkedController(params.signal, 90000);
 
     const postCopilot = async (includeFullAnalysis: boolean) => {
+      const modeExtras = params.summary_mode === 'simple' ? { summary_mode: 'simple' as const } : {};
       const payload =
         !includeFullAnalysis && knownKey
           ? {
@@ -368,6 +369,7 @@ export function createRegionDataAdapter(overrides: Partial<AdapterConfig> = {}) 
               question: params.question?.trim() || undefined,
               language: params.language ?? 'pt',
               history: compactHistory,
+              ...modeExtras,
             }
           : {
               analysis: params.analysis,
@@ -375,6 +377,7 @@ export function createRegionDataAdapter(overrides: Partial<AdapterConfig> = {}) 
               question: params.question?.trim() || undefined,
               language: params.language ?? 'pt',
               history: compactHistory,
+              ...modeExtras,
             };
 
       return config.fetchFn(`${config.apiBaseUrl}/api/copilot`, {
@@ -536,6 +539,7 @@ export interface AskCopilotParams {
   readonly analysis: RegionAnalysisResponse;
   readonly question?: string;
   readonly language?: 'pt' | 'en';
+  readonly summary_mode?: 'standard' | 'simple';
   readonly history?: readonly CopilotHistoryTurn[];
   readonly signal?: AbortSignal;
 }
@@ -848,15 +852,72 @@ export function buildClientCopilotResponse(params: AskCopilotParams): CopilotRes
         ? `AR(1)-corrected significance passed FDR threshold, yet correlation/trend rates never prove standalone physical causality without dynamical attribution.`
         : `Embora a significância corrigida por AR(1) supere o limiar FDR, tendências e correlações não provam causalidade física isolada sem análise de processos acoplados.`;
 
-  const question = params.question?.trim() ?? '';
-  const answer = question ? enforceIntervalGuardrail(answerQuestionFromAnalysis(question, analysis, lang), analysis) : null;
+  const isSimpleSummary = params.summary_mode === 'simple';
+  const senA = regA.regression.slope_per_decade_sen;
+  const dirLabel =
+    lang === 'pt'
+      ? senA > 0
+        ? 'em alta'
+        : senA < 0
+          ? 'em queda'
+          : 'estável'
+      : senA > 0
+        ? 'rising'
+        : senA < 0
+          ? 'declining'
+          : 'flat';
 
-  const reply_markdown = [
-    enforceIntervalGuardrail(mathematical_evidence, analysis),
-    enforceIntervalGuardrail(physical_meaning, analysis),
-    enforceIntervalGuardrail(false_conclusion_risk, analysis),
-    ...(answer ? [answer] : []),
-  ].join('\n\n');
+  const simpleSummaryMarkdown = isSimpleSummary
+    ? enforceIntervalGuardrail(
+        lang === 'pt'
+          ? [
+              `### Resumo Simplificado — \`${regA.variable_id}\` (${regA.period.start} a ${regA.period.end})`,
+              `- **O que está acontecendo:** Removendo o ciclo normal das estações, o indicador está **${dirLabel}** a \`${fmtSigned(senA, 3)} ${regA.trend_unit}\`.`,
+              `- **Confiabilidade do sinal:** ${
+                regA.significance.is_significant_fdr05
+                  ? `Passa no filtro rigoroso contra memória temporal (\`q_FDR = ${fmtPVal(regA.significance.fdr_q_value)}\`), indicando mudança consistente além da oscilação natural.`
+                  : `Ainda não se destaca com segurança das variações naturais (\`q_FDR = ${fmtPVal(regA.significance.fdr_q_value)}\`), exigindo cautela.`
+              }`,
+              `- **Extremos e atenção:** **${regA.outliers_mahalanobis.length} mês(es) extremo(s)** identificados.${
+                regB
+                  ? ` Região B (\`${regB.variable_id}\`) varia a \`${fmtSigned(regB.regression.slope_per_decade_sen, 3)} ${regB.trend_unit}\`.`
+                  : ''
+              }`,
+            ].join('\n\n')
+          : [
+              `### Simple Summary — \`${regA.variable_id}\` (${regA.period.start} to ${regA.period.end})`,
+              `- **The Big Picture:** After stripping normal seasonal swings, the indicator is **${dirLabel}** at \`${fmtSigned(senA, 3)} ${regA.trend_unit}\`.`,
+              `- **Signal Reliability:** ${
+                regA.significance.is_significant_fdr05
+                  ? `It passes our strict persistence check (\`q_FDR = ${fmtPVal(regA.significance.fdr_q_value)}\`), pointing to a steady long-term shift beyond natural variability.`
+                  : `It does not yet stand clearly apart from natural year-to-year variability (\`q_FDR = ${fmtPVal(regA.significance.fdr_q_value)}\`), so interpret carefully.`
+              }`,
+              `- **Extremes & Caution:** **${regA.outliers_mahalanobis.length} unusual month(s)** flagged outside the main trend envelope.${
+                regB
+                  ? ` Region B (\`${regB.variable_id}\`) moves at \`${fmtSigned(regB.regression.slope_per_decade_sen, 3)} ${regB.trend_unit}\`.`
+                  : ''
+              }`,
+            ].join('\n\n'),
+        analysis,
+        lang,
+      )
+    : null;
+
+  const question = params.question?.trim() ?? '';
+  const answer = simpleSummaryMarkdown
+    ? simpleSummaryMarkdown
+    : question
+      ? enforceIntervalGuardrail(answerQuestionFromAnalysis(question, analysis, lang), analysis, lang)
+      : null;
+
+  const reply_markdown = simpleSummaryMarkdown
+    ? simpleSummaryMarkdown
+    : [
+        enforceIntervalGuardrail(mathematical_evidence, analysis, lang),
+        enforceIntervalGuardrail(physical_meaning, analysis, lang),
+        enforceIntervalGuardrail(false_conclusion_risk, analysis, lang),
+        ...(answer ? [answer] : []),
+      ].join('\n\n');
 
   return {
     synthesis: {
