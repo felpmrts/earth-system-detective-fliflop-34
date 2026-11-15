@@ -10,7 +10,16 @@ import type {
   VariableId,
 } from '../contracts/types.ts';
 
-export const MAX_CELLS_PER_REGION = 25;
+const DEFAULT_MAX_CELLS_PER_REGION = 25;
+
+function resolveMaxCellsPerRegion(): number {
+  const env = (import.meta as { env?: Record<string, string | undefined> }).env;
+  const raw = env?.VITE_MAX_CELLS_PER_REGION;
+  const parsed = raw ? Number.parseInt(raw, 10) : Number.NaN;
+  return Number.isInteger(parsed) && parsed >= 1 ? parsed : DEFAULT_MAX_CELLS_PER_REGION;
+}
+
+export const MAX_CELLS_PER_REGION = resolveMaxCellsPerRegion();
 
 export interface CellToggleResult {
   readonly ok: boolean;
