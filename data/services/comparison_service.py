@@ -895,10 +895,10 @@ def _parse_contract_region(
             f"Selecione pelo menos 1 retângulo no mapa para o {slot_name}.",
             400,
         )
-    if len(raw_cells) > 9:
+    if len(raw_cells) > 25:
         raise ContractSemanticError(
             "MAX_CELLS_EXCEEDED",
-            f"O {slot_name} possui {len(raw_cells)} retângulos selecionados, mas o limite máximo é de 9 retângulos adjacentes por região.",
+            f"O {slot_name} possui {len(raw_cells)} retângulos selecionados, mas o limite máximo é de 25 retângulos adjacentes por região.",
         )
     spec = get_variable_spec(backend_var_code)
     grid_contracts = {

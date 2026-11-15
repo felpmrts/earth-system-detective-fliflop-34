@@ -6,6 +6,9 @@ from dataclasses import dataclass
 from typing import Any
 
 
+MAX_CELLS_PER_REGION = 25
+
+
 @dataclass(frozen=True)
 class CellCoord:
     """Coordenada geográfica de uma célula selecionada no mapa."""
@@ -32,8 +35,10 @@ class LocationQuery:
     station_id: str | None = None
 
     def __post_init__(self) -> None:
-        if not (1 <= len(self.cells) <= 9):
-            raise ValueError(f"Local '{self.name}' deve possuir entre 1 e 9 células adjacentes.")
+        if not (1 <= len(self.cells) <= MAX_CELLS_PER_REGION):
+            raise ValueError(
+                f"Local '{self.name}' deve possuir entre 1 e {MAX_CELLS_PER_REGION} células adjacentes."
+            )
         self.get_variables()  # valida imediatamente na criação
 
     def get_variables(self) -> list[str]:
