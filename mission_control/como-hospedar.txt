@@ -17,7 +17,7 @@ Escolha qualquer uma das três opções abaixo executando o comando dentro da pa
 
 Opção A — Via Python 3 (http.server) (Recomendado — Zero instalação)
 bash
-python3 -m http.server 8080 --bind 0.0.0.0 --directory "/home/zrhyan/Principal/Computation/Space Apps/general_strategy"
+python3 -m http.server 8080 --bind 0.0.0.0 --directory "/home/zrhyan/Principal/Computation/Space Apps/mission_control"
 Opção B — Via Node.js (npx serve)
 bash
-npx serve -l tcp://0.0.0.0:8080 "/home/zrhyan/Principal/Computation/Space Apps/general_strategy"
+npx serve -l tcp://0.0.0.0:8080 "/home/zrhyan/Principal/Computation/Space Apps/mission_control"
