@@ -7,6 +7,7 @@ import { validateAnalysisResponse, validateGlobalGrid } from '../contracts/contr
 import type {
   CopilotHistoryTurn,
   CopilotResponse,
+  CopilotToolExecution,
   DataMode,
   GlobalGridFile,
   RegionAnalysisRequest,
@@ -334,6 +335,8 @@ export function createRegionDataAdapter(overrides: Partial<AdapterConfig> = {}) 
     return raw as BackendCatalog;
   }
 
+  const cachedAnalysisKeys = new WeakMap<RegionAnalysisResponse, string>();
+
   async function askStatisticalCopilot(params: AskCopilotParams): Promise<CopilotResponse> {
     const baseline = buildClientCopilotResponse(params);
     if (config.mode === 'offline') {
@@ -343,22 +346,50 @@ export function createRegionDataAdapter(overrides: Partial<AdapterConfig> = {}) 
       return baseline;
     }
 
-    const { controller, cleanup } = createLinkedController(params.signal, 12000);
-    try {
-      const res = await config.fetchFn(`${config.apiBaseUrl}/api/copilot`, {
+    const compactHistory = params.history?.slice(-6).map(turn => ({
+      role: turn.role,
+      content: turn.content,
+    }));
+    const knownKey = cachedAnalysisKeys.get(params.analysis);
+    const { controller, cleanup } = createLinkedController(params.signal, 15000);
+
+    const postCopilot = async (includeFullAnalysis: boolean) => {
+      const payload =
+        !includeFullAnalysis && knownKey
+          ? {
+              analysis_key: knownKey,
+              question: params.question?.trim() || undefined,
+              language: params.language ?? 'pt',
+              history: compactHistory,
+            }
+          : {
+              analysis: params.analysis,
+              ...(knownKey ? { analysis_key: knownKey } : {}),
+              question: params.question?.trim() || undefined,
+              language: params.language ?? 'pt',
+              history: compactHistory,
+            };
+
+      return config.fetchFn(`${config.apiBaseUrl}/api/copilot`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-          analysis: params.analysis,
-          question: params.question?.trim() || undefined,
-          language: params.language ?? 'pt',
-          history: params.history,
-        }),
+        body: JSON.stringify(payload),
         signal: controller.signal,
       });
+    };
+
+    try {
+      let res = await postCopilot(!knownKey);
+      if (res.status === 404 && knownKey) {
+        res = await postCopilot(true);
+      }
       if (!res.ok) return baseline;
       const raw: unknown = await res.json();
-      return adaptServerCopilotPayload(raw, baseline);
+      const adapted = adaptServerCopilotPayload(raw, baseline);
+      if (adapted.analysis_key) {
+        cachedAnalysisKeys.set(params.analysis, adapted.analysis_key);
+      }
+      return adapted;
     } catch (err) {
       if (params.signal?.aborted) throw err;
       return baseline;
@@ -716,14 +747,54 @@ export function buildClientCopilotResponse(params: AskCopilotParams): CopilotRes
   };
 }
 
+function adaptToolsUsed(rawTools: unknown): readonly CopilotToolExecution[] | undefined {
+  if (!Array.isArray(rawTools)) return undefined;
+  const parsed: CopilotToolExecution[] = [];
+  for (const entry of rawTools) {
+    if (!entry || typeof entry !== 'object') continue;
+    const item = entry as Record<string, unknown>;
+    if (typeof item.name === 'string' && typeof item.label === 'string') {
+      parsed.push({
+        name: item.name,
+        label: item.label,
+        summary: typeof item.summary === 'string' ? item.summary : '',
+        status:
+          item.status === 'unavailable' || item.status === 'error' ? item.status : 'ok',
+        duration_ms: typeof item.duration_ms === 'number' ? item.duration_ms : 0,
+      });
+    }
+  }
+  return parsed.length > 0 ? parsed : undefined;
+}
+
 function adaptServerCopilotPayload(raw: unknown, fallback: CopilotResponse): CopilotResponse {
   if (!raw || typeof raw !== 'object') return fallback;
   const obj = raw as Record<string, unknown>;
+  const toolsUsed = adaptToolsUsed(obj.tools_used);
+  const analysisKey = typeof obj.analysis_key === 'string' ? obj.analysis_key : undefined;
+  const guardrails = Array.isArray(obj.guardrails_applied)
+    ? (obj.guardrails_applied as string[])
+    : fallback.guardrails_applied;
+  const invariantWarnings = Array.isArray(obj.invariant_warnings)
+    ? (obj.invariant_warnings as string[])
+    : undefined;
+  const serverMode: CopilotResponse['mode'] =
+    obj.mode === 'llm_gemini'
+      ? 'llm_gemini'
+      : obj.mode === 'heuristic_fallback'
+        ? 'heuristic_fallback'
+        : fallback.mode;
+
   if (obj.synthesis && typeof obj.synthesis === 'object' && typeof obj.reply_markdown === 'string') {
     const synth = obj.synthesis as Record<string, unknown>;
+    const serverAnswer =
+      typeof obj.answer === 'string' && obj.answer.trim()
+        ? obj.answer
+        : obj.reply_markdown;
     return {
       ...fallback,
       ...(obj as Partial<CopilotResponse>),
+      mode: serverMode,
       synthesis: {
         mathematical_evidence:
           typeof synth.mathematical_evidence === 'string'
@@ -738,31 +809,37 @@ function adaptServerCopilotPayload(raw: unknown, fallback: CopilotResponse): Cop
             ? synth.false_conclusion_risk
             : fallback.synthesis.false_conclusion_risk,
       },
-      answer: typeof obj.answer === 'string' ? obj.answer : fallback.answer,
+      answer: serverAnswer,
+      guardrails_applied: guardrails,
+      invariant_warnings: invariantWarnings,
+      tools_used: toolsUsed,
+      analysis_key: analysisKey,
     };
   }
   const four = (obj.four_answers ?? undefined) as CopilotResponse['four_answers'];
   const replyMarkdown = typeof obj.reply_markdown === 'string' ? obj.reply_markdown : fallback.reply_markdown;
   if (!four) return fallback;
+  const serverAnswer =
+    typeof obj.answer === 'string' && obj.answer.trim() ? obj.answer : replyMarkdown;
   return {
     synthesis: {
       mathematical_evidence: `${four.how_much}\n${four.is_significant}`,
       physical_meaning: `${four.what} (${four.where})`,
       false_conclusion_risk: fallback.synthesis.false_conclusion_risk,
     },
-    answer: fallback.answer ?? replyMarkdown,
+    answer: serverAnswer,
     reply_markdown: replyMarkdown,
     language: obj.language === 'en' ? 'en' : 'pt',
-    mode: obj.mode === 'llm_gemini' ? 'llm_gemini' : 'heuristic_fallback',
+    mode: serverMode,
     model: typeof obj.model === 'string' ? obj.model : 'backend-copilot',
     four_answers: four,
     suggested_questions: Array.isArray(obj.suggested_questions)
       ? (obj.suggested_questions as string[])
       : fallback.suggested_questions,
-    guardrails_applied: fallback.guardrails_applied,
-    invariant_warnings: Array.isArray(obj.invariant_warnings)
-      ? (obj.invariant_warnings as string[])
-      : undefined,
+    guardrails_applied: guardrails,
+    invariant_warnings: invariantWarnings,
+    tools_used: toolsUsed,
+    analysis_key: analysisKey,
   };
 }
 

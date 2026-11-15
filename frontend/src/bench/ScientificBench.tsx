@@ -190,6 +190,7 @@ export function ScientificBench({
   const [copilotMeta, setCopilotMeta] = useState<{
     readonly mode: CopilotResponse['mode'];
     readonly model: string;
+    readonly warnings?: readonly string[];
   } | null>(null);
 
   useEffect(() => {
@@ -241,10 +242,18 @@ export function ScientificBench({
         language: copilotLang,
         history: nextHistory,
       });
-      setCopilotMeta({ mode: response.mode, model: response.model });
+      setCopilotMeta({
+        mode: response.mode,
+        model: response.model,
+        warnings: response.invariant_warnings,
+      });
       setCopilotHistory(prev => [
         ...prev,
-        { role: 'assistant', content: response.answer ?? response.reply_markdown },
+        {
+          role: 'assistant',
+          content: response.answer ?? response.reply_markdown,
+          tools_used: response.tools_used,
+        },
       ]);
     } catch {
       const fallback = buildClientCopilotResponse({
@@ -991,9 +1000,13 @@ export function ScientificBench({
               <span className="copilot-badge">
                 {copilotMeta?.mode === 'llm_gemini'
                   ? `${copilotMeta.model} · Invariantes Auditados`
-                  : copilotLang === 'en'
-                    ? 'Deterministic Engine · Zero Numeric Hallucination'
-                    : 'Motor Determinístico · Zero Alucinação Numérica'}
+                  : copilotMeta?.mode === 'heuristic_fallback'
+                    ? copilotLang === 'en'
+                      ? 'Backend Deterministic + Python Tools'
+                      : 'Motor Python + Engines Científicas'
+                    : copilotLang === 'en'
+                      ? 'Deterministic Engine · Zero Numeric Hallucination'
+                      : 'Motor Determinístico · Zero Alucinação Numérica'}
               </span>
             </div>
             <div className="copilot-lang-switch" role="group" aria-label="Idioma do Co-Piloto">
@@ -1056,6 +1069,11 @@ export function ScientificBench({
           </div>
 
           <div className="copilot-chat-box">
+            {copilotMeta?.warnings && copilotMeta.warnings.length > 0 && (
+              <p className="copilot-invariant-alert" role="status">
+                {copilotMeta.warnings.join(' · ')}
+              </p>
+            )}
             {copilotHistory.length > 0 && (
               <div className="copilot-messages" aria-live="polite">
                 {copilotHistory.map((turn, idx) => (
@@ -1071,6 +1089,19 @@ export function ScientificBench({
                         : 'Co-Piloto: '}
                     </strong>
                     {turn.content}
+                    {turn.role === 'assistant' && turn.tools_used && turn.tools_used.length > 0 && (
+                      <div className="copilot-tools-audit" aria-label="Engines científicas executadas">
+                        {turn.tools_used.map((tool, tIdx) => (
+                          <span
+                            key={`${tool.name}-${tIdx}`}
+                            className={`copilot-tool-pill copilot-tool-${tool.status}`}
+                            title={`${tool.name} (${tool.duration_ms.toFixed(1)} ms)`}
+                          >
+                            {tool.label} · {tool.summary} ({tool.duration_ms.toFixed(0)} ms)
+                          </span>
+                        ))}
+                      </div>
+                    )}
                   </div>
                 ))}
                 {copilotLoading && (

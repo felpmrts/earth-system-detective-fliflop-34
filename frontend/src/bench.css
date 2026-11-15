@@ -471,3 +471,41 @@ button:focus-visible, a:focus-visible, summary:focus-visible, input:focus-visibl
   opacity: .45;
   cursor: not-allowed;
 }
+
+.copilot-tools-audit {
+  display: flex;
+  flex-wrap: wrap;
+  gap: .35rem;
+  margin-top: .5rem;
+  padding-top: .45rem;
+  border-top: 1px dashed #243852;
+}
+
+.copilot-tool-pill {
+  display: inline-flex;
+  align-items: center;
+  font-size: .72rem;
+  line-height: 1.3;
+  padding: .18rem .52rem;
+  border-radius: 999px;
+  background: rgba(14, 165, 233, .14);
+  border: 1px solid rgba(56, 189, 248, .38);
+  color: #bae6fd;
+}
+
+.copilot-tool-unavailable,
+.copilot-tool-error {
+  background: rgba(245, 158, 11, .14);
+  border-color: rgba(251, 191, 36, .42);
+  color: #fde68a;
+}
+
+.copilot-invariant-alert {
+  margin: 0 0 .45rem;
+  padding: .4rem .65rem;
+  border-radius: 7px;
+  font-size: .76rem;
+  color: #fde68a;
+  background: rgba(217, 119, 6, .16);
+  border: 1px solid rgba(251, 191, 36, .38);
+}

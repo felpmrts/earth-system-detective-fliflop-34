@@ -8,6 +8,10 @@ from .copilot_engine import (
     generate_heuristic_synthesis,
     sanitize_interval_scale_percentages,
 )
+from .copilot_tools import (
+    execute_copilot_tool,
+    get_gemini_tool_declarations,
+)
 from .stats_engine import (
      SemanticContractError,
     VARIABLE_CATALOG,
@@ -31,6 +35,8 @@ from .stats_engine import (
 __all__ = [
     "COPILOT_SYSTEM_PROMPT_EN",
     "COPILOT_SYSTEM_PROMPT_PT",
+    "execute_copilot_tool",
+    "get_gemini_tool_declarations",
     "SemanticContractError",
     "VARIABLE_CATALOG",
     "aggregate_cells_nanmean",

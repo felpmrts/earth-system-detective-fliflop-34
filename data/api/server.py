@@ -4,6 +4,7 @@ Endpoints:
 - GET  /api/health
 - GET  /api/catalog
 - POST /api/analyze        (Contrato oficial `RegionAnalysisRequest -> RegionAnalysisResponse`)
+- POST /api/copilot        (Co-Piloto Estatístico Agêntico — Prompt + 7 Invariantes + Tools)
 - POST /api/location/fetch
 - POST /api/compare
 
@@ -17,6 +18,8 @@ import argparse
 import json
 import os
 import sys
+from collections import OrderedDict
+import hashlib
 from http import HTTPStatus
 from http.server import BaseHTTPRequestHandler, ThreadingHTTPServer
 from pathlib import Path
@@ -27,6 +30,7 @@ _REPO_ROOT = str(Path(__file__).resolve().parents[2])
 if _REPO_ROOT not in sys.path:
     sys.path.insert(0, _REPO_ROOT)
 
+from backend.copilot_engine import generate_copilot_response
 from data.cache.store import CellCacheStore
 from data.catalog.environmental_catalog import get_catalog_tree
 from data.models.contracts import LocationQuery
@@ -47,6 +51,33 @@ class BackendRouter:
 
     def __init__(self, cache: CellCacheStore | None = None) -> None:
         self.cache = cache or CellCacheStore()
+        self._analysis_cache: OrderedDict[str, dict[str, Any]] = OrderedDict()
+
+    @staticmethod
+    def compute_analysis_key(analysis: dict[str, Any]) -> str:
+        meta = analysis.get("request_meta") or {}
+        reg_a = analysis.get("region_a_analysis") or {}
+        reg_b = analysis.get("region_b_analysis") or {}
+        per_a = reg_a.get("period") or {}
+        comp = analysis.get("comparison_pair") or {}
+        raw_sig = "|".join([
+            str(reg_a.get("variable_id") or meta.get("variable_a") or ""),
+            str(reg_b.get("variable_id") or meta.get("variable_b") or ""),
+            str(comp.get("region_a_id") or meta.get("region_a_id") or ""),
+            str(comp.get("region_b_id") or meta.get("region_b_id") or ""),
+            str(per_a.get("start") or ""),
+            str(per_a.get("end") or ""),
+            str(per_a.get("n_observations") or ""),
+        ])
+        return hashlib.sha1(raw_sig.encode("utf-8")).hexdigest()[:16]
+
+    def _remember_analysis(self, analysis: dict[str, Any], explicit_key: str | None = None) -> str:
+        key = explicit_key or self.compute_analysis_key(analysis)
+        self._analysis_cache[key] = analysis
+        self._analysis_cache.move_to_end(key)
+        while len(self._analysis_cache) > 16:
+            self._analysis_cache.popitem(last=False)
+        return key
 
     def handle_get(self, path: str) -> tuple[int, dict[str, Any]]:
         if path == "/api/health":
@@ -76,8 +107,38 @@ class BackendRouter:
         try:
             if path == "/api/analyze":
                 result = analyze_regions_contract(body, cache=self.cache)
+                self._remember_analysis(result)
                 self._log_analyze_success(result)
                 return HTTPStatus.OK, result
+
+            if path == "/api/copilot":
+                analysis = body.get("analysis")
+                analysis_key = str(body.get("analysis_key") or "").strip() or None
+                if isinstance(analysis, dict) and isinstance(
+                    analysis.get("region_a_analysis"), dict
+                ):
+                    analysis_key = self._remember_analysis(analysis, explicit_key=analysis_key)
+                elif analysis_key and analysis_key in self._analysis_cache:
+                    analysis = self._analysis_cache[analysis_key]
+                    self._analysis_cache.move_to_end(analysis_key)
+                else:
+                    code = "ANALYSIS_CACHE_MISS" if analysis_key else "INVALID_COPILOT_PAYLOAD"
+                    status = HTTPStatus.NOT_FOUND if analysis_key else HTTPStatus.BAD_REQUEST
+                    return status, {
+                        "code": code,
+                        "error": "Campo 'analysis' com 'region_a_analysis' válido é obrigatório.",
+                    }
+
+                response = generate_copilot_response(
+                    analysis,
+                    question=body.get("question"),
+                    language=str(body.get("language") or "pt"),
+                    history=body.get("history"),
+                    cache=self.cache,
+                )
+                if analysis_key:
+                    response["analysis_key"] = analysis_key
+                return HTTPStatus.OK, response
 
             start_year = int(body.get("start_year", 2001))
             end_year = int(body.get("end_year", 2023))

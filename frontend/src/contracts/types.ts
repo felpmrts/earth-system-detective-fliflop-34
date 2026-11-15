@@ -272,13 +272,23 @@ export type SemanticErrorCode =
   | 'CONTRACT_VIOLATION'
   | 'BACKEND_UNAVAILABLE';
 
+export interface CopilotToolExecution {
+  readonly name: string;
+  readonly label: string;
+  readonly summary: string;
+  readonly status: 'ok' | 'unavailable' | 'error';
+  readonly duration_ms: number;
+}
+
 export interface CopilotHistoryTurn {
   readonly role: 'user' | 'assistant';
   readonly content: string;
+  readonly tools_used?: readonly CopilotToolExecution[];
 }
 
 export interface CopilotRequest {
-  readonly analysis: RegionAnalysisResponse;
+  readonly analysis?: RegionAnalysisResponse;
+  readonly analysis_key?: string;
   readonly question?: string;
   readonly language?: 'pt' | 'en';
   readonly history?: readonly CopilotHistoryTurn[];
@@ -308,4 +318,6 @@ export interface CopilotResponse {
   readonly suggested_questions: readonly string[];
   readonly guardrails_applied: readonly string[];
   readonly invariant_warnings?: readonly string[];
+  readonly tools_used?: readonly CopilotToolExecution[];
+  readonly analysis_key?: string;
 }
