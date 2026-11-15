@@ -21,7 +21,7 @@ from typing import Any
 from data.cache.store import CellCacheStore
 from data.catalog.environmental_catalog import get_variable_spec
 from data.connectors.base import snap_ceres, snap_merra2
-from data.models.contracts import CellCoord, LocationQuery
+from data.models.contracts import CellCoord, LocationQuery, get_max_cells_per_region
 
 from .ingestion_service import (
     fetch_location_multiple_variables,
@@ -895,10 +895,11 @@ def _parse_contract_region(
             f"Selecione pelo menos 1 retângulo no mapa para o {slot_name}.",
             400,
         )
-    if len(raw_cells) > 25:
+    max_cells = get_max_cells_per_region()
+    if len(raw_cells) > max_cells:
         raise ContractSemanticError(
             "MAX_CELLS_EXCEEDED",
-            f"O {slot_name} possui {len(raw_cells)} retângulos selecionados, mas o limite máximo é de 25 retângulos adjacentes por região.",
+            f"O {slot_name} possui {len(raw_cells)} retângulos selecionados, mas o limite máximo é de {max_cells} retângulos adjacentes por região.",
         )
     spec = get_variable_spec(backend_var_code)
     grid_contracts = {

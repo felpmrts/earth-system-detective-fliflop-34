@@ -2,11 +2,26 @@
 
 from __future__ import annotations
 
+import os
 from dataclasses import dataclass
 from typing import Any
 
+DEFAULT_MAX_CELLS_PER_REGION = 25
 
-MAX_CELLS_PER_REGION = 25
+
+def get_max_cells_per_region() -> int:
+    """Lê o teto de células por região de `MAX_CELLS_PER_REGION` (padrão 25)."""
+    raw = os.environ.get("MAX_CELLS_PER_REGION", "").strip()
+    if not raw:
+        return DEFAULT_MAX_CELLS_PER_REGION
+    try:
+        value = int(raw)
+        return value if value >= 1 else DEFAULT_MAX_CELLS_PER_REGION
+    except ValueError:
+        return DEFAULT_MAX_CELLS_PER_REGION
+
+
+MAX_CELLS_PER_REGION = get_max_cells_per_region()
 
 
 @dataclass(frozen=True)
@@ -35,9 +50,10 @@ class LocationQuery:
     station_id: str | None = None
 
     def __post_init__(self) -> None:
-        if not (1 <= len(self.cells) <= MAX_CELLS_PER_REGION):
+        max_cells = get_max_cells_per_region()
+        if not (1 <= len(self.cells) <= max_cells):
             raise ValueError(
-                f"Local '{self.name}' deve possuir entre 1 e {MAX_CELLS_PER_REGION} células adjacentes."
+                f"Local '{self.name}' deve possuir entre 1 e {max_cells} células adjacentes."
             )
         self.get_variables()  # valida imediatamente na criação
 
