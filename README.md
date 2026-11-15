@@ -28,10 +28,11 @@ O **Earth System Trend Detective** transforma séries climáticas multidecadais 
 
 | Diretório / Arquivo | Função |
 | :--- | :--- |
-| `frontend/` | Aplicação web React + TypeScript + Vite + Mantine + Leaflet (Canvas) + Plotly.js, camadas globais offline em `public/data/`, testes Vitest e suíte E2E Playwright. |
-| `data/` | Backend Python 100% stdlib: catálogo das 7 Famílias Ambientais (42 variáveis), conectores multi-API, cache em disco, serviço estatístico e servidor REST (`data.api.server`). |
+| `frontend/` | Aplicação web React + TypeScript + Vite + Mantine + Leaflet (Canvas) + Plotly.js, Tutorial HUD de 8 passos, camadas globais offline em `public/data/`, painel do Co-Piloto, testes Vitest e suíte E2E Playwright. |
+| `backend/` | Motor estatístico State-of-the-Art (`stats_engine.py`: GCV Spline/LOWESS, `MinCovDet` Mahalanobis, Santer `AR(1)` + Hamed-Rao + BH FDR), Chatbot Co-Piloto agêntico (`copilot_engine.py` + `copilot_tools.py` com Gemini / OpenRouter), Motor de Descoberta (`discovery_engine.py` / `ml_discovery.py`) e `requirements.txt`. |
+| `data/` | Camada de dados e API REST (`data.api.server`): catálogo das 7 Famílias Ambientais (42 variáveis), conectores multi-API, cache em disco, serviço de comparação (`comparison_service.py` delegando ao `backend/stats_engine.py`) e testes de contrato. |
 | `context/` | Base de conhecimento científica, especificações de APIs NASA/NOAA/GloFAS, mapas e guias operacionais. |
-| `.github/workflows/ci.yml` | Pipeline CI do GitHub Actions (backend Python, typecheck, homologação de grades, auditoria offline e testes E2E Playwright). |
+| `.github/workflows/ci.yml` | Pipeline CI do GitHub Actions (`backend/` + `data/tests/`, typecheck, homologação de grades, auditoria offline e testes E2E Playwright). |
 | `CONTRATO_DE_DADOS.md` | Contrato JSON congelado (`RegionAnalysisRequest -> RegionAnalysisResponse`). |
 | `DATA_SOURCES.md` | Inventário de fontes de dados, resoluções espaciais, pré-processamento e citações oficiais. |
 | `00_MASTER_CONTEXT_AND_ROUTER.md` | Ponto de entrada arquitetural e roteador interno de documentação. |
@@ -41,21 +42,25 @@ O **Earth System Trend Detective** transforma séries climáticas multidecadais 
 ## Como Executar Localmente
 
 ### Pré-requisitos
-- **Python 3.10+** (backend usa apenas biblioteca padrão do Python, sem dependências externas obrigatórias)
+- **Python 3.10+** com `pip` / `venv` (dependências do motor estatístico em `backend/requirements.txt`: `numpy`, `scipy`, `scikit-learn`)
 - **Node.js 22+** e **npm**
 
-### 1. Subir o Backend de Dados (`http://127.0.0.1:8000`)
+### 1. Subir o Backend (`http://127.0.0.1:8000`)
 
 Na raiz do repositório:
 
 ```bash
-# Opcional: copiar template de credenciais para conectores autenticados (NOAA/AppEEARS/Giovanni)
+python3 -m venv .venv
+source .venv/bin/activate
+pip install -r backend/requirements.txt
+
+# Opcional: copiar template de credenciais (OpenRouter / Gemini para Co-Piloto e NOAA/AppEEARS/Giovanni)
 cp data/.env.example data/.env
 
-python3 -m data.api.server --host 127.0.0.1 --port 8000
+PYTHONPATH=. python3 -m data.api.server --host 127.0.0.1 --port 8000
 ```
 
-Endpoints principais: `GET /api/health`, `GET /api/catalog`, `POST /api/analyze`, `POST /api/compare`.
+Endpoints principais: `GET /api/health`, `GET /api/catalog`, `POST /api/analyze`, `POST /api/copilot`, `POST /api/discover`, `POST /api/compare`.
 
 ### 2. Subir o Frontend (`http://127.0.0.1:5173`)
 
@@ -96,9 +101,9 @@ npm run test:e2e          # Suíte Playwright em navegador real contra vite prev
 
 > Para executar o `npm run test:e2e` em Linux/CI pela primeira vez: `npx playwright install --with-deps chromium`.
 
-### Backend (`data/`)
+### Backend (`backend/` + `data/`)
 
 ```bash
-# Quando data/tests/ estiver presente na branch:
-python3 -B -m unittest discover -s data/tests -p "test_*.py" -v
+PYTHONPATH=. python3 -B -m unittest discover -s backend -p "test_*.py" -v
+PYTHONPATH=. python3 -B -m unittest discover -s data/tests -p "test_*.py" -v
 ```
