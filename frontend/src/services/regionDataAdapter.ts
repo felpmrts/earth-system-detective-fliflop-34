@@ -1,4 +1,8 @@
-import { getIntersectingDateBounds, resolveGridVariableId } from '../contracts/catalog.ts';
+import {
+  getIntersectingDateBounds,
+  resolveGridVariableId,
+  VARIABLE_LIST,
+} from '../contracts/catalog.ts';
 import { validateAnalysisResponse, validateGlobalGrid } from '../contracts/contractValidator.ts';
 import type {
   DataMode,
@@ -81,6 +85,37 @@ function readEnvConfig(): Pick<AdapterConfig, 'mode' | 'apiBaseUrl'> {
   const mode: DataMode = rawMode === 'offline' ? 'offline' : 'api';
   const apiBaseUrl = (env?.VITE_API_BASE_URL ?? 'http://localhost:8000').replace(/\/+$/, '');
   return { mode, apiBaseUrl };
+}
+
+export function getConfiguredDataMode(): DataMode {
+  return readEnvConfig().mode;
+}
+
+export function buildLocalCatalog(): BackendCatalog {
+  const byDomain = new Map<string, BackendCatalogVariable[]>();
+  for (const meta of VARIABLE_LIST) {
+    const items = byDomain.get(meta.domain) ?? [];
+    items.push({
+      code: meta.variable_id,
+      ui_name: meta.variable_name,
+      connector_id: 'nasa_power',
+      mode: 'realtime',
+      grid_type: meta.source_model,
+      unit: meta.unit,
+    });
+    byDomain.set(meta.domain, items);
+  }
+
+  const families: BackendCatalogFamily[] = [...byDomain.entries()].map(([domain, variables], index) => ({
+    family_id: `local_${index + 1}`,
+    name: domain,
+    variables,
+  }));
+
+  return {
+    total_variables: VARIABLE_LIST.length,
+    families,
+  };
 }
 
 export function buildRegionCacheKey(params: {
@@ -197,7 +232,15 @@ export function createRegionDataAdapter(overrides: Partial<AdapterConfig> = {}) 
     if (!res.ok) {
       throw new GlobalGridLoadError(res.status, resolvedVariableId);
     }
-    const raw: unknown = await res.json();
+
+    const contentType = res.headers?.get('content-type') ?? '';
+    const text = await res.text();
+    const trimmed = text.trimStart().toLowerCase();
+    if (contentType.includes('text/html') || trimmed.startsWith('<!doctype') || trimmed.startsWith('<html')) {
+      throw new GlobalGridLoadError(404, resolvedVariableId);
+    }
+
+    const raw: unknown = JSON.parse(text);
     return validateGlobalGrid(raw);
   }
 
@@ -272,6 +315,13 @@ export function createRegionDataAdapter(overrides: Partial<AdapterConfig> = {}) 
   }
 
   async function getBackendCatalog(signal?: AbortSignal): Promise<BackendCatalog> {
+    if (config.mode === 'offline') {
+      if (signal?.aborted) {
+        throw signal.reason ?? new DOMException('Aborted', 'AbortError');
+      }
+      return buildLocalCatalog();
+    }
+
     const res = await config.fetchFn(`${config.apiBaseUrl}/api/catalog`, { signal });
     if (!res.ok) throw new Error(`Catálogo do backend indisponível (HTTP ${res.status})`);
     const raw: unknown = await res.json();
