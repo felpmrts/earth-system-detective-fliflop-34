@@ -1,7 +1,13 @@
 import L from 'leaflet';
 import 'leaflet/dist/leaflet.css';
 import { useEffect, useRef, useState } from 'react';
-import type { RegionSelection, RegionSlot, VariableId } from '../contracts/types';
+import type {
+  GlobalGridFile,
+  GlobalGridPoint,
+  RegionSelection,
+  RegionSlot,
+  VariableId,
+} from '../contracts/types';
 import { getVariableMetadata } from '../contracts/catalog';
 import {
   buildRegionSelection,
@@ -13,6 +19,7 @@ import {
   toggleCellInSelection,
 } from '../geo/gridGeometry';
 import { getConfiguredDataMode, getGlobalGrid, GlobalGridLoadError } from '../services/regionDataAdapter';
+import { buildMapLegendConfig } from './legendConfig';
 import { getGlobalPointStyle, getSelectedCellStyle } from './mapStyles';
 import {
   createOfflineCartographicLayer,
@@ -67,6 +74,35 @@ function snapSafeCoord(lat: number, lon: number, variableId: VariableId) {
   return snapCoordToCell(clamped.lat, clamped.lon, variableId);
 }
 
+function formatSignedTrend(value: number): string {
+  const abs = Math.abs(value);
+  const decimals = abs < 0.1 ? 4 : abs < 10 ? 2 : 1;
+  const rounded = Number(value.toFixed(decimals));
+  const safe = Object.is(rounded, -0) || rounded === 0 ? 0 : rounded;
+  const formatted = Math.abs(safe).toFixed(decimals);
+  return safe > 0 ? `+${formatted}` : safe < 0 ? `-${formatted}` : formatted;
+}
+
+function buildGlobalPointTooltip(point: GlobalGridPoint, grid: GlobalGridFile): HTMLElement {
+  const wrapper = document.createElement('div');
+  wrapper.className = 'global-point-tooltip';
+
+  const title = document.createElement('strong');
+  title.textContent = `${formatSignedTrend(point.slope_sen_decade)} ${grid.trend_unit}`;
+  wrapper.appendChild(title);
+
+  const status = document.createElement('div');
+  const qText = point.q_value_fdr < 0.0001 ? '< 0.0001' : point.q_value_fdr.toFixed(4);
+  status.textContent = `${point.is_sig ? 'Significativo (FDR)' : 'Não signif. / ruído'} · q = ${qText}`;
+  wrapper.appendChild(status);
+
+  const coords = document.createElement('small');
+  coords.textContent = `${point.lat.toFixed(2)}°, ${point.lon.toFixed(2)}° · Clique para selecionar célula`;
+  wrapper.appendChild(coords);
+
+  return wrapper;
+}
+
 export function MapWorkspace({
   variableA,
   variableB,
@@ -117,6 +153,12 @@ export function MapWorkspace({
   const [historyDepth, setHistoryDepth] = useState(0);
   const [gridNotice, setGridNotice] = useState('');
   const [offlineTileNotice, setOfflineTileNotice] = useState('');
+  const [showGlobalGrid, setShowGlobalGrid] = useState(true);
+  const [significantOnly, setSignificantOnly] = useState(false);
+  const [loadedGrid, setLoadedGrid] = useState<{
+    readonly requested: VariableId;
+    readonly grid: GlobalGridFile;
+  } | null>(null);
 
   stateRef.current = { variableA, variableB, regionA, regionB, periodReady, sameLocation, dragSelectMode };
   callbacksRef.current = { onRegionAChange, onRegionBChange };
@@ -127,6 +169,46 @@ export function MapWorkspace({
     if (historyRef.current.length > 30) historyRef.current.shift();
     setHistoryDepth(historyRef.current.length);
   };
+
+  const applyCellSelectionAt = (lat: number, lon: number) => {
+    const current = stateRef.current;
+    const slot: RegionSlot = current.sameLocation ? 'A' : activeSlotRef.current;
+    const variable = slot === 'A' ? current.variableA : current.variableB;
+    const region = slot === 'A' ? current.regionA : current.regionB;
+    const updateRegion = slot === 'A'
+      ? callbacksRef.current.onRegionAChange
+      : callbacksRef.current.onRegionBChange;
+
+    if (!current.periodReady) {
+      setNotice('Defina as duas variáveis e o período antes de selecionar os locais.');
+      setNoticeKind('error');
+      return;
+    }
+    if (!variable) {
+      setNotice(`Selecione a variável ${slot} antes de marcar o local.`);
+      setNoticeKind('error');
+      return;
+    }
+
+    const target = snapSafeCoord(lat, lon, variable);
+    const result = toggleCellInSelection(region?.cells ?? [], target);
+    if (!result.ok) {
+      setNotice(result.reason ? selectionErrorMessages[result.reason] : 'Seleção inválida.');
+      setNoticeKind('error');
+      return;
+    }
+    recordHistory(current.regionA, current.regionB);
+    updateRegion(result.cells.length ? buildRegionSelection(slot, variable, result.cells) : null);
+    setNotice(
+      current.sameLocation
+        ? `Mesmo Local (A=B): ${result.cells.length} célula(s) em A espelhadas em B.`
+        : `Região ${slot}: ${result.cells.length} célula(s) selecionada(s).`,
+    );
+    setNoticeKind('success');
+  };
+
+  const applyCellSelectionRef = useRef(applyCellSelectionAt);
+  applyCellSelectionRef.current = applyCellSelectionAt;
 
   useEffect(() => {
     historyRef.current = [];
@@ -258,41 +340,7 @@ export function MapWorkspace({
         suppressNextClickRef.current = false;
         return;
       }
-
-      const current = stateRef.current;
-      const slot: RegionSlot = current.sameLocation ? 'A' : activeSlotRef.current;
-      const variable = slot === 'A' ? current.variableA : current.variableB;
-      const region = slot === 'A' ? current.regionA : current.regionB;
-      const updateRegion = slot === 'A'
-        ? callbacksRef.current.onRegionAChange
-        : callbacksRef.current.onRegionBChange;
-
-      if (!current.periodReady) {
-        setNotice('Defina as duas variáveis e o período antes de selecionar os locais.');
-        setNoticeKind('error');
-        return;
-      }
-      if (!variable) {
-        setNotice(`Selecione a variável ${slot} antes de marcar o local.`);
-        setNoticeKind('error');
-        return;
-      }
-
-      const target = snapSafeCoord(latlng.lat, latlng.lng, variable);
-      const result = toggleCellInSelection(region?.cells ?? [], target);
-      if (!result.ok) {
-        setNotice(result.reason ? selectionErrorMessages[result.reason] : 'Seleção inválida.');
-        setNoticeKind('error');
-        return;
-      }
-      recordHistory(current.regionA, current.regionB);
-      updateRegion(result.cells.length ? buildRegionSelection(slot, variable, result.cells) : null);
-      setNotice(
-        current.sameLocation
-          ? `Mesmo Local (A=B): ${result.cells.length} célula(s) em A espelhadas em B.`
-          : `Região ${slot}: ${result.cells.length} célula(s) selecionada(s).`,
-      );
-      setNoticeKind('success');
+      applyCellSelectionRef.current(latlng.lat, latlng.lng);
     });
 
     map.on('mousemove', ({ latlng }) => {
@@ -615,27 +663,29 @@ export function MapWorkspace({
 
   const activeVariable = sameLocation ? variableA : activeSlot === 'A' ? variableA : variableB;
   useEffect(() => {
-    const layer = gridLayerRef.current;
-    if (!layer) return;
-    layer.clearLayers();
     if (!activeVariable) {
+      setLoadedGrid(null);
       setGridNotice('');
       return;
     }
 
     const controller = new AbortController();
+    setLoadedGrid(null);
     setGridNotice('');
     getGlobalGrid(activeVariable, controller.signal)
       .then(grid => {
         if (controller.signal.aborted) return;
-        for (const point of grid.points) {
-          L.circleMarker([point.lat, point.lon], getGlobalPointStyle(point, activeVariable))
-            .bindTooltip(`${point.slope_sen_decade} ${grid.trend_unit}`)
-            .addTo(layer);
+        setLoadedGrid({ requested: activeVariable, grid });
+        if (grid.variable_id !== activeVariable) {
+          const proxyMeta = getVariableMetadata(grid.variable_id);
+          setGridNotice(`Camada global via grade de referência ${proxyMeta.variable_name} (${grid.variable_id}).`);
+        } else {
+          setGridNotice('');
         }
       })
       .catch(err => {
         if (controller.signal.aborted) return;
+        setLoadedGrid(null);
         if (err instanceof GlobalGridLoadError && err.status === 404) {
           setGridNotice(`Camada global de ${err.gridVariableId} ainda não disponível; seleção manual segue ativa.`);
           return;
@@ -645,9 +695,35 @@ export function MapWorkspace({
     return () => controller.abort();
   }, [activeVariable]);
 
+  useEffect(() => {
+    const layer = gridLayerRef.current;
+    if (!layer) return;
+    layer.clearLayers();
+    if (!loadedGrid || !showGlobalGrid) return;
+
+    const visiblePoints = significantOnly
+      ? loadedGrid.grid.points.filter(point => point.is_sig)
+      : loadedGrid.grid.points;
+
+    for (const point of visiblePoints) {
+      L.circleMarker([point.lat, point.lon], getGlobalPointStyle(point, loadedGrid.grid.variable_id))
+        .bindTooltip(buildGlobalPointTooltip(point, loadedGrid.grid), { direction: 'top', opacity: 0.96 })
+        .on('click', event => {
+          L.DomEvent.stopPropagation(event);
+          if (suppressNextClickRef.current || isDraggingBoxRef.current) {
+            suppressNextClickRef.current = false;
+            return;
+          }
+          applyCellSelectionRef.current(point.lat, point.lon);
+        })
+        .addTo(layer);
+    }
+  }, [loadedGrid, showGlobalGrid, significantOnly]);
+
   const readyToAnalyze = periodReady && Boolean(regionA && regionB);
   const metadataA = variableA ? getVariableMetadata(variableA) : null;
   const metadataB = variableB ? getVariableMetadata(variableB) : null;
+  const activeLegend = loadedGrid && showGlobalGrid ? buildMapLegendConfig(loadedGrid.grid.variable_id) : null;
   const shortSourcesLabel = formatActiveSources([metadataA?.source_model, metadataB?.source_model], 'short');
   const fullSourcesLabel = formatActiveSources([metadataA?.source_model, metadataB?.source_model], 'full');
   const formatMonth = (month: string) => month
@@ -794,10 +870,42 @@ export function MapWorkspace({
         )}
         <aside className="map-legend" aria-label="Legenda do mapa">
           <strong>Seleção espacial</strong>
-          <span><i className="legend-swatch legend-a" aria-hidden="true">A</i> Região A (contorno sólido)</span>
-          <span><i className="legend-swatch legend-b" aria-hidden="true">B</i> Região B (contorno tracejado)</span>
-          <small>Grade ativa: {activeVariable ? `${getVariableMetadata(activeVariable).resolution.dLat}° × ${getVariableMetadata(activeVariable).resolution.dLon}°` : '—'}</small>
-          <small>Até {MAX_CELLS_PER_REGION} células conectadas</small>
+          <div className="legend-pair">
+            <span><i className="legend-swatch legend-a" aria-hidden="true">A</i> Região A (sólido)</span>
+            <span><i className="legend-swatch legend-b" aria-hidden="true">B</i> Região B (tracejado)</span>
+          </div>
+          <small>Grade ativa: {activeVariable ? `${getVariableMetadata(activeVariable).resolution.dLat}° × ${getVariableMetadata(activeVariable).resolution.dLon}°` : '—'} · até {MAX_CELLS_PER_REGION} células</small>
+          {activeLegend && (
+            <div className="legend-global-block">
+              <strong>Tendência global ({activeLegend.trendUnit})</strong>
+              {loadedGrid && loadedGrid.requested !== loadedGrid.grid.variable_id && (
+                <small>Proxy: {activeLegend.title} ({loadedGrid.grid.variable_id})</small>
+              )}
+              <div className="legend-pair">
+                <span>
+                  <i
+                    className="legend-dot"
+                    aria-hidden="true"
+                    style={{ backgroundColor: activeLegend.directionItems[0]?.color ?? '#d9480f' }}
+                  />
+                  Positiva (+)
+                </span>
+                <span>
+                  <i
+                    className="legend-dot"
+                    aria-hidden="true"
+                    style={{ backgroundColor: activeLegend.directionItems[1]?.color ?? '#1864ab' }}
+                  />
+                  Negativa (-)
+                </span>
+              </div>
+              <div className="legend-pair">
+                <span><i className="legend-dot legend-sig" aria-hidden="true" /> q &lt; 0,05</span>
+                <span><i className="legend-dot legend-nonsig" aria-hidden="true" /> q ≥ 0,05</span>
+              </div>
+              <small className="legend-magnitude-note">{activeLegend.magnitudeNote}</small>
+            </div>
+          )}
         </aside>
       </div>
       <div className="map-status" role="status" aria-live="polite">
@@ -810,6 +918,26 @@ export function MapWorkspace({
           {!analysisError && offlineTileNotice && <span className="map-grid-note"> · {offlineTileNotice}</span>}
         </span>
         <div className="map-tools">
+          <button
+            type="button"
+            className={showGlobalGrid ? 'active' : ''}
+            aria-pressed={showGlobalGrid}
+            disabled={!loadedGrid}
+            onClick={() => setShowGlobalGrid(prev => !prev)}
+            title="Mostrar ou ocultar pontos de tendência global pré-calculada"
+          >
+            {showGlobalGrid ? 'Ocultar tendências' : 'Mostrar tendências'}
+          </button>
+          <button
+            type="button"
+            className={significantOnly ? 'active' : ''}
+            aria-pressed={significantOnly}
+            disabled={!loadedGrid || !showGlobalGrid}
+            onClick={() => setSignificantOnly(prev => !prev)}
+            title="Filtrar apenas pontos com significância estatística (AR(1) + FDR q < 0,05)"
+          >
+            Só q &lt; 0,05
+          </button>
           <button type="button" disabled={!regionA} onClick={() => focusRegions([regionA])}>Ir para A</button>
           <button type="button" disabled={!regionB} onClick={() => focusRegions([regionB])}>Ir para B</button>
           <button type="button" disabled={!regionA && !regionB} onClick={() => focusRegions([regionA, regionB])} title="Enquadrar regiões A e B no mapa">Enquadrar A + B</button>

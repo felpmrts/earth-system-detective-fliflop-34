@@ -143,15 +143,21 @@ describe('Homologação das 12 grades globais via validateGlobalGrid', () => {
       expect(report.isRealDensity).toBe(true);
     }
 
-    // Valida todos os {var_id}_grid.json atualmente presentes em frontend/public/data/
+    // Valida todos os 12 {var_id}_grid.json homologados presentes em frontend/public/data/ (>= 100 pontos cada)
     const entries = Object.entries(presentGridModules);
-    expect(entries.length).toBeGreaterThan(0);
+    expect(entries).toHaveLength(HOMOLOGATION_REQUIRED_GRIDS.length);
+    const foundIds = new Set<string>();
     for (const [modulePath, payload] of entries) {
       const match = /\/([A-Z0-9_]+)_grid\.json$/.exec(modulePath);
       expect(match?.[1]).toBeTruthy();
       const fileVarId = match![1] as VariableId;
-      const report = validateHomologatedGrid(fileVarId, payload, 1);
-      expect(report.pointsCount).toBeGreaterThan(0);
+      foundIds.add(fileVarId);
+      const report = validateHomologatedGrid(fileVarId, payload, 100);
+      expect(report.pointsCount).toBeGreaterThanOrEqual(100);
+      expect(report.isRealDensity).toBe(true);
+    }
+    for (const requiredId of HOMOLOGATION_REQUIRED_GRIDS) {
+      expect(foundIds.has(requiredId)).toBe(true);
     }
   });
 

@@ -1,0 +1,1019 @@
+{
+  "variable_id": "PS",
+  "unit": "kPa",
+  "trend_unit": "kPa/década",
+  "period": {
+    "start": "1981-01",
+    "end": "2025-12"
+  },
+  "points": [
+    {
+      "lat": -18.75,
+      "lon": -48.125,
+      "slope_sen_decade": 0.007,
+      "q_value_fdr": 0.1715,
+      "is_sig": false
+    },
+    {
+      "lat": -3.25,
+      "lon": -60.0,
+      "slope_sen_decade": 0.0037,
+      "q_value_fdr": 0.2843,
+      "is_sig": false
+    },
+    {
+      "lat": -30.25,
+      "lon": -51.25,
+      "slope_sen_decade": 0.0099,
+      "q_value_fdr": 0.3188,
+      "is_sig": false
+    },
+    {
+      "lat": -16.75,
+      "lon": -43.75,
+      "slope_sen_decade": 0.042,
+      "q_value_fdr": 0.0,
+      "is_sig": true
+    },
+    {
+      "lat": -9.25,
+      "lon": -40.625,
+      "slope_sen_decade": 0.0114,
+      "q_value_fdr": 0.0764,
+      "is_sig": false
+    },
+    {
+      "lat": -29.75,
+      "lon": -55.0,
+      "slope_sen_decade": -0.0047,
+      "q_value_fdr": 0.3896,
+      "is_sig": false
+    },
+    {
+      "lat": -55.25,
+      "lon": -68.125,
+      "slope_sen_decade": -0.0275,
+      "q_value_fdr": 0.0345,
+      "is_sig": true
+    },
+    {
+      "lat": -9.75,
+      "lon": -56.25,
+      "slope_sen_decade": 0.0248,
+      "q_value_fdr": 0.0,
+      "is_sig": true
+    },
+    {
+      "lat": -8.75,
+      "lon": -63.75,
+      "slope_sen_decade": 0.006,
+      "q_value_fdr": 0.3727,
+      "is_sig": false
+    },
+    {
+      "lat": -9.75,
+      "lon": -67.5,
+      "slope_sen_decade": 0.0164,
+      "q_value_fdr": 0.0072,
+      "is_sig": true
+    },
+    {
+      "lat": -1.25,
+      "lon": -48.75,
+      "slope_sen_decade": 0.0094,
+      "q_value_fdr": 0.0896,
+      "is_sig": false
+    },
+    {
+      "lat": -2.25,
+      "lon": -55.0,
+      "slope_sen_decade": 0.0447,
+      "q_value_fdr": 0.0,
+      "is_sig": true
+    },
+    {
+      "lat": 2.75,
+      "lon": -60.625,
+      "slope_sen_decade": 0.0081,
+      "q_value_fdr": 0.1158,
+      "is_sig": false
+    },
+    {
+      "lat": -15.75,
+      "lon": -56.25,
+      "slope_sen_decade": 0.0287,
+      "q_value_fdr": 0.0,
+      "is_sig": true
+    },
+    {
+      "lat": -11.75,
+      "lon": -55.625,
+      "slope_sen_decade": 0.0243,
+      "q_value_fdr": 0.0,
+      "is_sig": true
+    },
+    {
+      "lat": -10.25,
+      "lon": -48.125,
+      "slope_sen_decade": 0.0173,
+      "q_value_fdr": 0.0211,
+      "is_sig": true
+    },
+    {
+      "lat": -12.25,
+      "lon": -45.625,
+      "slope_sen_decade": 0.0118,
+      "q_value_fdr": 0.0674,
+      "is_sig": false
+    },
+    {
+      "lat": -5.25,
+      "lon": -42.5,
+      "slope_sen_decade": 0.018,
+      "q_value_fdr": 0.0,
+      "is_sig": true
+    },
+    {
+      "lat": -3.75,
+      "lon": -38.75,
+      "slope_sen_decade": 0.0284,
+      "q_value_fdr": 0.0,
+      "is_sig": true
+    },
+    {
+      "lat": -12.75,
+      "lon": -38.75,
+      "slope_sen_decade": 0.0036,
+      "q_value_fdr": 0.3896,
+      "is_sig": false
+    },
+    {
+      "lat": -15.75,
+      "lon": -48.125,
+      "slope_sen_decade": 0.0123,
+      "q_value_fdr": 0.105,
+      "is_sig": false
+    },
+    {
+      "lat": -23.25,
+      "lon": -46.875,
+      "slope_sen_decade": 0.0174,
+      "q_value_fdr": 0.0264,
+      "is_sig": true
+    },
+    {
+      "lat": -25.25,
+      "lon": -49.375,
+      "slope_sen_decade": -0.0066,
+      "q_value_fdr": 0.3005,
+      "is_sig": false
+    },
+    {
+      "lat": 4.75,
+      "lon": -74.375,
+      "slope_sen_decade": 0.0213,
+      "q_value_fdr": 0.0003,
+      "is_sig": true
+    },
+    {
+      "lat": 7.75,
+      "lon": -67.5,
+      "slope_sen_decade": 0.0082,
+      "q_value_fdr": 0.0938,
+      "is_sig": false
+    },
+    {
+      "lat": -3.75,
+      "lon": -73.125,
+      "slope_sen_decade": 0.0088,
+      "q_value_fdr": 0.0803,
+      "is_sig": false
+    },
+    {
+      "lat": -16.25,
+      "lon": -68.125,
+      "slope_sen_decade": 0.025,
+      "q_value_fdr": 0.0,
+      "is_sig": true
+    },
+    {
+      "lat": -22.25,
+      "lon": -60.0,
+      "slope_sen_decade": 0.0534,
+      "q_value_fdr": 0.0,
+      "is_sig": true
+    },
+    {
+      "lat": -35.75,
+      "lon": -61.875,
+      "slope_sen_decade": 0.0087,
+      "q_value_fdr": 0.3005,
+      "is_sig": false
+    },
+    {
+      "lat": -45.75,
+      "lon": -69.375,
+      "slope_sen_decade": -0.0647,
+      "q_value_fdr": 0.0,
+      "is_sig": true
+    },
+    {
+      "lat": 65.25,
+      "lon": -147.5,
+      "slope_sen_decade": -0.0073,
+      "q_value_fdr": 0.5555,
+      "is_sig": false
+    },
+    {
+      "lat": 69.75,
+      "lon": -153.75,
+      "slope_sen_decade": -0.0041,
+      "q_value_fdr": 0.8617,
+      "is_sig": false
+    },
+    {
+      "lat": 60.75,
+      "lon": -135.0,
+      "slope_sen_decade": 0.0083,
+      "q_value_fdr": 0.4862,
+      "is_sig": false
+    },
+    {
+      "lat": 63.75,
+      "lon": -116.25,
+      "slope_sen_decade": -0.0394,
+      "q_value_fdr": 0.0017,
+      "is_sig": true
+    },
+    {
+      "lat": 58.75,
+      "lon": -94.375,
+      "slope_sen_decade": 0.0234,
+      "q_value_fdr": 0.051,
+      "is_sig": false
+    },
+    {
+      "lat": 52.75,
+      "lon": -72.5,
+      "slope_sen_decade": 0.0253,
+      "q_value_fdr": 0.0295,
+      "is_sig": true
+    },
+    {
+      "lat": 72.75,
+      "lon": -40.625,
+      "slope_sen_decade": -0.0661,
+      "q_value_fdr": 0.0,
+      "is_sig": true
+    },
+    {
+      "lat": 53.75,
+      "lon": -122.5,
+      "slope_sen_decade": 0.0058,
+      "q_value_fdr": 0.7272,
+      "is_sig": false
+    },
+    {
+      "lat": 51.25,
+      "lon": -114.375,
+      "slope_sen_decade": 0.0216,
+      "q_value_fdr": 0.0554,
+      "is_sig": false
+    },
+    {
+      "lat": 50.25,
+      "lon": -104.375,
+      "slope_sen_decade": -0.0075,
+      "q_value_fdr": 0.2849,
+      "is_sig": false
+    },
+    {
+      "lat": 45.25,
+      "lon": -78.75,
+      "slope_sen_decade": 0.0144,
+      "q_value_fdr": 0.2379,
+      "is_sig": false
+    },
+    {
+      "lat": 44.25,
+      "lon": -121.25,
+      "slope_sen_decade": -0.0076,
+      "q_value_fdr": 0.5607,
+      "is_sig": false
+    },
+    {
+      "lat": 36.75,
+      "lon": -120.0,
+      "slope_sen_decade": 0.0306,
+      "q_value_fdr": 0.0,
+      "is_sig": true
+    },
+    {
+      "lat": 32.25,
+      "lon": -110.625,
+      "slope_sen_decade": 0.0205,
+      "q_value_fdr": 0.0001,
+      "is_sig": true
+    },
+    {
+      "lat": 39.75,
+      "lon": -105.0,
+      "slope_sen_decade": 0.0291,
+      "q_value_fdr": 0.0088,
+      "is_sig": true
+    },
+    {
+      "lat": 41.75,
+      "lon": -93.75,
+      "slope_sen_decade": 0.016,
+      "q_value_fdr": 0.0592,
+      "is_sig": false
+    },
+    {
+      "lat": 32.75,
+      "lon": -83.75,
+      "slope_sen_decade": 0.0062,
+      "q_value_fdr": 0.56,
+      "is_sig": false
+    },
+    {
+      "lat": 42.25,
+      "lon": -71.875,
+      "slope_sen_decade": 0.0043,
+      "q_value_fdr": 0.6186,
+      "is_sig": false
+    },
+    {
+      "lat": 31.75,
+      "lon": -100.625,
+      "slope_sen_decade": 0.0209,
+      "q_value_fdr": 0.002,
+      "is_sig": true
+    },
+    {
+      "lat": 28.75,
+      "lon": -106.25,
+      "slope_sen_decade": -0.0014,
+      "q_value_fdr": 0.7272,
+      "is_sig": false
+    },
+    {
+      "lat": 20.75,
+      "lon": -100.625,
+      "slope_sen_decade": 0.0116,
+      "q_value_fdr": 0.1796,
+      "is_sig": false
+    },
+    {
+      "lat": 17.25,
+      "lon": -96.875,
+      "slope_sen_decade": 0.0195,
+      "q_value_fdr": 0.0001,
+      "is_sig": true
+    },
+    {
+      "lat": 18.75,
+      "lon": -89.375,
+      "slope_sen_decade": 0.0252,
+      "q_value_fdr": 0.0,
+      "is_sig": true
+    },
+    {
+      "lat": 11.75,
+      "lon": -85.0,
+      "slope_sen_decade": 0.0111,
+      "q_value_fdr": 0.0294,
+      "is_sig": true
+    },
+    {
+      "lat": 37.75,
+      "lon": -5.0,
+      "slope_sen_decade": 0.0709,
+      "q_value_fdr": 0.0,
+      "is_sig": true
+    },
+    {
+      "lat": 40.75,
+      "lon": -4.375,
+      "slope_sen_decade": 0.0302,
+      "q_value_fdr": 0.0,
+      "is_sig": true
+    },
+    {
+      "lat": 47.25,
+      "lon": 0.625,
+      "slope_sen_decade": 0.0141,
+      "q_value_fdr": 0.1196,
+      "is_sig": false
+    },
+    {
+      "lat": 45.75,
+      "lon": 5.625,
+      "slope_sen_decade": 0.0356,
+      "q_value_fdr": 0.0,
+      "is_sig": true
+    },
+    {
+      "lat": 52.75,
+      "lon": -1.875,
+      "slope_sen_decade": 0.0311,
+      "q_value_fdr": 0.0,
+      "is_sig": true
+    },
+    {
+      "lat": 57.25,
+      "lon": -4.375,
+      "slope_sen_decade": 0.0293,
+      "q_value_fdr": 0.0,
+      "is_sig": true
+    },
+    {
+      "lat": 48.75,
+      "lon": 11.25,
+      "slope_sen_decade": 0.0189,
+      "q_value_fdr": 0.0655,
+      "is_sig": false
+    },
+    {
+      "lat": 52.25,
+      "lon": 21.25,
+      "slope_sen_decade": 0.0122,
+      "q_value_fdr": 0.1053,
+      "is_sig": false
+    },
+    {
+      "lat": 44.75,
+      "lon": 10.625,
+      "slope_sen_decade": 0.0154,
+      "q_value_fdr": 0.0744,
+      "is_sig": false
+    },
+    {
+      "lat": 44.25,
+      "lon": 20.625,
+      "slope_sen_decade": 0.0401,
+      "q_value_fdr": 0.0005,
+      "is_sig": true
+    },
+    {
+      "lat": 39.75,
+      "lon": 22.5,
+      "slope_sen_decade": 0.0126,
+      "q_value_fdr": 0.1834,
+      "is_sig": false
+    },
+    {
+      "lat": 44.25,
+      "lon": 26.25,
+      "slope_sen_decade": 0.0085,
+      "q_value_fdr": 0.3896,
+      "is_sig": false
+    },
+    {
+      "lat": 48.75,
+      "lon": 32.5,
+      "slope_sen_decade": 0.0267,
+      "q_value_fdr": 0.0328,
+      "is_sig": true
+    },
+    {
+      "lat": 52.25,
+      "lon": 27.5,
+      "slope_sen_decade": 0.0204,
+      "q_value_fdr": 0.0003,
+      "is_sig": true
+    },
+    {
+      "lat": 61.75,
+      "lon": 10.0,
+      "slope_sen_decade": -0.0092,
+      "q_value_fdr": 0.4429,
+      "is_sig": false
+    },
+    {
+      "lat": 66.75,
+      "lon": 19.375,
+      "slope_sen_decade": -0.041,
+      "q_value_fdr": 0.0001,
+      "is_sig": true
+    },
+    {
+      "lat": 62.75,
+      "lon": 27.5,
+      "slope_sen_decade": 0.0071,
+      "q_value_fdr": 0.5197,
+      "is_sig": false
+    },
+    {
+      "lat": 55.75,
+      "lon": 37.5,
+      "slope_sen_decade": 0.037,
+      "q_value_fdr": 0.0008,
+      "is_sig": true
+    },
+    {
+      "lat": 51.75,
+      "lon": 46.25,
+      "slope_sen_decade": 0.0275,
+      "q_value_fdr": 0.0052,
+      "is_sig": true
+    },
+    {
+      "lat": 67.75,
+      "lon": 33.75,
+      "slope_sen_decade": -0.0635,
+      "q_value_fdr": 0.0,
+      "is_sig": true
+    },
+    {
+      "lat": 14.25,
+      "lon": -17.5,
+      "slope_sen_decade": 0.0246,
+      "q_value_fdr": 0.0,
+      "is_sig": true
+    },
+    {
+      "lat": 31.75,
+      "lon": -8.125,
+      "slope_sen_decade": 0.0507,
+      "q_value_fdr": 0.0,
+      "is_sig": true
+    },
+    {
+      "lat": 27.25,
+      "lon": 2.5,
+      "slope_sen_decade": 0.0432,
+      "q_value_fdr": 0.0,
+      "is_sig": true
+    },
+    {
+      "lat": 35.75,
+      "lon": 9.375,
+      "slope_sen_decade": 0.0593,
+      "q_value_fdr": 0.0,
+      "is_sig": true
+    },
+    {
+      "lat": 26.75,
+      "lon": 14.375,
+      "slope_sen_decade": 0.0255,
+      "q_value_fdr": 0.0,
+      "is_sig": true
+    },
+    {
+      "lat": 26.25,
+      "lon": 32.5,
+      "slope_sen_decade": 0.0421,
+      "q_value_fdr": 0.0,
+      "is_sig": true
+    },
+    {
+      "lat": 14.75,
+      "lon": -4.375,
+      "slope_sen_decade": 0.0291,
+      "q_value_fdr": 0.0,
+      "is_sig": true
+    },
+    {
+      "lat": 13.75,
+      "lon": 8.75,
+      "slope_sen_decade": 0.0411,
+      "q_value_fdr": 0.0,
+      "is_sig": true
+    },
+    {
+      "lat": 13.75,
+      "lon": 18.75,
+      "slope_sen_decade": 0.0202,
+      "q_value_fdr": 0.0003,
+      "is_sig": true
+    },
+    {
+      "lat": 14.25,
+      "lon": 30.0,
+      "slope_sen_decade": 0.0223,
+      "q_value_fdr": 0.0013,
+      "is_sig": true
+    },
+    {
+      "lat": 7.75,
+      "lon": -1.875,
+      "slope_sen_decade": 0.0125,
+      "q_value_fdr": 0.001,
+      "is_sig": true
+    },
+    {
+      "lat": 9.25,
+      "lon": 7.5,
+      "slope_sen_decade": 0.0191,
+      "q_value_fdr": 0.0,
+      "is_sig": true
+    },
+    {
+      "lat": 5.75,
+      "lon": 12.5,
+      "slope_sen_decade": 0.0216,
+      "q_value_fdr": 0.0,
+      "is_sig": true
+    },
+    {
+      "lat": 0.75,
+      "lon": 16.25,
+      "slope_sen_decade": 0.0117,
+      "q_value_fdr": 0.0551,
+      "is_sig": false
+    },
+    {
+      "lat": 0.75,
+      "lon": 25.0,
+      "slope_sen_decade": 0.0123,
+      "q_value_fdr": 0.0047,
+      "is_sig": true
+    },
+    {
+      "lat": 9.25,
+      "lon": 38.75,
+      "slope_sen_decade": 0.001,
+      "q_value_fdr": 0.7272,
+      "is_sig": false
+    },
+    {
+      "lat": -0.25,
+      "lon": 36.25,
+      "slope_sen_decade": 0.0117,
+      "q_value_fdr": 0.0171,
+      "is_sig": true
+    },
+    {
+      "lat": -6.25,
+      "lon": 35.625,
+      "slope_sen_decade": 0.0183,
+      "q_value_fdr": 0.0009,
+      "is_sig": true
+    },
+    {
+      "lat": -12.25,
+      "lon": 16.875,
+      "slope_sen_decade": 0.0155,
+      "q_value_fdr": 0.0929,
+      "is_sig": false
+    },
+    {
+      "lat": -13.25,
+      "lon": 28.125,
+      "slope_sen_decade": 0.0388,
+      "q_value_fdr": 0.0,
+      "is_sig": true
+    },
+    {
+      "lat": -22.25,
+      "lon": 16.875,
+      "slope_sen_decade": 0.0262,
+      "q_value_fdr": 0.0001,
+      "is_sig": true
+    },
+    {
+      "lat": -22.25,
+      "lon": 25.0,
+      "slope_sen_decade": 0.0527,
+      "q_value_fdr": 0.0,
+      "is_sig": true
+    },
+    {
+      "lat": -26.25,
+      "lon": 28.125,
+      "slope_sen_decade": 0.0357,
+      "q_value_fdr": 0.0,
+      "is_sig": true
+    },
+    {
+      "lat": -19.75,
+      "lon": 46.875,
+      "slope_sen_decade": 0.0263,
+      "q_value_fdr": 0.0,
+      "is_sig": true
+    },
+    {
+      "lat": 39.25,
+      "lon": 33.125,
+      "slope_sen_decade": 0.0475,
+      "q_value_fdr": 0.0,
+      "is_sig": true
+    },
+    {
+      "lat": 21.75,
+      "lon": 48.75,
+      "slope_sen_decade": 0.0461,
+      "q_value_fdr": 0.0,
+      "is_sig": true
+    },
+    {
+      "lat": 24.75,
+      "lon": 45.0,
+      "slope_sen_decade": 0.0011,
+      "q_value_fdr": 0.8422,
+      "is_sig": false
+    },
+    {
+      "lat": 33.25,
+      "lon": 44.375,
+      "slope_sen_decade": 0.0281,
+      "q_value_fdr": 0.0,
+      "is_sig": true
+    },
+    {
+      "lat": 32.75,
+      "lon": 53.75,
+      "slope_sen_decade": 0.0534,
+      "q_value_fdr": 0.0,
+      "is_sig": true
+    },
+    {
+      "lat": 41.25,
+      "lon": 64.375,
+      "slope_sen_decade": -0.003,
+      "q_value_fdr": 0.5775,
+      "is_sig": false
+    },
+    {
+      "lat": 49.75,
+      "lon": 73.125,
+      "slope_sen_decade": 0.0143,
+      "q_value_fdr": 0.1155,
+      "is_sig": false
+    },
+    {
+      "lat": 61.25,
+      "lon": 73.125,
+      "slope_sen_decade": 0.0367,
+      "q_value_fdr": 0.0003,
+      "is_sig": true
+    },
+    {
+      "lat": 68.75,
+      "lon": 78.75,
+      "slope_sen_decade": -0.0032,
+      "q_value_fdr": 0.8201,
+      "is_sig": false
+    },
+    {
+      "lat": 64.25,
+      "lon": 100.0,
+      "slope_sen_decade": -0.0042,
+      "q_value_fdr": 0.5197,
+      "is_sig": false
+    },
+    {
+      "lat": 62.25,
+      "lon": 130.0,
+      "slope_sen_decade": -0.0602,
+      "q_value_fdr": 0.0,
+      "is_sig": true
+    },
+    {
+      "lat": 66.75,
+      "lon": 152.5,
+      "slope_sen_decade": -0.0137,
+      "q_value_fdr": 0.1663,
+      "is_sig": false
+    },
+    {
+      "lat": 52.25,
+      "lon": 108.75,
+      "slope_sen_decade": 0.0177,
+      "q_value_fdr": 0.0674,
+      "is_sig": false
+    },
+    {
+      "lat": 50.25,
+      "lon": 127.5,
+      "slope_sen_decade": 0.0186,
+      "q_value_fdr": 0.1056,
+      "is_sig": false
+    },
+    {
+      "lat": 44.75,
+      "lon": 104.375,
+      "slope_sen_decade": 0.0058,
+      "q_value_fdr": 0.3475,
+      "is_sig": false
+    },
+    {
+      "lat": 39.75,
+      "lon": 83.75,
+      "slope_sen_decade": 0.0178,
+      "q_value_fdr": 0.0253,
+      "is_sig": true
+    },
+    {
+      "lat": 32.75,
+      "lon": 88.75,
+      "slope_sen_decade": 0.021,
+      "q_value_fdr": 0.0003,
+      "is_sig": true
+    },
+    {
+      "lat": 30.25,
+      "lon": 71.25,
+      "slope_sen_decade": 0.0158,
+      "q_value_fdr": 0.0005,
+      "is_sig": true
+    },
+    {
+      "lat": 26.75,
+      "lon": 80.625,
+      "slope_sen_decade": 0.0032,
+      "q_value_fdr": 0.4662,
+      "is_sig": false
+    },
+    {
+      "lat": 17.25,
+      "lon": 78.75,
+      "slope_sen_decade": 0.0102,
+      "q_value_fdr": 0.051,
+      "is_sig": false
+    },
+    {
+      "lat": 24.25,
+      "lon": 90.625,
+      "slope_sen_decade": 0.0105,
+      "q_value_fdr": 0.0164,
+      "is_sig": true
+    },
+    {
+      "lat": 30.75,
+      "lon": 104.375,
+      "slope_sen_decade": 0.0183,
+      "q_value_fdr": 0.0081,
+      "is_sig": true
+    },
+    {
+      "lat": 37.75,
+      "lon": 115.625,
+      "slope_sen_decade": 0.0203,
+      "q_value_fdr": 0.0004,
+      "is_sig": true
+    },
+    {
+      "lat": 45.75,
+      "lon": 126.875,
+      "slope_sen_decade": 0.0031,
+      "q_value_fdr": 0.6347,
+      "is_sig": false
+    },
+    {
+      "lat": 23.75,
+      "lon": 109.375,
+      "slope_sen_decade": 0.0237,
+      "q_value_fdr": 0.0001,
+      "is_sig": true
+    },
+    {
+      "lat": 37.75,
+      "lon": 127.5,
+      "slope_sen_decade": 0.0121,
+      "q_value_fdr": 0.1097,
+      "is_sig": false
+    },
+    {
+      "lat": 36.75,
+      "lon": 138.125,
+      "slope_sen_decade": 0.0145,
+      "q_value_fdr": 0.0764,
+      "is_sig": false
+    },
+    {
+      "lat": 20.75,
+      "lon": 95.625,
+      "slope_sen_decade": 0.0075,
+      "q_value_fdr": 0.0553,
+      "is_sig": false
+    },
+    {
+      "lat": 15.75,
+      "lon": 102.5,
+      "slope_sen_decade": 0.0179,
+      "q_value_fdr": 0.0006,
+      "is_sig": true
+    },
+    {
+      "lat": -0.75,
+      "lon": 101.25,
+      "slope_sen_decade": 0.0098,
+      "q_value_fdr": 0.0208,
+      "is_sig": true
+    },
+    {
+      "lat": 0.75,
+      "lon": 114.375,
+      "slope_sen_decade": -0.0022,
+      "q_value_fdr": 0.7245,
+      "is_sig": false
+    },
+    {
+      "lat": -7.25,
+      "lon": 110.0,
+      "slope_sen_decade": 0.0135,
+      "q_value_fdr": 0.0005,
+      "is_sig": true
+    },
+    {
+      "lat": -5.75,
+      "lon": 144.375,
+      "slope_sen_decade": 0.0204,
+      "q_value_fdr": 0.0,
+      "is_sig": true
+    },
+    {
+      "lat": -17.25,
+      "lon": 125.625,
+      "slope_sen_decade": -0.0003,
+      "q_value_fdr": 0.927,
+      "is_sig": false
+    },
+    {
+      "lat": -13.25,
+      "lon": 133.75,
+      "slope_sen_decade": 0.0013,
+      "q_value_fdr": 0.9392,
+      "is_sig": false
+    },
+    {
+      "lat": -22.25,
+      "lon": 118.75,
+      "slope_sen_decade": 0.0062,
+      "q_value_fdr": 0.5238,
+      "is_sig": false
+    },
+    {
+      "lat": -25.25,
+      "lon": 124.375,
+      "slope_sen_decade": 0.0342,
+      "q_value_fdr": 0.0,
+      "is_sig": true
+    },
+    {
+      "lat": -23.75,
+      "lon": 133.75,
+      "slope_sen_decade": -0.0078,
+      "q_value_fdr": 0.4448,
+      "is_sig": false
+    },
+    {
+      "lat": -31.75,
+      "lon": 116.25,
+      "slope_sen_decade": 0.0214,
+      "q_value_fdr": 0.0114,
+      "is_sig": true
+    },
+    {
+      "lat": -30.25,
+      "lon": 130.625,
+      "slope_sen_decade": 0.0355,
+      "q_value_fdr": 0.0,
+      "is_sig": true
+    },
+    {
+      "lat": -22.25,
+      "lon": 144.375,
+      "slope_sen_decade": 0.005,
+      "q_value_fdr": 0.3162,
+      "is_sig": false
+    },
+    {
+      "lat": -14.25,
+      "lon": 143.125,
+      "slope_sen_decade": 0.0158,
+      "q_value_fdr": 0.0026,
+      "is_sig": true
+    },
+    {
+      "lat": -33.75,
+      "lon": 145.625,
+      "slope_sen_decade": 0.0228,
+      "q_value_fdr": 0.0157,
+      "is_sig": true
+    },
+    {
+      "lat": -37.25,
+      "lon": 144.375,
+      "slope_sen_decade": 0.0202,
+      "q_value_fdr": 0.0191,
+      "is_sig": true
+    },
+    {
+      "lat": -42.25,
+      "lon": 146.875,
+      "slope_sen_decade": 0.0204,
+      "q_value_fdr": 0.0159,
+      "is_sig": true
+    },
+    {
+      "lat": -43.75,
+      "lon": 170.625,
+      "slope_sen_decade": 0.0548,
+      "q_value_fdr": 0.0,
+      "is_sig": true
+    }
+  ]
+}
