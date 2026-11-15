@@ -380,4 +380,134 @@ describe('Scientific Insights Service & Bench Integration (Lag-Lead, Sazonal & 7
       expect(cardText).not.toMatch(/T2M_MAX[^°\n]*%/);
     }
   });
+
+  it('toggles collapsible card aria-expanded states via bench-toggle-all-cards and renders copilot welcome bubble', () => {
+    const regionA = buildRegionSelection('A', 'GWETTOP', [snapCoordToCell(-15, -48, 'GWETTOP')]);
+    const regionB = buildRegionSelection('B', 'T2M_MAX', [snapCoordToCell(-15, -48, 'T2M_MAX')]);
+
+    const { container } = render(
+      <ScientificBench
+        analysis={mockAnalysis}
+        variableA={mockAnalysis.region_a_analysis.variable_id}
+        variableB={mockAnalysis.region_b_analysis?.variable_id ?? mockAnalysis.region_a_analysis.variable_id}
+        regionA={regionA}
+        regionB={regionB}
+        start={mockAnalysis.region_a_analysis.period.start}
+        end={mockAnalysis.region_a_analysis.period.end}
+        periodReady
+        analyzedAt="15/11/2026 09:00:00"
+        anomaly
+        separate={false}
+        dual={false}
+        trendMode="both"
+        onAnomalyChange={() => {}}
+        onSeparateChange={() => {}}
+        onDualChange={() => {}}
+        onTrendModeChange={() => {}}
+        onBackToMap={() => {}}
+      />
+    );
+
+    const welcomeBubble = screen.getByTestId('copilot-welcome-bubble');
+    expect(welcomeBubble.textContent).toContain('Co-Piloto Estatístico');
+
+    const toggleAllBtn = screen.getByTestId('bench-toggle-all-cards');
+    const getToggleStates = () =>
+      Array.from(container.querySelectorAll<HTMLButtonElement>('.bench-card-toggle')).map(btn =>
+        btn.getAttribute('aria-expanded')
+      );
+
+    // All collapsible cards start collapsed so Expandir Tudo is shown first
+    expect(toggleAllBtn.textContent).toContain('Expandir Tudo');
+    expect(getToggleStates().every(v => v === 'false')).toBe(true);
+
+    // Click Expandir Tudo -> all collapsible cards open
+    fireEvent.click(toggleAllBtn);
+    expect(toggleAllBtn.textContent).toContain('Recolher Painéis');
+    expect(getToggleStates().every(v => v === 'true')).toBe(true);
+
+    // Click Recolher Painéis -> all collapsible cards collapse while remaining in DOM
+    fireEvent.click(toggleAllBtn);
+    expect(toggleAllBtn.textContent).toContain('Expandir Tudo');
+    expect(getToggleStates().every(v => v === 'false')).toBe(true);
+    expect(container.querySelector('.diagnostic-drawer')).toBeTruthy();
+    expect(container.querySelector('.data-provenance')).toBeTruthy();
+
+    // Selecting Lag-Lead view renders chart container cleanly with insight card initially collapsed, then openable via pill
+    fireEvent.click(screen.getByTestId('view-mode-lag'));
+    const lagToggle = container.querySelector<HTMLButtonElement>('[data-card-id="insight-lag"] .bench-card-toggle');
+    expect(lagToggle?.getAttribute('aria-expanded')).toBe('false');
+    fireEvent.click(screen.getByTestId('bench-section-pill-insight-lag'));
+    expect(lagToggle?.getAttribute('aria-expanded')).toBe('true');
+  });
+
+  it('updates bench-sections-toolbar counter, visible pills by viewMode, and toggles cards via pills', () => {
+    const regionA = buildRegionSelection('A', 'GWETTOP', [snapCoordToCell(-15, -48, 'GWETTOP')]);
+    const regionB = buildRegionSelection('B', 'T2M_MAX', [snapCoordToCell(-15, -48, 'T2M_MAX')]);
+
+    const { container } = render(
+      <ScientificBench
+        analysis={mockAnalysis}
+        variableA={mockAnalysis.region_a_analysis.variable_id}
+        variableB={mockAnalysis.region_b_analysis?.variable_id ?? mockAnalysis.region_a_analysis.variable_id}
+        regionA={regionA}
+        regionB={regionB}
+        start={mockAnalysis.region_a_analysis.period.start}
+        end={mockAnalysis.region_a_analysis.period.end}
+        periodReady
+        analyzedAt="15/11/2026 09:00:00"
+        anomaly
+        separate={false}
+        dual={false}
+        trendMode="both"
+        onAnomalyChange={() => {}}
+        onSeparateChange={() => {}}
+        onDualChange={() => {}}
+        onTrendModeChange={() => {}}
+        onBackToMap={() => {}}
+      />
+    );
+
+    const toolbar = screen.getByTestId('bench-sections-toolbar');
+    const countBadge = screen.getByTestId('bench-sections-count');
+    expect(toolbar.textContent).toContain('PAINÉIS ANALÍTICOS');
+    expect(countBadge.textContent).toBe('0/2 abertos');
+
+    const diagPill = screen.getByTestId('bench-section-pill-diagnostic');
+    const provPill = screen.getByTestId('bench-section-pill-provenance');
+    expect(diagPill.className).toContain('is-closed');
+    expect(provPill.className).toContain('is-closed');
+
+    fireEvent.click(diagPill);
+    expect(diagPill.className).toContain('is-open');
+    expect(countBadge.textContent).toBe('1/2 abertos');
+
+    fireEvent.click(provPill);
+    expect(provPill.className).toContain('is-open');
+    expect(countBadge.textContent).toBe('2/2 abertos');
+
+    fireEvent.click(screen.getByTestId('view-mode-lag'));
+    const lagPill = screen.getByTestId('bench-section-pill-insight-lag');
+    expect(lagPill.className).toContain('is-closed');
+    expect(countBadge.textContent).toBe('2/3 abertos');
+    fireEvent.click(lagPill);
+    expect(countBadge.textContent).toBe('3/3 abertos');
+
+    fireEvent.click(screen.getByTestId('view-mode-seasonal'));
+    const seasonalInsightPill = screen.getByTestId('bench-section-pill-insight-seasonal');
+    const seasonalCardsPill = screen.getByTestId('bench-section-pill-seasonal-cards');
+    expect(seasonalInsightPill.className).toContain('is-closed');
+    expect(seasonalCardsPill.className).toContain('is-closed');
+    expect(countBadge.textContent).toBe('2/4 abertos');
+    fireEvent.click(seasonalInsightPill);
+    fireEvent.click(seasonalCardsPill);
+    expect(countBadge.textContent).toBe('4/4 abertos');
+    expect(container.querySelector('[data-card-id="provenance"] .bench-card-toggle')?.getAttribute('aria-expanded')).toBe('true');
+
+    // Toggle Copilot off and back on without scrollIntoView errors in jsdom
+    fireEvent.click(screen.getByRole('button', { name: /Ocultar Co-Piloto IA/i }));
+    expect(container.querySelector('.copilot-drawer')).toBeNull();
+    fireEvent.click(screen.getByRole('button', { name: /Co-Piloto Estatístico/i }));
+    expect(container.querySelector('.copilot-drawer')).toBeTruthy();
+  });
 });

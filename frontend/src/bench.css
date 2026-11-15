@@ -840,6 +840,7 @@ button:focus-visible, a:focus-visible, summary:focus-visible, input:focus-visibl
 .copilot-badge {
   display: inline-flex;
   align-items: center;
+  gap: .45rem;
   max-width: 100%;
   padding: .22rem .65rem;
   border-radius: 999px;
@@ -1005,7 +1006,8 @@ button:focus-visible, a:focus-visible, summary:focus-visible, input:focus-visibl
   height: 1.45rem;
   border-radius: 50%;
   font-family: var(--cp-mono);
-  font-size: .78rem;
+  font-size: .82rem;
+  line-height: 1;
   color: #04222c;
   background: linear-gradient(135deg, #67e8f9, #34d399);
 }
@@ -1494,4 +1496,288 @@ button:focus-visible, a:focus-visible, summary:focus-visible, input:focus-visibl
   .methodology-modal-body { padding: .85rem .85rem 1.1rem; }
   .methodology-header-actions { width: 100%; }
   .methodology-copy-btn, .methodology-close-btn { flex: 1 1 auto; }
+}
+
+
+/* =====================================================================
+   Cards retráteis da Bancada (bench-collapsible-card)
+   ===================================================================== */
+.bench-collapsible-card {
+  min-width: 0;
+  border: 1px solid #28425e;
+  border-radius: 12px;
+  background: linear-gradient(180deg, rgba(15, 28, 47, .92) 0%, rgba(10, 20, 35, .92) 100%);
+  overflow: hidden;
+  transition: border-color .16s ease, box-shadow .16s ease;
+}
+.bench-collapsible-card.is-open { border-color: #2f5578; box-shadow: 0 6px 18px rgba(2, 8, 20, .28); }
+.bench-collapsible-card:hover { border-color: #3b6a93; }
+.bench-card-toggle {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: .4rem .6rem;
+  width: 100%;
+  min-width: 0;
+  padding: .55rem .8rem;
+  font: inherit;
+  text-align: left;
+  color: #e6f4ff;
+  background: transparent;
+  border: 0;
+  cursor: pointer;
+}
+.bench-card-toggle:hover { background: rgba(34, 211, 238, .06); }
+.bench-card-toggle:focus-visible { outline: 2px solid #fde047; outline-offset: -2px; }
+.bench-card-icon {
+  display: inline-grid;
+  place-items: center;
+  width: 1.7rem;
+  height: 1.7rem;
+  flex: 0 0 auto;
+  border-radius: 8px;
+  color: #67e8f9;
+  background: rgba(34, 211, 238, .12);
+  border: 1px solid rgba(103, 232, 249, .35);
+}
+.bench-card-title { flex: 1 1 11rem; min-width: 0; font-size: .9rem; font-weight: 700; letter-spacing: .01em; overflow-wrap: anywhere; }
+.bench-card-badges { display: flex; flex-wrap: wrap; gap: .3rem; min-width: 0; }
+.bench-card-badge {
+  max-width: 100%;
+  padding: .12rem .5rem;
+  font-family: var(--cp-mono, ui-monospace, monospace);
+  font-size: .7rem;
+  color: #bff3ff;
+  background: rgba(8, 28, 44, .9);
+  border: 1px solid rgba(103, 232, 249, .3);
+  border-radius: 999px;
+  overflow-wrap: anywhere;
+}
+.bench-card-action { margin-left: auto; font-size: .72rem; font-weight: 600; color: #8fb4d4; white-space: nowrap; }
+.bench-card-chevron { display: inline-block; transition: transform .2s ease; }
+.bench-collapsible-body { min-width: 0; padding: .35rem .5rem .6rem; }
+.bench-collapsible-body.is-collapsed { display: none; }
+.bench-collapsible-body > .diagnostic-drawer,
+.bench-collapsible-body > .data-provenance { margin: 0; }
+.diagnostic-drawer:has(> .bench-collapsible-card) { padding: 0; overflow: hidden; }
+.diagnostic-drawer > .bench-collapsible-card { border: 0; border-radius: 0; background: transparent; box-shadow: none; }
+.diagnostic-drawer > .bench-collapsible-card > .bench-collapsible-body { padding: .4rem .75rem .75rem; }
+.bench-toggle-all { border-color: #4b7aa3; }
+@media (max-width: 720px) {
+  .bench-card-action { margin-left: 0; flex-basis: 100%; }
+  .bench-card-badge { font-size: .66rem; }
+}
+@media (prefers-reduced-motion: reduce) { .bench-card-chevron, .bench-collapsible-card { transition: none; } }
+
+/* =====================================================================
+   Co-Piloto com cara de chat de IA
+   ===================================================================== */
+.copilot-chat-identity { display: flex; align-items: center; gap: .75rem; flex: 1 1 100%; min-width: 0; margin-bottom: .45rem; }
+.copilot-avatar {
+  position: relative;
+  display: inline-grid;
+  place-items: center;
+  flex: 0 0 auto;
+  width: 3rem;
+  height: 3rem;
+  color: #67e8f9;
+  background: radial-gradient(circle at 30% 25%, #17425c 0%, #0b1a2b 100%);
+  border: 2px solid #38d3ee;
+  border-radius: 50%;
+  box-shadow: 0 0 16px rgba(34, 211, 238, .35);
+}
+.copilot-avatar-pulse {
+  position: absolute;
+  right: -1px;
+  bottom: -1px;
+  width: .8rem;
+  height: .8rem;
+  background: #34d399;
+  border: 2px solid #0b1a2b;
+  border-radius: 50%;
+  animation: copilot-pulse-teal 1.8s ease-out infinite;
+}
+.copilot-chat-identity-text { display: grid; gap: .08rem; min-width: 0; }
+.copilot-chat-identity-text h3 { margin: 0; font-size: 1.15rem; color: #f0fbff; overflow-wrap: anywhere; }
+.copilot-online-label { font-family: var(--cp-mono, ui-monospace, monospace); font-size: .7rem; font-weight: 700; letter-spacing: .06em; color: #34d399; }
+.copilot-chat-subtitle { margin: 0; font-size: .8rem; color: #9fb8d0; overflow-wrap: anywhere; }
+
+.copilot-chat-window { gap: .6rem; }
+.copilot-chat-viewport {
+  padding: .8rem;
+  background: linear-gradient(180deg, #0a1524 0%, #0c1a2c 100%);
+  border: 1px solid #1f3753;
+  border-radius: 14px;
+  max-height: 420px;
+}
+.chat-bubble { display: flex; align-items: flex-start; gap: .55rem; }
+.chat-bubble-body { min-width: 0; flex: 1 1 auto; }
+.chat-bubble-user {
+  align-self: flex-end;
+  flex-direction: column;
+  color: #ecfeff;
+  background: linear-gradient(135deg, #0e7490 0%, #1d4ed8 100%);
+  border: 1px solid #38bdf8;
+  border-radius: 16px 16px 4px 16px;
+}
+.chat-bubble-user .copilot-msg-role { color: #c8f1ff; text-align: right; }
+.chat-bubble-assistant {
+  align-self: flex-start;
+  color: #e2e8f0;
+  background: #0f1d31;
+  border: 1px solid rgba(103, 232, 249, .35);
+  border-radius: 16px 16px 16px 4px;
+}
+.chat-bubble-welcome { background: linear-gradient(180deg, #11304a 0%, #0f1d31 100%); }
+.chat-welcome-text { margin: 0; font-size: .86rem; line-height: 1.55; overflow-wrap: anywhere; }
+.chat-avatar {
+  display: inline-grid;
+  place-items: center;
+  flex: 0 0 auto;
+  width: 1.9rem;
+  height: 1.9rem;
+  font-family: var(--cp-mono, ui-monospace, monospace);
+  font-size: .68rem;
+  font-weight: 800;
+  color: #04222c;
+  background: linear-gradient(180deg, #7ff0ff 0%, #38d3ee 100%);
+  border-radius: 50%;
+}
+.copilot-chat-suggestions { padding: 0 .1rem; }
+.copilot-chat-suggestions .copilot-chip { border-radius: 999px; }
+.copilot-chat-inputbar {
+  border-radius: 999px;
+  padding: .35rem .4rem .35rem .9rem;
+  background: #0a1524;
+  border: 1px solid #3b6a93;
+}
+.copilot-chat-inputbar .copilot-submit { border-radius: 999px; padding-inline: 1rem; }
+.copilot-send-icon { display: inline-block; margin-left: .15rem; }
+@media (max-width: 720px) {
+  .copilot-chat-identity { align-items: flex-start; }
+  .copilot-chat-viewport { padding: .55rem; }
+  .chat-bubble-user, .chat-bubble-assistant { max-width: 100%; }
+  .copilot-chat-inputbar { flex-wrap: wrap; border-radius: 16px; }
+}
+@media (prefers-reduced-motion: reduce) { .copilot-avatar-pulse { animation: none; } }
+
+/* =====================================================================
+   Barra visual de controle dos cards retráteis (.bench-sections-toolbar)
+   ===================================================================== */
+.bench-sections-toolbar {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  flex-wrap: wrap;
+  gap: 0.6rem;
+  min-width: 0;
+  padding: 0.55rem 0.85rem;
+  border-radius: 10px;
+  background: rgba(9, 20, 36, 0.78);
+  border: 1px solid rgba(56, 189, 248, 0.22);
+}
+.bench-sections-summary {
+  display: inline-flex;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: 0.45rem;
+  min-width: 0;
+}
+.bench-sections-label {
+  font-family: var(--cp-mono, ui-monospace, monospace);
+  font-size: 0.7rem;
+  font-weight: 700;
+  letter-spacing: 0.08em;
+  color: #7dd3fc;
+}
+.bench-sections-count {
+  padding: 0.14rem 0.5rem;
+  border-radius: 999px;
+  font-family: var(--cp-mono, ui-monospace, monospace);
+  font-size: 0.7rem;
+  font-weight: 600;
+  color: #bff3ff;
+  background: rgba(14, 116, 144, 0.25);
+  border: 1px solid rgba(56, 189, 248, 0.38);
+  white-space: nowrap;
+}
+.bench-sections-pills {
+  display: flex;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: 0.4rem;
+  flex: 1 1 auto;
+  min-width: 0;
+}
+.bench-section-pill {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.35rem;
+  min-width: 0;
+  max-width: 100%;
+  padding: 0.28rem 0.65rem;
+  font: inherit;
+  font-size: 0.76rem;
+  font-weight: 600;
+  border-radius: 999px;
+  cursor: pointer;
+  transition: border-color 0.16s ease, background 0.16s ease, color 0.16s ease, opacity 0.16s ease;
+}
+.bench-section-pill:focus-visible {
+  outline: 2px solid #fde047;
+  outline-offset: 2px;
+}
+.bench-section-pill.is-open {
+  border: 1px solid rgba(56, 189, 248, 0.55);
+  background: rgba(14, 116, 144, 0.22);
+  color: #e0f2fe;
+}
+.bench-section-pill.is-open:hover {
+  border-color: #38bdf8;
+  background: rgba(14, 116, 144, 0.34);
+}
+.bench-section-pill.is-open .bench-section-pill-chevron {
+  color: #38bdf8;
+}
+.bench-section-pill.is-closed {
+  opacity: 0.68;
+  border: 1px solid rgba(148, 163, 184, 0.22);
+  background: rgba(15, 23, 42, 0.5);
+  color: #94a3b8;
+}
+.bench-section-pill.is-closed:hover {
+  opacity: 0.92;
+  border-color: rgba(148, 163, 184, 0.45);
+  color: #cbd5e1;
+}
+.bench-section-pill.is-closed .bench-section-pill-chevron {
+  color: #64748b;
+}
+.bench-sections-toolbar .bench-toggle-all {
+  margin-left: auto;
+}
+@media (max-width: 720px) {
+  .bench-sections-toolbar {
+    padding: 0.5rem 0.65rem;
+    gap: 0.45rem;
+  }
+  .bench-sections-summary,
+  .bench-sections-pills {
+    flex: 1 1 100%;
+    min-width: 0;
+  }
+  .bench-section-pill {
+    font-size: 0.72rem;
+    white-space: normal;
+    overflow-wrap: anywhere;
+    text-align: left;
+  }
+  .bench-sections-toolbar .bench-toggle-all {
+    margin-left: 0;
+    width: 100%;
+    justify-content: center;
+  }
+}
+@media (prefers-reduced-motion: reduce) {
+  .bench-section-pill { transition: none; }
 }

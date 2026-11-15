@@ -1,4 +1,4 @@
-import { type ComponentProps, type FormEvent, useEffect, useState } from 'react';
+import { type ComponentProps, type FormEvent, type ReactNode, useEffect, useRef, useState } from 'react';
 import createPlotlyComponent from 'react-plotly.js/factory';
 import Plotly from 'plotly.js-basic-dist-min';
 import { getVariableMetadata, VARIABLE_LIST } from '../contracts/catalog';
@@ -60,7 +60,58 @@ interface ScientificBenchProps {
   readonly onBackToMap: () => void;
 }
 
-const COPILOT_CHIP_ICONS = ['∿', 'σ', '⇄', '⚑', '◎'] as const;
+/** Card retrátil: corpo permanece montado no DOM (classe `is-collapsed`), preservando testes e âncoras do tutorial. */
+function BenchCollapsible({
+  id,
+  icon,
+  title,
+  badges,
+  open,
+  onToggle,
+  children,
+}: {
+  readonly id: string;
+  readonly icon: string;
+  readonly title: string;
+  readonly badges: readonly string[];
+  readonly open: boolean;
+  readonly onToggle: () => void;
+  readonly children: ReactNode;
+}) {
+  const bodyId = `bench-card-body-${id}`;
+  return (
+    <div className={open ? 'bench-collapsible-card is-open' : 'bench-collapsible-card'} data-card-id={id}>
+      <button
+        type="button"
+        className="bench-card-toggle"
+        aria-expanded={open}
+        aria-controls={bodyId}
+        onClick={onToggle}
+      >
+        <span className="bench-card-icon" aria-hidden="true">
+          {icon}
+        </span>
+        <span className="bench-card-title">{title}</span>
+        <span className="bench-card-badges">
+          {badges.slice(0, 3).map(badge => (
+            <span key={badge} className="bench-card-badge">
+              {badge}
+            </span>
+          ))}
+        </span>
+        <span className="bench-card-action">
+          {open ? 'Recolher ' : 'Expandir '}
+          <span className="bench-card-chevron" aria-hidden="true">
+            {open ? '▴' : '▾'}
+          </span>
+        </span>
+      </button>
+      <div id={bodyId} className={open ? 'bench-collapsible-body' : 'bench-collapsible-body is-collapsed'}>
+        {children}
+      </div>
+    </div>
+  );
+}
 
 function formatPointValue(val: number | null | undefined, digits = 3): string {
   return val !== null && val !== undefined && Number.isFinite(val) ? val.toFixed(digits) : '—';
@@ -187,14 +238,48 @@ export function ScientificBench({
   onTrendModeChange,
   onBackToMap,
 }: ScientificBenchProps) {
+  const benchSectionRef = useRef<HTMLElement>(null);
+  const copilotDrawerRef = useRef<HTMLElement>(null);
+  const shouldScrollCopilotRef = useRef(false);
   const [glossaryOpen, setGlossaryOpen] = useState(false);
   const [useZScore, setUseZScore] = useState(false);
   const [scaleMode, setScaleMode] = useState<ScaleMode>('linear');
   const [viewMode, setViewMode] = useState<ViewMode>('timeseries');
   const [showGam, setShowGam] = useState(true);
   const [showMahalanobis, setShowMahalanobis] = useState(true);
-  const [showDiagnostics, setShowDiagnostics] = useState(true);
   const [showCopilot, setShowCopilot] = useState(true);
+  const [openCards, setOpenCards] = useState({
+    diagnostic: false,
+    'insight-lag': false,
+    'insight-seasonal': false,
+    'seasonal-cards': false,
+    provenance: false,
+  });
+
+  useEffect(() => {
+    if (!showCopilot || !shouldScrollCopilotRef.current) return;
+    shouldScrollCopilotRef.current = false;
+    const copilotEl = copilotDrawerRef.current;
+    if (typeof copilotEl?.scrollIntoView === 'function') {
+      copilotEl.scrollIntoView({ behavior: 'smooth', block: 'nearest' });
+    }
+  }, [showCopilot]);
+
+  function toggleCard(key: keyof typeof openCards) {
+    setOpenCards(prev => ({ ...prev, [key]: !prev[key] }));
+  }
+  function selectViewMode(mode: ViewMode) {
+    setViewMode(mode);
+  }
+  function handleToggleCopilot() {
+    setShowCopilot(prev => {
+      const next = !prev;
+      if (next) {
+        shouldScrollCopilotRef.current = true;
+      }
+      return next;
+    });
+  }
   const [showMethodologyModal, setShowMethodologyModal] = useState(false);
   const [copiedMethodology, setCopiedMethodology] = useState(false);
   const [copilotLang, setCopilotLang] = useState<'pt' | 'en'>('pt');
@@ -753,8 +838,80 @@ export function ScientificBench({
     window.setTimeout(() => setCopiedMethodology(false), 2500);
   }
 
+  const sectionPills = [
+    ...(hasPoints && viewMode === 'lag'
+      ? [
+          {
+            id: 'insight-lag',
+            label: 'Defasagem (Lag-Lead)',
+            isOpen: openCards['insight-lag'],
+            onToggle: () => toggleCard('insight-lag'),
+          },
+        ]
+      : []),
+    ...(hasPoints && viewMode === 'seasonal'
+      ? [
+          {
+            id: 'insight-seasonal',
+            label: 'Curva Sazonal',
+            isOpen: openCards['insight-seasonal'],
+            onToggle: () => toggleCard('insight-seasonal'),
+          },
+          {
+            id: 'seasonal-cards',
+            label: 'Trimestres DJF–SON',
+            isOpen: openCards['seasonal-cards'],
+            onToggle: () => toggleCard('seasonal-cards'),
+          },
+        ]
+      : []),
+    {
+      id: 'diagnostic',
+      label: '4 Respostas',
+      isOpen: openCards.diagnostic,
+      onToggle: () => toggleCard('diagnostic'),
+    },
+    {
+      id: 'provenance',
+      label: 'Auditoria & Fonte',
+      isOpen: openCards.provenance,
+      onToggle: () => toggleCard('provenance'),
+    },
+  ] as const;
+
+  const openSectionsCount = sectionPills.filter(pill => pill.isOpen).length;
+  const totalVisibleCards = sectionPills.length;
+  const allCardsOpen = sectionPills.every(pill => pill.isOpen);
+
+  function toggleAllCards() {
+    const next = !allCardsOpen;
+    setOpenCards({
+      diagnostic: next,
+      'insight-lag': next,
+      'insight-seasonal': next,
+      'seasonal-cards': next,
+      provenance: next,
+    });
+  }
+
+  function handleSectionPillClick(pill: (typeof sectionPills)[number]) {
+    const willOpen = !pill.isOpen;
+    pill.onToggle();
+    if (willOpen) {
+      const targetCard = benchSectionRef.current?.querySelector(`[data-card-id="${pill.id}"]`);
+      if (typeof targetCard?.scrollIntoView === 'function') {
+        targetCard.scrollIntoView({ behavior: 'smooth', block: 'nearest' });
+      }
+    }
+  }
+
   return (
-    <section className="bench-panel" data-tour="bench-panel" aria-label="Séries temporais e diagnóstico">
+    <section
+      ref={benchSectionRef}
+      className="bench-panel"
+      data-tour="bench-panel"
+      aria-label="Séries temporais e diagnóstico"
+    >
       <header className="discovery-header" data-tour="bench-discovery">
         <div className="discovery-title-row">
           <div>
@@ -796,18 +953,10 @@ export function ScientificBench({
                   : 'glossary-toggle copilot-toggle'
               }
               aria-expanded={showCopilot}
-              onClick={() => setShowCopilot(prev => !prev)}
+              onClick={handleToggleCopilot}
             >
               <span className="copilot-toggle-dot" aria-hidden="true" />
               {showCopilot ? 'Ocultar Co-Piloto IA' : 'Co-Piloto Estatístico'}
-            </button>
-            <button
-              type="button"
-              className="glossary-toggle"
-              aria-expanded={showDiagnostics}
-              onClick={() => setShowDiagnostics(prev => !prev)}
-            >
-              {showDiagnostics ? 'Ocultar 4 Respostas do Detetive' : '4 Respostas do Detetive'}
             </button>
             <button
               type="button"
@@ -924,7 +1073,7 @@ export function ScientificBench({
             type="button"
             aria-pressed={viewMode === 'timeseries'}
             className={viewMode === 'timeseries' ? 'active' : ''}
-            onClick={() => setViewMode('timeseries')}
+            onClick={() => selectViewMode('timeseries')}
           >
             Série Temporal
           </button>
@@ -933,7 +1082,7 @@ export function ScientificBench({
             aria-pressed={viewMode === 'scatter'}
             className={viewMode === 'scatter' ? 'active' : ''}
             disabled={!scatterBundle}
-            onClick={() => setViewMode('scatter')}
+            onClick={() => selectViewMode('scatter')}
           >
             Dispersão X vs Y
           </button>
@@ -942,7 +1091,7 @@ export function ScientificBench({
             aria-pressed={viewMode === 'both'}
             className={viewMode === 'both' ? 'active' : ''}
             disabled={!scatterBundle}
-            onClick={() => setViewMode('both')}
+            onClick={() => selectViewMode('both')}
           >
             Visão Dupla
           </button>
@@ -951,7 +1100,7 @@ export function ScientificBench({
             data-testid="view-mode-lag"
             aria-pressed={viewMode === 'lag'}
             className={viewMode === 'lag' ? 'active' : ''}
-            onClick={() => setViewMode('lag')}
+            onClick={() => selectViewMode('lag')}
           >
             Defasagem (Lag-Lead)
           </button>
@@ -960,7 +1109,7 @@ export function ScientificBench({
             data-testid="view-mode-seasonal"
             aria-pressed={viewMode === 'seasonal'}
             className={viewMode === 'seasonal' ? 'active' : ''}
-            onClick={() => setViewMode('seasonal')}
+            onClick={() => selectViewMode('seasonal')}
           >
             Sazonal (DJF–SON)
           </button>
@@ -1128,6 +1277,18 @@ export function ScientificBench({
 
           {viewMode === 'lag' && (
             <div className="plot-frame chart-box lag-lead-chart-box" data-testid="lag-lead-chart-container">
+              <BenchCollapsible
+                id="insight-lag"
+                icon="⇄"
+                title="Painel de Defasagem Lag-Lead"
+                badges={[
+                  `τ* ${lagLeadResult.best_detrended_lag.lag_months >= 0 ? '+' : ''}${lagLeadResult.best_detrended_lag.lag_months}m`,
+                  `r ${lagLeadResult.best_detrended_lag.r_detrended.toFixed(2)}`,
+                  `BH-FDR ${lagLeadResult.fdr_significant_lags_count}/${lagLeadResult.fdr_family_size}`,
+                ]}
+                open={openCards['insight-lag']}
+                onToggle={() => toggleCard('insight-lag')}
+              >
               <div className="chart-insight-strip">
                 <div className="chart-insight-badge">
                   <span className="chart-insight-kicker">PRECEDÊNCIA TEMPORAL AR(1) · BH-FDR</span>
@@ -1172,6 +1333,7 @@ export function ScientificBench({
                   </span>
                 </div>
               </div>
+              </BenchCollapsible>
               <Plot
                 key={`lag-${lagLeadResult.variable_a}-${lagLeadResult.variable_b}`}
                 data={lagLeadTraces}
@@ -1213,6 +1375,17 @@ export function ScientificBench({
 
           {viewMode === 'seasonal' && (
             <div className="plot-frame chart-box seasonal-chart-box" data-testid="seasonal-chart-container">
+              <BenchCollapsible
+                id="insight-seasonal"
+                icon="❄"
+                title="Painel Sazonal DJF–SON"
+                badges={[
+                  `Dominante ${seasonA.dominant_season}`,
+                  seasonA.has_seasonal_sign_reversal ? 'Inversão de sinal' : 'Sinal coerente',
+                ]}
+                open={openCards['insight-seasonal']}
+                onToggle={() => toggleCard('insight-seasonal')}
+              >
               <div className="chart-insight-strip">
                 <div className="chart-insight-badge">
                   <span className="chart-insight-kicker">ESTRATIFICAÇÃO SAZONAL · ANOMALIAS Y′(a,m)</span>
@@ -1236,6 +1409,7 @@ export function ScientificBench({
                   )}
                 </div>
               </div>
+              </BenchCollapsible>
               <Plot
                 key={`seasonal-${seasonA.variable_id}-${seasonB?.variable_id ?? 'single'}`}
                 data={seasonalTraces}
@@ -1267,6 +1441,14 @@ export function ScientificBench({
                   legend: { orientation: 'h', y: -0.24 },
                 }}
               />
+              <BenchCollapsible
+                id="seasonal-cards"
+                icon="◐"
+                title="Estações DJF · MAM · JJA · SON"
+                badges={seasonCodes.map(code => `${code} ${formatSignedNumber(seasonA.seasons[code].slope_per_decade_sen, 1)}`)}
+                open={openCards['seasonal-cards']}
+                onToggle={() => toggleCard('seasonal-cards')}
+              >
               <div className="seasonal-cards-grid">
                 {seasonCodes.map(code => {
                   const s = seasonA.seasons[code];
@@ -1308,13 +1490,70 @@ export function ScientificBench({
                   );
                 })}
               </div>
+              </BenchCollapsible>
             </div>
           )}
         </div>
       )}
 
-      {showDiagnostics && (
-        <section className="diagnostic-drawer" data-tour="bench-answers" aria-label="As 4 Respostas do Detetive e Diagnóstico Multiescala">
+      <div
+        className="bench-sections-toolbar"
+        data-testid="bench-sections-toolbar"
+        role="region"
+        aria-label="Controle de seções retráteis da bancada"
+      >
+        <div className="bench-sections-summary">
+          <span className="bench-sections-label">PAINÉIS ANALÍTICOS</span>
+          <span className="bench-sections-count" data-testid="bench-sections-count">
+            {openSectionsCount}/{totalVisibleCards} abertos
+          </span>
+        </div>
+        <div className="bench-sections-pills" role="group" aria-label="Status dos painéis retráteis">
+          {sectionPills.map(pill => (
+            <button
+              key={pill.id}
+              type="button"
+              data-testid={`bench-section-pill-${pill.id}`}
+              className={`bench-section-pill ${pill.isOpen ? 'is-open' : 'is-closed'}`}
+              aria-pressed={pill.isOpen}
+              onClick={() => handleSectionPillClick(pill)}
+            >
+              <span className="bench-section-pill-chevron" aria-hidden="true">
+                {pill.isOpen ? '▾' : '▸'}
+              </span>
+              {pill.label}
+            </button>
+          ))}
+        </div>
+        <button
+          type="button"
+          className="glossary-toggle bench-toggle-all"
+          data-testid="bench-toggle-all-cards"
+          aria-pressed={allCardsOpen}
+          onClick={toggleAllCards}
+        >
+          {allCardsOpen ? 'Recolher Painéis' : 'Expandir Tudo'}
+        </button>
+      </div>
+
+      {/* diagnostic */}
+      <section
+        className="diagnostic-drawer"
+        data-tour="bench-answers"
+        aria-label="As 4 Respostas do Detetive e Diagnóstico Multiescala"
+      >
+        <BenchCollapsible
+          id="diagnostic"
+          icon="◈"
+          title="Diagnóstico das 4 Respostas"
+          badges={[
+            `${regions.length} região(ões)`,
+            analysis.comparison_pair ? 'Comparação A × B' : 'Série única',
+            '7 invariantes',
+          ]}
+          open={openCards.diagnostic}
+          onToggle={() => toggleCard('diagnostic')}
+        >
           <div className="diag-grid">
             <article className="diag-card">
               <h4>1. O QUE muda &amp; Regime Físico (GAM)</h4>
@@ -1442,25 +1681,44 @@ export function ScientificBench({
               )}
             </article>
           </div>
-        </section>
-      )}
+        </BenchCollapsible>
+      </section>
 
       {showCopilot && (
-        <section className="copilot-drawer" aria-label="Co-Piloto Estatístico Interativo">
+        <section ref={copilotDrawerRef} className="copilot-drawer" aria-label="Co-Piloto Estatístico Interativo">
           <div className="copilot-header">
             <div className="copilot-title-block">
+              <div className="copilot-chat-identity">
+                <span className="copilot-avatar" aria-hidden="true">
+                  <svg viewBox="0 0 32 32" width="30" height="30" focusable="false">
+                    <rect x="6" y="9" width="20" height="15" rx="5" fill="none" stroke="currentColor" strokeWidth="1.8" />
+                    <circle cx="12" cy="16.5" r="2" fill="currentColor" />
+                    <circle cx="20" cy="16.5" r="2" fill="currentColor" />
+                    <path d="M16 9V5M13 5h6M11 24v2M21 24v2" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" />
+                  </svg>
+                  <span className="copilot-avatar-pulse" />
+                </span>
+                <div className="copilot-chat-identity-text">
+                  <span className="copilot-online-label">● Online · IA Assistente</span>
+                  <h3>{isEn ? 'Statistical Co-Pilot Chatbot' : 'Chatbot Co-Piloto Estatístico'}</h3>
+                  <p className="copilot-chat-subtitle">
+                    {isEn
+                      ? 'Ask questions in natural language about this region’s data and tests'
+                      : 'Tire dúvidas em linguagem natural sobre os dados e testes desta região'}
+                  </p>
+                </div>
+              </div>
               <div className="copilot-title-group">
-                <span
-                  className={`copilot-status-dot ${copilotLoading ? 'is-busy' : copilotIsAi ? 'is-ai' : 'is-local'}`}
-                  aria-hidden="true"
-                />
-                <h3>{isEn ? 'Statistical Co-Pilot' : 'Co-Piloto Estatístico'}</h3>
                 <span
                   className={`copilot-badge ${
                     copilotIsAi ? 'copilot-badge-ai' : copilotIsPython ? 'copilot-badge-python' : 'copilot-badge-local'
                   }`}
                   title={copilotMeta ? `${copilotMeta.mode} · ${copilotMeta.model}` : undefined}
                 >
+                  <span
+                    className={`copilot-status-dot ${copilotLoading ? 'is-busy' : copilotIsAi ? 'is-ai' : 'is-local'}`}
+                    aria-hidden="true"
+                  />
                   {copilotIsAi
                     ? isEn
                       ? 'Generative AI + Function Calling'
@@ -1561,41 +1819,41 @@ export function ScientificBench({
             </article>
           </div>
 
-          <div className="copilot-chips-block">
-            <span className="copilot-section-label">{isEn ? 'Quick investigations' : 'Investigações rápidas'}</span>
-            <div className="copilot-chips" role="group" aria-label="Perguntas sugeridas ao Co-Piloto">
-              {copilotSynthesis.suggested_questions.map((suggested, chipIdx) => (
-                <button
-                  key={suggested}
-                  type="button"
-                  className="copilot-chip"
-                  disabled={copilotLoading}
-                  onClick={() => void submitCopilotQuestion(suggested)}
-                >
-                  <span className="copilot-chip-icon" aria-hidden="true">
-                    {COPILOT_CHIP_ICONS[chipIdx % COPILOT_CHIP_ICONS.length]}
-                  </span>
-                  <span className="copilot-chip-text">{suggested}</span>
-                </button>
-              ))}
-            </div>
-          </div>
-
-          <div className="copilot-chat-box">
+          <div className="copilot-chat-box copilot-chat-window">
             {copilotMeta?.warnings && copilotMeta.warnings.length > 0 && (
               <p className="copilot-invariant-alert" role="status">
                 {copilotMeta.warnings.join(' · ')}
               </p>
             )}
-            {copilotHistory.length > 0 && (
-              <div className="copilot-messages" aria-live="polite">
+            <div className="copilot-messages copilot-chat-viewport" aria-live="polite">
+                <div className="copilot-msg copilot-msg-assistant chat-bubble chat-bubble-assistant chat-bubble-welcome" data-testid="copilot-welcome-bubble">
+                  <span className="chat-avatar" aria-hidden="true">AI</span>
+                  <div className="chat-bubble-body">
+                    <strong className="copilot-msg-role">Co-Piloto IA</strong>
+                    <p className="chat-welcome-text">
+                      {isEn
+                        ? '👋 Hi! I am your Statistical Co-Pilot. I can explain whether a trend is real or AR(1) noise, detail the lags (BH-FDR) and seasons (DJF–SON), or analyze the open data. Click a suggestion below or send your question!'
+                        : '👋 Olá! Sou o seu Co-Piloto Estatístico. Posso explicar se há tendência real ou ruído AR(1), detalhar os lags (BH-FDR) e estações (DJF–SON), ou analisar os dados abertos. Clique em uma sugestão abaixo ou envie sua pergunta!'}
+                    </p>
+                  </div>
+                </div>
                 {copilotHistory.map((turn, idx) => (
                   <div
                     key={`${turn.role}-${idx}`}
-                    className={`copilot-msg ${turn.role === 'user' ? 'copilot-msg-user' : 'copilot-msg-assistant'}`}
+                    className={`copilot-msg chat-bubble ${
+                      turn.role === 'user'
+                        ? 'copilot-msg-user chat-bubble-user'
+                        : 'copilot-msg-assistant chat-bubble-assistant'
+                    }`}
                   >
+                    {turn.role === 'assistant' && (
+                      <span className="chat-avatar" aria-hidden="true">
+                        AI
+                      </span>
+                    )}
+                    <div className="chat-bubble-body">
                     <strong className="copilot-msg-role">
-                      {turn.role === 'user' ? (isEn ? 'You: ' : 'Você: ') : 'Co-Piloto: '}
+                      {turn.role === 'user' ? (isEn ? 'You' : 'Você') : 'Co-Piloto IA'}
                     </strong>
                     {turn.role === 'assistant' ? (
                       <CopilotRichText text={turn.content} />
@@ -1620,10 +1878,11 @@ export function ScientificBench({
                         ))}
                       </div>
                     )}
+                    </div>
                   </div>
                 ))}
                 {copilotLoading && (
-                  <div className="copilot-msg copilot-msg-assistant copilot-msg-thinking" role="status" aria-live="polite">
+                  <div className="copilot-msg copilot-msg-assistant chat-bubble chat-bubble-assistant copilot-msg-thinking" role="status" aria-live="polite">
                     <span className="copilot-typing-dots" aria-hidden="true">
                       <span />
                       <span />
@@ -1649,9 +1908,28 @@ export function ScientificBench({
                   </div>
                 )}
               </div>
-            )}
 
-            <form className="copilot-form" onSubmit={handleCopilotFormSubmit}>
+            <div className="copilot-chips-block copilot-chat-suggestions">
+              <span className="copilot-section-label">{isEn ? 'Quick investigations' : 'Investigações rápidas'}</span>
+              <div className="copilot-chips" role="group" aria-label="Perguntas sugeridas ao Co-Piloto">
+                {copilotSynthesis.suggested_questions.map(suggested => (
+                  <button
+                    key={suggested}
+                    type="button"
+                    className="copilot-chip"
+                    disabled={copilotLoading}
+                    onClick={() => void submitCopilotQuestion(suggested)}
+                  >
+                    <span className="copilot-chip-icon" aria-hidden="true">
+                      ✦
+                    </span>
+                    <span className="copilot-chip-text">{suggested}</span>
+                  </button>
+                ))}
+              </div>
+            </div>
+
+            <form className="copilot-form copilot-chat-inputbar" onSubmit={handleCopilotFormSubmit}>
               <span className="copilot-prompt-glyph" aria-hidden="true">
                 ›_
               </span>
@@ -1661,9 +1939,7 @@ export function ScientificBench({
                 value={copilotQuestion}
                 onChange={e => setCopilotQuestion(e.target.value)}
                 placeholder={
-                  isEn
-                    ? 'Ask about trends, AR(1) significance, Mahalanobis extremes, or A vs B...'
-                    : 'Pergunte sobre tendências, AR(1), extremos de Mahalanobis ou comparação A × B...'
+                  isEn ? 'Ask the Statistical Co-Pilot something...' : 'Pergunte algo ao Co-Piloto Estatístico...'
                 }
                 aria-label={isEn ? 'Ask the Statistical Co-Pilot' : 'Pergunte ao Co-Piloto Estatístico'}
                 disabled={copilotLoading}
@@ -1673,13 +1949,31 @@ export function ScientificBench({
                 className="copilot-submit"
                 disabled={copilotLoading || !copilotQuestion.trim()}
               >
-                {copilotLoading ? (isEn ? 'Thinking...' : 'Pensando...') : isEn ? 'Ask' : 'Perguntar'}
+                {copilotLoading ? (isEn ? 'Thinking...' : 'Pensando...') : isEn ? 'Ask' : 'Perguntar'}{' '}
+                <span className="copilot-send-icon" aria-hidden="true">
+                  ➤
+                </span>
               </button>
             </form>
           </div>
         </section>
       )}
 
+      <BenchCollapsible
+        id="provenance"
+        icon="⌗"
+        title="Auditoria · Origem e Qualidade dos Dados"
+        badges={[
+          analysis.request_meta.source === 'backend_api'
+            ? 'Modo: API Backend'
+            : analysis.request_meta.source === 'idb_cache'
+              ? 'Modo: Cache IndexedDB'
+              : 'Modo: Demo offline',
+          `${regions.length} série(s)`,
+        ]}
+        open={openCards.provenance}
+        onToggle={() => toggleCard('provenance')}
+      >
       <footer className="data-provenance" aria-label="Origem e qualidade dos dados">
         <h3>Origem e qualidade dos dados</h3>
         <dl className="provenance-grid">
@@ -1731,6 +2025,7 @@ export function ScientificBench({
           <p className="note">A curva Theil–Sen depende da série ajustada fornecida pelo backend.</p>
         )}
       </footer>
+      </BenchCollapsible>
 
       {showMethodologyModal && (
         <div
