@@ -107,7 +107,16 @@ nav { display: flex; flex-wrap: wrap; gap: .5rem; margin-bottom: .75rem; }
 .map-message.info { color: #bfdbfe; background: rgba(30, 64, 175, .12); }
 .map-message.success { color: #a7f3d0; background: rgba(5, 150, 105, .13); border-color: rgba(52, 211, 153, .35); }
 .map-message.error { color: #fecaca; background: rgba(185, 28, 28, .24); border-color: #ef4444; font-size: .95rem; font-weight: 700; box-shadow: inset 3px 0 0 #f87171; }
-.map-container { flex: 1 1 auto; width: 100%; min-height: 300px; background: #101f34; }
+.map-container {
+  flex: 1 1 auto;
+  width: 100%;
+  min-height: 300px;
+  background:
+    linear-gradient(rgba(56, 189, 248, .04) 1px, transparent 1px) 0 0 / 48px 48px,
+    linear-gradient(90deg, rgba(56, 189, 248, .04) 1px, transparent 1px) 0 0 / 48px 48px,
+    radial-gradient(circle at 50% 45%, #122942 0%, #0b1829 100%);
+}
+.map-container .leaflet-tile-loaded[src^="data:image/gif"] { opacity: 0; }
 .map-container .leaflet-control-layers, .map-container .leaflet-bar a { background: #121e30; color: #e1edf8; border-color: #39516d; }
 .map-container .leaflet-control-attribution { background: rgba(10, 20, 34, .82); color: #acc1d9; }
 .map-container .leaflet-control-attribution a { color: #67e8f9; }
@@ -197,6 +206,10 @@ button:focus-visible, a:focus-visible, summary:focus-visible, input:focus-visibl
 }
 
 .bench-header-actions { display: flex; flex-wrap: wrap; gap: .45rem; }
+.bench-empty-bar { display: flex; justify-content: flex-end; }
+.glossary-toggle.export-action { color: #dbeafe; background: #14283d; border-color: #365778; }
+.glossary-toggle.export-action:hover:not(:disabled) { border-color: #67e8f9; color: #ecfeff; background: #1a3550; }
+.glossary-toggle.export-action:disabled { opacity: .45; cursor: not-allowed; }
 .charts-grid { display: grid; grid-template-columns: minmax(0, 1fr); gap: .75rem; }
 .charts-grid.dual-charts { grid-template-columns: repeat(2, minmax(0, 1fr)); }
 .chart-box { min-width: 0; min-height: 410px; background: #0c1726; border: 1px solid #24364e; border-radius: 10px; padding: .35rem; overflow: hidden; }

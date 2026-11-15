@@ -3,6 +3,7 @@ import createPlotlyComponent from 'react-plotly.js/factory';
 import Plotly from 'plotly.js-basic-dist-min';
 import { getVariableMetadata, VARIABLE_LIST } from '../contracts/catalog';
 import type { RegionAnalysisResponse, RegionSelection, VariableStatistics } from '../contracts/types';
+import { exportAnalysisAsCsv, exportAnalysisAsJson } from '../services/dataExporter';
 import {
   computeMahalanobisContourAndFit,
   CONFIDENCE_LABELS,
@@ -45,6 +46,47 @@ interface ScientificBenchProps {
 
 function formatPointValue(val: number | null | undefined): string {
   return val !== null && val !== undefined && Number.isFinite(val) ? val.toFixed(3) : '—';
+}
+
+function BenchExportActions({
+  disabled,
+  onExportCsv,
+  onExportJson,
+}: {
+  readonly disabled: boolean;
+  readonly onExportCsv: () => void;
+  readonly onExportJson: () => void;
+}) {
+  return (
+    <>
+      <button
+        type="button"
+        className="glossary-toggle export-action"
+        disabled={disabled}
+        onClick={onExportCsv}
+        title={
+          disabled
+            ? 'Realize uma análise para habilitar a exportação em CSV'
+            : 'Exportar séries temporais e resumo estatístico em CSV científico'
+        }
+      >
+        Exportar CSV
+      </button>
+      <button
+        type="button"
+        className="glossary-toggle export-action"
+        disabled={disabled}
+        onClick={onExportJson}
+        title={
+          disabled
+            ? 'Realize uma análise para habilitar a exportação em JSON'
+            : 'Exportar análise completa e metadados estruturados em JSON'
+        }
+      >
+        Exportar JSON
+      </button>
+    </>
+  );
 }
 
 function StatSummaryCard({
@@ -134,9 +176,22 @@ export function ScientificBench({
   const [showMahalanobis, setShowMahalanobis] = useState(true);
   const [showDiagnostics, setShowDiagnostics] = useState(true);
 
+  const exportOptions = {
+    regionA,
+    regionB,
+    startMonth: periodReady ? start : undefined,
+    endMonth: periodReady ? end : undefined,
+    analyzedAt,
+  };
+
   if (!analysis) {
     return (
       <section className="bench-panel" aria-label="Séries temporais">
+        <div className="bench-empty-bar">
+          <div className="bench-header-actions" role="group" aria-label="Exportação científica">
+            <BenchExportActions disabled onExportCsv={() => {}} onExportJson={() => {}} />
+          </div>
+        </div>
         <div className="bench-empty" role="status">
           <div className="bench-empty-icon" aria-hidden="true">⌁</div>
           <h2>Nenhuma análise realizada</h2>
@@ -180,13 +235,19 @@ export function ScientificBench({
   const stacked = separate || (mixed && !effectiveDual);
 
   const months = regions.flatMap(region => region.series.dates).sort();
-  const firstMonth = periodReady ? start : months[0];
-  const lastMonth = periodReady ? end : months.at(-1);
+  const inRangeMonths = periodReady ? months.filter(month => month >= start && month <= end) : months;
+  const firstMonth = inRangeMonths[0] ?? (periodReady ? start : undefined);
+  const lastMonth = inRangeMonths.at(-1) ?? (periodReady ? end : undefined);
   const firstDate = firstMonth ? `${firstMonth}-01` : undefined;
   const lastDate = lastMonth
     ? new Date(Date.UTC(Number(lastMonth.slice(0, 4)), Number(lastMonth.slice(5, 7)), 0)).toISOString().slice(0, 10)
     : undefined;
-  const hasPoints = months.some(month => !periodReady || (month >= start && month <= end));
+  const hasPoints = inRangeMonths.length > 0;
+  const periodTrimmed = Boolean(
+    periodReady &&
+    hasPoints &&
+    ((firstMonth && firstMonth > start) || (lastMonth && lastMonth < end)),
+  );
   const isOfflineAnalysis = analysis.request_meta.source === 'offline_fallback';
 
   const showOls = trendMode === 'ols' || trendMode === 'both';
@@ -416,6 +477,11 @@ export function ScientificBench({
             </p>
           </div>
           <div className="bench-header-actions">
+            <BenchExportActions
+              disabled={!analysis}
+              onExportCsv={() => exportAnalysisAsCsv(analysis, exportOptions)}
+              onExportJson={() => exportAnalysisAsJson(analysis, exportOptions)}
+            />
             <button
               type="button"
               className="glossary-toggle"
@@ -655,6 +721,12 @@ export function ScientificBench({
         <p className="note" role="status">O resultado atual não contém dados no período selecionado.</p>
       )}
 
+      {periodTrimmed && (
+        <p className="note" role="status">
+          Cobertura efetiva com dados: <strong>{firstMonth}</strong> a <strong>{lastMonth}</strong>{' '}
+          (recorte automático sobre o período selecionado de {start} a {end}).
+        </p>
+      )}
       {hasPoints && (
         <div className={viewMode === 'both' && scatterBundle ? 'charts-grid dual-charts' : 'charts-grid'}>
           {(viewMode === 'timeseries' || viewMode === 'both') && (
