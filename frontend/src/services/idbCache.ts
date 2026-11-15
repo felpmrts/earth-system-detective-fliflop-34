@@ -1,8 +1,9 @@
 import type { RegionAnalysisResponse } from '../contracts/types.ts';
 
-const DB_NAME = 'trend_detective_cache_v1';
+const DB_NAME = 'trend_detective_cache_v2';
 const STORE_NAME = 'region_analyses';
 const DB_VERSION = 1;
+const DEFAULT_TTL_MS = 24 * 60 * 60 * 1000;
 
 export interface CacheEntry {
   readonly key: string;
@@ -16,6 +17,12 @@ export interface CacheEntry {
  */
 export class RegionAnalysisCache {
   private readonly memoryFallback = new Map<string, CacheEntry>();
+
+  constructor(private readonly ttlMs = DEFAULT_TTL_MS) {}
+
+  private isFresh(entry: CacheEntry): boolean {
+    return Number.isFinite(entry.savedAt) && Date.now() - entry.savedAt <= this.ttlMs;
+  }
 
   private isIdbAvailable(): boolean {
     return typeof indexedDB !== 'undefined';
@@ -37,9 +44,10 @@ export class RegionAnalysisCache {
 
   async get(key: string): Promise<RegionAnalysisResponse | null> {
     const memHit = this.memoryFallback.get(key);
-    if (memHit) {
+    if (memHit && this.isFresh(memHit)) {
       return memHit.payload;
     }
+    if (memHit) this.memoryFallback.delete(key);
 
     if (!this.isIdbAvailable()) {
       return null;
@@ -53,7 +61,7 @@ export class RegionAnalysisCache {
         const req = store.get(key);
         req.onsuccess = () => {
           const entry = req.result as CacheEntry | undefined;
-          if (entry) {
+          if (entry && this.isFresh(entry)) {
             this.memoryFallback.set(key, entry);
             resolve(entry.payload);
           } else {

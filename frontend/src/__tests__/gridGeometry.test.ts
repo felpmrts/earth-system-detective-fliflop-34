@@ -1,8 +1,11 @@
 import { describe, expect, it } from 'vitest';
 import {
   buildRegionSelection,
+  clampLatLon,
   isAdjacent8,
   isConnectedComponent,
+  MAX_CELLS_PER_REGION,
+  selectCellsInBoundingBox,
   snapCoordToCell,
   toggleCellInSelection,
 } from '../geo/gridGeometry.ts';
@@ -63,7 +66,7 @@ describe('gridGeometry — snapping de grade NASA e composição K <= 9', () => 
     expect(farRes.reason).toBe('NOT_ADJACENT');
   });
 
-  it('bloqueia a 10ª célula (MAX_CELLS_EXCEEDED) e bloqueia remoção que desconecte o bloco (WOULD_DISCONNECT)', () => {
+  it('bloqueia a 26ª célula (MAX_CELLS_EXCEEDED) e bloqueia remoção que desconecte o bloco (WOULD_DISCONNECT)', () => {
     // Monta linha 1x3
     const c1 = snapCoordToCell(0.25, 0.3, 'T2M');
     const c2 = snapCoordToCell(0.25, 0.9, 'T2M');
@@ -80,17 +83,17 @@ describe('gridGeometry — snapping de grade NASA e composição K <= 9', () => 
     expect(removeTip.ok).toBe(true);
     expect(removeTip.cells).toHaveLength(2);
 
-    // Preenche 3x3 (9 células) e tenta adicionar a 10ª
-    const grid3x3: GridCell[] = [];
-    for (let r = 0; r < 3; r += 1) {
-      for (let c = 0; c < 3; c += 1) {
-        grid3x3.push(snapCoordToCell(0.25 + r * 0.5, 0.3 + c * 0.625, 'T2M'));
+    // Preenche 5x5 (25 células) e tenta adicionar a 26ª
+    const grid5x5: GridCell[] = [];
+    for (let r = 0; r < 5; r += 1) {
+      for (let c = 0; c < 5; c += 1) {
+        grid5x5.push(snapCoordToCell(0.25 + r * 0.5, 0.3 + c * 0.625, 'T2M'));
       }
     }
-    expect(grid3x3).toHaveLength(9);
+    expect(grid5x5).toHaveLength(MAX_CELLS_PER_REGION);
 
-    const tenth = snapCoordToCell(0.25, 0.3 + 3 * 0.625, 'T2M');
-    const overLimit = toggleCellInSelection(grid3x3, tenth);
+    const twentySixth = snapCoordToCell(0.25, 0.3 + 5 * 0.625, 'T2M');
+    const overLimit = toggleCellInSelection(grid5x5, twentySixth);
     expect(overLimit.ok).toBe(false);
     expect(overLimit.reason).toBe('MAX_CELLS_EXCEEDED');
   });
@@ -103,5 +106,75 @@ describe('gridGeometry — snapping de grade NASA e composição K <= 9', () => 
     const regOrderB = buildRegionSelection('A', 'GWETTOP', [c2, c1]);
 
     expect(regOrderA.region_id).toBe(regOrderB.region_id);
+  });
+
+  it('converte bounding box para células nativas MERRA-2 e CERES mantendo conexidade', () => {
+    // Caixa pequena MERRA-2 (2 linhas × 2 colunas = 4 células)
+    const merraBox = selectCellsInBoundingBox(
+      { lat: -19.0, lon: -48.75 },
+      { lat: -18.5, lon: -48.125 },
+      'T2M',
+    );
+    expect(merraBox.wasClamped).toBe(false);
+    expect(merraBox.totalInBox).toBe(4);
+    expect(merraBox.cells).toHaveLength(4);
+    expect(isConnectedComponent(merraBox.cells)).toBe(true);
+    expect(buildRegionSelection('A', 'T2M', merraBox.cells).cells).toHaveLength(4);
+
+    // Caixa CERES_SYN1deg (2° × 3° = 6 células 1.0° × 1.0°)
+    const ceresBox = selectCellsInBoundingBox(
+      { lat: -3.2, lon: -60.2 },
+      { lat: -2.2, lon: -58.2 },
+      'CLOUD_AMT',
+    );
+    expect(ceresBox.wasClamped).toBe(false);
+    expect(ceresBox.totalInBox).toBe(6);
+    expect(ceresBox.cells).toHaveLength(6);
+    expect(isConnectedComponent(ceresBox.cells)).toBe(true);
+    expect(buildRegionSelection('B', 'CLOUD_AMT', ceresBox.cells).source_model).toBe('CERES_SYN1deg');
+  });
+
+  it('limita bounding box grande às 9 células conexas mais próximas do ponto inicial do arraste', () => {
+    // Caixa grande em MERRA-2 arrastada do nordeste para sudoeste
+    const startNE = { lat: -15.0, lon: -45.0 };
+    const endSW = { lat: -22.0, lon: -53.0 };
+    const clamped = selectCellsInBoundingBox(startNE, endSW, 'GWETTOP');
+
+    expect(clamped.wasClamped).toBe(true);
+    expect(clamped.totalInBox).toBeGreaterThan(MAX_CELLS_PER_REGION);
+    expect(clamped.cells).toHaveLength(MAX_CELLS_PER_REGION);
+    expect(isConnectedComponent(clamped.cells)).toBe(true);
+
+    const anchor = snapCoordToCell(startNE.lat, startNE.lon, 'GWETTOP');
+    expect(clamped.cells.some(c => c.cell_id === anchor.cell_id)).toBe(true);
+
+    // Nenhuma célula selecionada deve estar mais longe do ponto inicial do que o quadrado 3x3 esperado
+    const region = buildRegionSelection('A', 'GWETTOP', clamped.cells);
+    expect(region.cells).toHaveLength(MAX_CELLS_PER_REGION);
+
+    // Caixa gigante em CERES também respeita K <= MAX_CELLS_PER_REGION e mantém ponto inicial
+    const ceresStart = { lat: -10.5, lon: -70.5 };
+    const ceresClamped = selectCellsInBoundingBox(
+      ceresStart,
+      { lat: 5.5, lon: -50.5 },
+      'ALLSKY_SFC_SW_DWN',
+    );
+    expect(ceresClamped.wasClamped).toBe(true);
+    expect(ceresClamped.cells).toHaveLength(MAX_CELLS_PER_REGION);
+    expect(isConnectedComponent(ceresClamped.cells)).toBe(true);
+    const ceresAnchor = snapCoordToCell(ceresStart.lat, ceresStart.lon, 'ALLSKY_SFC_SW_DWN');
+    expect(ceresClamped.cells.some(c => c.cell_id === ceresAnchor.cell_id)).toBe(true);
+  });
+
+  it('normaliza coordenadas fora de faixa durante arraste livre sem lançar erro', () => {
+    expect(clampLatLon(98, -210)).toEqual({ lat: 90, lon: -180 });
+    const clampedBox = selectCellsInBoundingBox(
+      { lat: -95, lon: -185 },
+      { lat: -88, lon: -178 },
+      'T2M',
+    );
+    expect(clampedBox.cells.length).toBeGreaterThanOrEqual(1);
+    expect(clampedBox.cells.length).toBeLessThanOrEqual(MAX_CELLS_PER_REGION);
+    expect(isConnectedComponent(clampedBox.cells)).toBe(true);
   });
 });
