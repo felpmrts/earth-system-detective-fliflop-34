@@ -98,9 +98,13 @@ Use a tabela abaixo para saltar diretamente para o documento (e seção) exato s
 
 Abaixo estão os documentos Markdown do projeto, organizados por módulo funcional, com tamanho aproximado e resumo cirúrgico de conteúdo:
 
-### 🏛️ Camada 0: Roteador Central (Raiz)
+### 🏛️ Camada 0: Roteador Central (Raiz) e Documentação Pública
 1. **[`00_MASTER_CONTEXT_AND_ROUTER.md`](file:///home/zrhyan/Principal/Computation/Space%20Apps/00_MASTER_CONTEXT_AND_ROUTER.md)** *(Este documento)*
    - **Papel:** Ponto de entrada único para IAs e humanos. Contém o resumo executivo denso do projeto, os 7 invariantes estatísticos, a árvore de decisão de leitura seletiva e o inventário vivo de todos os arquivos `.md`.
+2. **[`README.md`](README.md)** *(v1 — Documentação pública raiz)*
+   - **Papel:** Porta de entrada pública do repositório com visão geral, arquitetura em camadas, catálogo de variáveis, execução local, suite de testes (Vitest + Playwright E2E) e pacote offline.
+3. **[`DATA_SOURCES.md`](DATA_SOURCES.md)** *(v1 — Inventário oficial de fontes)*
+   - **Papel:** Catálogo inicial das fontes oficiais (NASA POWER / MERRA-2 / CERES_SYN1deg, AppEEARS, Open-Meteo, NOAA CDO, CMR/Earthdata), grades homologadas, resoluções, políticas de máscara oceânica e limitações conhecidas.
 
 ### 🧭 Camada 1: Estratégia Geral, Governança e Contexto NASA (`general_strategy/`)
 2. **[`general_strategy/ESTRATEGIA_TREND_DETECTIVE.md`](file:///home/zrhyan/Principal/Computation/Space%20Apps/general_strategy/ESTRATEGIA_TREND_DETECTIVE.md)** *(542 linhas | ~41 KB)*
@@ -168,5 +172,6 @@ Abaixo estão os documentos Markdown do projeto, organizados por módulo funcion
 | ✅ *Integrado (Fase 2)* | `frontend/src/App.tsx`, `frontend/src/bench.css`, `frontend/src/contracts/{types,contractValidator}.ts` | Bancada Científica interativa: 3 Casos Clássicos NARR (1 clique), Tripla Normalização (Anomalia / Bruto / Z-Score $\sigma$), escala Linear vs. Symlog, dispersão X vs. Y com elipse de Mahalanobis ($D_M=2{,}5$), camadas independentes (OLS, Theil-Sen, GAM, Outliers) e gaveta das **4 Respostas do Detetive**. | `PROD-2`, `DADOS-2`, `NARR` |
 | ✅ *Criado* | `context/general_strategy/CASOS_DEMO_E_DESCOBERTA_NARR.md` | Coordenadas exatas (*snapped* MERRA-2/CERES) dos 3 Casos Clássicos de Demonstração (*Story Presets*) e 4 Temas do Sistema de Descoberta por Bioma. | `NARR` |
 | ✅ *Criado* | `DECISOES.md` | Log cronológico de decisões de escopo e arquitetura (inclui registros `PROD-1` de *re-snap* `A=B` e homologação `validate:grids`). | `COORD` + `PROD-1` |
-| ⏳ *Fase 4/6* | `DATA_SOURCES.md` | Citação oficial dos datasets da NASA, DOIs, resolução, período e limitações conhecidas. | `DADOS-1` + `NARR` |
-| ⏳ *Fase 6* | `README.md` | Documentação pública do repositório para os jurados da NASA (instruções de uso e reprodução). | `COORD` + `NARR` |
+| ✅ *Criado (v1)* | `DATA_SOURCES.md` | Citação oficial dos datasets da NASA, grades/resoluções, período, máscaras e limitações conhecidas (versão inicial v1). | `DADOS-1` + `NARR` |
+| ✅ *Criado (v1)* | `README.md` | Documentação pública raiz do repositório (arquitetura, execução local, testes unitários/E2E e pacote offline — versão inicial v1). | `COORD` + `NARR` |
+| ✅ *Criado* | `.github/workflows/ci.yml` + `frontend/playwright.config.ts` + `frontend/e2e/trendDetective.spec.ts` | Pipeline GitHub Actions (`backend-tests` + `frontend-e2e`) e suíte E2E Playwright contra `vite preview` (fluxo `A=B`, Leaflet Canvas, arraste até 25 células, offline 100% + exportação CSV/JSON, desktop `1366×768` e mobile `375×812`). | `PROD-1` + `COORD` |
