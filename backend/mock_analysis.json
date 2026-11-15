@@ -11,10 +11,10 @@
   },
   "region_a_analysis": {
     "variable_id": "GWETTOP",
-    "variable_name": "Umidade do Solo Superficial (0–5 cm)",
+    "variable_name": "Surface Soil Moisture (0–5 cm)",
     "scale_type": "ratio",
-    "unit": "fração (0–1)",
-    "trend_unit": "fração/década",
+    "unit": "fraction (0–1)",
+    "trend_unit": "fraction/decade",
     "allow_percentage_change": false,
     "period": {
       "start": "1981-01",
@@ -52,7 +52,7 @@
         "expected_regression": -0.0462,
         "mahalanobis_d": 41.31,
         "direction": "below_ellipse",
-        "diagnostic_hint": "Extremo fora da elipse bivariada (D_M = 41.31) associado a Super El Niño 2015-2016"
+        "diagnostic_hint": "Extreme outside the bivariate ellipse (D_M = 41.31) associated with Super El Niño 2015–2016"
       },
       {
         "date": "1981-10",
@@ -60,7 +60,7 @@
         "expected_regression": 0.0784,
         "mahalanobis_d": 2.95,
         "direction": "below_ellipse",
-        "diagnostic_hint": "Queda anômala severa fora da elipse de Mahalanobis (D_M = 2.95 > 2.5)"
+        "diagnostic_hint": "Severe anomalous drop outside the Mahalanobis ellipse (D_M = 2.95 > 2.5)"
       },
       {
         "date": "2025-10",
@@ -68,7 +68,7 @@
         "expected_regression": -0.0825,
         "mahalanobis_d": 2.82,
         "direction": "below_ellipse",
-        "diagnostic_hint": "Queda anômala severa fora da elipse de Mahalanobis (D_M = 2.82 > 2.5)"
+        "diagnostic_hint": "Severe anomalous drop outside the Mahalanobis ellipse (D_M = 2.82 > 2.5)"
       },
       {
         "date": "1981-09",
@@ -76,7 +76,7 @@
         "expected_regression": 0.0787,
         "mahalanobis_d": 2.75,
         "direction": "below_ellipse",
-        "diagnostic_hint": "Queda anômala severa fora da elipse de Mahalanobis (D_M = 2.75 > 2.5)"
+        "diagnostic_hint": "Severe anomalous drop outside the Mahalanobis ellipse (D_M = 2.75 > 2.5)"
       },
       {
         "date": "1981-11",
@@ -84,7 +84,7 @@
         "expected_regression": 0.0781,
         "mahalanobis_d": 2.72,
         "direction": "below_ellipse",
-        "diagnostic_hint": "Queda anômala severa fora da elipse de Mahalanobis (D_M = 2.72 > 2.5)"
+        "diagnostic_hint": "Severe anomalous drop outside the Mahalanobis ellipse (D_M = 2.72 > 2.5)"
       },
       {
         "date": "1982-10",
@@ -92,7 +92,7 @@
         "expected_regression": 0.0747,
         "mahalanobis_d": 2.69,
         "direction": "below_ellipse",
-        "diagnostic_hint": "Extremo fora da elipse bivariada (D_M = 2.69) associado a Super El Niño 1982-1983"
+        "diagnostic_hint": "Extreme outside the bivariate ellipse (D_M = 2.69) associated with Super El Niño 1982-1983"
       },
       {
         "date": "1981-12",
@@ -100,7 +100,7 @@
         "expected_regression": 0.0778,
         "mahalanobis_d": 2.65,
         "direction": "below_ellipse",
-        "diagnostic_hint": "Queda anômala severa fora da elipse de Mahalanobis (D_M = 2.65 > 2.5)"
+        "diagnostic_hint": "Severe anomalous drop outside the Mahalanobis ellipse (D_M = 2.65 > 2.5)"
       },
       {
         "date": "2024-10",
@@ -108,7 +108,7 @@
         "expected_regression": -0.0788,
         "mahalanobis_d": 2.64,
         "direction": "below_ellipse",
-        "diagnostic_hint": "Extremo fora da elipse bivariada (D_M = 2.64) associado a Super El Niño / Extremo Climático 2023-2024"
+        "diagnostic_hint": "Extreme outside the bivariate ellipse (D_M = 2.64) associated with Super El Niño / Climate Extreme 2023–2024"
       },
       {
         "date": "2025-09",
@@ -116,7 +116,7 @@
         "expected_regression": -0.0822,
         "mahalanobis_d": 2.64,
         "direction": "below_ellipse",
-        "diagnostic_hint": "Queda anômala severa fora da elipse de Mahalanobis (D_M = 2.64 > 2.5)"
+        "diagnostic_hint": "Severe anomalous drop outside the Mahalanobis ellipse (D_M = 2.64 > 2.5)"
       },
       {
         "date": "1982-12",
@@ -124,7 +124,7 @@
         "expected_regression": 0.0741,
         "mahalanobis_d": 2.61,
         "direction": "below_ellipse",
-        "diagnostic_hint": "Extremo fora da elipse bivariada (D_M = 2.61) associado a Super El Niño 1982-1983"
+        "diagnostic_hint": "Extreme outside the bivariate ellipse (D_M = 2.61) associated with Super El Niño 1982-1983"
       },
       {
         "date": "2025-11",
@@ -132,7 +132,7 @@
         "expected_regression": -0.0828,
         "mahalanobis_d": 2.59,
         "direction": "below_ellipse",
-        "diagnostic_hint": "Queda anômala severa fora da elipse de Mahalanobis (D_M = 2.59 > 2.5)"
+        "diagnostic_hint": "Severe anomalous drop outside the Mahalanobis ellipse (D_M = 2.59 > 2.5)"
       },
       {
         "date": "1982-11",
@@ -140,7 +140,7 @@
         "expected_regression": 0.0744,
         "mahalanobis_d": 2.58,
         "direction": "below_ellipse",
-        "diagnostic_hint": "Extremo fora da elipse bivariada (D_M = 2.58) associado a Super El Niño 1982-1983"
+        "diagnostic_hint": "Extreme outside the bivariate ellipse (D_M = 2.58) associated with Super El Niño 1982-1983"
       },
       {
         "date": "2024-09",
@@ -148,7 +148,7 @@
         "expected_regression": -0.0785,
         "mahalanobis_d": 2.57,
         "direction": "below_ellipse",
-        "diagnostic_hint": "Extremo fora da elipse bivariada (D_M = 2.57) associado a Super El Niño / Extremo Climático 2023-2024"
+        "diagnostic_hint": "Extreme outside the bivariate ellipse (D_M = 2.57) associated with Super El Niño / Climate Extreme 2023–2024"
       },
       {
         "date": "1983-12",
@@ -156,7 +156,7 @@
         "expected_regression": 0.0705,
         "mahalanobis_d": 2.53,
         "direction": "below_ellipse",
-        "diagnostic_hint": "Extremo fora da elipse bivariada (D_M = 2.53) associado a Super El Niño 1982-1983"
+        "diagnostic_hint": "Extreme outside the bivariate ellipse (D_M = 2.53) associated with Super El Niño 1982-1983"
       },
       {
         "date": "2025-12",
@@ -164,7 +164,7 @@
         "expected_regression": -0.0831,
         "mahalanobis_d": 2.51,
         "direction": "below_ellipse",
-        "diagnostic_hint": "Queda anômala severa fora da elipse de Mahalanobis (D_M = 2.51 > 2.5)"
+        "diagnostic_hint": "Severe anomalous drop outside the Mahalanobis ellipse (D_M = 2.51 > 2.5)"
       }
     ],
     "series": {
@@ -3966,10 +3966,10 @@
   },
   "region_b_analysis": {
     "variable_id": "T2M_MAX",
-    "variable_name": "Temperatura Máxima Diária a 2m",
+    "variable_name": "2m Daily Maximum Temperature",
     "scale_type": "interval",
     "unit": "°C",
-    "trend_unit": "°C/década",
+    "trend_unit": "°C/decade",
     "allow_percentage_change": false,
     "period": {
       "start": "1981-01",
@@ -4007,7 +4007,7 @@
         "expected_regression": 0.7096,
         "mahalanobis_d": 41.61,
         "direction": "above_ellipse",
-        "diagnostic_hint": "Extremo fora da elipse bivariada (D_M = 41.61) associado a Super El Niño 2015-2016"
+        "diagnostic_hint": "Extreme outside the bivariate ellipse (D_M = 41.61) associated with Super El Niño 2015–2016"
       },
       {
         "date": "1981-01",
@@ -4015,7 +4015,7 @@
         "expected_regression": -1.2535,
         "mahalanobis_d": 2.94,
         "direction": "above_ellipse",
-        "diagnostic_hint": "Pico positivo anômalo fora da elipse de Mahalanobis (D_M = 2.94 > 2.5)"
+        "diagnostic_hint": "Anomalous positive spike outside the Mahalanobis ellipse (D_M = 2.94 > 2.5)"
       },
       {
         "date": "1981-02",
@@ -4023,7 +4023,7 @@
         "expected_regression": -1.2488,
         "mahalanobis_d": 2.86,
         "direction": "above_ellipse",
-        "diagnostic_hint": "Pico positivo anômalo fora da elipse de Mahalanobis (D_M = 2.86 > 2.5)"
+        "diagnostic_hint": "Anomalous positive spike outside the Mahalanobis ellipse (D_M = 2.86 > 2.5)"
       },
       {
         "date": "1981-03",
@@ -4031,7 +4031,7 @@
         "expected_regression": -1.2441,
         "mahalanobis_d": 2.69,
         "direction": "above_ellipse",
-        "diagnostic_hint": "Pico positivo anômalo fora da elipse de Mahalanobis (D_M = 2.69 > 2.5)"
+        "diagnostic_hint": "Anomalous positive spike outside the Mahalanobis ellipse (D_M = 2.69 > 2.5)"
       },
       {
         "date": "1982-05",
@@ -4039,7 +4039,7 @@
         "expected_regression": -1.1783,
         "mahalanobis_d": 2.67,
         "direction": "above_ellipse",
-        "diagnostic_hint": "Extremo fora da elipse bivariada (D_M = 2.67) associado a Super El Niño 1982-1983"
+        "diagnostic_hint": "Extreme outside the bivariate ellipse (D_M = 2.67) associated with Super El Niño 1982-1983"
       },
       {
         "date": "1982-04",
@@ -4047,7 +4047,7 @@
         "expected_regression": -1.183,
         "mahalanobis_d": 2.66,
         "direction": "above_ellipse",
-        "diagnostic_hint": "Extremo fora da elipse bivariada (D_M = 2.66) associado a Super El Niño 1982-1983"
+        "diagnostic_hint": "Extreme outside the bivariate ellipse (D_M = 2.66) associated with Super El Niño 1982-1983"
       },
       {
         "date": "2025-07",
@@ -4055,7 +4055,7 @@
         "expected_regression": 1.2544,
         "mahalanobis_d": 2.65,
         "direction": "above_ellipse",
-        "diagnostic_hint": "Pico positivo anômalo fora da elipse de Mahalanobis (D_M = 2.65 > 2.5)"
+        "diagnostic_hint": "Anomalous positive spike outside the Mahalanobis ellipse (D_M = 2.65 > 2.5)"
       },
       {
         "date": "2025-08",
@@ -4063,7 +4063,7 @@
         "expected_regression": 1.2591,
         "mahalanobis_d": 2.63,
         "direction": "above_ellipse",
-        "diagnostic_hint": "Pico positivo anômalo fora da elipse de Mahalanobis (D_M = 2.63 > 2.5)"
+        "diagnostic_hint": "Anomalous positive spike outside the Mahalanobis ellipse (D_M = 2.63 > 2.5)"
       },
       {
         "date": "1982-06",
@@ -4071,7 +4071,7 @@
         "expected_regression": -1.1736,
         "mahalanobis_d": 2.57,
         "direction": "above_ellipse",
-        "diagnostic_hint": "Extremo fora da elipse bivariada (D_M = 2.57) associado a Super El Niño 1982-1983"
+        "diagnostic_hint": "Extreme outside the bivariate ellipse (D_M = 2.57) associated with Super El Niño 1982-1983"
       },
       {
         "date": "2025-06",
@@ -4079,7 +4079,7 @@
         "expected_regression": 1.2497,
         "mahalanobis_d": 2.57,
         "direction": "above_ellipse",
-        "diagnostic_hint": "Pico positivo anômalo fora da elipse de Mahalanobis (D_M = 2.57 > 2.5)"
+        "diagnostic_hint": "Anomalous positive spike outside the Mahalanobis ellipse (D_M = 2.57 > 2.5)"
       },
       {
         "date": "1982-03",
@@ -4087,7 +4087,7 @@
         "expected_regression": -1.1877,
         "mahalanobis_d": 2.55,
         "direction": "above_ellipse",
-        "diagnostic_hint": "Extremo fora da elipse bivariada (D_M = 2.55) associado a Super El Niño 1982-1983"
+        "diagnostic_hint": "Extreme outside the bivariate ellipse (D_M = 2.55) associated with Super El Niño 1982-1983"
       },
       {
         "date": "2025-09",
@@ -4095,7 +4095,7 @@
         "expected_regression": 1.2638,
         "mahalanobis_d": 2.51,
         "direction": "above_ellipse",
-        "diagnostic_hint": "Pico positivo anômalo fora da elipse de Mahalanobis (D_M = 2.51 > 2.5)"
+        "diagnostic_hint": "Anomalous positive spike outside the Mahalanobis ellipse (D_M = 2.51 > 2.5)"
       }
     ],
     "series": {

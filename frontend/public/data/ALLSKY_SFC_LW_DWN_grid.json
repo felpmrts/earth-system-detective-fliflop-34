@@ -1,7 +1,7 @@
 {
   "variable_id": "ALLSKY_SFC_LW_DWN",
-  "unit": "MJ/m²/dia",
-  "trend_unit": "MJ/m²/dia/década",
+  "unit": "MJ/m²/day",
+  "trend_unit": "MJ/m²/day/decade",
   "period": {
     "start": "1984-01",
     "end": "2025-12"

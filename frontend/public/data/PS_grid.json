@@ -1,7 +1,7 @@
 {
   "variable_id": "PS",
   "unit": "kPa",
-  "trend_unit": "kPa/década",
+  "trend_unit": "kPa/decade",
   "period": {
     "start": "1981-01",
     "end": "2025-12"

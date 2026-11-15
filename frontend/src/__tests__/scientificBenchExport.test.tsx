@@ -181,8 +181,8 @@ describe('ScientificBench E2E — botões Exportar CSV e Exportar JSON', () => {
       />,
     );
 
-    const csvEmptyBtn = screen.getByRole('button', { name: 'Exportar CSV' }) as HTMLButtonElement;
-    const jsonEmptyBtn = screen.getByRole('button', { name: 'Exportar JSON' }) as HTMLButtonElement;
+    const csvEmptyBtn = screen.getByRole('button', { name: 'Export CSV' }) as HTMLButtonElement;
+    const jsonEmptyBtn = screen.getByRole('button', { name: 'Export JSON' }) as HTMLButtonElement;
     expect(csvEmptyBtn.disabled).toBe(true);
     expect(jsonEmptyBtn.disabled).toBe(true);
 
@@ -236,8 +236,8 @@ describe('ScientificBench E2E — botões Exportar CSV e Exportar JSON', () => {
       />,
     );
 
-    const csvBtn = screen.getByRole('button', { name: 'Exportar CSV' }) as HTMLButtonElement;
-    const jsonBtn = screen.getByRole('button', { name: 'Exportar JSON' }) as HTMLButtonElement;
+    const csvBtn = screen.getByRole('button', { name: 'Export CSV' }) as HTMLButtonElement;
+    const jsonBtn = screen.getByRole('button', { name: 'Export JSON' }) as HTMLButtonElement;
     expect(csvBtn.disabled).toBe(false);
     expect(jsonBtn.disabled).toBe(false);
 

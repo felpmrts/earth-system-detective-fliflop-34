@@ -105,7 +105,7 @@ function BenchCollapsible({
           ))}
         </span>
         <span className="bench-card-action">
-          {open ? 'Recolher ' : 'Expandir '}
+          {open ? 'Collapse ' : 'Expand '}
           <span className="bench-card-chevron" aria-hidden="true">
             {open ? '▴' : '▾'}
           </span>
@@ -140,11 +140,11 @@ function BenchExportActions({
         onClick={onExportCsv}
         title={
           disabled
-            ? 'Realize uma análise para habilitar a exportação em CSV'
-            : 'Exportar séries temporais e resumo estatístico em CSV científico'
+            ? 'Run an analysis to enable CSV export'
+            : 'Export time series and statistical summary as scientific CSV'
         }
       >
-        Exportar CSV
+        Export CSV
       </button>
       <button
         type="button"
@@ -153,11 +153,11 @@ function BenchExportActions({
         onClick={onExportJson}
         title={
           disabled
-            ? 'Realize uma análise para habilitar a exportação em JSON'
-            : 'Exportar análise completa e metadados estruturados em JSON'
+            ? 'Run an analysis to enable JSON export'
+            : 'Export full analysis and structured metadata as JSON'
         }
       >
-        Exportar JSON
+        Export JSON
       </button>
     </>
   );
@@ -188,25 +188,25 @@ function StatSummaryCard({
       <p className="discovery-location">{summarizeRegionCoords(region)}</p>
       <dl className="discovery-metrics">
         <div>
-          <dt>Taxa Theil–Sen</dt>
+          <dt>Theil–Sen Rate</dt>
           <dd>
             <strong>{formatSignedNumber(stats.regression.slope_per_decade_sen)}</strong>{' '}
             <span>{stats.trend_unit}</span>
           </dd>
         </div>
         <div>
-          <dt>Taxa OLS</dt>
+          <dt>OLS Rate</dt>
           <dd>
             <strong>{formatSignedNumber(stats.regression.slope_per_decade_ols)}</strong>{' '}
             <span>{stats.trend_unit}</span>
           </dd>
         </div>
         <div>
-          <dt>Regime GAM</dt>
+          <dt>GAM Regime</dt>
           <dd>{regime}</dd>
         </div>
         <div>
-          <dt>Significância</dt>
+          <dt>Significance</dt>
           <dd>
             q = {formatPValue(stats.significance.fdr_q_value)} · p<sub>AR(1)</sub> ={' '}
             {formatPValue(stats.significance.p_value_ar1_corrected)}
@@ -215,7 +215,7 @@ function StatSummaryCard({
       </dl>
       {topOutlier && (
         <p className="discovery-outlier">
-          Extremo (D<sub>M</sub> = {formatPointValue(topOutlier.mahalanobis_d, 2)}): {topOutlier.date} —{' '}
+          Extreme (D<sub>M</sub> = {formatPointValue(topOutlier.mahalanobis_d, 2)}): {topOutlier.date} —{' '}
           {topOutlier.diagnostic_hint}
         </p>
       )}
@@ -341,7 +341,7 @@ export function ScientificBench({
   }
   const [showMethodologyModal, setShowMethodologyModal] = useState(false);
   const [copiedMethodology, setCopiedMethodology] = useState(false);
-  const [copilotLang, setCopilotLang] = useState<'pt' | 'en'>('pt');
+  const [copilotLang, setCopilotLang] = useState<'pt' | 'en'>('en');
   const [copilotQuestion, setCopilotQuestion] = useState('');
   const [copilotLoading, setCopilotLoading] = useState(false);
   const [copilotElapsedSec, setCopilotElapsedSec] = useState(0);
@@ -392,17 +392,17 @@ export function ScientificBench({
 
   if (!analysis) {
     return (
-      <section className="bench-panel" aria-label="Séries temporais">
+      <section className="bench-panel" aria-label="Time series">
         <div className="bench-empty-bar">
-          <div className="bench-header-actions" role="group" aria-label="Exportação científica">
+          <div className="bench-header-actions" role="group" aria-label="Scientific export">
             <BenchExportActions disabled onExportCsv={() => {}} onExportJson={() => {}} />
           </div>
         </div>
         <div className="bench-empty" role="status">
           <div className="bench-empty-icon" aria-hidden="true">⌁</div>
-          <h2>Nenhuma análise realizada</h2>
-          <p>Escolha duas variáveis, defina o período e selecione as regiões A e B no mapa.</p>
-          <button type="button" onClick={onBackToMap}>Voltar ao mapa</button>
+          <h2>No analysis run yet</h2>
+          <p>Choose two variables, set the period, and select regions A and B on the map.</p>
+          <button type="button" onClick={onBackToMap}>Back to map</button>
         </div>
       </section>
     );
@@ -540,15 +540,15 @@ export function ScientificBench({
       formatPointValue(transformed.rawHoverValues[pos]),
       formatPointValue(region.series.linear_fit[origIdx]),
       region.unit,
-      `Região ${region.slot}`,
+      `Region ${region.slot}`,
       region.variable_name,
     ]);
     const hovertemplate =
       '<b>%{customdata[5]} · %{customdata[6]}</b><br>' +
-      'Mês: %{x|%b/%Y}<br>' +
-      'Bruto: %{customdata[0]} %{customdata[4]}<br>' +
-      'Anomalia: %{customdata[1]} %{customdata[4]}<br>' +
-      'Valor exibido: %{customdata[2]}<br>' +
+      'Month: %{x|%b/%Y}<br>' +
+      'Raw: %{customdata[0]} %{customdata[4]}<br>' +
+      'Anomaly: %{customdata[1]} %{customdata[4]}<br>' +
+      'Displayed value: %{customdata[2]}<br>' +
       'OLS (anom.): %{customdata[3]} %{customdata[4]}<extra></extra>';
 
     const base = {
@@ -606,14 +606,14 @@ export function ScientificBench({
           formatPointValue(o.mahalanobisD, 2),
           o.diagnosticHint,
         ]),
-        name: `${region.slot} · Extremos (D_M > 2,5)`,
+        name: `${region.slot} · Extremes (D_M > 2.5)`,
         type: 'scatter' as const,
         mode: 'markers' as const,
         yaxis: axis,
         marker: { color: '#f87171', size: 9, symbol: 'diamond', line: { color: '#0a1422', width: 1.2 } },
         hovertemplate:
           '<b>%{customdata[0]}</b> · D_M=%{customdata[2]}<br>' +
-          'Valor: %{customdata[1]}<br>%{customdata[3]}<extra></extra>',
+          'Value: %{customdata[1]}<br>%{customdata[3]}<extra></extra>',
       });
     }
 
@@ -663,7 +663,7 @@ export function ScientificBench({
     matchedPairs.forEach((p, idx) => {
       const dm = geometry.distances[idx] ?? 0;
       const tempHint = outlierHintsByDate.get(p.date);
-      const biHint = `D_M bivariado (X_A×Y_B) = ${formatPointValue(dm, 2)}`;
+      const biHint = `Bivariate D_M (X_A×Y_B) = ${formatPointValue(dm, 2)}`;
       const fullHint = tempHint ? `${biHint}<br>${tempHint}` : biHint;
       if (outlierSet.has(idx)) {
         outlierPts.push({ ...p, hint: fullHint });
@@ -677,11 +677,11 @@ export function ScientificBench({
         x: normalPts.map(p => p.x),
         y: normalPts.map(p => p.y),
         customdata: normalPts.map(p => [p.date, p.hint]),
-        name: `Observações (${matchedPairs.length} meses)`,
+        name: `Observations (${matchedPairs.length} months)`,
         type: 'scatter',
         mode: 'markers',
         marker: { color: '#67e8f9', size: 6, opacity: 0.72 },
-        hovertemplate: 'Mês: %{customdata[0]}<br>X (A): %{x:.4f}<br>Y (B): %{y:.4f}<br>%{customdata[1]}<extra></extra>',
+        hovertemplate: 'Month: %{customdata[0]}<br>X (A): %{x:.4f}<br>Y (B): %{y:.4f}<br>%{customdata[1]}<extra></extra>',
       },
       ...(showMahalanobis && outlierPts.length > 0
         ? [
@@ -689,7 +689,7 @@ export function ScientificBench({
               x: outlierPts.map(p => p.x),
               y: outlierPts.map(p => p.y),
               customdata: outlierPts.map(p => [p.date, p.hint]),
-              name: 'Extremos Bivariados (D_M > 2,5)',
+              name: 'Bivariate Extremes (D_M > 2.5)',
               type: 'scatter' as const,
               mode: 'markers' as const,
               marker: { color: '#f87171', size: 10, symbol: 'diamond', line: { color: '#0a1422', width: 1.2 } },
@@ -700,7 +700,7 @@ export function ScientificBench({
       {
         x: geometry.ellipseX,
         y: geometry.ellipseY,
-        name: 'Elipse de Mahalanobis (D_M = 2,5)',
+        name: 'Mahalanobis Ellipse (D_M = 2.5)',
         type: 'scatter',
         mode: 'lines',
         line: { color: '#fb923c', width: 2, dash: 'dash' },
@@ -708,7 +708,7 @@ export function ScientificBench({
       {
         x: geometry.fitX,
         y: geometry.fitY,
-        name: 'Acoplamento Linear OLS (X vs. Y)',
+        name: 'OLS Linear Coupling (X vs. Y)',
         type: 'scatter',
         mode: 'lines',
         line: { color: '#fbbf24', width: 2 },
@@ -726,8 +726,8 @@ export function ScientificBench({
     analysis.request_meta.source === 'backend_api'
       ? 'NASA POWER via backend'
       : analysis.request_meta.source === 'idb_cache'
-        ? 'Cache local (IndexedDB)'
-        : 'Dados de demonstração (fallback offline)';
+        ? 'Local cache (IndexedDB)'
+        : 'Demo data (offline fallback)';
 
   const totalMissing = regions.reduce(
     (sum, r) => sum + countMissingValues(metricMode === 'raw' ? r.series.raw_values : r.series.anomaly_values),
@@ -746,7 +746,7 @@ export function ScientificBench({
     {
       x: lagX,
       y: lagLeadResult.lag_profile.map(r => r.ci95_threshold),
-      name: 'Limiar Significância 95% AR(1) (+r_crit)',
+      name: '95% AR(1) Significance Threshold (+r_crit)',
       type: 'scatter',
       mode: 'lines',
       line: { color: '#fb923c', width: 1.5, dash: 'dot' },
@@ -755,22 +755,22 @@ export function ScientificBench({
     {
       x: lagX,
       y: lagLeadResult.lag_profile.map(r => -r.ci95_threshold),
-      name: 'Banda Nula AR(1) 95% (±r_crit)',
+      name: '95% AR(1) Null Band (±r_crit)',
       type: 'scatter',
       mode: 'lines',
       fill: 'tonexty',
       fillcolor: 'rgba(251, 146, 60, 0.08)',
       line: { color: '#fb923c', width: 1.5, dash: 'dot' },
-      hovertemplate: 'Defasagem τ = %{x}m<br>Limiar 95% AR(1): ±%{y:.3f}<extra></extra>',
+      hovertemplate: 'Lag τ = %{x}m<br>95% AR(1) threshold: ±%{y:.3f}<extra></extra>',
     },
     {
       x: lagX,
       y: lagLeadResult.lag_profile.map(r => r.r_raw_anomalies),
-      name: 'r(τ) Anomalias Brutas',
+      name: 'r(τ) Raw Anomalies',
       type: 'scatter',
       mode: 'lines',
       line: { color: '#94a3b8', width: 1.8, dash: 'dash' },
-      hovertemplate: 'Defasagem τ = %{x} meses<br>r_bruto(τ): %{y:.4f}<extra></extra>',
+      hovertemplate: 'Lag τ = %{x} months<br>r_raw(τ): %{y:.4f}<extra></extra>',
     },
     {
       x: lagX,
@@ -781,18 +781,18 @@ export function ScientificBench({
         r.n_effective_ar1.toFixed(1),
         r.ci95_threshold.toFixed(3),
       ]),
-      name: 'r(τ) Dessazonalizado e Detrended',
+      name: 'r(τ) Deseasonalized & Detrended',
       type: 'scatter',
       mode: 'lines+markers',
       marker: { color: '#38bdf8', size: 6 },
       line: { color: '#38bdf8', width: 2.6 },
       hovertemplate:
-        '<b>Correlação com defasagem τ = %{x} meses</b><br>r_detrended(τ): %{y:.4f}<br>p_AR1: %{customdata[0]} · q_FDR (25 lags): %{customdata[1]}<br>N_eff: %{customdata[2]} · Limiar AR(1) 95%: ±%{customdata[3]}<extra></extra>',
+        '<b>Lagged correlation τ = %{x} months</b><br>r_detrended(τ): %{y:.4f}<br>p_AR1: %{customdata[0]} · q_FDR (25 lags): %{customdata[1]}<br>N_eff: %{customdata[2]} · 95% AR(1) threshold: ±%{customdata[3]}<extra></extra>',
     },
     {
       x: [lagLeadResult.best_detrended_lag.lag_months],
       y: [lagLeadResult.best_detrended_lag.r_detrended],
-      name: `Pico τ* = ${lagLeadResult.best_detrended_lag.lag_months >= 0 ? '+' : ''}${lagLeadResult.best_detrended_lag.lag_months}m (r = ${lagLeadResult.best_detrended_lag.r_detrended.toFixed(3)}, q_FDR = ${lagLeadResult.best_detrended_lag.q_fdr.toFixed(4)})`,
+      name: `Peak τ* = ${lagLeadResult.best_detrended_lag.lag_months >= 0 ? '+' : ''}${lagLeadResult.best_detrended_lag.lag_months}m (r = ${lagLeadResult.best_detrended_lag.r_detrended.toFixed(3)}, q_FDR = ${lagLeadResult.best_detrended_lag.q_fdr.toFixed(4)})`,
       type: 'scatter',
       mode: 'markers',
       marker: {
@@ -802,7 +802,7 @@ export function ScientificBench({
         line: { color: '#0a1422', width: 1.8 },
       },
       hovertemplate:
-        '<b>Pico de Precedência Temporal τ* = %{x} meses</b><br>r_detrended(τ*): %{y:.4f}<br>Correlação com defasagem (sem implicação determinística)<extra></extra>',
+        '<b>Temporal Precedence Peak τ* = %{x} months</b><br>r_detrended(τ*): %{y:.4f}<br>Lagged correlation (no deterministic causation implied)<extra></extra>',
     },
   ];
 
@@ -836,7 +836,7 @@ export function ScientificBench({
         seasonA.seasons[s].n_effective_ar1.toFixed(1),
       ]),
       hovertemplate:
-        '<b>%{x} · Região A</b><br>B_Sen: %{y:.4f}<br>IC 95%: [%{customdata[0]}, %{customdata[1]}]<br>p_AR1: %{customdata[2]} (N_eff=%{customdata[3]})<extra></extra>',
+        '<b>%{x} · Region A</b><br>B_Sen: %{y:.4f}<br>95% CI: [%{customdata[0]}, %{customdata[1]}]<br>p_AR1: %{customdata[2]} (N_eff=%{customdata[3]})<extra></extra>',
     },
     ...(seasonB
       ? [
@@ -870,14 +870,14 @@ export function ScientificBench({
               seasonB.seasons[s].n_effective_ar1.toFixed(1),
             ]),
             hovertemplate:
-              '<b>%{x} · Região B</b><br>B_Sen: %{y:.4f}<br>IC 95%: [%{customdata[0]}, %{customdata[1]}]<br>p_AR1: %{customdata[2]} (N_eff=%{customdata[3]})<extra></extra>',
+              '<b>%{x} · Region B</b><br>B_Sen: %{y:.4f}<br>95% CI: [%{customdata[0]}, %{customdata[1]}]<br>p_AR1: %{customdata[2]} (N_eff=%{customdata[3]})<extra></extra>',
           },
         ]
       : []),
     {
       x: seasonCodes,
       y: seasonCodes.map(s => seasonA.seasons[s].slope_per_decade_ols),
-      name: `A · ${seasonA.variable_id} Inclinação OLS`,
+      name: `A · ${seasonA.variable_id} OLS Slope`,
       type: 'scatter',
       mode: 'markers',
       marker: {
@@ -898,7 +898,7 @@ export function ScientificBench({
         await navigator.clipboard.writeText(summaryText);
       }
     } catch {
-      // Fallback silencioso para ambientes de teste sem permissão de clipboard
+      // Silent fallback for test environments without clipboard permission
     }
     setCopiedMethodology(true);
     window.setTimeout(() => setCopiedMethodology(false), 2500);
@@ -909,7 +909,7 @@ export function ScientificBench({
       ? [
           {
             id: 'insight-lag',
-            label: 'Defasagem (Lag-Lead)',
+            label: 'Lag-Lead',
             isOpen: openCards['insight-lag'],
             onToggle: () => toggleCard('insight-lag'),
           },
@@ -919,13 +919,13 @@ export function ScientificBench({
       ? [
           {
             id: 'insight-seasonal',
-            label: 'Curva Sazonal',
+            label: 'Seasonal Curve',
             isOpen: openCards['insight-seasonal'],
             onToggle: () => toggleCard('insight-seasonal'),
           },
           {
             id: 'seasonal-cards',
-            label: 'Trimestres DJF–SON',
+            label: 'DJF–SON Seasons',
             isOpen: openCards['seasonal-cards'],
             onToggle: () => toggleCard('seasonal-cards'),
           },
@@ -933,13 +933,13 @@ export function ScientificBench({
       : []),
     {
       id: 'diagnostic',
-      label: '4 Respostas',
+      label: '4 Answers',
       isOpen: openCards.diagnostic,
       onToggle: () => toggleCard('diagnostic'),
     },
     {
       id: 'provenance',
-      label: 'Auditoria & Fonte',
+      label: 'Audit & Source',
       isOpen: openCards.provenance,
       onToggle: () => toggleCard('provenance'),
     },
@@ -976,16 +976,16 @@ export function ScientificBench({
       ref={benchSectionRef}
       className="bench-panel"
       data-tour="bench-panel"
-      aria-label="Séries temporais e diagnóstico"
+      aria-label="Time series and diagnostics"
     >
       <header className="discovery-header" data-tour="bench-discovery">
         <div className="discovery-title-row">
           <div>
-            <h2>Resumo da descoberta</h2>
+            <h2>Discovery Summary</h2>
             <p className="discovery-subtitle">
-              Período: <strong>{firstMonth ?? '—'}</strong> a <strong>{lastMonth ?? '—'}</strong>
+              Period: <strong>{firstMonth ?? '—'}</strong> to <strong>{lastMonth ?? '—'}</strong>
               {regions[0] &&
-                ` · ${regions[0].period.n_observations} meses (N efetivo AR(1): ${formatPointValue(regions[0].period.n_effective_ar1, 1)})`}
+                ` · ${regions[0].period.n_observations} months (Effective N AR(1): ${formatPointValue(regions[0].period.n_effective_ar1, 1)})`}
             </p>
           </div>
           <div className="bench-header-actions">
@@ -1004,7 +1004,7 @@ export function ScientificBench({
               <span className="invariants-badge-score">
                 {invariantsReport.passedCount}/{invariantsReport.totalCount}
               </span>{' '}
-              <span className="invariants-badge-label">Invariantes Auditados</span>
+              <span className="invariants-badge-label">Audited Invariants</span>
             </button>
             <BenchExportActions
               disabled={!analysis}
@@ -1022,7 +1022,7 @@ export function ScientificBench({
               onClick={handleToggleCopilot}
             >
               <span className="copilot-toggle-dot" aria-hidden="true" />
-              {showCopilot ? 'Ocultar Co-Piloto IA' : 'Co-Piloto Estatístico'}
+              {showCopilot ? 'Hide AI Co-Pilot' : 'Statistical Co-Pilot'}
             </button>
             <button
               type="button"
@@ -1030,7 +1030,7 @@ export function ScientificBench({
               aria-expanded={glossaryOpen}
               onClick={() => setGlossaryOpen(prev => !prev)}
             >
-              {glossaryOpen ? 'Ocultar ajuda científica' : 'Ajuda científica (?)'}
+              {glossaryOpen ? 'Hide scientific help' : 'Scientific help (?)'}
             </button>
           </div>
         </div>
@@ -1042,21 +1042,21 @@ export function ScientificBench({
         </div>
 
         {analysis.comparison_pair && (
-          <div className="comparison-banner" role="region" aria-label="Comparação multiescala A e B">
+          <div className="comparison-banner" role="region" aria-label="Multiscale comparison A and B">
             <div className="comparison-metrics">
               <span>
-                Paradoxo / regime: <strong>{analysis.comparison_pair.multiscale_correlation.paradox_type}</strong>
+                Paradox / regime: <strong>{analysis.comparison_pair.multiscale_correlation.paradox_type}</strong>
               </span>
               <span>
-                Correlação secular (r<sub>global</sub>):{' '}
+                Secular correlation (r<sub>global</sub>):{' '}
                 <strong>{formatSignedNumber(analysis.comparison_pair.multiscale_correlation.long_term_secular_r, 2)}</strong>
               </span>
               <span>
-                Curto prazo sem tendência (r<sub>detrended</sub>):{' '}
+                Short-term detrended (r<sub>detrended</sub>):{' '}
                 <strong>{formatSignedNumber(analysis.comparison_pair.multiscale_correlation.short_term_detrended_r, 2)}</strong>
               </span>
               {analysis.comparison_pair.spatial_divergence_detected && (
-                <span className="divergence-pill">Divergência espacial detectada</span>
+                <span className="divergence-pill">Spatial divergence detected</span>
               )}
             </div>
             <p>{analysis.comparison_pair.multiscale_correlation.interpretation}</p>
@@ -1065,8 +1065,8 @@ export function ScientificBench({
       </header>
 
       {glossaryOpen && (
-        <aside className="glossary-panel" aria-label="Glossário estatístico">
-          <h3>Como interpretar os indicadores</h3>
+        <aside className="glossary-panel" aria-label="Statistical glossary">
+          <h3>How to interpret the indicators</h3>
           <dl>
             {SCIENTIFIC_GLOSSARY.map(entry => (
               <div key={entry.term}>
@@ -1078,8 +1078,8 @@ export function ScientificBench({
         </aside>
       )}
 
-      <div className="controls-bar" data-tour="bench-controls" aria-label="Controles do gráfico">
-        <div className="segmented-group" role="group" aria-label="Normalização da série">
+      <div className="controls-bar" data-tour="bench-controls" aria-label="Chart controls">
+        <div className="segmented-group" role="group" aria-label="Series normalization">
           <button
             type="button"
             aria-pressed={metricMode === 'raw'}
@@ -1089,7 +1089,7 @@ export function ScientificBench({
               onAnomalyChange(false);
             }}
           >
-            Bruto
+            Raw
           </button>
           <button
             type="button"
@@ -1100,7 +1100,7 @@ export function ScientificBench({
               onAnomalyChange(true);
             }}
           >
-            Anomalia
+            Anomaly
           </button>
           <button
             type="button"
@@ -1115,7 +1115,7 @@ export function ScientificBench({
           </button>
         </div>
 
-        <div className="segmented-group" role="group" aria-label="Escala vertical">
+        <div className="segmented-group" role="group" aria-label="Vertical scale">
           <button
             type="button"
             aria-pressed={scaleMode === 'linear'}
@@ -1134,14 +1134,14 @@ export function ScientificBench({
           </button>
         </div>
 
-        <div className="segmented-group view-mode-group" role="group" aria-label="Tipo de visualização">
+        <div className="segmented-group view-mode-group" role="group" aria-label="Visualization mode">
           <button
             type="button"
             aria-pressed={viewMode === 'timeseries'}
             className={viewMode === 'timeseries' ? 'active' : ''}
             onClick={() => selectViewMode('timeseries')}
           >
-            Série Temporal
+            Time Series
           </button>
           <button
             type="button"
@@ -1150,7 +1150,7 @@ export function ScientificBench({
             disabled={!scatterBundle}
             onClick={() => selectViewMode('scatter')}
           >
-            Dispersão X vs Y
+            Scatter X vs Y
           </button>
           <button
             type="button"
@@ -1159,7 +1159,7 @@ export function ScientificBench({
             disabled={!scatterBundle}
             onClick={() => selectViewMode('both')}
           >
-            Visão Dupla
+            Dual View
           </button>
           <button
             type="button"
@@ -1168,7 +1168,7 @@ export function ScientificBench({
             className={viewMode === 'lag' ? 'active' : ''}
             onClick={() => selectViewMode('lag')}
           >
-            Defasagem (Lag-Lead)
+            Lag-Lead
           </button>
           <button
             type="button"
@@ -1177,18 +1177,18 @@ export function ScientificBench({
             className={viewMode === 'seasonal' ? 'active' : ''}
             onClick={() => selectViewMode('seasonal')}
           >
-            Sazonal (DJF–SON)
+            Seasonal (DJF–SON)
           </button>
         </div>
 
-        <div className="segmented-group" role="group" aria-label="Disposição das curvas">
+        <div className="segmented-group" role="group" aria-label="Curve layout">
           <button
             type="button"
             aria-pressed={!separate}
             className={!separate ? 'active' : ''}
             onClick={() => onSeparateChange(false)}
           >
-            Juntas
+            Combined
           </button>
           <button
             type="button"
@@ -1196,11 +1196,11 @@ export function ScientificBench({
             className={separate ? 'active' : ''}
             onClick={() => onSeparateChange(true)}
           >
-            Separadas
+            Separate
           </button>
         </div>
 
-        <div className="segmented-group" role="group" aria-label="Eixo vertical">
+        <div className="segmented-group" role="group" aria-label="Vertical axis">
           <button
             type="button"
             aria-pressed={!effectiveDual}
@@ -1208,7 +1208,7 @@ export function ScientificBench({
             disabled={separate || regions.length < 2 || isZScore}
             onClick={() => onDualChange(false)}
           >
-            Eixo único
+            Single axis
           </button>
           <button
             type="button"
@@ -1217,14 +1217,14 @@ export function ScientificBench({
             disabled={separate || regions.length < 2 || isZScore}
             onClick={() => onDualChange(true)}
           >
-            Eixo Y duplo
+            Dual Y-axis
           </button>
         </div>
 
-        <div className="segmented-group" role="group" aria-label="Linhas de tendência">
+        <div className="segmented-group" role="group" aria-label="Trend lines">
           {(
             [
-              { id: 'none', label: 'Sem reta' },
+              { id: 'none', label: 'No line' },
               { id: 'ols', label: 'OLS' },
               { id: 'sen', label: 'Theil–Sen' },
               { id: 'both', label: 'OLS + Sen' },
@@ -1242,14 +1242,14 @@ export function ScientificBench({
           ))}
         </div>
 
-        <div className="segmented-group" role="group" aria-label="Sobreposições avançadas">
+        <div className="segmented-group" role="group" aria-label="Advanced overlays">
           <button
             type="button"
             aria-pressed={showGam}
             className={showGam ? 'active' : ''}
             onClick={() => setShowGam(prev => !prev)}
           >
-            Curva GAM
+            GAM Curve
           </button>
           <button
             type="button"
@@ -1257,7 +1257,7 @@ export function ScientificBench({
             className={showMahalanobis ? 'active' : ''}
             onClick={() => setShowMahalanobis(prev => !prev)}
           >
-            Outliers D_M &gt; 2,5
+            Outliers D_M &gt; 2.5
           </button>
           {discoveryResult?.regime_and_gam_geometry.cusum_break_detected &&
             discoveryResult.regime_and_gam_geometry.break_date && (
@@ -1268,7 +1268,7 @@ export function ScientificBench({
                 className={showCusumBreak ? 'active' : ''}
                 onClick={() => setShowCusumBreak(prev => !prev)}
               >
-                Quebra CUSUM ({discoveryResult.regime_and_gam_geometry.break_date})
+                CUSUM Break ({discoveryResult.regime_and_gam_geometry.break_date})
               </button>
             )}
         </div>
@@ -1276,19 +1276,19 @@ export function ScientificBench({
 
       {missing.map(({ slot, id }) => (
         <p className="note" role="status" key={slot}>
-          Variável {slot} · {VARIABLE_LIST.find(variable => variable.variable_id === id)?.variable_name}
-          {isOfflineAnalysis ? ' não tem série no conjunto offline.' : ' não está presente no resultado atual.'}
+          Variable {slot} · {VARIABLE_LIST.find(variable => variable.variable_id === id)?.variable_name}
+          {isOfflineAnalysis ? ' has no series in the offline bundle.' : ' is not present in the current result.'}
         </p>
       ))}
-      {regions.length === 0 && missing.length === 0 && <p className="note">Selecione uma variável para ver a série.</p>}
+      {regions.length === 0 && missing.length === 0 && <p className="note">Select a variable to view the series.</p>}
       {regions.length > 0 && !hasPoints && (
-        <p className="note" role="status">O resultado atual não contém dados no período selecionado.</p>
+        <p className="note" role="status">The current result contains no data in the selected period.</p>
       )}
 
       {periodTrimmed && (
         <p className="note" role="status">
-          Cobertura efetiva com dados: <strong>{firstMonth}</strong> a <strong>{lastMonth}</strong>{' '}
-          (recorte automático sobre o período selecionado de {start} a {end}).
+          Effective data coverage: <strong>{firstMonth}</strong> to <strong>{lastMonth}</strong>{' '}
+          (automatically trimmed from selected period {start} to {end}).
         </p>
       )}
       {hasPoints && (
@@ -1372,7 +1372,7 @@ export function ScientificBench({
                 config={{ responsive: true, displaylogo: false }}
                 layout={{
                   autosize: true,
-                  title: { text: 'Dispersão Bivariada & Elipse de Mahalanobis (D_M = 2,5)', font: { size: 13 } },
+                  title: { text: 'Bivariate Scatter & Mahalanobis Ellipse (D_M = 2.5)', font: { size: 13 } },
                   paper_bgcolor: '#121e30',
                   plot_bgcolor: '#121e30',
                   font: { color: '#e1edf8' },
@@ -1391,7 +1391,7 @@ export function ScientificBench({
               <BenchCollapsible
                 id="insight-lag"
                 icon="⇄"
-                title="Painel de Defasagem Lag-Lead"
+                title="Lag-Lead Panel"
                 badges={[
                   `τ* ${lagLeadResult.best_detrended_lag.lag_months >= 0 ? '+' : ''}${lagLeadResult.best_detrended_lag.lag_months}m`,
                   `r ${lagLeadResult.best_detrended_lag.r_detrended.toFixed(2)}`,
@@ -1402,10 +1402,10 @@ export function ScientificBench({
               >
               <div className="chart-insight-strip">
                 <div className="chart-insight-badge">
-                  <span className="chart-insight-kicker">PRECEDÊNCIA TEMPORAL AR(1) · BH-FDR</span>
+                  <span className="chart-insight-kicker">AR(1) TEMPORAL PRECEDENCE · BH-FDR</span>
                   <strong>
                     τ* = {lagLeadResult.best_detrended_lag.lag_months >= 0 ? '+' : ''}
-                    {lagLeadResult.best_detrended_lag.lag_months} meses
+                    {lagLeadResult.best_detrended_lag.lag_months} months
                   </strong>
                 </div>
                 <p className="chart-insight-text">{lagLeadResult.precedence_interpretation}</p>
@@ -1424,7 +1424,7 @@ export function ScientificBench({
                     N_eff = {lagLeadResult.best_detrended_lag.n_effective_ar1.toFixed(1)}
                   </span>
                   <span className="chart-insight-pill">
-                    Limiar AR(1) 95% = ±{lagLeadResult.best_detrended_lag.ci95_threshold.toFixed(3)}
+                    95% AR(1) Threshold = ±{lagLeadResult.best_detrended_lag.ci95_threshold.toFixed(3)}
                   </span>
                   <span
                     data-testid="lag-peak-fdr-status"
@@ -1437,10 +1437,10 @@ export function ScientificBench({
                     }
                   >
                     {lagLeadResult.best_fdr_status === 'FDR_SIGNIFICANT'
-                      ? `✓ BH-FDR (${lagLeadResult.fdr_family_size} lags): q_FDR < 0,05 (${lagLeadResult.fdr_significant_lags_count}/${lagLeadResult.fdr_family_size})`
+                      ? `✓ BH-FDR (${lagLeadResult.fdr_family_size} lags): q_FDR < 0.05 (${lagLeadResult.fdr_significant_lags_count}/${lagLeadResult.fdr_family_size})`
                       : lagLeadResult.best_fdr_status === 'LOCAL_AR1_ONLY'
-                        ? `△ BH-FDR (${lagLeadResult.fdr_family_size} lags): supera banda AR(1) local, mas q_FDR ≥ 0,05`
-                        : `○ BH-FDR (${lagLeadResult.fdr_family_size} lags): q_FDR ≥ 0,05 (na banda nula AR(1))`}
+                        ? `△ BH-FDR (${lagLeadResult.fdr_family_size} lags): exceeds local AR(1) band, but q_FDR ≥ 0.05`
+                        : `○ BH-FDR (${lagLeadResult.fdr_family_size} lags): q_FDR ≥ 0.05 (within AR(1) null band)`}
                   </span>
                 </div>
               </div>
@@ -1454,7 +1454,7 @@ export function ScientificBench({
                 layout={{
                   autosize: true,
                   title: {
-                    text: `Correlação Cruzada Defasada r_detrended(τ) · ${lagLeadResult.variable_a} (A) vs. ${lagLeadResult.variable_b} (B) · τ ∈ [-12, +12] meses`,
+                    text: `Lagged Cross-Correlation r_detrended(τ) · ${lagLeadResult.variable_a} (A) vs. ${lagLeadResult.variable_b} (B) · τ ∈ [-12, +12] months`,
                     font: { size: 13 },
                   },
                   paper_bgcolor: '#121e30',
@@ -1464,7 +1464,7 @@ export function ScientificBench({
                   margin: { l: 52, t: 44, r: 24, b: 82 },
                   xaxis: {
                     title: {
-                      text: 'Defasagem τ (meses) · τ < 0: B antecede A | τ = 0: síncrono | τ > 0: A antecede B',
+                      text: 'Lag τ (months) · τ < 0: B leads A | τ = 0: synchronous | τ > 0: A leads B',
                     },
                     dtick: 2,
                     zeroline: true,
@@ -1472,7 +1472,7 @@ export function ScientificBench({
                     automargin: true,
                   },
                   yaxis: {
-                    title: { text: 'Correlação de Pearson r_detrended(τ)' },
+                    title: { text: 'Pearson Correlation r_detrended(τ)' },
                     range: [-1.05, 1.05],
                     zeroline: true,
                     zerolinecolor: 'rgba(148, 163, 184, 0.35)',
@@ -1489,28 +1489,28 @@ export function ScientificBench({
               <BenchCollapsible
                 id="insight-seasonal"
                 icon="❄"
-                title="Painel Sazonal DJF–SON"
+                title="Seasonal Panel DJF–SON"
                 badges={[
-                  `Dominante ${seasonA.dominant_season}`,
-                  seasonA.has_seasonal_sign_reversal ? 'Inversão de sinal' : 'Sinal coerente',
+                  `Dominant ${seasonA.dominant_season}`,
+                  seasonA.has_seasonal_sign_reversal ? 'Sign reversal' : 'Coherent sign',
                 ]}
                 open={openCards['insight-seasonal']}
                 onToggle={() => toggleCard('insight-seasonal')}
               >
               <div className="chart-insight-strip">
                 <div className="chart-insight-badge">
-                  <span className="chart-insight-kicker">ESTRATIFICAÇÃO SAZONAL · ANOMALIAS Y′(a,m)</span>
-                  <strong>Estação Dominante: {seasonA.dominant_season}</strong>
+                  <span className="chart-insight-kicker">SEASONAL STRATIFICATION · ANOMALIES Y′(a,m)</span>
+                  <strong>Dominant Season: {seasonA.dominant_season}</strong>
                 </div>
                 <p className="chart-insight-text">{seasonalResult.summary_interpretation}</p>
                 <div className="chart-insight-pills">
                   <span className="chart-insight-pill">
-                    Base: anomalias mensais dessazonalizadas Y′(a,m) · zero % em escala interval
+                    Base: deseasonalized monthly anomalies Y′(a,m) · zero % on interval scale
                   </span>
                   <span className="chart-insight-pill">
                     {seasonA.has_seasonal_sign_reversal
-                      ? '⇄ Inversão Sazonal de Sinal Detectada'
-                      : '✓ Coerência Sazonal Direcional'}
+                      ? '⇄ Seasonal Sign Reversal Detected'
+                      : '✓ Directional Seasonal Coherence'}
                   </span>
                   {seasonB && (
                     <span className="chart-insight-pill">
@@ -1531,7 +1531,7 @@ export function ScientificBench({
                   autosize: true,
                   barmode: 'group',
                   title: {
-                    text: `Inclinação Secular de Theil–Sen (B_Sen ± IC 95%) sobre Anomalias Mensais Y′(a,m) · DJF, MAM, JJA, SON`,
+                    text: `Secular Theil–Sen Slope (B_Sen ± 95% CI) on Monthly Anomalies Y′(a,m) · DJF, MAM, JJA, SON`,
                     font: { size: 13 },
                   },
                   paper_bgcolor: '#121e30',
@@ -1540,11 +1540,11 @@ export function ScientificBench({
                   hovermode: 'closest',
                   margin: { l: 54, t: 44, r: 24, b: 82 },
                   xaxis: {
-                    title: { text: 'Estação Climatológica (DJF · MAM · JJA · SON)' },
+                    title: { text: 'Climatological Season (DJF · MAM · JJA · SON)' },
                     automargin: true,
                   },
                   yaxis: {
-                    title: { text: `Taxa Secular (${seasonA.trend_unit})` },
+                    title: { text: `Secular Rate (${seasonA.trend_unit})` },
                     zeroline: true,
                     zerolinecolor: 'rgba(148, 163, 184, 0.4)',
                     automargin: true,
@@ -1555,7 +1555,7 @@ export function ScientificBench({
               <BenchCollapsible
                 id="seasonal-cards"
                 icon="◐"
-                title="Estações DJF · MAM · JJA · SON"
+                title="Seasons DJF · MAM · JJA · SON"
                 badges={seasonCodes.map(code => `${code} ${formatSignedNumber(seasonA.seasons[code].slope_per_decade_sen, 1)}`)}
                 open={openCards['seasonal-cards']}
                 onToggle={() => toggleCard('seasonal-cards')}
@@ -1586,7 +1586,7 @@ export function ScientificBench({
                         <small>{seasonA.trend_unit}</small>
                       </div>
                       <div className="seasonal-mini-meta">
-                        IC 95%: [{formatPointValue(s.slope_ci95_low, 3)},{' '}
+                        95% CI: [{formatPointValue(s.slope_ci95_low, 3)},{' '}
                         {formatPointValue(s.slope_ci95_high, 3)}] · N={s.n_months} · N_eff=
                         {formatPointValue(s.n_effective_ar1, 1)}
                       </div>
@@ -1611,15 +1611,15 @@ export function ScientificBench({
         className="bench-sections-toolbar"
         data-testid="bench-sections-toolbar"
         role="region"
-        aria-label="Controle de seções retráteis da bancada"
+        aria-label="Collapsible bench sections control"
       >
         <div className="bench-sections-summary">
-          <span className="bench-sections-label">PAINÉIS ANALÍTICOS</span>
+          <span className="bench-sections-label">ANALYTICAL PANELS</span>
           <span className="bench-sections-count" data-testid="bench-sections-count">
-            {openSectionsCount}/{totalVisibleCards} abertos
+            {openSectionsCount}/{totalVisibleCards} open
           </span>
         </div>
-        <div className="bench-sections-pills" role="group" aria-label="Status dos painéis retráteis">
+        <div className="bench-sections-pills" role="group" aria-label="Collapsible panels status">
           {sectionPills.map(pill => (
             <button
               key={pill.id}
@@ -1643,7 +1643,7 @@ export function ScientificBench({
           aria-pressed={allCardsOpen}
           onClick={toggleAllCards}
         >
-          {allCardsOpen ? 'Recolher Painéis' : 'Expandir Tudo'}
+          {allCardsOpen ? 'Collapse Panels' : 'Expand All'}
         </button>
       </div>
 
@@ -1651,30 +1651,30 @@ export function ScientificBench({
       <section
         className="diagnostic-drawer"
         data-tour="bench-answers"
-        aria-label="As 4 Respostas do Detetive e Diagnóstico Multiescala"
+        aria-label="The 4 Detective Answers and Multiscale Diagnosis"
       >
         <BenchCollapsible
           id="diagnostic"
           icon="◈"
-          title="Diagnóstico das 4 Respostas"
+          title="4-Answer Diagnostic"
           badges={[
-            `${regions.length} região(ões)`,
-            analysis.comparison_pair ? 'Comparação A × B' : 'Série única',
-            '7 invariantes',
+            `${regions.length} region(s)`,
+            analysis.comparison_pair ? 'A × B comparison' : 'Single series',
+            '7 invariants',
           ]}
           open={openCards.diagnostic}
           onToggle={() => toggleCard('diagnostic')}
         >
           <div className="diag-grid">
             <article className="diag-card">
-              <h4>1. O QUE muda &amp; Regime Físico (GAM)</h4>
+              <h4>1. WHAT changes &amp; Physical Regime (GAM)</h4>
               {regions.map(region => (
                 <div key={region.slot} className="diag-row">
-                  <span className={`slot-tag slot-${region.slot.toLowerCase()}`}>Região {region.slot}</span>
+                  <span className={`slot-tag slot-${region.slot.toLowerCase()}`}>Region {region.slot}</span>
                   <strong>{region.variable_name}</strong>{' '}
                   <small>({region.variable_id} · {region.unit})</small>
                   <div className="diag-meta">
-                    Regime GAM: <b>{REGIME_LABELS[region.regression.regime_shape] ?? region.regression.regime_shape ?? '—'}</b> · Aceleração B₂:{' '}
+                    GAM Regime: <b>{REGIME_LABELS[region.regression.regime_shape] ?? region.regression.regime_shape ?? '—'}</b> · Acceleration B₂:{' '}
                     <code>{formatSignedNumber(region.regression.quadratic_acceleration_B2, 5)}</code>
                   </div>
                 </div>
@@ -1682,25 +1682,25 @@ export function ScientificBench({
             </article>
 
             <article className="diag-card">
-              <h4>2. QUANTO muda (Taxa Decadal)</h4>
+              <h4>2. HOW MUCH it changes (Decadal Rate)</h4>
               {regions.map(region => (
                 <div key={region.slot} className="diag-row">
-                  <span className={`slot-tag slot-${region.slot.toLowerCase()}`}>Região {region.slot}</span>
+                  <span className={`slot-tag slot-${region.slot.toLowerCase()}`}>Region {region.slot}</span>
                   <div>
                     Theil–Sen: <b>{formatSignedNumber(region.regression.slope_per_decade_sen, 4)} {region.trend_unit}</b>{' '}
                     <small>
-                      (IC 95%: [{formatSignedNumber(region.regression.slope_ci95_low, 4)},{' '}
+                      (95% CI: [{formatSignedNumber(region.regression.slope_ci95_low, 4)},{' '}
                       {formatSignedNumber(region.regression.slope_ci95_high, 4)}])
                     </small>
                   </div>
                   <div className="diag-meta">
                     OLS: <b>{formatSignedNumber(region.regression.slope_per_decade_ols, 4)} {region.trend_unit}</b> · A₀:{' '}
-                    <code>{formatPointValue(region.regression.intercept_at_start_A0)} {region.unit}</code> · Δ Modelo:{' '}
+                    <code>{formatPointValue(region.regression.intercept_at_start_A0)} {region.unit}</code> · Model Δ:{' '}
                     <b>{formatSignedNumber(region.regression.cumulative_model_change, 4)} {region.unit}</b>
                   </div>
                   {!region.allow_percentage_change && (
                     <small className="invariant-note">
-                      Invariante #3: variação em % bloqueada para {region.variable_id} ({region.scale_type}).
+                      Invariant #3: % change blocked for {region.variable_id} ({region.scale_type}).
                     </small>
                   )}
                 </div>
@@ -1708,14 +1708,14 @@ export function ScientificBench({
             </article>
 
             <article className="diag-card">
-              <h4>3. É SIGNIFICATIVO? (AR(1) + FDR + Acoplamento)</h4>
+              <h4>3. IS IT SIGNIFICANT? (AR(1) + FDR + Coupling)</h4>
               {regions.map(region => {
                 const badge =
                   CONFIDENCE_LABELS[region.significance.confidence_tier] ?? CONFIDENCE_LABELS.INSUFFICIENT_SIGNAL;
                 return (
                   <div key={region.slot} className="diag-row">
                     <div className="badge-line">
-                      <span className={`slot-tag slot-${region.slot.toLowerCase()}`}>Região {region.slot}</span>
+                      <span className={`slot-tag slot-${region.slot.toLowerCase()}`}>Region {region.slot}</span>
                       <span className={`confidence-badge tone-${badge.tone}`}>{badge.label}</span>
                       <span
                         className={
@@ -1723,12 +1723,12 @@ export function ScientificBench({
                         }
                       >
                         {region.significance.is_significant_fdr05
-                          ? 'q_FDR < 0,05'
-                          : 'q_FDR ≥ 0,05 · possível ruído natural'}
+                          ? 'q_FDR < 0.05'
+                          : 'q_FDR ≥ 0.05 · possible natural noise'}
                       </span>
                     </div>
                     <div className="diag-meta">
-                      N<sub>bruto</sub> = <b>{region.period.n_observations}</b> → N<sub>efetivo</sub>(AR1) ={' '}
+                      N<sub>raw</sub> = <b>{region.period.n_observations}</b> → N<sub>effective</sub>(AR1) ={' '}
                       <b>{formatPointValue(region.period.n_effective_ar1, 1)}</b>
                       <br />
                       p<sub>naive</sub> = <code>{formatPValue(region.significance.p_value_naive)}</code> · p<sub>AR1</sub> ={' '}
@@ -1737,13 +1737,13 @@ export function ScientificBench({
                       <br />
                       r = <b>{formatSignedNumber(region.correlation_and_coupling.pearson_r, 3)}</b> · τ ={' '}
                       <b>{formatSignedNumber(region.correlation_and_coupling.kendall_tau, 3)}</b> · R² ={' '}
-                      <b>{formatPointValue(region.correlation_and_coupling.r_squared, 3)}</b> · Elipse ={' '}
+                      <b>{formatPointValue(region.correlation_and_coupling.r_squared, 3)}</b> · Ellipse ={' '}
                       <b>{formatPointValue(region.correlation_and_coupling.ellipse_aspect_ratio, 3)}</b>
                       <br />
-                      Outliers Mahalanobis (D<sub>M</sub> &gt; 2,5): <b>{region.outliers_mahalanobis.length}</b>
+                      Mahalanobis Outliers (D<sub>M</sub> &gt; 2.5): <b>{region.outliers_mahalanobis.length}</b>
                       {region.outliers_mahalanobis[0] && (
                         <>
-                          {' '}— pico em <code>{region.outliers_mahalanobis[0].date}</code> (D<sub>M</sub>=
+                          {' '}— peak at <code>{region.outliers_mahalanobis[0].date}</code> (D<sub>M</sub>=
                           {formatPointValue(region.outliers_mahalanobis[0].mahalanobis_d, 2)})
                         </>
                       )}
@@ -1754,28 +1754,28 @@ export function ScientificBench({
             </article>
 
             <article className="diag-card">
-              <h4>4. ONDE &amp; Paradoxo Multiescala (A × B)</h4>
+              <h4>4. WHERE &amp; Multiscale Paradox (A × B)</h4>
               {analysis.comparison_pair ? (
                 <div className="diag-row">
                   <div className="badge-line">
                     <span className="paradox-badge">{analysis.comparison_pair.multiscale_correlation.paradox_type}</span>
                     {analysis.comparison_pair.spatial_divergence_detected && (
-                      <span className="divergence-pill">Divergência Espacial Detectada</span>
+                      <span className="divergence-pill">Spatial Divergence Detected</span>
                     )}
                   </div>
                   <div className="diag-meta">
-                    A: <code>{analysis.comparison_pair.region_a_id}</code> ({analysis.request_meta.cells_count_a} cél.)
+                    A: <code>{analysis.comparison_pair.region_a_id}</code> ({analysis.request_meta.cells_count_a} cells)
                     <br />
                     B: <code>{analysis.comparison_pair.region_b_id}</code> (
-                    {analysis.request_meta.cells_count_b || analysis.request_meta.cells_count_a} cél.)
+                    {analysis.request_meta.cells_count_b || analysis.request_meta.cells_count_a} cells)
                     <br />
                     r<sub>global</sub> (secular) ={' '}
                     <b>{formatSignedNumber(analysis.comparison_pair.multiscale_correlation.long_term_secular_r, 3)}</b> ·
-                    r<sub>detrended</sub> (curto prazo) ={' '}
+                    r<sub>detrended</sub> (short-term) ={' '}
                     <b>{formatSignedNumber(analysis.comparison_pair.multiscale_correlation.short_term_detrended_r, 3)}</b>
                     {analysis.comparison_pair.slope_difference_per_decade !== null && (
                       <>
-                        {' '}· Δ Declive (A − B) ={' '}
+                        {' '}· Δ Slope (A − B) ={' '}
                         <b>
                           {formatSignedNumber(analysis.comparison_pair.slope_difference_per_decade, 4)}
                           {regions[0]?.trend_unit ? ` ${regions[0].trend_unit}` : ''}
@@ -1787,7 +1787,7 @@ export function ScientificBench({
                 </div>
               ) : (
                 <p className="diag-meta">
-                  Selecione Região A e Região B (ou 2 variáveis no mesmo local) para análise multiescala comparativa.
+                  Select Region A and Region B (or 2 variables at the same location) for comparative multiscale analysis.
                 </p>
               )}
             </article>
@@ -1798,12 +1798,12 @@ export function ScientificBench({
       <section
         className="ml-discovery-bench-panel"
         data-testid="ml-discovery-bench-panel"
-        aria-label="Descobertas Dinâmicas e Atribuição ML (Camada 2)"
+        aria-label="Dynamic Discoveries and ML Attribution (Layer 2)"
       >
         <div className="ml-bench-header">
           <div className="ml-bench-title-group">
-            <span className="ml-bench-kicker">MOTOR ML · CAMADA 2</span>
-            <h3>Descobertas Dinâmicas &amp; Atribuição Física</h3>
+            <span className="ml-bench-kicker">ML ENGINE · LAYER 2</span>
+            <h3>Dynamic Discoveries &amp; Physical Attribution</h3>
             {discoveryResult && (
               <span className="ml-bench-timing-pill">
                 {discoveryResult.discovery_meta.execution_time_ms.toFixed(1)} ms ·{' '}
@@ -1820,7 +1820,7 @@ export function ScientificBench({
                 disabled={discoveryLoading}
                 onClick={() => void handleRunMlDiscovery()}
               >
-                {discoveryLoading ? 'Executando ML...' : discoveryResult ? 'Re-executar ML' : 'Executar Descoberta ML'}
+                {discoveryLoading ? 'Running ML...' : discoveryResult ? 'Re-run ML' : 'Run ML Discovery'}
               </button>
             )}
             <button
@@ -1830,7 +1830,7 @@ export function ScientificBench({
               disabled={copilotLoading}
               onClick={handleExplainMlWithCopilot}
             >
-              Interpretar Achados ML com Co-Piloto
+              Interpret ML Findings with Co-Pilot
             </button>
             {discoveryResult && (
               <button
@@ -1840,7 +1840,7 @@ export function ScientificBench({
                 aria-expanded={discoveryOpen}
                 onClick={() => setDiscoveryOpen(prev => !prev)}
               >
-                {discoveryOpen ? 'Recolher' : 'Expandir'}
+                {discoveryOpen ? 'Collapse' : 'Expand'}
               </button>
             )}
           </div>
@@ -1849,29 +1849,29 @@ export function ScientificBench({
         {!discoveryResult && !discoveryLoading && (
           <p className="ml-bench-empty-note">
             {isOfflineAnalysis
-              ? 'Modo offline ativo: use "Interpretar Achados ML com Co-Piloto" ou inicie o backend Python para teleconexões oceânicas parciais e CUSUM em tempo real.'
-              : 'Clique em "Executar Descoberta ML" para varredura CUSUM AR(1), teleconexões oceânicas parciais (ENSO/Atlântico com FDR) e atribuição Ridge Purged CV.'}
+              ? 'Offline mode active: use "Interpret ML Findings with Co-Pilot" or start the Python backend for real-time partial ocean teleconnections and CUSUM.'
+              : 'Click "Run ML Discovery" for AR(1) CUSUM scan, partial ocean teleconnections (ENSO/Atlantic with FDR), and Purged CV Ridge attribution.'}
           </p>
         )}
 
         {discoveryResult && discoveryOpen && (
           <div className="ml-bench-grid">
             <article className="ml-bench-card">
-              <h4>1. Regime Forense &amp; Quebra CUSUM AR(1)</h4>
+              <h4>1. Forensic Regime &amp; AR(1) CUSUM Break</h4>
               <div className="ml-metric-row">
-                <span>Diagnóstico:</span>
+                <span>Diagnosis:</span>
                 <code>{discoveryResult.regime_and_gam_geometry.forensic_regime_diagnosis}</code>
               </div>
               <div className="ml-metric-row">
-                <span>Quebra estrutural (Pontes B⁽²⁾):</span>
+                <span>Structural break (B⁽²⁾ Bridges):</span>
                 <strong>
                   {discoveryResult.regime_and_gam_geometry.cusum_break_detected
                     ? `${discoveryResult.regime_and_gam_geometry.break_date} · CUSUM=${discoveryResult.regime_and_gam_geometry.cusum_max_stat?.toFixed(3)} (p=${formatPValue(discoveryResult.regime_and_gam_geometry.p_value_ar1_bridge ?? 1)})`
-                    : `Sem quebra (CUSUM=${discoveryResult.regime_and_gam_geometry.cusum_max_stat?.toFixed(3) ?? '—'}, p=${formatPValue(discoveryResult.regime_and_gam_geometry.p_value_ar1_bridge ?? 1)})`}
+                    : `No break (CUSUM=${discoveryResult.regime_and_gam_geometry.cusum_max_stat?.toFixed(3) ?? '—'}, p=${formatPValue(discoveryResult.regime_and_gam_geometry.p_value_ar1_bridge ?? 1)})`}
                 </strong>
               </div>
               <div className="ml-metric-row">
-                <span>Curvatura B₂ / Hinge AR(1):</span>
+                <span>Curvature B₂ / Hinge AR(1):</span>
                 <span>
                   p_B2={formatPValue(discoveryResult.regime_and_gam_geometry.quadratic_b2_p_ar1 ?? 1)} · p_hinge=
                   {formatPValue(discoveryResult.regime_and_gam_geometry.hinge_p_ar1 ?? 1)}
@@ -1880,7 +1880,7 @@ export function ScientificBench({
               {discoveryResult.regime_and_gam_geometry.pre_break_gam_slope_decade !== undefined &&
                 discoveryResult.regime_and_gam_geometry.post_break_gam_slope_decade !== undefined && (
                   <div className="ml-metric-row">
-                    <span>Inclinação GAM pré vs. pós:</span>
+                    <span>Pre vs. post GAM slope:</span>
                     <span>
                       {formatSignedNumber(discoveryResult.regime_and_gam_geometry.pre_break_gam_slope_decade, 3)} →{' '}
                       {formatSignedNumber(discoveryResult.regime_and_gam_geometry.post_break_gam_slope_decade, 3)}{' '}
@@ -1891,9 +1891,9 @@ export function ScientificBench({
             </article>
 
             <article className="ml-bench-card">
-              <h4>2. Teleconexões Oceânicas Parciais (BH-FDR 5%)</h4>
+              <h4>2. Partial Ocean Teleconnections (BH-FDR 5%)</h4>
               <div className="ml-metric-row">
-                <span>Acoplamentos estritos (detrend + parcial FDR &lt; 0,05):</span>
+                <span>Strict couplings (detrend + partial FDR &lt; 0.05):</span>
                 <strong>
                   {discoveryResult.partial_teleconnections.significant_strict_both_fdr05_count ??
                     discoveryResult.partial_teleconnections.significant_partial_fdr05_count}{' '}
@@ -1904,9 +1904,9 @@ export function ScientificBench({
                 <table className="ml-bench-table">
                   <thead>
                     <tr>
-                      <th>Caixa / Var</th>
+                      <th>Box / Var</th>
                       <th>Lag</th>
-                      <th>r_parcial</th>
+                      <th>r_partial</th>
                       <th>q_FDR</th>
                     </tr>
                   </thead>
@@ -1928,12 +1928,12 @@ export function ScientificBench({
                   </tbody>
                 </table>
               ) : (
-                <p className="ml-bench-empty-note">Sem sobreposição oceânica em cache para o período.</p>
+                <p className="ml-bench-empty-note">No cached ocean overlap for this period.</p>
               )}
             </article>
 
             <article className="ml-bench-card">
-              <h4>3. Atribuição Ridge Destendenciada (Purged CV)</h4>
+              <h4>3. Detrended Ridge Attribution (Purged CV)</h4>
               {discoveryResult.fast_gcv_physical_attribution.status === 'OK' ? (
                 <>
                   <div className="ml-metric-row">
@@ -1958,25 +1958,25 @@ export function ScientificBench({
                 </>
               ) : (
                 <p className="ml-bench-empty-note">
-                  Selecione uma segunda variável (Região B) para ranquear preditores físicos locais por Ridge Purged CV.
+                  Select a second variable (Region B) to rank local physical predictors via Purged CV Ridge.
                 </p>
               )}
             </article>
 
             <article className="ml-bench-card">
-              <h4>4. Fase Oceânica nos Extremos (D_M &gt; 2,5)</h4>
+              <h4>4. Ocean Phase at Extremes (D_M &gt; 2.5)</h4>
               {discoveryResult.attributed_mahalanobis_outliers.length > 0 ? (
                 <ul className="ml-outlier-tags">
                   {discoveryResult.attributed_mahalanobis_outliers.slice(0, 4).map(o => (
                     <li key={o.date}>
                       <code>{o.date}</code> (D_M={formatPointValue(o.mahalanobis_d, 2)}):{' '}
-                      <strong>{o.ocean_phase_tag || 'REGIONAL / NEUTRO'}</strong> · Niño3.4 Z={formatSignedNumber(o.nino34_ts_z, 2)} · Atl Z=
+                      <strong>{o.ocean_phase_tag || 'REGIONAL / NEUTRAL'}</strong> · Niño3.4 Z={formatSignedNumber(o.nino34_ts_z, 2)} · Atl Z=
                       {formatSignedNumber(o.atl_grad_ts_z, 2)}
                     </li>
                   ))}
                 </ul>
               ) : (
-                <p className="ml-bench-empty-note">Nenhum outlier extremo (D_M &gt; 2,5) detectado na série primária.</p>
+                <p className="ml-bench-empty-note">No extreme outliers (D_M &gt; 2.5) detected in the primary series.</p>
               )}
             </article>
           </div>
@@ -1984,7 +1984,7 @@ export function ScientificBench({
       </section>
 
       {showCopilot && (
-        <section ref={copilotDrawerRef} className="copilot-drawer" aria-label="Co-Piloto Estatístico Interativo">
+        <section ref={copilotDrawerRef} className="copilot-drawer" aria-label="Interactive Statistical Co-Pilot">
           <div className="copilot-header">
             <div className="copilot-title-block">
               <div className="copilot-chat-identity">
@@ -1998,7 +1998,7 @@ export function ScientificBench({
                   <span className="copilot-avatar-pulse" />
                 </span>
                 <div className="copilot-chat-identity-text">
-                  <span className="copilot-online-label">● Online · IA Assistente</span>
+                  <span className="copilot-online-label">● Online · AI Assistant</span>
                   <h3>{isEn ? 'Statistical Co-Pilot Chatbot' : 'Chatbot Co-Piloto Estatístico'}</h3>
                   <p className="copilot-chat-subtitle">
                     {isEn
@@ -2033,7 +2033,7 @@ export function ScientificBench({
               </div>
               <div className="copilot-telemetry" role="list" aria-label={isEn ? 'Analysis context' : 'Contexto da análise'}>
                 <span role="listitem" className="copilot-telemetry-pill">
-                  {analysis.comparison_pair ? 'Local A vs B' : 'Local A'}
+                  {analysis.comparison_pair ? 'Location A vs B' : 'Location A'}
                 </span>
                 {regions.map(r => (
                   <span
@@ -2057,7 +2057,7 @@ export function ScientificBench({
                 )}
               </div>
             </div>
-            <div className="copilot-lang-switch" role="group" aria-label="Idioma do Co-Piloto">
+            <div className="copilot-lang-switch" role="group" aria-label="Co-Pilot Language">
               <button
                 type="button"
                 className={copilotLang === 'pt' ? 'active' : ''}
@@ -2128,7 +2128,7 @@ export function ScientificBench({
                 <div className="copilot-msg copilot-msg-assistant chat-bubble chat-bubble-assistant chat-bubble-welcome" data-testid="copilot-welcome-bubble">
                   <span className="chat-avatar" aria-hidden="true">AI</span>
                   <div className="chat-bubble-body">
-                    <strong className="copilot-msg-role">Co-Piloto IA</strong>
+                    <strong className="copilot-msg-role">{isEn ? 'AI Co-Pilot' : 'Co-Piloto IA'}</strong>
                     <p className="chat-welcome-text">
                       {isEn
                         ? '👋 Hi! I am your Statistical Co-Pilot. I can explain whether a trend is real or AR(1) noise, detail the lags (BH-FDR) and seasons (DJF–SON), or analyze the open data. Click a suggestion below or send your question!'
@@ -2152,7 +2152,7 @@ export function ScientificBench({
                     )}
                     <div className="chat-bubble-body">
                     <strong className="copilot-msg-role">
-                      {turn.role === 'user' ? (isEn ? 'You' : 'Você') : 'Co-Piloto IA'}
+                      {turn.role === 'user' ? (isEn ? 'You' : 'Você') : isEn ? 'AI Co-Pilot' : 'Co-Piloto IA'}
                     </strong>
                     {turn.role === 'assistant' ? (
                       <CopilotRichText text={turn.content} />
@@ -2160,7 +2160,7 @@ export function ScientificBench({
                       <span className="copilot-msg-text">{turn.content}</span>
                     )}
                     {turn.role === 'assistant' && turn.tools_used && turn.tools_used.length > 0 && (
-                      <div className="copilot-tools-audit" aria-label="Engines científicas executadas">
+                      <div className="copilot-tools-audit" aria-label="Executed scientific engines">
                         <span className="copilot-tools-title">{isEn ? 'Executed telemetry' : 'Telemetria executada'}</span>
                         {turn.tools_used.map((tool, tIdx) => (
                           <span
@@ -2210,7 +2210,7 @@ export function ScientificBench({
 
             <div className="copilot-chips-block copilot-chat-suggestions">
               <span className="copilot-section-label">{isEn ? 'Quick investigations' : 'Investigações rápidas'}</span>
-              <div className="copilot-chips" role="group" aria-label="Perguntas sugeridas ao Co-Piloto">
+              <div className="copilot-chips" role="group" aria-label="Suggested Co-Pilot questions">
                 {copilotSynthesis.suggested_questions.map(suggested => (
                   <button
                     key={suggested}
@@ -2261,27 +2261,27 @@ export function ScientificBench({
       <BenchCollapsible
         id="provenance"
         icon="⌗"
-        title="Auditoria · Origem e Qualidade dos Dados"
+        title="Audit · Data Provenance and Quality"
         badges={[
           analysis.request_meta.source === 'backend_api'
-            ? 'Modo: API Backend'
+            ? 'Mode: Backend API'
             : analysis.request_meta.source === 'idb_cache'
-              ? 'Modo: Cache IndexedDB'
-              : 'Modo: Demo offline',
-          `${regions.length} série(s)`,
+              ? 'Mode: IndexedDB Cache'
+              : 'Mode: Offline demo',
+          `${regions.length} series`,
         ]}
         open={openCards.provenance}
         onToggle={() => toggleCard('provenance')}
       >
-      <footer className="data-provenance" aria-label="Origem e qualidade dos dados">
-        <h3>Origem e qualidade dos dados</h3>
+      <footer className="data-provenance" aria-label="Data provenance and quality">
+        <h3>Data provenance and quality</h3>
         <dl className="provenance-grid">
           <div>
-            <dt>Fonte</dt>
+            <dt>Source</dt>
             <dd>{sourceLabel}</dd>
           </div>
           <div>
-            <dt>Modelo e resolução</dt>
+            <dt>Model and resolution</dt>
             <dd>
               {regions
                 .map(r => {
@@ -2292,36 +2292,36 @@ export function ScientificBench({
             </dd>
           </div>
           <div>
-            <dt>Cobertura</dt>
+            <dt>Coverage</dt>
             <dd>
-              {firstMonth ?? '—'} a {lastMonth ?? '—'} ({regions[0]?.period.n_observations ?? 0} meses)
+              {firstMonth ?? '—'} to {lastMonth ?? '—'} ({regions[0]?.period.n_observations ?? 0} months)
             </dd>
           </div>
           <div>
-            <dt>Células agregadas</dt>
+            <dt>Aggregated cells</dt>
             <dd>
               A: {analysis.request_meta.cells_count_a} · B: {analysis.request_meta.cells_count_b} (
               {analysis.request_meta.spatial_aggregation})
             </dd>
           </div>
           <div>
-            <dt>Valores ausentes</dt>
-            <dd>{totalMissing} ponto(s)</dd>
+            <dt>Missing values</dt>
+            <dd>{totalMissing} point(s)</dd>
           </div>
           <div>
-            <dt>Horário da consulta</dt>
+            <dt>Query timestamp</dt>
             <dd>{analyzedAt ?? '—'}</dd>
           </div>
         </dl>
         {metricMode === 'raw' && (
           <p className="note">
-            Na série bruta, as tendências (OLS / Theil–Sen / GAM) são transladadas para a média histórica para isolar o
-            efeito sazonal.
+            In the raw series, trends (OLS / Theil–Sen / GAM) are shifted to the historical mean to isolate the
+            seasonal effect.
           </p>
         )}
-        {isZScore && <p className="note">Modo Z-Score (σ) unifica variáveis de unidades distintas no mesmo eixo vertical.</p>}
+        {isZScore && <p className="note">Z-Score (σ) mode unifies variables with different units on the same vertical axis.</p>}
         {showSen && regions.some(region => !region.series.sen_fit) && (
-          <p className="note">A curva Theil–Sen depende da série ajustada fornecida pelo backend.</p>
+          <p className="note">The Theil–Sen curve depends on the fitted series provided by the backend.</p>
         )}
       </footer>
       </BenchCollapsible>
@@ -2336,14 +2336,14 @@ export function ScientificBench({
             className="methodology-modal"
             role="dialog"
             aria-modal="true"
-            aria-label="Metodologia e Rigor Científico"
+            aria-label="Methodology and Scientific Rigor"
             data-testid="methodology-modal"
             onClick={e => e.stopPropagation()}
           >
             <header className="methodology-modal-header">
               <div>
-                <span className="methodology-kicker">DOSSIÊ TÉCNICO PARA AVALIADORES · RIGOR ESTATÍSTICO NASA POWER</span>
-                <h3>Metodologia &amp; Auditoria ao Vivo dos 7 Invariantes Estatísticos</h3>
+                <span className="methodology-kicker">TECHNICAL DOSSIER FOR REVIEWERS · NASA POWER STATISTICAL RIGOR</span>
+                <h3>Methodology &amp; Live Audit of the 7 Statistical Invariants</h3>
               </div>
               <div className="methodology-header-actions">
                 <button
@@ -2353,16 +2353,16 @@ export function ScientificBench({
                   data-copied={copiedMethodology ? 'true' : 'false'}
                   onClick={() => void handleCopyMethodology()}
                 >
-                  {copiedMethodology ? '✓ Resumo Copiado!' : 'Copiar Resumo Metodológico'}
+                  {copiedMethodology ? '✓ Summary Copied!' : 'Copy Methodological Summary'}
                 </button>
                 <button
                   type="button"
                   data-testid="close-methodology-btn"
                   className="methodology-close-btn"
-                  aria-label="Fechar Metodologia e Rigor Científico"
+                  aria-label="Close Methodology and Scientific Rigor"
                   onClick={() => setShowMethodologyModal(false)}
                 >
-                  ✕ Fechar
+                  ✕ Close
                 </button>
               </div>
             </header>
@@ -2370,20 +2370,20 @@ export function ScientificBench({
             <div className="methodology-modal-body">
               <div className="methodology-audit-summary">
                 <span className="methodology-audit-pill">
-                  ✓ {invariantsReport.passedCount}/{invariantsReport.totalCount} Invariantes Auditados em Tempo Real
+                  ✓ {invariantsReport.passedCount}/{invariantsReport.totalCount} Invariants Audited in Real Time
                 </span>
                 <div className="methodology-audit-meta">
                   <CopilotRichText
-                    text={`**Variáveis Ativas:** \`${analysis.region_a_analysis.variable_id}\`${
+                    text={`**Active Variables:** \`${analysis.region_a_analysis.variable_id}\`${
                       analysis.region_b_analysis ? ` × \`${analysis.region_b_analysis.variable_id}\`` : ''
-                    } · **Janela:** ${analysis.region_a_analysis.period.start} a ${
+                    } · **Window:** ${analysis.region_a_analysis.period.start} to ${
                       analysis.region_a_analysis.period.end
                     } (**N_eff** = ${analysis.region_a_analysis.period.n_effective_ar1.toFixed(1)})`}
                   />
                 </div>
               </div>
 
-              <h4 className="methodology-section-title">1. Checklist Auditado em Tempo Real da Análise Aberta</h4>
+              <h4 className="methodology-section-title">1. Live Audited Checklist of the Open Analysis</h4>
               <div className="methodology-invariants-grid">
                 {invariantsReport.items.map(item => (
                   <article
@@ -2397,13 +2397,13 @@ export function ScientificBench({
                   >
                     <div className="methodology-invariant-head">
                       <span className="methodology-invariant-status">
-                        {item.passed ? '✓ AUDITADO' : '⚠ VERIFICAR'}
+                        {item.passed ? '✓ AUDITED' : '⚠ CHECK'}
                       </span>
                       <strong>{item.title}</strong>
                     </div>
                     <code className="methodology-formula-chip">{item.formulaDisplay}</code>
                     <div className="methodology-live-evidence">
-                      <CopilotRichText text={`**Evidência Ativa:** ${item.liveEvidence}`} />
+                      <CopilotRichText text={`**Active Evidence:** ${item.liveEvidence}`} />
                     </div>
                     <div className="methodology-rationale">
                       <CopilotRichText text={item.scientificRationale} />
@@ -2413,7 +2413,7 @@ export function ScientificBench({
               </div>
 
               <h4 className="methodology-section-title">
-                2. Formulações Matemáticas do Motor &amp; Grades Nativas NASA POWER
+                2. Engine Mathematical Formulations &amp; Native NASA POWER Grids
               </h4>
               <div className="methodology-formulas-grid">
                 {MATHEMATICAL_FORMULATIONS.map(doc => (

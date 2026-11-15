@@ -168,8 +168,8 @@ describe('Scientific Insights Service & Bench Integration (Lag-Lead, Sazonal & 7
     expect(coupledRes.best_detrended_lag.r_detrended).toBeGreaterThan(0.8);
     expect(coupledRes.best_detrended_lag.q_fdr).toBeLessThan(0.05);
     expect(coupledRes.best_fdr_status).toBe('FDR_SIGNIFICANT');
-    expect(coupledRes.precedence_interpretation).toContain('antecede');
-    expect(coupledRes.precedence_interpretation).not.toMatch(/causa|provoc|gera|induz/i);
+    expect(coupledRes.precedence_interpretation).toContain('precede');
+    expect(coupledRes.precedence_interpretation).not.toMatch(/cause|causat|provok|induc/i);
 
     // Now test the 25-test multiple-comparison penalty directly via BH-FDR
     const borderPValues = new Array<number>(25).fill(0.75);
@@ -187,10 +187,10 @@ describe('Scientific Insights Service & Bench Integration (Lag-Lead, Sazonal & 7
     expect(seasonalMock.region_a.seasons.JJA.p_value_ar1_corrected).toBeCloseTo(0.05203428, 4);
     expect(seasonalMock.region_a.seasons.DJF.slope_per_decade_sen).toBeCloseTo(-0.07908, 4);
     expect(seasonalMock.region_a.seasons.DJF.significant_fdr05).toBe(false);
-    expect(seasonalMock.region_a.seasons.DJF.season_label).toBe('DJF (Dez–Fev)');
-    expect(seasonalMock.region_a.seasons.MAM.season_label).toBe('MAM (Mar–Mai)');
-    expect(seasonalMock.region_a.seasons.JJA.season_label).toBe('JJA (Jun–Ago)');
-    expect(seasonalMock.region_a.seasons.SON.season_label).toBe('SON (Set–Nov)');
+    expect(seasonalMock.region_a.seasons.DJF.season_label).toBe('DJF (Dec–Feb)');
+    expect(seasonalMock.region_a.seasons.MAM.season_label).toBe('MAM (Mar–May)');
+    expect(seasonalMock.region_a.seasons.JJA.season_label).toBe('JJA (Jun–Aug)');
+    expect(seasonalMock.region_a.seasons.SON.season_label).toBe('SON (Sep–Nov)');
 
     // Construct an interval (°C) dataset with strong within-DJF raw baseline differences (Dec=12°C, Jan=26°C, Feb=19°C)
     // and verify seasonal regression is strictly invariant to raw_values (uses anomaly_values Y'_{a,m} only)
@@ -242,10 +242,10 @@ describe('Scientific Insights Service & Bench Integration (Lag-Lead, Sazonal & 7
     expect(resMild.region_a.seasons.DJF.slope_per_decade_sen).toBeGreaterThan(0.5);
     expect(resMild.region_a.seasons.DJF.p_value_ar1_corrected).toBeLessThan(0.05);
     expect(resMild.region_a.seasons.DJF.significant_ar1).toBe(true);
-    expect(resMild.region_a.trend_unit).toBe('°C/década');
+    expect(resMild.region_a.trend_unit).toBe('°C/decade');
     expect(resMild.region_a.trend_unit).not.toContain('%');
-    expect(resMild.summary_interpretation).toContain('°C/década');
-    expect(resMild.summary_interpretation.replace(/IC 95%/g, '')).not.toContain('%');
+    expect(resMild.summary_interpretation).toContain('°C/decade');
+    expect(resMild.summary_interpretation.replace(/95% CI/g, '')).not.toContain('%');
 
     for (const code of ['DJF', 'MAM', 'JJA', 'SON'] as const) {
       expect(resCorrupted.region_a.seasons[code].slope_per_decade_sen).toBe(
@@ -267,7 +267,7 @@ describe('Scientific Insights Service & Bench Integration (Lag-Lead, Sazonal & 7
     expect(report.allPassed).toBe(true);
 
     const summaryText = buildMethodologicalSummaryText(mockAnalysis, report);
-    expect(summaryText).toContain('7/7 Invariantes Auditados');
+    expect(summaryText).toContain('7/7 Audited Invariants');
     expect(summaryText).toContain(mockAnalysis.region_a_analysis.variable_id);
     expect(summaryText).not.toContain('**');
 
@@ -325,7 +325,7 @@ describe('Scientific Insights Service & Bench Integration (Lag-Lead, Sazonal & 7
 
     // 1. Live 7/7 Invariants Badge & Methodology Modal with rich Markdown
     const badgeBtn = screen.getByTestId('invariants-badge-btn');
-    expect(badgeBtn.textContent).toContain('7/7 Invariantes Auditados');
+    expect(badgeBtn.textContent).toContain('7/7 Audited Invariants');
     fireEvent.click(badgeBtn);
 
     const modal = screen.getByTestId('methodology-modal');
@@ -346,7 +346,7 @@ describe('Scientific Insights Service & Bench Integration (Lag-Lead, Sazonal & 7
     fireEvent.click(screen.getByTestId('copy-methodology-btn'));
     await waitFor(() => {
       expect(screen.getByTestId('copy-methodology-btn').textContent).toContain(
-        'Resumo Copiado'
+        'Summary Copied'
       );
     });
 
@@ -366,10 +366,10 @@ describe('Scientific Insights Service & Bench Integration (Lag-Lead, Sazonal & 7
 
     const lagPlot = capturedPlots[capturedPlots.length - 1];
     const lagPlotJson = JSON.stringify(lagPlot ?? {});
-    expect(lagPlotJson).toContain('antecede');
-    expect(lagPlotJson).not.toMatch(/causa|provoc|gera|induz/i);
+    expect(lagPlotJson).toContain('Temporal Precedence');
+    expect(lagPlotJson).not.toMatch(/\bcauses?\b|\bcaused\b|\bprovokes?\b|\binduces?\b/i);
 
-    // 3. Seasonal mode: DJF-SON cards show p_AR1 and T2M_MAX uses °C/década with zero %
+    // 3. Seasonal mode: DJF-SON cards show p_AR1 and T2M_MAX uses °C/decade with zero %
     fireEvent.click(screen.getByTestId('view-mode-seasonal'));
     const seasonalContainer = screen.getByTestId('seasonal-chart-container');
     const seasonalText = seasonalContainer.textContent ?? '';
@@ -378,7 +378,7 @@ describe('Scientific Insights Service & Bench Integration (Lag-Lead, Sazonal & 7
     expect(seasonalText).toContain('JJA');
     expect(seasonalText).toContain('SON');
     expect(seasonalText).not.toMatch(/Austral/i);
-    expect(seasonalText).toContain('°C/década');
+    expect(seasonalText).toContain('°C/decade');
 
     for (const code of ['DJF', 'MAM', 'JJA', 'SON'] as const) {
       const cardText = screen.getByTestId(`seasonal-card-${code}`).textContent ?? '';
@@ -415,7 +415,7 @@ describe('Scientific Insights Service & Bench Integration (Lag-Lead, Sazonal & 7
     );
 
     const welcomeBubble = screen.getByTestId('copilot-welcome-bubble');
-    expect(welcomeBubble.textContent).toContain('Co-Piloto Estatístico');
+    expect(welcomeBubble.textContent).toContain('Statistical Co-Pilot');
 
     const toggleAllBtn = screen.getByTestId('bench-toggle-all-cards');
     const getToggleStates = () =>
@@ -423,18 +423,18 @@ describe('Scientific Insights Service & Bench Integration (Lag-Lead, Sazonal & 7
         btn.getAttribute('aria-expanded')
       );
 
-    // All collapsible cards start collapsed so Expandir Tudo is shown first
-    expect(toggleAllBtn.textContent).toContain('Expandir Tudo');
+    // All collapsible cards start collapsed so Expand All is shown first
+    expect(toggleAllBtn.textContent).toContain('Expand All');
     expect(getToggleStates().every(v => v === 'false')).toBe(true);
 
-    // Click Expandir Tudo -> all collapsible cards open
+    // Click Expand All -> all collapsible cards open
     fireEvent.click(toggleAllBtn);
-    expect(toggleAllBtn.textContent).toContain('Recolher Painéis');
+    expect(toggleAllBtn.textContent).toContain('Collapse Panels');
     expect(getToggleStates().every(v => v === 'true')).toBe(true);
 
-    // Click Recolher Painéis -> all collapsible cards collapse while remaining in DOM
+    // Click Collapse Panels -> all collapsible cards collapse while remaining in DOM
     fireEvent.click(toggleAllBtn);
-    expect(toggleAllBtn.textContent).toContain('Expandir Tudo');
+    expect(toggleAllBtn.textContent).toContain('Expand All');
     expect(getToggleStates().every(v => v === 'false')).toBe(true);
     expect(container.querySelector('.diagnostic-drawer')).toBeTruthy();
     expect(container.querySelector('.data-provenance')).toBeTruthy();
@@ -476,8 +476,8 @@ describe('Scientific Insights Service & Bench Integration (Lag-Lead, Sazonal & 7
 
     const toolbar = screen.getByTestId('bench-sections-toolbar');
     const countBadge = screen.getByTestId('bench-sections-count');
-    expect(toolbar.textContent).toContain('PAINÉIS ANALÍTICOS');
-    expect(countBadge.textContent).toBe('0/2 abertos');
+    expect(toolbar.textContent).toContain('ANALYTICAL PANELS');
+    expect(countBadge.textContent).toBe('0/2 open');
 
     const diagPill = screen.getByTestId('bench-section-pill-diagnostic');
     const provPill = screen.getByTestId('bench-section-pill-provenance');
@@ -486,34 +486,34 @@ describe('Scientific Insights Service & Bench Integration (Lag-Lead, Sazonal & 7
 
     fireEvent.click(diagPill);
     expect(diagPill.className).toContain('is-open');
-    expect(countBadge.textContent).toBe('1/2 abertos');
+    expect(countBadge.textContent).toBe('1/2 open');
 
     fireEvent.click(provPill);
     expect(provPill.className).toContain('is-open');
-    expect(countBadge.textContent).toBe('2/2 abertos');
+    expect(countBadge.textContent).toBe('2/2 open');
 
     fireEvent.click(screen.getByTestId('view-mode-lag'));
     const lagPill = screen.getByTestId('bench-section-pill-insight-lag');
     expect(lagPill.className).toContain('is-closed');
-    expect(countBadge.textContent).toBe('2/3 abertos');
+    expect(countBadge.textContent).toBe('2/3 open');
     fireEvent.click(lagPill);
-    expect(countBadge.textContent).toBe('3/3 abertos');
+    expect(countBadge.textContent).toBe('3/3 open');
 
     fireEvent.click(screen.getByTestId('view-mode-seasonal'));
     const seasonalInsightPill = screen.getByTestId('bench-section-pill-insight-seasonal');
     const seasonalCardsPill = screen.getByTestId('bench-section-pill-seasonal-cards');
     expect(seasonalInsightPill.className).toContain('is-closed');
     expect(seasonalCardsPill.className).toContain('is-closed');
-    expect(countBadge.textContent).toBe('2/4 abertos');
+    expect(countBadge.textContent).toBe('2/4 open');
     fireEvent.click(seasonalInsightPill);
     fireEvent.click(seasonalCardsPill);
-    expect(countBadge.textContent).toBe('4/4 abertos');
+    expect(countBadge.textContent).toBe('4/4 open');
     expect(container.querySelector('[data-card-id="provenance"] .bench-card-toggle')?.getAttribute('aria-expanded')).toBe('true');
 
     // Toggle Copilot off and back on without scrollIntoView errors in jsdom
-    fireEvent.click(screen.getByRole('button', { name: /Ocultar Co-Piloto IA/i }));
+    fireEvent.click(screen.getByRole('button', { name: /Hide AI Co-Pilot/i }));
     expect(container.querySelector('.copilot-drawer')).toBeNull();
-    fireEvent.click(screen.getByRole('button', { name: /Co-Piloto Estatístico/i }));
+    fireEvent.click(screen.getByRole('button', { name: /Statistical Co-Pilot/i }));
     expect(container.querySelector('.copilot-drawer')).toBeTruthy();
   });
 });

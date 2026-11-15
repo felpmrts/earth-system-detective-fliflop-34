@@ -89,110 +89,110 @@ export const STORY_TRAPS: readonly StoryTrapItem[] = [
   {
     id: 'noise',
     number: '01',
-    title: 'Oscilação natural finge ser tendência',
+    title: 'Natural oscillation masquerades as a trend',
     trapSummary:
-      'Ciclos naturais de chuva e temperatura criam subidas aparentes que enganam retas comuns.',
-    solutionBadge: 'AR(1) + FDR (q < 0,05)',
+      'Natural rainfall and temperature cycles create apparent upward drifts that fool ordinary regression lines.',
+    solutionBadge: 'AR(1) + FDR (q < 0.05)',
     solutionText:
-      'Descontamos a memória entre meses seguidos e bloqueamos falsos alarmes antes de confirmar a tendência.',
+      'We discount month-to-month temporal memory and suppress false alarms before confirming any trend.',
   },
   {
     id: 'nonlinear',
     number: '02',
-    title: 'Uma linha reta esconde viradas de regime',
+    title: 'A straight line hides regime shifts',
     trapSummary:
-      'O clima pode ficar estável por décadas e acelerar de repente — algo que uma reta simples não enxerga.',
-    solutionBadge: 'Theil–Sen + Curva GAM (B₂)',
+      'Climate can remain steady for decades and then accelerate abruptly — something a simple straight line misses.',
+    solutionBadge: 'Theil–Sen + GAM Curve (B₂)',
     solutionText:
-      'Combinamos inclinação resistente a anos extremos com curva flexível GAM para revelar acelerações.',
+      'We combine an outlier-resistant median slope with a flexible GAM smooth curve to reveal accelerations.',
   },
   {
     id: 'multiscale',
     number: '03',
-    title: 'Sobem juntos em 40 anos, divergem ano a ano',
+    title: 'Rising together over 40 years, diverging year to year',
     trapSummary:
-      'Duas regiões podem aquecer juntas no longo prazo, mas reagir em lados opostos durante o El Niño.',
+      'Two regions can warm together over the long term yet react in opposite directions during El Niño events.',
     solutionBadge: 'r_global × r_detrended + Mahalanobis',
     solutionText:
-      'Separamos a tendência de longo prazo dos choques de curto prazo e destacamos meses extremos (D_M > 2,5).',
+      'We separate long-term secular trends from short-term shocks and flag extreme months (D_M > 2.5).',
   },
 ];
 
 export const STAT_ENGINE_STAGES: readonly StatisticalEngineStage[] = [
   {
     id: 'preprocess',
-    stepNumber: 'ETAPA 01',
-    badge: 'ANOMALIA · Z-SCORE (σ) · SYMLOG',
-    title: 'Limpeza Sazonal e Padronização',
-    tagline: 'Remove verão/inverno para isolar desvios reais',
+    stepNumber: 'STEP 01',
+    badge: 'ANOMALY · Z-SCORE (σ) · SYMLOG',
+    title: 'Seasonal Cleaning & Standardization',
+    tagline: 'Removes summer/winter cycles to isolate true departures',
     howItWorks:
-      'Para cada célula e mês selecionado, o motor calcula a anomalia climatológica subtraindo a média histórica daquele mesmo mês do ano. Assim, chuva e calor podem ser comparados em unidade física, em desvio-padrão (Z-Score σ) ou em escala simétrica Symlog.',
+      'For each selected cell and month, the engine computes the climatological anomaly by subtracting the historical mean for that calendar month. Rainfall and heat can then be compared in physical units, standard deviations (Z-Score σ), or symmetric Symlog scale.',
     benchSpecialty:
-      'Na Bancada Científica você alterna instantaneamente entre Valor Bruto, Anomalia, Z-Score (σ) e escala Linear/Symlog — alinhando variáveis de unidades distintas no mesmo gráfico sem distorcer o zero.',
-    outputMetrics: ['Anomalia Mensal', 'Z-Score (σ)', 'Escala Symlog', 'Eixo Y Duplo / Único'],
+      'In the Scientific Workbench you can switch instantly between Raw Value, Anomaly, Z-Score (σ), and Linear/Symlog scale — aligning variables with different units on the same chart without distorting zero.',
+    outputMetrics: ['Monthly Anomaly', 'Z-Score (σ)', 'Symlog Scale', 'Dual / Single Y-Axis'],
   },
   {
     id: 'trends',
-    stepNumber: 'ETAPA 02',
-    badge: 'OLS · THEIL–SEN · CURVA GAM (B₂)',
-    title: 'Dupla Regressão e Aceleração Não-Linear',
-    tagline: 'Mede velocidade por década e viradas de regime',
+    stepNumber: 'STEP 02',
+    badge: 'OLS · THEIL–SEN · GAM CURVE (B₂)',
+    title: 'Dual Regression & Nonlinear Acceleration',
+    tagline: 'Measures decadal velocity and regime shifts',
     howItWorks:
-      'O motor ajusta três leituras complementares ao mesmo tempo: a reta média OLS, a inclinação mediana Theil–Sen com Intervalo de Confiança 95% (imune a anos extremos como El Niño) e a curva suave GAM com termo quadrático B₂.',
+      'The engine fits three complementary views simultaneously: the OLS mean line, the median Theil–Sen slope with 95% Confidence Interval (immune to extreme years like El Niño), and the smooth GAM curve with quadratic term B₂.',
     benchSpecialty:
-      'Classifica automaticamente o regime físico em 5 estados: Tendência linear constante, Alta em aceleração, Queda em aceleração, Desaceleração/saturação ou Comportamento não monotônico.',
-    outputMetrics: ['Taxa Theil–Sen + IC 95%', 'Taxa OLS', 'Curvatura B₂ (GAM)', 'Regime Físico'],
+      'Automatically classifies the physical regime into 5 states: Steady linear trend, Accelerating rise, Accelerating decline, Decelerating / saturating, or Non-monotonic behavior.',
+    outputMetrics: ['Theil–Sen Rate + 95% CI', 'OLS Rate', 'B₂ Curvature (GAM)', 'Physical Regime'],
   },
   {
     id: 'audit',
-    stepNumber: 'ETAPA 03',
-    badge: 'AR(1) · N EFETIVO · FDR (q < 0,05)',
-    title: 'Auditoria contra Memória e Falsos Alarmes',
-    tagline: 'Só confirma tendência após corrigir dependência temporal',
+    stepNumber: 'STEP 03',
+    badge: 'AR(1) · EFFECTIVE N · FDR (q < 0.05)',
+    title: 'Memory & False-Alarm Audit',
+    tagline: 'Confirms a trend only after correcting temporal dependence',
     howItWorks:
-      'Meses consecutivos de seca ou calor guardam memória climática (autocorrelação). O motor desconta essa dependência via modelo AR(1) reduzindo N bruto para N efetivo, recalcula p_AR(1) e aplica controle Benjamini–Hochberg (FDR).',
+      'Consecutive months of drought or heat retain climatic memory (autocorrelation). The engine discounts this dependence via an AR(1) model, reducing raw N to effective N, recomputes p_AR(1), and applies Benjamini–Hochberg (FDR) control.',
     benchSpecialty:
-      'Emite o selo final de confiança auditável: Significativa (alta confiança), Significativa (confiança moderada), Sinal insuficiente ou Sem tendência detectada — bloqueando falsos positivos.',
-    outputMetrics: ['N bruto → N efetivo', 'p_naive vs p_AR(1)', 'q_FDR (< 0,05)', 'Selo de Confiança'],
+      'Issues the final auditable confidence badge: Significant (high confidence), Significant (moderate confidence), Insufficient signal, or No trend detected — blocking false positives.',
+    outputMetrics: ['Raw N → Effective N', 'p_naive vs p_AR(1)', 'q_FDR (< 0.05)', 'Confidence Badge'],
   },
   {
     id: 'multiscale',
-    stepNumber: 'ETAPA 04',
-    badge: 'MAHALANOBIS · r_global × r_detrended · INVARIANTE #3',
-    title: 'Extremos, Acoplamento e Paradoxo Multiescala',
-    tagline: 'Detecta meses atípicos e inversões entre décadas e anos',
+    stepNumber: 'STEP 04',
+    badge: 'MAHALANOBIS · r_global × r_detrended · INVARIANT #3',
+    title: 'Extremes, Coupling & Multiscale Paradox',
+    tagline: 'Detects atypical months and inversions between decades and years',
     howItWorks:
-      'Calcula a elipse de covariância e a Distância de Mahalanobis (D_M > 2,5) para marcar eventos extremos sem apagar a tendência. Ao comparar Região A × Região B, confronta a correlação secular (r_global) contra a de curto prazo (r_detrended).',
+      'Computes the covariance ellipse and Mahalanobis Distance (D_M > 2.5) to flag extreme events without erasing the trend. When comparing Region A × Region B, it contrasts secular correlation (r_global) against short-term correlation (r_detrended).',
     benchSpecialty:
-      'Aplica a trava física Invariante #3 (bloqueando % indevido em escalas intervalares como °C), alterna para Dispersão X vs Y com razão de elipse e exporta séries e diagnóstico completo em CSV e JSON.',
-    outputMetrics: ['Outliers D_M > 2,5', 'Pearson r · Kendall τ · R²', 'Δ Declive (A − B)', 'CSV / JSON Científico'],
+      'Enforces physical guard Invariant #3 (blocking invalid % changes on interval scales like °C), switches to X vs Y Scatter with ellipse aspect ratio, and exports complete series and diagnostics in CSV and JSON.',
+    outputMetrics: ['Outliers D_M > 2.5', 'Pearson r · Kendall τ · R²', 'Δ Slope (A − B)', 'Scientific CSV / JSON'],
   },
 ];
 
 export const STAT_ENGINE_SPECIALTIES: readonly EngineSpecialtyItem[] = [
   {
     id: 'robust-dual',
-    kicker: 'ROBUSTEZ',
-    title: 'Dupla tendência OLS + Theil–Sen (IC 95%)',
-    summary: 'Compara a média global com a mediana resistente a extremos para evitar distorção por um único ano atípico.',
+    kicker: 'ROBUSTNESS',
+    title: 'Dual trend OLS + Theil–Sen (95% CI)',
+    summary: 'Compares the global mean slope with the outlier-resistant median slope to prevent distortion from a single atypical year.',
   },
   {
     id: 'regime-gam',
-    kicker: 'NÃO-LINEARIDADE',
-    title: 'Curva GAM & Aceleração Quadrática (B₂)',
-    summary: 'Identifica se a mudança está acelerando, saturando ou oscilando quando uma linha reta não basta.',
+    kicker: 'NONLINEARITY',
+    title: 'GAM Curve & Quadratic Acceleration (B₂)',
+    summary: 'Identifies whether change is accelerating, saturating, or oscillating when a straight line is not enough.',
   },
   {
     id: 'scatter-mahalanobis',
-    kicker: 'ACOPLAMENTO',
-    title: 'Dispersão X × Y & Elipse de Mahalanobis',
-    summary: 'Cruza duas variáveis ou regiões com Pearson r, Kendall τ, R² e detecção automática de extremos D_M > 2,5.',
+    kicker: 'COUPLING',
+    title: 'X × Y Scatter & Mahalanobis Ellipse',
+    summary: 'Crosses two variables or regions with Pearson r, Kendall τ, R², and automatic detection of D_M > 2.5 extremes.',
   },
   {
     id: 'safeguards',
-    kicker: 'BLINDAGEM & SAÍDA',
-    title: 'Invariante #3 + Exportação CSV / JSON',
-    summary: 'Bloqueia variação % inválida em variáveis intervalares como °C e exporta toda a série e metadados auditáveis.',
+    kicker: 'SAFEGUARDS & EXPORT',
+    title: 'Invariant #3 + CSV / JSON Export',
+    summary: 'Blocks invalid % change on interval variables like °C and exports the full series and auditable metadata.',
   },
 ];
 
@@ -200,36 +200,36 @@ export const MATRIX_MODES: readonly MatrixModeCard[] = [
   {
     id: 'spatial_dipole',
     formula: 'A ≠ B · X = Y',
-    title: 'Contraste Espacial (Dipolo)',
-    tagline: 'Mesma variável em dois lugares do globo',
-    example: 'Ex.: Umidade do solo no Cerrado vs. Amazônia Central',
+    title: 'Spatial Contrast (Dipole)',
+    tagline: 'Same variable in two places on the globe',
+    example: 'E.g.: Soil moisture in Cerrado vs. Central Amazon',
     recommendedPresetId: 'cerrado-vs-amazonia',
     defaultSameLocation: false,
   },
   {
     id: 'local_coupling',
     formula: 'A = B · X ≠ Y',
-    title: 'Causa e Efeito Local',
-    tagline: 'Duas forças físicas sobre as mesmas células',
-    example: 'Ex.: Temperatura máxima drenando umidade do solo',
+    title: 'Local Cause & Effect',
+    tagline: 'Two physical forces over the exact same cells',
+    example: 'E.g.: Maximum temperature draining soil moisture',
     recommendedPresetId: 'heatwaves-soil-mg',
     defaultSameLocation: true,
   },
   {
     id: 'cross_teleconnection',
     formula: 'A ≠ B · X ≠ Y',
-    title: 'Teleconexão Cruzada',
-    tagline: 'Fenômeno em A conectado a resposta distante em B',
-    example: 'Ex.: Radiação na Amazônia (CERES) × chuva no Sul (MERRA-2)',
+    title: 'Cross-Teleconnection',
+    tagline: 'Phenomenon in A linked to a distant response in B',
+    example: 'E.g.: Radiation in Amazon (CERES) × rainfall in Southern Brazil (MERRA-2)',
     recommendedPresetId: 'ceres-amazon-parana',
     defaultSameLocation: false,
   },
   {
     id: 'univariate_xray',
     formula: 'A = B · X = Y',
-    title: 'Raio-X Univariado',
-    tagline: 'Tendência secular, aceleração e extremos em 1 região',
-    example: 'Ex.: Diagnóstico completo de qualquer célula da Terra',
+    title: 'Univariate X-Ray',
+    tagline: 'Secular trend, acceleration, and extremes in 1 region',
+    example: 'E.g.: Full diagnostic of any grid cell on Earth',
     recommendedPresetId: 'arctic-vs-tropics',
     defaultSameLocation: true,
   },
@@ -239,17 +239,17 @@ export const STORY_PRESETS: readonly StoryPreset[] = [
   {
     id: 'cerrado-vs-amazonia',
     archetypeId: 'spatial_dipole',
-    archetypeLabel: 'Dipolo Espacial',
+    archetypeLabel: 'Spatial Dipole',
     formula: 'A ≠ B · X = Y',
-    title: 'Por que o Cerrado seca mais rápido que a Amazônia?',
-    subtitle: 'Triângulo Mineiro (MG) × Amazônia Central (AM) · Umidade do Solo',
+    title: 'Why is the Cerrado drying faster than the Amazon?',
+    subtitle: 'Triângulo Mineiro (MG) × Central Amazon (AM) · Soil Moisture',
     question:
-      'Compare a perda de água no solo do Cerrado agrícola com a floresta amazônica desde 1981.',
-    highlightBadge: '45 anos · Satélite NASA',
+      'Compare surface soil water loss in the agricultural Cerrado against the Amazon rainforest since 1981.',
+    highlightBadge: '45 years · NASA Satellite',
     variableA: 'GWETTOP',
     variableB: 'GWETTOP',
     regionALabel: 'Triângulo Mineiro (MG)',
-    regionBLabel: 'Amazônia Central (AM)',
+    regionBLabel: 'Central Amazon (AM)',
     coordsA: [
       { lat: -19.0, lon: -48.125 },
       { lat: -19.0, lon: -48.75 },
@@ -271,17 +271,17 @@ export const STORY_PRESETS: readonly StoryPreset[] = [
   {
     id: 'heatwaves-soil-mg',
     archetypeId: 'local_coupling',
-    archetypeLabel: 'Causa e Efeito Local',
+    archetypeLabel: 'Local Cause & Effect',
     formula: 'A = B · X ≠ Y',
-    title: 'Ondas de calor estão secando o solo no mesmo lugar?',
-    subtitle: 'Norte de Minas Gerais (Mesmo Local A=B) · Umidade × Calor Máximo',
+    title: 'Are heatwaves drying out the soil in the same place?',
+    subtitle: 'Northern Minas Gerais (Same Location A=B) · Moisture × Max Heat',
     question:
-      'Veja como o avanço do calor extremo drena a umidade do solo exatamente nas mesmas células.',
-    highlightBadge: 'Mesmo Local (A=B)',
+      'See how rising extreme heat drains surface soil moisture in the exact same grid cells.',
+    highlightBadge: 'Same Location (A=B)',
     variableA: 'GWETTOP',
     variableB: 'T2M_MAX',
-    regionALabel: 'Norte de Minas (MG)',
-    regionBLabel: 'Norte de Minas (MG)',
+    regionALabel: 'Northern Minas (MG)',
+    regionBLabel: 'Northern Minas (MG)',
     coordsA: [
       { lat: -16.5, lon: -43.75 },
       { lat: -16.5, lon: -44.375 },
@@ -303,13 +303,13 @@ export const STORY_PRESETS: readonly StoryPreset[] = [
   {
     id: 'ceres-amazon-parana',
     archetypeId: 'cross_teleconnection',
-    archetypeLabel: 'Teleconexão Cruzada',
+    archetypeLabel: 'Cross-Teleconnection',
     formula: 'A ≠ B · X ≠ Y',
-    title: 'Sol na Amazônia × Chuva no Sul do Brasil',
-    subtitle: 'Amazônia Equatorial × Bacia do Paraná · Radiação Solar × Precipitação',
+    title: 'Sunlight in the Amazon × Rainfall in Southern Brazil',
+    subtitle: 'Equatorial Amazon × Paraná Basin · Solar Radiation × Precipitation',
     question:
-      'Descubra como a energia solar na Amazônia se conecta ao regime de chuvas no Sul em anos de El Niño.',
-    highlightBadge: '1984–2025 · 2 Satélites',
+      'Discover how solar irradiance in the Amazon connects to rainfall regimes in Southern Brazil during El Niño years.',
+    highlightBadge: '1984–2025 · 2 Satellites',
     variableA: 'ALLSKY_SFC_SW_DWN',
     variableB: 'PRECTOTCORR',
     regionALabel: 'Amazônia Equatorial',
@@ -335,17 +335,17 @@ export const STORY_PRESETS: readonly StoryPreset[] = [
   {
     id: 'arctic-vs-tropics',
     archetypeId: 'spatial_dipole',
-    archetypeLabel: 'Escala Planetária',
+    archetypeLabel: 'Planetary Scale',
     formula: 'A ≠ B · X = Y',
-    title: 'O Ártico esquenta muito mais rápido que os Trópicos?',
-    subtitle: 'Svalbard (78°N) × Atlântico Tropical · Temperatura (T2M)',
+    title: 'Is the Arctic warming much faster than the Tropics?',
+    subtitle: 'Svalbard (78°N) × Tropical Atlantic · Temperature (T2M)',
     question:
-      'Compare a velocidade real do aquecimento no Polo Norte com a costa tropical brasileira.',
-    highlightBadge: 'Polo Norte × Trópicos',
+      'Compare the actual warming rate at the North Pole against the tropical Brazilian coast.',
+    highlightBadge: 'North Pole × Tropics',
     variableA: 'T2M',
     variableB: 'T2M',
-    regionALabel: 'Svalbard (Ártico, 78°N)',
-    regionBLabel: 'Costa Nordeste / Atlântico',
+    regionALabel: 'Svalbard (Arctic, 78°N)',
+    regionBLabel: 'Northeast Coast / Atlantic',
     coordsA: [
       { lat: 78.0, lon: 15.625 },
       { lat: 78.0, lon: 16.25 },
@@ -423,8 +423,8 @@ export function classifyExperimentArchetype(params: {
     return {
       id: 'configuring',
       formula: '(A, X) × (B, Y)',
-      label: 'Experimento Aberto em Construção',
-      summary: 'Escolha quaisquer duas variáveis e marque duas áreas (ou A=B) em qualquer ponto da Terra.',
+      label: 'Open Experiment in Progress',
+      summary: 'Pick any two variables and mark two areas (or A=B) anywhere on Earth.',
     };
   }
 
@@ -437,8 +437,8 @@ export function classifyExperimentArchetype(params: {
     return {
       id: 'spatial_dipole',
       formula: 'A ≠ B · X = Y',
-      label: 'Contraste Espacial (Dipolo)',
-      summary: `Comparando ${nameA} entre duas regiões distintas para detectar divergência espacial.`,
+      label: 'Spatial Contrast (Dipole)',
+      summary: `Comparing ${nameA} between two distinct regions to detect spatial divergence.`,
     };
   }
 
@@ -446,8 +446,8 @@ export function classifyExperimentArchetype(params: {
     return {
       id: 'local_coupling',
       formula: 'A = B · X ≠ Y',
-      label: 'Causa e Efeito Local',
-      summary: `Cruzando ${nameA} × ${nameB} sobre o mesmo território para testar acoplamento físico.`,
+      label: 'Local Cause & Effect',
+      summary: `Crossing ${nameA} × ${nameB} over the exact same territory to test physical coupling.`,
     };
   }
 
@@ -455,15 +455,15 @@ export function classifyExperimentArchetype(params: {
     return {
       id: 'cross_teleconnection',
       formula: 'A ≠ B · X ≠ Y',
-      label: 'Teleconexão Cruzada',
-      summary: `Relacionando ${nameA} em A com ${nameB} em B através de escalas e regiões distantes.`,
+      label: 'Cross-Teleconnection',
+      summary: `Relating ${nameA} in A with ${nameB} in B across distant scales and regions.`,
     };
   }
 
   return {
     id: 'univariate_xray',
     formula: 'A = B · X = Y',
-    label: 'Raio-X Univariado Profundo',
-    summary: `Avaliando tendência secular, aceleração GAM e extremos de ${nameA} no local selecionado.`,
+    label: 'Deep Univariate X-Ray',
+    summary: `Evaluating secular trend, GAM acceleration, and extremes of ${nameA} at the selected site.`,
   };
 }

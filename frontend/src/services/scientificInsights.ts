@@ -579,10 +579,10 @@ export function computeClientLaggedCrossCorrelation(
 
   const fdrNote =
     bestFdrStatus === 'FDR_SIGNIFICANT'
-      ? `aprovado em BH-FDR (${profile.length} lags, q_FDR < 0,05)`
+      ? `passed BH-FDR (${profile.length} lags, q_FDR < 0.05)`
       : bestFdrStatus === 'LOCAL_AR1_ONLY'
-        ? `supera apenas a banda local AR(1), sem passar no controle BH-FDR (${profile.length} lags, q_FDR ≥ 0,05)`
-        : `dentro da banda nula após correção AR(1) e BH-FDR (${profile.length} lags, q_FDR ≥ 0,05)`;
+        ? `exceeds only the local AR(1) band without passing BH-FDR control (${profile.length} lags, q_FDR ≥ 0.05)`
+        : `within the null band after AR(1) and BH-FDR correction (${profile.length} lags, q_FDR ≥ 0.05)`;
 
   const peakLag = bestDet.lag_months;
   let precedenceDirection: 'A_LEADS_B' | 'B_LEADS_A' | 'SYNCHRONOUS' =
@@ -591,16 +591,16 @@ export function computeClientLaggedCrossCorrelation(
 
   if (peakLag > 0) {
     precedenceDirection = 'A_LEADS_B';
-    const unitLabel = peakLag === 1 ? 'mês' : 'meses';
-    precedenceInterpretation = `Pico em τ* = +${peakLag} ${unitLabel} (r_detrended = ${bestDet.r_detrended.toFixed(3)}, p_AR1 = ${bestDet.p_detrended_ar1.toFixed(4)}, q_FDR = ${bestDet.q_fdr.toFixed(4)}): anomalias sem tendência em A (${regionA.variable_id}) antecedem e se correlacionam com defasagem de +${peakLag} ${unitLabel} com B (${regionB.variable_id}); ${fdrNote}.`;
+    const unitLabel = peakLag === 1 ? 'month' : 'months';
+    precedenceInterpretation = `Peak at τ* = +${peakLag} ${unitLabel} (r_detrended = ${bestDet.r_detrended.toFixed(3)}, p_AR1 = ${bestDet.p_detrended_ar1.toFixed(4)}, q_FDR = ${bestDet.q_fdr.toFixed(4)}): detrended anomalies in A (${regionA.variable_id}) precede and correlate at a +${peakLag}-${unitLabel} lag with B (${regionB.variable_id}); ${fdrNote}.`;
   } else if (peakLag < 0) {
     precedenceDirection = 'B_LEADS_A';
     const absLag = Math.abs(peakLag);
-    const unitLabel = absLag === 1 ? 'mês' : 'meses';
-    precedenceInterpretation = `Pico em τ* = ${peakLag} ${unitLabel} (r_detrended = ${bestDet.r_detrended.toFixed(3)}, p_AR1 = ${bestDet.p_detrended_ar1.toFixed(4)}, q_FDR = ${bestDet.q_fdr.toFixed(4)}): anomalias sem tendência em B (${regionB.variable_id}) antecedem e lideram com defasagem de ${absLag} ${unitLabel} as de A (${regionA.variable_id}); ${fdrNote}.`;
+    const unitLabel = absLag === 1 ? 'month' : 'months';
+    precedenceInterpretation = `Peak at τ* = ${peakLag} ${unitLabel} (r_detrended = ${bestDet.r_detrended.toFixed(3)}, p_AR1 = ${bestDet.p_detrended_ar1.toFixed(4)}, q_FDR = ${bestDet.q_fdr.toFixed(4)}): detrended anomalies in B (${regionB.variable_id}) precede and lead those in A (${regionA.variable_id}) by ${absLag} ${unitLabel}; ${fdrNote}.`;
   } else {
     precedenceDirection = 'SYNCHRONOUS';
-    precedenceInterpretation = `Pico síncrono em τ* = 0 meses (r_detrended = ${bestDet.r_detrended.toFixed(3)}, p_AR1 = ${bestDet.p_detrended_ar1.toFixed(4)}, q_FDR = ${bestDet.q_fdr.toFixed(4)}): anomalias sem tendência em A (${regionA.variable_id}) e B (${regionB.variable_id}) correlacionam-se de forma contemporânea; ${fdrNote}.`;
+    precedenceInterpretation = `Synchronous peak at τ* = 0 months (r_detrended = ${bestDet.r_detrended.toFixed(3)}, p_AR1 = ${bestDet.p_detrended_ar1.toFixed(4)}, q_FDR = ${bestDet.q_fdr.toFixed(4)}): detrended anomalies in A (${regionA.variable_id}) and B (${regionB.variable_id}) correlate contemporaneously; ${fdrNote}.`;
   }
 
   return {
@@ -628,10 +628,10 @@ const SEASON_METADATA: Array<{
   label: string;
   months: Set<number>;
 }> = [
-  { code: 'DJF', label: 'DJF (Dez–Fev)', months: new Set([12, 1, 2]) },
-  { code: 'MAM', label: 'MAM (Mar–Mai)', months: new Set([3, 4, 5]) },
-  { code: 'JJA', label: 'JJA (Jun–Ago)', months: new Set([6, 7, 8]) },
-  { code: 'SON', label: 'SON (Set–Nov)', months: new Set([9, 10, 11]) },
+  { code: 'DJF', label: 'DJF (Dec–Feb)', months: new Set([12, 1, 2]) },
+  { code: 'MAM', label: 'MAM (Mar–May)', months: new Set([3, 4, 5]) },
+  { code: 'JJA', label: 'JJA (Jun–Aug)', months: new Set([6, 7, 8]) },
+  { code: 'SON', label: 'SON (Sep–Nov)', months: new Set([9, 10, 11]) },
 ];
 
 function computeSingleRegionSeasonality(
@@ -640,7 +640,7 @@ function computeSingleRegionSeasonality(
   const seasonsRecord = {} as Record<SeasonCode, SeasonTrendMetrics>;
   const safeTrendUnit =
     analysis.scale_type === 'interval'
-      ? `${analysis.unit}/década`
+      ? `${analysis.unit}/decade`
       : analysis.trend_unit;
   const repMonthByCode: Record<SeasonCode, number> = {
     DJF: 1,
@@ -857,10 +857,10 @@ export function computeClientSeasonalStratifiedTrends(
 
   const domA = regionA.seasons[regionA.dominant_season];
   const reversalText = regionA.has_seasonal_sign_reversal
-    ? 'com inversão de sinal entre estações do ano (divergência hidroclimática sazonal)'
-    : 'com coerência direcional em todas as quatro estações';
+    ? 'with a sign reversal across seasons (seasonal hydroclimatic divergence)'
+    : 'with directional coherence across all four seasons';
 
-  const summaryInterpretation = `A tendência decadal sobre anomalias mensais dessazonalizadas de ${regionA.variable_id} é dominada por ${regionA.dominant_season} (B_Sen = ${domA.slope_per_decade_sen >= 0 ? '+' : ''}${domA.slope_per_decade_sen.toFixed(3)} ${regionA.trend_unit}, IC 95% [${domA.slope_ci95_low.toFixed(3)}, ${domA.slope_ci95_high.toFixed(3)}], p_AR1 = ${domA.p_value_ar1_corrected.toFixed(4)}), ${reversalText}.`;
+  const summaryInterpretation = `The decadal trend on deseasonalized monthly anomalies of ${regionA.variable_id} is dominated by ${regionA.dominant_season} (B_Sen = ${domA.slope_per_decade_sen >= 0 ? '+' : ''}${domA.slope_per_decade_sen.toFixed(3)} ${regionA.trend_unit}, 95% CI [${domA.slope_ci95_low.toFixed(3)}, ${domA.slope_ci95_high.toFixed(3)}], p_AR1 = ${domA.p_value_ar1_corrected.toFixed(4)}), ${reversalText}.`;
 
   return {
     uses_deseasonalized_anomalies: true,
@@ -873,59 +873,59 @@ export function computeClientSeasonalStratifiedTrends(
 export const MATHEMATICAL_FORMULATIONS: MathematicalFormulationDoc[] = [
   {
     id: 'inv-1-deseasonalization',
-    title: '1. Dessazonalização Climatológica Mensal (Leavitt)',
-    badge: 'Invariante #1',
+    title: '1. Monthly Climatological Deseasonalization (Leavitt)',
+    badge: 'Invariant #1',
     equation: 'Y′(a,m) = Y(a,m) − Ȳₘ   |   Ȳₘ = (1 / Nₘ) · Σ Y(a,m)',
     description:
-      'Remove o **ciclo anual astronômico** estrito por mês calendário `m ∈ {1..12}` antes de qualquer regressão ou correlação, evitando que a insolação sazonal infle artificialmente o acoplamento.',
+      'Removes the strict **astronomical annual cycle** per calendar month `m ∈ {1..12}` before any regression or correlation, preventing seasonal insolation from artificially inflating coupling.',
   },
   {
     id: 'inv-2-theil-sen',
-    title: '2. Estimador Não-Paramétrico de Theil–Sen & OLS Secular',
-    badge: 'Invariante #2',
-    equation: 'B_Sen = mediana_{i < j} [ (Y′ⱼ − Y′ᵢ) / (tⱼ − tᵢ) ] × 10 anos/década',
+    title: '2. Non-Parametric Theil–Sen Estimator & Secular OLS',
+    badge: 'Invariant #2',
+    equation: 'B_Sen = median_{i < j} [ (Y′ⱼ − Y′ᵢ) / (tⱼ − tᵢ) ] × 10 yr/decade',
     description:
-      'Quantifica a taxa secular usando **100% dos N pontos temporais** com ponto de ruptura de **29,3%** contra extremos (`ENSO`/secas severas), proibindo a subtração ingênua de extremos (`Y_fim − Y_início`).',
+      'Quantifies the secular rate using **100% of N time points** with a **29.3% breakdown point** against extremes (`ENSO`/severe droughts), forbidding naive endpoint subtraction (`Y_end − Y_start`).',
   },
   {
     id: 'inv-3-scale-type',
-    title: '3. Invariância de Escala Termodinâmica (Interval vs. Ratio)',
-    badge: 'Invariante #3',
-    equation: 'scale_type(T2M) = interval  ⇒  Δ% = ∅  (estritamente °C/década)',
+    title: '3. Thermodynamic Scale Invariance (Interval vs. Ratio)',
+    badge: 'Invariant #3',
+    equation: 'scale_type(T2M) = interval  ⇒  Δ% = ∅  (strictly °C/decade)',
     description:
-      'Temperaturas em °C possuem **zero arbitrário (`273,15 K`)**. O motor bloqueia variações percentuais em escalas `interval`, reportando estritamente taxas absolutas (`°C/década`), reservando `%` para escalas de razão (`ratio`).',
+      'Temperatures in °C have an **arbitrary zero (`273.15 K`)**. The engine blocks percentage variations on `interval` scales, strictly reporting absolute rates (`°C/decade`), reserving `%` for `ratio` scales.',
   },
   {
     id: 'inv-4-5-multiscale',
-    title: '4 & 5. Separação Slope vs. Acoplamento & Decomposição Multiescala',
-    badge: 'Invariantes #4 & #5',
-    equation: 'Y′(t) = T_secular(t) + R_detrended(t)   ⇒   r_secular vs. r_resíduo',
+    title: '4 & 5. Slope vs. Coupling Separation & Multiscale Decomposition',
+    badge: 'Invariants #4 & #5',
+    equation: 'Y′(t) = T_secular(t) + R_detrended(t)   ⇒   r_secular vs. r_residual',
     description:
-      'Separa a **taxa física secular (`B_Sen`)** da força de acoplamento (`r`, `R²`) e decompõe a série em componente secular e resíduo interanual, revelando **paradoxos de Simpson** entre décadas e estações.',
+      'Separates the **secular physical rate (`B_Sen`)** from coupling strength (`r`, `R²`) and decomposes the series into a secular component and interannual residual, revealing **Simpson’s paradoxes** across decades and seasons.',
   },
   {
     id: 'inv-6-gam-mahalanobis',
-    title: '6. Splines Cúbicos Penalizados (GAM) & Distância de Mahalanobis',
-    badge: 'Invariante #6',
-    equation: 'D_M(t) = √[(zₜ − μ)ᵀ Σ⁻¹ (zₜ − μ)] > 2,5   |   zₜ = [t, Y′ₜ]ᵀ',
+    title: '6. Penalized Cubic Splines (GAM) & Mahalanobis Distance',
+    badge: 'Invariant #6',
+    equation: 'D_M(t) = √[(zₜ − μ)ᵀ Σ⁻¹ (zₜ − μ)] > 2.5   |   zₜ = [t, Y′ₜ]ᵀ',
     description:
-      'Captura **inflexões e acelerações não-lineares** via B-splines penalizados (`GAM`) e isola extremos multivariados considerando a covariância conjunta tempo–anomalia (`D_M > 2,5`).',
+      'Captures **nonlinear inflections and accelerations** via penalized B-splines (`GAM`) and isolates multivariate extremes accounting for joint time–anomaly covariance (`D_M > 2.5`).',
   },
   {
     id: 'inv-7-ar1-fdr',
-    title: '7. Graus de Liberdade Efetivos AR(1) (Bretherton) & Controle FDR',
-    badge: 'Invariante #7',
-    equation: 'N_eff = N · (1 − r₁)/(1 + r₁)   |   q_FDR(k) = min_{j ≥ k}(M / j · p_(j)) < 0,05',
+    title: '7. AR(1) Effective Degrees of Freedom (Bretherton) & FDR Control',
+    badge: 'Invariant #7',
+    equation: 'N_eff = N · (1 − r₁)/(1 + r₁)   |   q_FDR(k) = min_{j ≥ k}(M / j · p_(j)) < 0.05',
     description:
-      'Desconta a **memória autorregressiva lag-1 (`r₁`)** na inferência (`p_AR1` via distribuição t de Student) e aplica controle **Benjamini–Hochberg (`q_FDR < 0,05`)** tanto na grade espacial quanto na família dos **M = 25 lags (`τ ∈ [−12, +12]`)**.',
+      'Discounts **lag-1 autoregressive memory (`r₁`)** in inference (`p_AR1` via Student’s t-distribution) and applies **Benjamini–Hochberg (`q_FDR < 0.05`)** control across both the spatial grid and the **M = 25 lag family (`τ ∈ [−12, +12]`)**.',
   },
   {
     id: 'nasa-power-grids',
-    title: '8. Arquitetura de Grades Nativas NASA POWER (MERRA-2 vs. CERES)',
-    badge: 'Física Espacial',
-    equation: 'MERRA-2: 0,5° × 0,625° (1981–2025)   |   CERES SYN1deg: 1,0° × 1,0° (1984–2025)',
+    title: '8. Native NASA POWER Grid Architecture (MERRA-2 vs. CERES)',
+    badge: 'Spatial Physics',
+    equation: 'MERRA-2: 0.5° × 0.625° (1981–2025)   |   CERES SYN1deg: 1.0° × 1.0° (1984–2025)',
     description:
-      'Preserva a **resolução nativa** de reanálise assimilada (`MERRA-2` para meteorologia e umidade do solo) e observação orbital radiativa (`CERES SYN1deg` para irradiância/nuvens) com agregação espacial `nanmean` 8-conexa (`1 ≤ K ≤ 25`).',
+      'Preserves the **native resolution** of assimilated reanalysis (`MERRA-2` for meteorology and soil moisture) and orbital radiative observations (`CERES SYN1deg` for irradiance/clouds) with 8-connected `nanmean` spatial aggregation (`1 ≤ K ≤ 25`).',
   },
 ];
 
@@ -995,81 +995,81 @@ export function auditAnalysisInvariants(
     {
       id: 'inv-1',
       number: 1,
-      shortTitle: 'Anomalia Climatológica',
-      title: 'Invariante #1 — Dessazonalização Climatológica Mensal Estrita',
+      shortTitle: 'Climatological Anomaly',
+      title: 'Invariant #1 — Strict Monthly Climatological Deseasonalization',
       passed: inv1Passed,
       formulaDisplay: 'Y′(a,m) = Y(a,m) − Ȳₘ',
-      liveEvidence: `Base **${startYear}–${endYear}** (**${regA.period.n_observations} meses** dessazonalizados em \`${regA.variable_id}\`).`,
+      liveEvidence: `Base **${startYear}–${endYear}** (**${regA.period.n_observations} deseasonalized months** in \`${regA.variable_id}\`).`,
       scientificRationale:
-        'Isola perturbações climáticas reais removendo o **ciclo solar sazonal médio** de cada mês `m ∈ {1..12}`.',
+        'Isolates true climate perturbations by removing the **mean seasonal solar cycle** for each month `m ∈ {1..12}`.',
     },
     {
       id: 'inv-2',
       number: 2,
-      shortTitle: 'OLS + Theil–Sen (N pontos)',
-      title: 'Invariante #2 — Regressão Robusta OLS + Theil–Sen sobre 100% da Série',
+      shortTitle: 'OLS + Theil–Sen (N points)',
+      title: 'Invariant #2 — Robust OLS + Theil–Sen Regression over 100% of Series',
       passed: inv2Passed,
-      formulaDisplay: 'B_Sen = mediana[(Y′ⱼ − Y′ᵢ) / (tⱼ − tᵢ)] × 10',
-      liveEvidence: `**B_Sen** = ${regA.regression.slope_per_decade_sen >= 0 ? '+' : ''}${regA.regression.slope_per_decade_sen.toFixed(3)} vs. **B_OLS** = ${regA.regression.slope_per_decade_ols >= 0 ? '+' : ''}${regA.regression.slope_per_decade_ols.toFixed(3)} \`${regA.trend_unit}\` (**IC 95%**: [${regA.regression.slope_ci95_low.toFixed(3)}, ${regA.regression.slope_ci95_high.toFixed(3)}]).`,
+      formulaDisplay: 'B_Sen = median[(Y′ⱼ − Y′ᵢ) / (tⱼ − tᵢ)] × 10',
+      liveEvidence: `**B_Sen** = ${regA.regression.slope_per_decade_sen >= 0 ? '+' : ''}${regA.regression.slope_per_decade_sen.toFixed(3)} vs. **B_OLS** = ${regA.regression.slope_per_decade_ols >= 0 ? '+' : ''}${regA.regression.slope_per_decade_ols.toFixed(3)} \`${regA.trend_unit}\` (**95% CI**: [${regA.regression.slope_ci95_low.toFixed(3)}, ${regA.regression.slope_ci95_high.toFixed(3)}]).`,
       scientificRationale:
-        'Proíbe estimativas por subtração de extremos (`Y_fim − Y_início`) e protege a inclinação secular contra anos de **El Niño / La Niña**.',
+        'Forbids endpoint subtraction estimates (`Y_end − Y_start`) and protects the secular slope against **El Niño / La Niña** years.',
     },
     {
       id: 'inv-3',
       number: 3,
-      shortTitle: 'Escala Termodinâmica',
-      title: 'Invariante #3 — Respeito Estrito a Escalas Interval vs. Ratio',
+      shortTitle: 'Thermodynamic Scale',
+      title: 'Invariant #3 — Strict Respect for Interval vs. Ratio Scales',
       passed: inv3Passed,
       formulaDisplay: 'scale_type = interval  ⇒  Δ% = ∅',
-      liveEvidence: `\`${regA.variable_id}\` (\`${regA.scale_type}\`): unidade **${regA.trend_unit}** — ${regA.scale_type === 'interval' ? '**Δ% bloqueado** por zero arbitrário (°C)' : '**razão física habilitada**'}.`,
+      liveEvidence: `\`${regA.variable_id}\` (\`${regA.scale_type}\`): unit **${regA.trend_unit}** — ${regA.scale_type === 'interval' ? '**Δ% blocked** due to arbitrary zero (°C)' : '**physical ratio enabled**'}.`,
       scientificRationale:
-        'Impede falácias termodinâmicas de calcular variação percentual sobre **escalas intervalares (°C)**.',
+        'Prevents thermodynamic fallacies of computing percentage change on **interval scales (°C)**.',
     },
     {
       id: 'inv-4',
       number: 4,
-      shortTitle: 'Slope vs. Acoplamento',
-      title: 'Invariante #4 — Separação Estrita entre Taxa Física (B) e Acoplamento (r, R²)',
+      shortTitle: 'Slope vs. Coupling',
+      title: 'Invariant #4 — Strict Separation Between Physical Rate (B) and Coupling (r, R²)',
       passed: inv4Passed,
       formulaDisplay: 'B_Sen  ⊥  (r_Pearson, R²)',
-      liveEvidence: `**Taxa física** = ${regA.regression.slope_per_decade_sen.toFixed(3)} \`${regA.trend_unit}\` · **R² secular** = ${regA.correlation_and_coupling.r_squared.toFixed(3)} · **r** = ${regA.correlation_and_coupling.pearson_r.toFixed(3)}.`,
+      liveEvidence: `**Physical rate** = ${regA.regression.slope_per_decade_sen.toFixed(3)} \`${regA.trend_unit}\` · **Secular R²** = ${regA.correlation_and_coupling.r_squared.toFixed(3)} · **r** = ${regA.correlation_and_coupling.pearson_r.toFixed(3)}.`,
       scientificRationale:
-        'Distingue claramente a **velocidade de mudança física decadal** do grau de ajuste ou covariância temporal.',
+        'Clearly distinguishes **decadal physical rate of change** from goodness of fit or temporal covariance.',
     },
     {
       id: 'inv-5',
       number: 5,
-      shortTitle: 'Decomposição Multiescala',
-      title: 'Invariante #5 — Decomposição Multiescala (Secular vs. Resíduo Interanual)',
+      shortTitle: 'Multiscale Decomposition',
+      title: 'Invariant #5 — Multiscale Decomposition (Secular vs. Interannual Residual)',
       passed: inv5Passed,
       formulaDisplay: 'Y′(t) = T_secular(t) + R_detrended(t)',
       liveEvidence: mc
-        ? `**r_secular** = ${mc.long_term_secular_r.toFixed(3)} · **r_resíduo** = ${mc.short_term_detrended_r.toFixed(3)} · Classe: \`${mc.paradox_type}\`.`
-        : `Série univariada (**${regA.period.n_observations} meses**) pronta para comparação **A × B**.`,
+        ? `**r_secular** = ${mc.long_term_secular_r.toFixed(3)} · **r_residual** = ${mc.short_term_detrended_r.toFixed(3)} · Class: \`${mc.paradox_type}\`.`
+        : `Univariate series (**${regA.period.n_observations} months**) ready for **A × B** comparison.`,
       scientificRationale:
-        'Evita confundir **co-tendência secular de longo prazo** com sincronia meteorológica interanual de alta frequência.',
+        'Prevents confusing **long-term secular co-trending** with high-frequency interannual meteorological synchrony.',
     },
     {
       id: 'inv-6',
       number: 6,
       shortTitle: 'GAM & Mahalanobis',
-      title: 'Invariante #6 — Curvatura Não-Linear (GAM) & Extremos de Mahalanobis (D_M > 2,5)',
+      title: 'Invariant #6 — Nonlinear Curvature (GAM) & Mahalanobis Extremes (D_M > 2.5)',
       passed: inv6Passed,
-      formulaDisplay: 'D_M(t) = √[(zₜ − μ)ᵀ Σ⁻¹ (zₜ − μ)] > 2,5',
-      liveEvidence: `**Regime GAM**: \`${regA.regression.regime_shape}\` (**B₂** = ${regA.regression.quadratic_acceleration_B2.toFixed(4)}) · **Outliers Mahalanobis**: **${regA.outliers_mahalanobis.length}** eventos.`,
+      formulaDisplay: 'D_M(t) = √[(zₜ − μ)ᵀ Σ⁻¹ (zₜ − μ)] > 2.5',
+      liveEvidence: `**GAM Regime**: \`${regA.regression.regime_shape}\` (**B₂** = ${regA.regression.quadratic_acceleration_B2.toFixed(4)}) · **Mahalanobis Outliers**: **${regA.outliers_mahalanobis.length}** events.`,
       scientificRationale:
-        'Detecta **acelerações de regime climático** e choques extremos fora da elipse conjunta de covariância.',
+        'Detects **climate regime accelerations** and extreme shocks outside the joint covariance ellipse.',
     },
     {
       id: 'inv-7',
       number: 7,
       shortTitle: 'AR(1) N_eff & FDR',
-      title: 'Invariante #7 — Correção de Autocorrelação AR(1) (Bretherton) & Controle FDR',
+      title: 'Invariant #7 — AR(1) Autocorrelation Correction (Bretherton) & FDR Control',
       passed: inv7Passed,
-      formulaDisplay: 'N_eff = N · (1 − r₁)/(1 + r₁)  |  q_FDR < 0,05',
+      formulaDisplay: 'N_eff = N · (1 − r₁)/(1 + r₁)  |  q_FDR < 0.05',
       liveEvidence: `**N** = ${regA.period.n_observations} → **N_eff** = ${regA.period.n_effective_ar1.toFixed(1)} · p_AR1 = ${regA.significance.p_value_ar1_corrected.toFixed(4)} · q_FDR = ${regA.significance.fdr_q_value.toFixed(4)}.`,
       scientificRationale:
-        'Desconta a **persistência de memória climática mensal** e controla falsos positivos em múltiplas comparações.',
+        'Discounts **monthly climate memory persistence** and controls false positives across multiple comparisons.',
     },
   ];
 
@@ -1096,37 +1096,37 @@ export function buildMethodologicalSummaryText(
   const regB = analysis.region_b_analysis;
 
   const lines: string[] = [
-    '# DOSSIÊ METODOLÓGICO & AUDITORIA ESTATÍSTICA — EARTH SYSTEM DETECTIVE (NASA POWER)',
-    `Status de Rigor Científico: ${report.passedCount}/${report.totalCount} Invariantes Auditados (${report.allPassed ? 'CONFORMIDADE TOTAL' : 'VERIFICAR'})`,
-    `Janela Analisada: ${regA.period.start} a ${regA.period.end} (N = ${regA.period.n_observations} meses | N_eff AR(1) = ${regA.period.n_effective_ar1.toFixed(1)})`,
+    '# METHODOLOGICAL DOSSIER & STATISTICAL AUDIT — EARTH SYSTEM DETECTIVE (NASA POWER)',
+    `Scientific Rigor Status: ${report.passedCount}/${report.totalCount} Audited Invariants (${report.allPassed ? 'FULL COMPLIANCE' : 'CHECK'})`,
+    `Analyzed Window: ${regA.period.start} to ${regA.period.end} (N = ${regA.period.n_observations} months | N_eff AR(1) = ${regA.period.n_effective_ar1.toFixed(1)})`,
     '',
-    '## 1. Telemetria da Região A',
-    `- Variável A: ${regA.variable_id} (${regA.variable_name}) | Escala: ${regA.scale_type} | Unidade: ${regA.unit}`,
-    `- Agregação Espacial: K = ${analysis.request_meta.cells_count_a} células (${analysis.request_meta.spatial_aggregation}) | ID: ${analysis.request_meta.region_a_id}`,
-    `- Tendência Secular (Theil–Sen): ${regA.regression.slope_per_decade_sen >= 0 ? '+' : ''}${regA.regression.slope_per_decade_sen.toFixed(4)} ${regA.trend_unit} (IC 95%: [${regA.regression.slope_ci95_low.toFixed(4)}, ${regA.regression.slope_ci95_high.toFixed(4)}])`,
-    `- Tendência Secular (OLS): ${regA.regression.slope_per_decade_ols >= 0 ? '+' : ''}${regA.regression.slope_per_decade_ols.toFixed(4)} ${regA.trend_unit} | R² = ${regA.correlation_and_coupling.r_squared.toFixed(4)}`,
-    `- Significância AR(1) & FDR: N_eff = ${regA.period.n_effective_ar1.toFixed(1)} | p_AR1 = ${regA.significance.p_value_ar1_corrected.toFixed(5)} | q_FDR = ${regA.significance.fdr_q_value.toFixed(5)} (${regA.significance.confidence_tier})`,
-    `- Extremos Multivariados (Mahalanobis D_M > 2,5): ${regA.outliers_mahalanobis.length} eventos | Regime GAM: ${regA.regression.regime_shape}`,
+    '## 1. Region A Telemetry',
+    `- Variable A: ${regA.variable_id} (${regA.variable_name}) | Scale: ${regA.scale_type} | Unit: ${regA.unit}`,
+    `- Spatial Aggregation: K = ${analysis.request_meta.cells_count_a} cells (${analysis.request_meta.spatial_aggregation}) | ID: ${analysis.request_meta.region_a_id}`,
+    `- Secular Trend (Theil–Sen): ${regA.regression.slope_per_decade_sen >= 0 ? '+' : ''}${regA.regression.slope_per_decade_sen.toFixed(4)} ${regA.trend_unit} (95% CI: [${regA.regression.slope_ci95_low.toFixed(4)}, ${regA.regression.slope_ci95_high.toFixed(4)}])`,
+    `- Secular Trend (OLS): ${regA.regression.slope_per_decade_ols >= 0 ? '+' : ''}${regA.regression.slope_per_decade_ols.toFixed(4)} ${regA.trend_unit} | R² = ${regA.correlation_and_coupling.r_squared.toFixed(4)}`,
+    `- AR(1) & FDR Significance: N_eff = ${regA.period.n_effective_ar1.toFixed(1)} | p_AR1 = ${regA.significance.p_value_ar1_corrected.toFixed(5)} | q_FDR = ${regA.significance.fdr_q_value.toFixed(5)} (${regA.significance.confidence_tier})`,
+    `- Multivariate Extremes (Mahalanobis D_M > 2.5): ${regA.outliers_mahalanobis.length} events | GAM Regime: ${regA.regression.regime_shape}`,
   ];
 
   if (regB) {
     lines.push(
       '',
-      '## 2. Telemetria da Região B & Acoplamento Bivariado',
-      `- Variável B: ${regB.variable_id} (${regB.variable_name}) | Escala: ${regB.scale_type}`,
-      `- Agregação Espacial B: K = ${analysis.request_meta.cells_count_b} células | ID: ${analysis.request_meta.region_b_id ?? '—'}`,
-      `- Tendência Secular B (Theil–Sen): ${regB.regression.slope_per_decade_sen >= 0 ? '+' : ''}${regB.regression.slope_per_decade_sen.toFixed(4)} ${regB.trend_unit} | q_FDR = ${regB.significance.fdr_q_value.toFixed(5)}`
+      '## 2. Region B Telemetry & Bivariate Coupling',
+      `- Variable B: ${regB.variable_id} (${regB.variable_name}) | Scale: ${regB.scale_type}`,
+      `- Spatial Aggregation B: K = ${analysis.request_meta.cells_count_b} cells | ID: ${analysis.request_meta.region_b_id ?? '—'}`,
+      `- Secular Trend B (Theil–Sen): ${regB.regression.slope_per_decade_sen >= 0 ? '+' : ''}${regB.regression.slope_per_decade_sen.toFixed(4)} ${regB.trend_unit} | q_FDR = ${regB.significance.fdr_q_value.toFixed(5)}`
     );
     if (analysis.comparison_pair) {
       const cp = analysis.comparison_pair;
       lines.push(
-        `- Divergência Espacial: ${cp.spatial_divergence_detected ? 'DETECTADA' : 'Não detectada'}`,
-        `- Decomposição Multiescala: r_secular = ${cp.multiscale_correlation.long_term_secular_r.toFixed(3)} | r_resíduo = ${cp.multiscale_correlation.short_term_detrended_r.toFixed(3)} | Tipo: ${cp.multiscale_correlation.paradox_type}`
+        `- Spatial Divergence: ${cp.spatial_divergence_detected ? 'DETECTED' : 'Not detected'}`,
+        `- Multiscale Decomposition: r_secular = ${cp.multiscale_correlation.long_term_secular_r.toFixed(3)} | r_residual = ${cp.multiscale_correlation.short_term_detrended_r.toFixed(3)} | Type: ${cp.multiscale_correlation.paradox_type}`
       );
     }
   }
 
-  lines.push('', '## 3. Checklist dos 7 Invariantes Estatísticos');
+  lines.push('', '## 3. 7 Statistical Invariants Checklist');
   for (const item of report.items) {
     lines.push(
       `- [${item.passed ? 'PASS' : 'WARN'}] ${item.title}: ${stripInlineMarkdown(item.liveEvidence)}`

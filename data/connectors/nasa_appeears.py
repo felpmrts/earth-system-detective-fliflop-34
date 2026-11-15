@@ -1,4 +1,4 @@
-"""Conector para a NASA AppEEARS API (MODIS: NDVI, EVI, LAI e LST Day/Night)."""
+"""Connector for the NASA AppEEARS API (MODIS: NDVI, EVI, LAI, and LST Day/Night)."""
 
 from __future__ import annotations
 
@@ -23,7 +23,7 @@ API_NAME = "NASA AppEEARS API (MODIS)"
 
 
 def _normalize_appeears_value(variable: str, value: float, raw_unit: str) -> float:
-    """Converte Kelvin -> Celsius para LST MODIS quando os dados brutos vierem em Kelvin."""
+    """Converts Kelvin -> Celsius for MODIS LST when raw data is in Kelvin."""
     if variable in {"LST_Day_CMG", "LST_Night_CMG"} and value > 150.0 and raw_unit in {"K", ""}:
         return round(value - 273.15, 4)
     return round(value, 4)
@@ -38,7 +38,7 @@ def fetch_single_variable(
     cache: CellCacheStore | None = None,
     label: str = "NASA AppEEARS",
 ) -> dict[str, Any]:
-    """Lê séries MODIS em cache ou hidrata por célula com metadados reais AppEEARS/CMR."""
+    """Reads cached MODIS series or hydrates per cell with real AppEEARS/CMR metadata."""
     spec = get_variable_spec(variable)
     product_id = spec.product_id or "MOD13A3.061"
     base_url = os.environ.get(

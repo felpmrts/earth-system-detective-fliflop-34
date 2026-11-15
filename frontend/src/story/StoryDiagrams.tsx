@@ -2,7 +2,7 @@ import type { MatrixModeCard, StoryPreset } from './storyPresets';
 
 export type FeatureCardId = 'spatial' | 'catalog' | 'engine' | 'modes';
 
-/** Gráficos vetoriais dedicados para os 4 quadros de destaque logo abaixo do Hero. */
+/** Dedicated vector graphics for the 4 feature cards right below the Hero. */
 export function FeatureCardGraphic({ featureId }: { readonly featureId: FeatureCardId }) {
   if (featureId === 'spatial') {
     return (
@@ -10,7 +10,7 @@ export function FeatureCardGraphic({ featureId }: { readonly featureId: FeatureC
         className="feature-svg"
         viewBox="0 0 280 112"
         role="img"
-        aria-label="Grade global livre com células conectadas nas áreas A e B"
+        aria-label="Free global grid with connected cells in areas A and B"
       >
         <defs>
           <pattern id="featGlobalGrid" width="20" height="16" patternUnits="userSpaceOnUse">
@@ -19,25 +19,25 @@ export function FeatureCardGraphic({ featureId }: { readonly featureId: FeatureC
         </defs>
         <rect x="8" y="8" width="264" height="84" rx="10" fill="rgba(7, 11, 26, 0.55)" />
         <rect x="8" y="8" width="264" height="84" rx="10" fill="url(#featGlobalGrid)" />
-        {/* Linha do Equador */}
+        {/* Equator line */}
         <line x1="8" y1="50" x2="272" y2="50" stroke="rgba(94, 234, 212, 0.25)" strokeDasharray="4 4" />
-        {/* Silhuetas sutis de continentes */}
+        {/* Subtle continent silhouettes */}
         <path
           d="M 48 34 L 78 26 L 86 58 L 62 78 L 46 60 Z M 136 26 L 194 22 L 222 44 L 182 68 L 138 56 Z"
           fill="rgba(143, 160, 196, 0.13)"
         />
-        {/* Região A: matriz 2x2 livre */}
+        {/* Region A: free 2x2 matrix */}
         <rect x="52" y="42" width="32" height="24" rx="3" fill="rgba(34, 211, 238, 0.24)" stroke="#22d3ee" strokeWidth="1.6" />
         <line x1="68" y1="42" x2="68" y2="66" stroke="rgba(103, 232, 249, 0.55)" strokeWidth="1" />
         <line x1="52" y1="54" x2="84" y2="54" stroke="rgba(103, 232, 249, 0.55)" strokeWidth="1" />
         <circle cx="68" cy="54" r="2.8" fill="#e0f2fe" />
-        {/* Região B: matriz 3x2 em qualquer lugar do globo */}
+        {/* Region B: 3x2 matrix anywhere on the globe */}
         <rect x="172" y="28" width="42" height="26" rx="3" fill="rgba(251, 146, 60, 0.24)" stroke="#fb923c" strokeWidth="1.6" />
         <line x1="186" y1="28" x2="186" y2="54" stroke="rgba(253, 186, 116, 0.55)" strokeWidth="1" />
         <line x1="200" y1="28" x2="200" y2="54" stroke="rgba(253, 186, 116, 0.55)" strokeWidth="1" />
         <line x1="172" y1="41" x2="214" y2="41" stroke="rgba(253, 186, 116, 0.55)" strokeWidth="1" />
         <circle cx="193" cy="41" r="2.8" fill="#ffedd5" />
-        {/* Arco livre */}
+        {/* Free arc */}
         <path
           className="svg-draw-path"
           d="M 84 48 Q 130 14, 172 38"
@@ -47,7 +47,7 @@ export function FeatureCardGraphic({ featureId }: { readonly featureId: FeatureC
           strokeDasharray="4 3"
         />
         <text x="12" y="106" fill="#8fa0c4" fontSize="9.5" fontWeight="600">
-          −90° / −180° · Seleção livre
+          −90° / −180° · Free selection
         </text>
         <text x="270" y="106" textAnchor="end" fill="#5eead4" fontSize="9.5" fontWeight="700">
           +90° / +180°
@@ -58,10 +58,10 @@ export function FeatureCardGraphic({ featureId }: { readonly featureId: FeatureC
 
   if (featureId === 'catalog') {
     const layers = [
-      { label: 'CERES · Radiação & Albedo', color: '#fbbf24', y: 14, w: 204 },
-      { label: 'MERRA-2 · Clima & Aerossóis', color: '#22d3ee', y: 34, w: 236 },
-      { label: 'MODIS · Vegetação (500 m)', color: '#34d399', y: 54, w: 186 },
-      { label: 'GloFAS + NOAA · Rios & Solo', color: '#fb923c', y: 74, w: 220 },
+      { label: 'CERES · Radiation & Albedo', color: '#fbbf24', y: 14, w: 204 },
+      { label: 'MERRA-2 · Climate & Aerosols', color: '#22d3ee', y: 34, w: 236 },
+      { label: 'MODIS · Vegetation (500 m)', color: '#34d399', y: 54, w: 186 },
+      { label: 'GloFAS + NOAA · Rivers & Soil', color: '#fb923c', y: 74, w: 220 },
     ] as const;
 
     return (
@@ -69,7 +69,7 @@ export function FeatureCardGraphic({ featureId }: { readonly featureId: FeatureC
         className="feature-svg"
         viewBox="0 0 280 112"
         role="img"
-        aria-label="Camadas multi-fonte de dados ambientais da NASA e NOAA"
+        aria-label="Multi-source NASA and NOAA environmental data layers"
       >
         {layers.map((layer, idx) => (
           <g key={layer.label}>
@@ -97,10 +97,10 @@ export function FeatureCardGraphic({ featureId }: { readonly featureId: FeatureC
           </g>
         ))}
         <text x="12" y="106" fill="#8fa0c4" fontSize="9.5" fontWeight="600">
-          7 famílias físicas
+          7 physical families
         </text>
         <text x="268" y="106" textAnchor="end" fill="#38bdf8" fontSize="9.5" fontWeight="700">
-          Alinhamento nativo
+          Native alignment
         </text>
       </svg>
     );
@@ -112,7 +112,7 @@ export function FeatureCardGraphic({ featureId }: { readonly featureId: FeatureC
         className="feature-svg"
         viewBox="0 0 280 112"
         role="img"
-        aria-label="Série temporal com tendência Theil-Sen, curva GAM não-linear e intervalo AR(1)"
+        aria-label="Time series with Theil-Sen trend, nonlinear GAM curve, and AR(1) confidence band"
       >
         <defs>
           <linearGradient id="featArBand" x1="0" y1="0" x2="0" y2="1">
@@ -169,46 +169,46 @@ export function FeatureCardGraphic({ featureId }: { readonly featureId: FeatureC
     );
   }
 
-  // Feature 04: 4 modos combinatórios
+  // Feature 04: 4 combinatorial modes
   return (
     <svg
       className="feature-svg"
       viewBox="0 0 280 112"
       role="img"
-      aria-label="Matriz de quatro arquiteturas combinatórias entre regiões A e B e variáveis X e Y"
+      aria-label="Matrix of four combinatorial architectures between regions A and B and variables X and Y"
     >
       <rect x="14" y="12" width="116" height="36" rx="8" fill="rgba(34, 211, 238, 0.14)" stroke="#22d3ee" strokeWidth="1.2" />
       <text x="24" y="28" fill="#67e8f9" fontSize="10" fontWeight="700">A ≠ B · X = Y</text>
-      <text x="24" y="41" fill="#9fb4d3" fontSize="8.8">Teleconexões espaciais</text>
+      <text x="24" y="41" fill="#9fb4d3" fontSize="8.8">Spatial teleconnections</text>
 
       <rect x="150" y="12" width="116" height="36" rx="8" fill="rgba(94, 234, 212, 0.14)" stroke="#5eead4" strokeWidth="1.2" />
       <text x="160" y="28" fill="#5eead4" fontSize="10" fontWeight="700">A = B · X ≠ Y</text>
-      <text x="160" y="41" fill="#9fb4d3" fontSize="8.8">Causa física local</text>
+      <text x="160" y="41" fill="#9fb4d3" fontSize="8.8">Local physical cause</text>
 
       <rect x="14" y="56" width="116" height="36" rx="8" fill="rgba(251, 146, 60, 0.14)" stroke="#fb923c" strokeWidth="1.2" />
       <text x="24" y="72" fill="#fdba74" fontSize="10" fontWeight="700">A ≠ B · X ≠ Y</text>
-      <text x="24" y="85" fill="#9fb4d3" fontSize="8.8">Defasagem cruzada</text>
+      <text x="24" y="85" fill="#9fb4d3" fontSize="8.8">Cross-lagged coupling</text>
 
       <rect x="150" y="56" width="116" height="36" rx="8" fill="rgba(167, 139, 250, 0.14)" stroke="#a78bfa" strokeWidth="1.2" />
       <text x="160" y="72" fill="#c4b5fd" fontSize="10" fontWeight="700">A = B · X = Y</text>
-      <text x="160" y="85" fill="#9fb4d3" fontSize="8.8">Diagnóstico de ponto</text>
+      <text x="160" y="85" fill="#9fb4d3" fontSize="8.8">Point diagnostic</text>
 
       <circle cx="140" cy="52" r="5" fill="#5eead4" />
       <text x="12" y="106" fill="#8fa0c4" fontSize="9.5" fontWeight="600">
-        Troca instantânea entre local e variável
+        Instant switch between location and variable
       </text>
     </svg>
   );
 }
 
-/** Gráficos de série/tendência no estilo visual Trend Detective para os 4 Casos Reais. */
+/** Trend Detective style series/trend charts for the 4 Real Cases. */
 export function CaseChartGraphic({ preset }: { readonly preset: StoryPreset }) {
   const startYear = preset.startMonth.slice(0, 4);
   const endYear = preset.endMonth.slice(0, 4);
 
   if (preset.id === 'cerrado-vs-amazonia') {
     return (
-      <svg className="case-chart-svg" viewBox="0 0 280 96" role="img" aria-label="Comparação Cerrado e Amazônia 1981 a 2025">
+      <svg className="case-chart-svg" viewBox="0 0 280 96" role="img" aria-label="Cerrado and Amazon comparison 1981 to 2025">
         <polyline
           className="svg-draw-series"
           points="10,30 25,35 40,28 55,38 70,32 85,40 100,35 115,43 130,39 145,48 160,44 175,54 190,48 205,59 220,54 235,65 250,60 268,69"
@@ -227,7 +227,7 @@ export function CaseChartGraphic({ preset }: { readonly preset: StoryPreset }) {
         />
         <line className="svg-draw-path" x1="10" y1="30" x2="268" y2="67" stroke="#22d3ee" strokeWidth="2.1" strokeLinecap="round" />
         <text x="10" y="90" fill="#8fa0c4" fontSize="9.5">{startYear}</text>
-        <text x="96" y="90" fill="#22d3ee" fontSize="9.5" fontWeight="700">Cerrado (Δ) vs Amazônia (B)</text>
+        <text x="96" y="90" fill="#22d3ee" fontSize="9.5" fontWeight="700">Cerrado (Δ) vs Amazon (B)</text>
         <text x="246" y="90" fill="#8fa0c4" fontSize="9.5">{endYear}</text>
       </svg>
     );
@@ -235,7 +235,7 @@ export function CaseChartGraphic({ preset }: { readonly preset: StoryPreset }) {
 
   if (preset.id === 'heatwaves-soil-mg') {
     return (
-      <svg className="case-chart-svg" viewBox="0 0 280 96" role="img" aria-label="Calor máximo T2M_MAX versus umidade superficial do solo GWETTOP">
+      <svg className="case-chart-svg" viewBox="0 0 280 96" role="img" aria-label="Maximum heat T2M_MAX versus surface soil moisture GWETTOP">
         <polyline
           className="svg-draw-series"
           points="10,64 25,60 40,63 55,56 70,58 85,51 100,55 115,47 130,52 145,42 160,46 175,38 190,41 205,32 220,35 235,24 250,27 268,20"
@@ -255,7 +255,7 @@ export function CaseChartGraphic({ preset }: { readonly preset: StoryPreset }) {
         <line x1="168" y1="16" x2="168" y2="74" stroke="rgba(94, 234, 212, 0.45)" strokeDasharray="3 3" />
         <circle cx="168" cy="48" r="3.5" fill="#5eead4" />
         <text x="10" y="90" fill="#8fa0c4" fontSize="9.5">{startYear}</text>
-        <text x="92" y="90" fill="#5eead4" fontSize="9.5" fontWeight="700">Acoplamento T2M_MAX ↔ GWETTOP</text>
+        <text x="92" y="90" fill="#5eead4" fontSize="9.5" fontWeight="700">T2M_MAX ↔ GWETTOP Coupling</text>
         <text x="246" y="90" fill="#8fa0c4" fontSize="9.5">{endYear}</text>
       </svg>
     );
@@ -263,7 +263,7 @@ export function CaseChartGraphic({ preset }: { readonly preset: StoryPreset }) {
 
   if (preset.id === 'ceres-amazon-parana') {
     return (
-      <svg className="case-chart-svg" viewBox="0 0 280 96" role="img" aria-label="Radiação na Amazônia versus precipitação na Bacia do Paraná">
+      <svg className="case-chart-svg" viewBox="0 0 280 96" role="img" aria-label="Amazon radiation versus Paraná Basin precipitation">
         <polyline
           className="svg-draw-series"
           points="10,48 25,66 40,34 55,58 70,28 85,62 100,40 115,66 130,22 145,56 160,36 175,64 190,18 205,54 220,38 235,66 250,26 268,48"
@@ -283,7 +283,7 @@ export function CaseChartGraphic({ preset }: { readonly preset: StoryPreset }) {
         <circle cx="190" cy="18" r="3.6" fill="#fbbf24" />
         <circle cx="190" cy="74" r="3.6" fill="#22d3ee" />
         <text x="10" y="90" fill="#8fa0c4" fontSize="9.5">{startYear}</text>
-        <text x="98" y="90" fill="#fbbf24" fontSize="9.5" fontWeight="700">Gangorra multiescala (El Niño)</text>
+        <text x="98" y="90" fill="#fbbf24" fontSize="9.5" fontWeight="700">Multiscale seesaw (El Niño)</text>
         <text x="246" y="90" fill="#8fa0c4" fontSize="9.5">{endYear}</text>
       </svg>
     );
@@ -291,7 +291,7 @@ export function CaseChartGraphic({ preset }: { readonly preset: StoryPreset }) {
 
   // Case 04: arctic-vs-tropics
   return (
-    <svg className="case-chart-svg" viewBox="0 0 280 96" role="img" aria-label="Amplificação polar no Ártico versus Atlântico Tropical">
+    <svg className="case-chart-svg" viewBox="0 0 280 96" role="img" aria-label="Polar amplification in the Arctic versus Tropical Atlantic">
       <polyline
         className="svg-draw-series"
         points="10,66 25,62 40,69 55,60 70,65 85,57 100,63 115,52 130,56 145,45 160,48 175,36 190,41 205,27 220,31 235,19 250,24 268,14"
@@ -317,13 +317,13 @@ export function CaseChartGraphic({ preset }: { readonly preset: StoryPreset }) {
         strokeDasharray="4 3"
       />
       <text x="10" y="90" fill="#8fa0c4" fontSize="9.5">{startYear}</text>
-      <text x="96" y="90" fill="#22d3ee" fontSize="9.5" fontWeight="700">Amplificação Ártico × Trópicos</text>
+      <text x="96" y="90" fill="#22d3ee" fontSize="9.5" fontWeight="700">Arctic × Tropics Amplification</text>
       <text x="246" y="90" fill="#8fa0c4" fontSize="9.5">{endYear}</text>
     </svg>
   );
 }
 
-/** Esquema visual animado dentro do spotlight quando o usuário alterna entre os 4 modos combinatórios. */
+/** Animated visual schematic inside the spotlight when switching between the 4 combinatorial modes. */
 export function MatrixModeDiagram({ mode }: { readonly mode: MatrixModeCard }) {
   const isSamePlace = mode.defaultSameLocation;
   const isCrossVar = mode.id === 'local_coupling' || mode.id === 'cross_teleconnection';
@@ -334,7 +334,7 @@ export function MatrixModeDiagram({ mode }: { readonly mode: MatrixModeCard }) {
       className="matrix-diagram-svg"
       viewBox="0 0 220 92"
       role="img"
-      aria-label={`Diagrama do modo ${mode.formula}`}
+      aria-label={`Diagram for mode ${mode.formula}`}
     >
       <rect x="4" y="4" width="212" height="84" rx="14" fill="rgba(7, 11, 26, 0.56)" stroke="rgba(159, 180, 255, 0.16)" />
       {isSamePlace ? (
@@ -354,11 +354,11 @@ export function MatrixModeDiagram({ mode }: { readonly mode: MatrixModeCard }) {
       ) : (
         <g>
           <circle cx="52" cy="46" r="19" fill="rgba(34, 211, 238, 0.16)" stroke="#22d3ee" strokeWidth="1.7" />
-          <text x="52" y="44" textAnchor="middle" fill="#e8eefc" fontSize="10" fontWeight="700">Local A</text>
+          <text x="52" y="44" textAnchor="middle" fill="#e8eefc" fontSize="10" fontWeight="700">Site A</text>
           <text x="52" y="56" textAnchor="middle" fill="#67e8f9" fontSize="8.8" fontWeight="600">Var X</text>
 
           <circle cx="168" cy="46" r="19" fill="rgba(251, 146, 60, 0.16)" stroke="#fb923c" strokeWidth="1.7" />
-          <text x="168" y="44" textAnchor="middle" fill="#e8eefc" fontSize="10" fontWeight="700">Local B</text>
+          <text x="168" y="44" textAnchor="middle" fill="#e8eefc" fontSize="10" fontWeight="700">Site B</text>
           <text x="168" y="56" textAnchor="middle" fill="#fdba74" fontSize="8.8" fontWeight="600">
             {isCrossVar ? 'Var Y' : 'Var X'}
           </text>

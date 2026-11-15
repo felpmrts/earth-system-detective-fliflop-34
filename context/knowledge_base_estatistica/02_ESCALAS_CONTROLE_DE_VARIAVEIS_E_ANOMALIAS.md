@@ -1,95 +1,95 @@
-# 02. Escalas de Medida, Isolamento de Confundidores (Estratégia Leavitt) e Anomalias
+# 02. Measurement Scales, Confounder Isolation (Leavitt Strategy), and Anomalies
 
-> **Referência Base:** [`transcricao.txt`](file:///home/zrhyan/Principal/Computation/Space%20Apps/transcricao.txt) (Linhas 1–3) | **Aplicação:** Desafio NASA Space Apps *"Be An Earth System Trend Detective!"*
-> **Objetivo para Agentes de IA:** Compreender como a natureza da escala da variável física (Razão, Intervalar, Logarítmica, Com Custo Basal/Offset) e a presença de variáveis confundidoras (distância, sazonalidade, troca de satélite) afetam o cálculo de regressão, aplicando o **Princípio de Henrietta Leavitt** aos dados da NASA.
+> **Base Reference:** `transcricao.txt` (Lines 1–3) | **Application:** NASA Space Apps Challenge *"Be An Earth System Trend Detective!"*
+> **Goal for AI Agents:** Understand how the nature of a physical variable's scale (Ratio, Interval, Logarithmic, with Baseline Cost/Offset) and the presence of confounding variables (distance, seasonality, satellite transition) affect regression, applying **Henrietta Leavitt's Principle** to NASA data.
 
 ---
 
-## 1. A Estratégia de Henrietta Leavitt: Como Isolar Variáveis Confundidoras Sem Medição Direta
+## 1. Henrietta Leavitt's Strategy: How to Isolate Confounding Variables Without Direct Measurement
 
-Um dos exemplos científicos mais elegantes analisados em [`transcricao.txt`](file:///home/zrhyan/Principal/Computation/Space%20Apps/transcricao.txt#L1) é o método criado pela astrônoma **Henrietta Swan Leavitt** para descobrir a relação entre o período de pulsação das estrelas variáveis Cefeidas e a sua luminosidade intrínseca.
+One of the most elegant scientific examples analyzed in `transcricao.txt` (Line 1) is the method created by astronomer **Henrietta Swan Leavitt** to discover the relationship between the pulsation period of Cepheid variable stars and their intrinsic luminosity.
 
-### 1.1 O Problema Físico e Estatístico de Leavitt
-- Leavitt queria relacionar o **Período ($P$)** da estrela com a sua **Luminosidade Intrínseca ($L$)**.
-- Porém, da Terra, não observamos a luminosidade intrínseca $L$; observamos apenas o **Brilho Aparente ($B_{\text{ap}}$)**, que cai com o quadrado da distância ($d$):
+### 1.1 Leavitt's Physical and Statistical Problem
+- Leavitt wanted to relate a star's **Period ($P$)** to its **Intrinsic Luminosity ($L$)**.
+- However, from Earth, we do not observe intrinsic luminosity $L$; we observe only **Apparent Brightness ($B_{\text{ap}}$)**, which falls off with the square of distance ($d$):
   $$B_{\text{ap}} \propto \frac{L}{d^2}$$
-- Em 1912/1918, não era possível medir a paralaxe (e portanto a distância $d$) da maioria das Cefeidas na Via Láctea. Se você plotasse o brilho aparente de Cefeidas espalhadas pela Via Láctea contra o período, a variação desconhecida de distância $d$ destruiria a correlação (uma estrela muito luminosa porém muito longe parece mais fraca que uma estrela pouco luminosa porém muito perto).
+- In 1912/1918, it was not possible to measure parallax (and thus distance $d$) for most Cepheids in the Milky Way. If you plotted the apparent brightness of Cepheids scattered across the Milky Way against period, the unknown variation in distance $d$ would destroy the correlation (a very luminous but very distant star appears fainter than a less luminous but nearby star).
 
-### 1.2 A Solução Genial (O "Controle Espacial de Confundidores")
-- Em vez de olhar para estrelas espalhadas na Via Láctea, Leavitt selecionou apenas as Cefeidas localizadas na **Pequena e Grande Nuvem de Magalhães** (galáxias satélites a $\sim 200.000$ anos-luz de distância).
-- Como a distância da Terra até a Nuvem de Magalhães ($D \approx 200.000\text{ al}$) é imensamente maior do que o diâmetro/espessura da própria nuvem ($\Delta d \ll D$), **todas as estrelas daquela amostra estão praticamente à mesma distância do observador**:
-  $$d_{\text{mais próxima}} \approx d_{\text{mais distante}} \approx D$$
-- **Resultado Estatístico:** Mesmo sem saber o valor exato de $D$, Leavitt **compactou e neutralizou a variável confundidora (distância)**! Todas as estrelas da amostra sofreram a mesma atenuação de brilho constante. Assim, o Brilho Aparente observado passou a ser um proxy direto e minimamente contaminado da Luminosidade Intrínseca, revelando uma reta de regressão limpa e revolucionando a astrofísica!
+### 1.2 The Brilliant Solution ("Spatial Control of Confounders")
+- Instead of looking at stars scattered throughout the Milky Way, Leavitt selected only Cepheids located in the **Small and Large Magellanic Clouds** (satellite galaxies $\sim 200,000$ light-years away).
+- Because the distance from Earth to the Magellanic Cloud ($D \approx 200,000\text{ ly}$) is vastly greater than the diameter/thickness of the cloud itself ($\Delta d \ll D$), **all stars in that sample are practically at the same distance from the observer**:
+  $$d_{\text{nearest}} \approx d_{\text{farthest}} \approx D$$
+- **Statistical Result:** Even without knowing the exact value of $D$, Leavitt **compressed and neutralized the confounding variable (distance)**! Every star in the sample suffered the same constant brightness attenuation. Thus, observed Apparent Brightness became a direct, minimally contaminated proxy for Intrinsic Luminosity, revealing a clean regression line and revolutionizing astrophysics!
 
 ---
 
-## 2. Tradução Direta do Princípio de Leavitt para o Desafio *Trend Detective* da NASA
+## 2. Direct Translation of Leavitt's Principle to NASA's *Trend Detective* Challenge
 
-Nos dados do Sistema Terra da NASA, enfrentamos exatamente o mesmo problema estrutural de Henrietta Leavitt: **o sinal que queremos medir (a tendência climática secular) está submerso em variáveis confundidoras gigantescas**. Se aplicarmos regressão sobre o dado bruto sem isolar os confundidores, a reta será contaminada ou inválida.
+In NASA Earth System data, we face the exact same structural problem as Henrietta Leavitt: **the signal we want to measure (the secular climate trend) is submerged under gigantic confounding variables**. If we run regression on raw data without isolating confounders, the line will be contaminated or invalid.
 
-Quais são as três "distâncias estelares" (confundidores) nas séries temporais da NASA e como aplicar a Estratégia de Leavitt a cada uma?
+What are the three "stellar distances" (confounders) in NASA time series, and how do we apply Leavitt's Strategy to each?
 
-### 2.1 Confundidor 1: O Ciclo Sazonal Anual (Insolação Orbital)
-- **O Fenômeno:** Em quase qualquer ponto da Terra, a variação entre verão e inverno (ex.: $15\,^\circ\text{C}$ de diferença sazonal na temperatura ou $300\text{ mm}$ de diferença na chuva mensal) é dezenas de vezes maior que a tendência climática de uma década ($\sim 0{,}2\,^\circ\text{C}$).
-- **O Erro Primário:** Calcular uma regressão sobre uma série mensal bruta que começa em janeiro de 2005 (verão no Hemisfério Sul) e termina em julho de 2025 (inverno no Hemisfério Sul) introduz um viés de fase sazonal gigantesco. Além disso, a onda senoidal anual infla artificialmente a variância residual ($\sigma_e^2$), derrubando a correlação $r$ e mascarando a significância estatística ($p\text{-valor}$).
-- **A Solução Leavitt (Anomalias Climatológicas / Desazonalização):**
-  - Assim como Leavitt comparou estrelas na mesma faixa de distância, devemos comparar **janeiro com janeiro, fevereiro com fevereiro**, subtraindo a climatologia base de cada mês $m \in \{1, \dots, 12\}$:
-    $$\bar{Y}_m = \frac{1}{N_{\text{anos}}} \sum_{a} Y_{a, m}$$
-    $$\text{Anomalia: } \quad Y'_{a, m} = Y_{a, m} - \bar{Y}_m$$
-  - Se a amplitude sazonal também variar muito entre regiões (ex.: Sibéria vs. Amazônia), calcula-se a **Anomalia Padronizada ($Z\text{-score}$ mensal)**:
+### 2.1 Confounder 1: The Annual Seasonal Cycle (Orbital Insolation)
+- **The Phenomenon:** Almost anywhere on Earth, the swing between summer and winter (e.g., $15\,^\circ\text{C}$ seasonal temperature difference or $300\text{ mm}$ monthly rainfall difference) is dozens of times larger than a decadal climate trend ($\sim 0.2\,^\circ\text{C}$).
+- **The Primary Error:** Computing a regression on a raw monthly series that starts in January 2005 (Southern Hemisphere summer) and ends in July 2025 (Southern Hemisphere winter) introduces a huge seasonal phase bias. Moreover, the annual sine wave artificially inflates residual variance ($\sigma_e^2$), collapsing correlation $r$ and masking statistical significance ($p\text{-value}$).
+- **The Leavitt Solution (Climatological Anomalies / Deseasonalization):**
+  - Just as Leavitt compared stars at the same distance band, we must compare **January to January, February to February**, subtracting the baseline climatology of each month $m \in \{1, \dots, 12\}$:
+    $$\bar{Y}_m = \frac{1}{N_{\text{years}}} \sum_{a} Y_{a, m}$$
+    $$\text{Anomaly: } \quad Y'_{a, m} = Y_{a, m} - \bar{Y}_m$$
+  - If seasonal amplitude also varies strongly across regions (e.g., Siberia vs. Amazon), compute the **Standardized Anomaly (monthly $Z\text{-score}$)**:
     $$Z_{a, m} = \frac{Y_{a, m} - \bar{Y}_m}{\sigma_m}$$
-  - **Impacto no Produto:** Como previsto em [`ESTRATEGIA_TREND_DETECTIVE.md`](file:///home/zrhyan/Principal/Computation/Space%20Apps/general_strategy/ESTRATEGIA_TREND_DETECTIVE.md#L276), toda regressão oficial de tendência e todo teste de significância (`DADOS-2`) **devem rodar sobre a série de anomalias $Y'_{a,m}$** (ou médias anuais completas com os mesmos 12 meses), enquanto a interface (`PROD-2`) permite alternar entre "Série Bruta (com sazonalidade)" e "Anomalia Climatológica (sem sazonalidade)".
+  - **Product Impact:** As specified in [`ESTRATEGIA_TREND_DETECTIVE.md`](../general_strategy/ESTRATEGIA_TREND_DETECTIVE.md#L276), every official trend regression and significance test (`DADOS-2`) **must run on the anomaly series $Y'_{a,m}$** (or full annual means with the same 12 months), while the UI (`PROD-2`) allows toggling between "Raw Series (with seasonality)" and "Climatological Anomaly (deseasonalized)".
 
-### 2.2 Confundidor 2: Descontinuidade de Sensores, Órbitas e Calibração
-- **O Fenômeno:** Conforme alertado na Matriz de Riscos (#5 de [`ESTRATEGIA_TREND_DETECTIVE.md`](file:///home/zrhyan/Principal/Computation/Space%20Apps/general_strategy/ESTRATEGIA_TREND_DETECTIVE.md#L495)), quando se junta uma série antiga de um satélite com outro mais novo (ex.: sensor MODIS com 1 km de resolução vs. VIIRS com 375 m; ou o hiato entre os satélites GRACE e GRACE-FO em 2017–2018), há uma mudança na sensibilidade radiométrica ou no *offset* basal.
-- **A Solução Leavitt:**
-  - Nunca regredir séries não-harmonizadas de sensores distintos como se fossem a mesma régua.
-  - Manter o produto de satélite homogêneo ao longo de toda a janela temporal (ex.: usar coleção reprocessada unificada da NASA, como MERRA-2, GISTEMP v4, MODIS Collection 6.1 unificada ou GRACE Mascons RL06 harmonizados) e inspecionar quebras estruturais (*step changes*).
+### 2.2 Confounder 2: Sensor, Orbit, and Calibration Discontinuities
+- **The Phenomenon:** As warned in Risk Matrix #5 of [`ESTRATEGIA_TREND_DETECTIVE.md`](../general_strategy/ESTRATEGIA_TREND_DETECTIVE.md#L495), splicing an older satellite series onto a newer one (e.g., MODIS at 1 km resolution vs. VIIRS at 375 m; or the gap between GRACE and GRACE-FO in 2017–2018) introduces a shift in radiometric sensitivity or baseline *offset*.
+- **The Leavitt Solution:**
+  - Never regress unharmonized series from distinct sensors as if they were the same ruler.
+  - Keep a homogeneous satellite product across the entire time window (e.g., use a unified NASA reprocessed collection such as MERRA-2, GISTEMP v4, unified MODIS Collection 6.1, or harmonized GRACE Mascons RL06) and inspect for structural *step changes*.
 
-### 2.3 Confundidor 3: Janelas Temporais Desalinhadas na Comparação entre Regiões
-- **O Fenômeno:** O desafio pede para comparar lugares onde uma variável sobe num ponto e cai em outro. Se compararmos a tendência da Região A medida em $2000\text{–}2025$ com a tendência da Região B medida em $2015\text{–}2025$, estamos violando a condição de controle de Leavitt (pois o estado de fundo do sistema climático global, como a fase da Oscilação Decadal do Pacífico — PDO, mudou).
-- **A Solução Leavitt:** Para qualquer comparação espacial ("Onde muda?") ou comparação lado a lado entre duas regiões, **o período temporal $[t_{\text{início}}, t_{\text{fim}}]$ deve ser estritamente idêntico**.
-
----
-
-## 3. Tipologia das Escalas de Medida e suas Armadilhas na Regressão
-
-Em [`transcricao.txt`](file:///home/zrhyan/Principal/Computation/Space%20Apps/transcricao.txt#L1-L3), Hindemburg dedica uma explicação fundamental à diferença entre escalas com zero absoluto, escalas sem zero absoluto, escalas com "custo fixo de embalagem" (*offset*) e escalas logarítmicas/invertidas. Ignorar a escala da variável leva a erros primários de interpretação e cálculo.
-
-### 3.1 Escala de Razão (Proporção) vs. Escala Intervalar
-1. **Escala de Razão (Zero Absoluto Real):**
-   - Exemplos na NASA: **Precipitação ($0\text{ mm}$ = ausência total de chuva)**, **Área/Espessura de Gelo Marinho ($0\text{ km}^2$)**, **Concentração absoluta de poluentes/aerossóis ($0\text{ }\mu\text{g/m}^3$)**, **Temperatura em Kelvin ($0\text{ K}$)**.
-   - Propriedade: O ponto $(0, 0)$ existe fisicamente. Faz sentido calcular **variações percentuais relativas** (ex.: *"a precipitação caiu $15\%$"* ou *"o gelo ártico perdeu $12\%$ de área por década"*).
-2. **Escala Intervalar (Sem Zero Absoluto ou Zero Arbitrário):**
-   - Exemplos na NASA: **Temperatura em Graus Celsius ($^\circ\text{C}$) ou Fahrenheit ($^\circ\text{F}$)**, **Anomalias de Temperatura ($^\circ\text{C}$ acima/abaixo da média)**, **Anomalia de Espessura Equivalente de Água do GRACE ($\text{cm}$ relativos à média 2004–2009)**, **Ano Calendário ($t = 2005, 2006\dots$)**.
-   - **Armadilha Mortal:** Como o zero em Celsius ($0\,^\circ\text{C}$) ou o zero de uma anomalia é arbitrário, **É PROIBIDO calcular porcentagem de aumento/queda sobre valores em escala intervalar!**
-     - *Exemplo do erro:* Dizer que a temperatura média subiu de $10\,^\circ\text{C}$ para $15\,^\circ\text{C}$ e afirmar que *"a temperatura aumentou $50\%$"* é um erro físico crasso (em Kelvin, subiu de $283{,}15\text{ K}$ para $288{,}15\text{ K}$, ou seja, $1{,}76\%$). Pior ainda: se uma anomalia passa de $-0{,}1\,^\circ\text{C}$ para $+0{,}4\,^\circ\text{C}$, uma divisão percentual explode ou dá sinal negativo absurdo!
-   - **Como Calcular Corretamente (Regra de Diferenças):** Em escalas intervalares, conforme ensinado na transcrição com o exemplo dos $20\,^\circ\text{C}$ e $30\,^\circ\text{C}$, opera-se **exclusivamente por diferenças intervalares ($\Delta Y$ por $\Delta X$)**:
-     $$\text{Exibir: } +0{,}24\,^\circ\text{C / década} \quad (\text{e NUNCA } +X\%)$$
-
-### 3.2 O Efeito "Embalagem de Bombom Lindt" (Custos Fixos / *Offsets* Basais)
-Na transcrição ([`transcricao.txt`](file:///home/zrhyan/Principal/Computation/Space%20Apps/transcricao.txt#L3)), o autor usa a metáfora da caixa metálica decorada com cristais Swarovski dos bombons Lindt: parte do preço do produto não vem da massa de chocolate (variável $X$), mas da embalagem (um valor fixo inicial $A > 0$ mesmo para $X \to 0$).
-- **Equivalente nos Dados da NASA:**
-  - Muitas variáveis ambientais possuem um **fundo basal incompressível (*background offset*)**. Por exemplo: concentração de $\text{CO}_2$ atmosférico (que parte de um nível pré-industrial de $\sim 280\text{ ppm}$ e está em $\sim 425\text{ ppm}$), radiância de superfície com albedo residual, ou vegetação basal (NDVI de solo exposto $\approx 0{,}10$).
-  - Se você tentar forçar uma reta de regressão a passar pela origem $(0,0)$ sem considerar o "custo da embalagem" (o parâmetro $A$ livre na equação $Y = A + BX$), a inclinação $B$ será completamente distorcida.
-
-### 3.3 Escalas Logarítmicas e Invertidas (O Caso Hiparco-Pogson)
-Na análise do gráfico de Leavitt ([`transcricao.txt`](file:///home/zrhyan/Principal/Computation/Space%20Apps/transcricao.txt#L1)), explica-se a escala de **Magnitude Estelar** criada por Hiparco ($\sim 150\text{ a.C.}$) e formalizada por Norman Pogson ($\sim 1856$):
-- A cada $5$ magnitudes, o brilho varia num fator de $100$ para $1$ ($\sqrt[5]{100} \approx 2{,}512$ por magnitude).
-- Trata-se de uma **escala logarítmica invertida**: quanto menor (ou mais negativo) o número da magnitude, maior o brilho físico! Além disso, no gráfico de Leavitt, o eixo $X$ (período $P$ em dias) foi transformado em $\log_{10}(P)$, convertendo uma curva de potência em uma **reta perfeita**.
-- **Aplicação Direta aos Dados da NASA:**
-  1. **Variáveis com distribuição log-normal ou crescimento em potência:** Focos de queimadas (radiância de fogo FRP em Megawatts no MODIS/VIIRS), concentração de clorofila oceânica ($\text{mg/m}^3$, que varia várias ordens de grandeza entre giros oceânicos e zonas costeiras) ou densidade de aerossóis (AOD). Nessas variáveis, ajustar a regressão também na escala $\log_{10}(Y)$ estabiliza a variância e lineariza relações de potência ($Y = a X^b \iff \log Y = \log a + b \log X$).
-  2. **Variáveis com sentido semântico invertido:** Profundidade do lençol freático (quanto maior o número em metros abaixo do solo, **menos** água disponível) ou pressão no topo da nuvem (quanto menor a pressão em $\text{hPa}$, **mais alta** a nuvem convectiva). A interface (`PROD-2` e `NARR`) deve explicitar claramente o sentido físico da mudança para que o usuário nunca confunda o sinal algébrico com o impacto ambiental.
+### 2.3 Confounder 3: Misaligned Time Windows in Cross-Region Comparisons
+- **The Phenomenon:** The challenge asks us to compare places where a variable rises in one spot and falls in another. If we compare Region A's trend measured over $2000\text{–}2025$ with Region B's trend measured over $2015\text{–}2025$, we violate Leavitt's control condition (because the background state of the global climate system, such as the Pacific Decadal Oscillation — PDO phase, has changed).
+- **The Leavitt Solution:** For any spatial comparison ("Where is it changing?") or side-by-side comparison between two regions, **the time period $[t_{\text{start}}, t_{\text{end}}]$ must be strictly identical**.
 
 ---
 
-## 4. Tabela de Decisão Rápida de Escalas para o Catálogo da NASA (`DADOS-1` / `DADOS-2`)
+## 3. Typology of Measurement Scales and Their Traps in Regression
 
-| Variável Típica da NASA | Tipo de Escala | Como Tratar na Regressão | Como Expressar "Quanto Muda?" na UI |
+In `transcricao.txt` (Lines 1–3), Hindemburg devotes a fundamental explanation to the difference between scales with an absolute zero, scales without an absolute zero, scales with a "fixed packaging cost" (*offset*), and logarithmic/inverted scales. Ignoring a variable's scale leads to elementary interpretation and calculation errors.
+
+### 3.1 Ratio Scale vs. Interval Scale
+1. **Ratio Scale (True Absolute Zero):**
+   - NASA Examples: **Precipitation ($0\text{ mm}$ = total absence of rain)**, **Sea Ice Area/Extent ($0\text{ km}^2$)**, **Absolute pollutant/aerosol concentration ($0\text{ }\mu\text{g/m}^3$)**, **Temperature in Kelvin ($0\text{ K}$)**.
+   - Property: The point $(0, 0)$ physically exists. It makes sense to compute **relative percentage changes** (e.g., *"precipitation fell $15\%$"* or *"Arctic ice lost $12\%$ of its area per decade"*).
+2. **Interval Scale (No Absolute Zero or Arbitrary Zero):**
+   - NASA Examples: **Temperature in Degrees Celsius ($^\circ\text{C}$) or Fahrenheit ($^\circ\text{F}$)**, **Temperature Anomalies ($^\circ\text{C}$ above/below mean)**, **GRACE Terrestrial Water Storage Anomaly ($\text{cm}$ relative to 2004–2009 mean)**, **Calendar Year ($t = 2005, 2006\dots$)**.
+   - **Deadly Trap:** Because zero in Celsius ($0\,^\circ\text{C}$) or the zero of an anomaly is arbitrary, **IT IS FORBIDDEN to compute percentage increase/decrease on interval-scale values!**
+     - *Example of the error:* Saying that mean temperature rose from $10\,^\circ\text{C}$ to $15\,^\circ\text{C}$ and claiming *"temperature increased by $50\%$"* is a gross physical error (in Kelvin, it rose from $283.15\text{ K}$ to $288.15\text{ K}$, i.e., $1.76\%$). Worse still: if an anomaly goes from $-0.1\,^\circ\text{C}$ to $+0.4\,^\circ\text{C}$, percentage division explodes or yields an absurd negative sign!
+   - **How to Compute Correctly (Difference Rule):** On interval scales, as taught in the transcript with the $20\,^\circ\text{C}$ and $30\,^\circ\text{C}$ example, operate **exclusively via interval differences ($\Delta Y$ per $\Delta X$)**:
+     $$\text{Display: } +0.24\,^\circ\text{C / decade} \quad (\text{and NEVER } +X\%)$$
+
+### 3.2 The "Lindt Truffle Box" Effect (Fixed Costs / Baseline *Offsets*)
+In the transcript (`transcricao.txt`, Line 3), the author uses the metaphor of a metal Lindt truffle box decorated with Swarovski crystals: part of the product's price comes not from the chocolate mass (variable $X$), but from the packaging (a fixed initial value $A > 0$ even as $X \to 0$).
+- **Equivalent in NASA Data:**
+  - Many environmental variables have an **incompressible background *offset***. For example: atmospheric $\text{CO}_2$ concentration (which starts from a pre-industrial level of $\sim 280\text{ ppm}$ and is around $\sim 425\text{ ppm}$), surface radiance with residual albedo, or baseline vegetation (bare soil NDVI $\approx 0.10$).
+  - If you try to force a regression line through the origin $(0,0)$ without accounting for the "packaging cost" (the free parameter $A$ in $Y = A + BX$), the slope $B$ will be completely distorted.
+
+### 3.3 Logarithmic and Inverted Scales (The Hipparchus–Pogson Case)
+In analyzing Leavitt's chart (`transcricao.txt`, Line 1), the **Stellar Magnitude** scale created by Hipparchus ($\sim 150\text{ BC}$) and formalized by Norman Pogson ($\sim 1856$) is explained:
+- Every $5$ magnitudes, brightness changes by a factor of $100$ to $1$ ($\sqrt[5]{100} \approx 2.512$ per magnitude).
+- It is an **inverted logarithmic scale**: the smaller (or more negative) the magnitude number, the greater the physical brightness! Furthermore, on Leavitt's chart, the $X$-axis (period $P$ in days) was transformed into $\log_{10}(P)$, turning a power-law curve into a **perfect straight line**.
+- **Direct Application to NASA Data:**
+  1. **Variables with log-normal distribution or power-law growth:** Fire hotspots (Fire Radiative Power FRP in Megawatts in MODIS/VIIRS), ocean chlorophyll concentration ($\text{mg/m}^3$, spanning several orders of magnitude between ocean gyres and coastal zones), or Aerosol Optical Depth (AOD). For such variables, fitting regression on $\log_{10}(Y)$ as well stabilizes variance and linearizes power laws ($Y = a X^b \iff \log Y = \log a + b \log X$).
+  2. **Variables with inverted semantic direction:** Water table depth (the larger the number in meters below ground, the **less** water is available) or cloud-top pressure (the lower the pressure in $\text{hPa}$, the **higher** the convective cloud). The UI (`PROD-2` and `NARR`) must explicitly clarify the physical direction of change so the user never confuses the algebraic sign with environmental impact.
+
+---
+
+## 4. Quick Scale Decision Table for the NASA Catalog (`DADOS-1` / `DADOS-2`)
+
+| Typical NASA Variable | Scale Type | How to Handle in Regression | How to Express "How Much Is It Changing?" in the UI |
 | :--- | :--- | :--- | :--- |
-| **Temperatura de Superfície / Ar** (GISTEMP, AIRS, MODIS LST em $^\circ\text{C}$) | **Intervalar** (Zero arbitrário) | Converter para **Anomalia Mensal** ($^\circ\text{C}$ ref. climatologia). Regressão $Y = A + Bt$. | **Apenas diferença absoluta:** ex.: $+0{,}28\,^\circ\text{C}/\text{década}$ (Proibido usar $\%$). |
-| **Armazenamento de Água Terrestre** (GRACE / GRACE-FO TWS em $\text{cm EWT}$) | **Intervalar** (Anomalia relativa ao baseline 2004–2009) | Remover ciclo sazonal; regredir anomalia dessazonalizada. | **Apenas diferença absoluta:** ex.: $-1{,}4\text{ cm}/\text{ano}$ ou $-14\text{ cm}/\text{década}$ (Proibido usar $\%$). |
-| **Precipitação / Chuva** (GPM IMERG, GPCP, NASA POWER em $\text{mm}$) | **Razão** (Zero absoluto real: $0\text{ mm}$) | Usar Anomalia Mensal ($\text{mm}$) ou Anomalia Padronizada (SPI / $Z\text{-score}$). | Diferença absoluta ($\pm X\text{ mm/década}$) **e/ou** variação percentual em relação à média climatológica ($\pm Y\%$). |
-| **Vegetação — NDVI / EVI** (MODIS MOD13 em índice $[-1, +1]$) | **Intervalar Limitada** (Com *offset* de solo basal $\sim 0{,}1$) | Calcular anomalia mensal de NDVI; em transições abruptas (desmatamento), usar GAM monotônico/local. | Diferença absoluta ($\pm 0{,}03\text{ NDVI/década}$) ou variação relativa ao NDVI médio local. |
-| **Extensão de Gelo Marinho / Neve** (NSIDC / MODIS em $\text{km}^2$ ou $\%$) | **Razão** (Zero absoluto real: $0\text{ km}^2$) | Comparar o mesmo mês de referência (ex.: mínimo de setembro) ou anomalia mensal. | Taxa absoluta ($-X\text{ mil km}^2/\text{década}$) **e** taxa percentual relativa ($-Y\%/\text{década}$). |
-| **Clorofila-a / Aerossóis / Fogo (FRP)** (MODIS Aqua / OMI / FIRMS) | **Razão Assimétrica (Log-Normal)** | Avaliar tendência com estimador não-paramétrico (Theil-Sen) ou sobre $\log_{10}(Y + \epsilon)$. | Mediana da variação por década ou fator multiplicativo. |
+| **Surface / Air Temperature** (GISTEMP, AIRS, MODIS LST in $^\circ\text{C}$) | **Interval** (Arbitrary zero) | Convert to **Monthly Anomaly** ($^\circ\text{C}$ ref. climatology). Regression $Y = A + Bt$. | **Absolute difference only:** e.g., $+0.28\,^\circ\text{C}/\text{decade}$ (Using $\%$ is forbidden). |
+| **Terrestrial Water Storage** (GRACE / GRACE-FO TWS in $\text{cm EWT}$) | **Interval** (Anomaly relative to 2004–2009 baseline) | Remove seasonal cycle; regress deseasonalized anomaly. | **Absolute difference only:** e.g., $-1.4\text{ cm}/\text{year}$ or $-14\text{ cm}/\text{decade}$ (Using $\%$ is forbidden). |
+| **Precipitation / Rainfall** (GPM IMERG, GPCP, NASA POWER in $\text{mm}$) | **Ratio** (True absolute zero: $0\text{ mm}$) | Use Monthly Anomaly ($\text{mm}$) or Standardized Anomaly (SPI / $Z\text{-score}$). | Absolute difference ($\pm X\text{ mm/decade}$) **and/or** percentage change relative to climatological mean ($\pm Y\%$). |
+| **Vegetation — NDVI / EVI** (MODIS MOD13 on $[-1, +1]$ index) | **Bounded Interval** (With baseline soil *offset* $\sim 0.1$) | Compute monthly NDVI anomaly; for abrupt transitions (deforestation), use monotonic/local GAM. | Absolute difference ($\pm 0.03\text{ NDVI/decade}$) or relative variation vs. local mean NDVI. |
+| **Sea Ice / Snow Extent** (NSIDC / MODIS in $\text{km}^2$ or $\%$) | **Ratio** (True absolute zero: $0\text{ km}^2$) | Compare the same reference month (e.g., September minimum) or monthly anomaly. | Absolute rate ($-X\text{ thousand km}^2/\text{decade}$) **and** relative percentage rate ($-Y\%/\text{decade}$). |
+| **Chlorophyll-a / Aerosols / Fire (FRP)** (MODIS Aqua / OMI / FIRMS) | **Skewed Ratio (Log-Normal)** | Evaluate trend with nonparametric estimator (Theil-Sen) or on $\log_{10}(Y + \epsilon)$. | Median change per decade or multiplicative factor. |

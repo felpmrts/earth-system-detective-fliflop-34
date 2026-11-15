@@ -36,7 +36,7 @@ describe('mapStyles & legendConfig — 3 dimensões independentes', () => {
 
   it('gera legenda de temperatura sem menção a porcentagem e diferencia estilos A vs B', () => {
     const legend = buildMapLegendConfig('T2M');
-    expect(legend.trendUnit).toBe('°C/década');
+    expect(legend.trendUnit).toBe('°C/decade');
     expect(legend.trendUnit).not.toContain('%');
     expect(legend.statisticalNote).toContain('FDR');
 

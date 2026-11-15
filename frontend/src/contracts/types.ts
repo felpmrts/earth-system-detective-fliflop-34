@@ -1,4 +1,4 @@
-/** Variáveis das 7 Famílias Ambientais e 5 APIs expostas pelo catálogo do backend de dados. */
+/** Variables from the 7 Environmental Families and 5 APIs exposed by the data backend catalog. */
 export type VariableId =
   | 'T2M'
   | 'T2M_MAX'
@@ -56,13 +56,13 @@ export type RegionSlot = 'A' | 'B';
 export type DataMode = 'api' | 'offline';
 export type DataSourceOrigin = 'backend_api' | 'idb_cache' | 'offline_fallback';
 
-/** Coordenada no padrão Leaflet: [latitude, longitude]. */
+/** Coordinate in Leaflet convention: [latitude, longitude]. */
 export type LeafletLatLng = readonly [lat: number, lon: number];
 
-/** Retângulo delimitador no padrão Leaflet: [[south, west], [north, east]]. */
+/** Bounding box in Leaflet convention: [[south, west], [north, east]]. */
 export type LeafletBounds = readonly [southWest: LeafletLatLng, northEast: LeafletLatLng];
 
-/** Coordenada no padrão GeoJSON: [longitude, latitude]. */
+/** Coordinate in GeoJSON convention: [longitude, latitude]. */
 export type GeoJsonLonLat = readonly [lon: number, lat: number];
 
 export interface GridResolution {
@@ -82,7 +82,7 @@ export interface VariableMetadata {
   readonly domain: string;
   readonly source_model: SourceModel;
   readonly resolution: GridResolution;
-  /** Origem parametrizável da grade (alinhada com DADOS-1 no endpoint NASA POWER). */
+  /** Configurable grid origin (aligned with DATA-1 on the NASA POWER endpoint). */
   readonly grid_origin: GridOrigin;
   readonly min_year: number;
   readonly scale_type: ScaleType;
@@ -99,7 +99,7 @@ export interface GridCell {
   readonly lat: number;
   readonly lon: number;
   readonly bounds_leaflet: LeafletBounds;
-  /** Anel fechado de 5 vértices no formato GeoJSON [lon, lat]. */
+  /** Closed ring of 5 vertices in GeoJSON [lon, lat] format. */
   readonly geojson_ring: readonly GeoJsonLonLat[];
 }
 
@@ -120,7 +120,7 @@ export interface RegionSelection {
   readonly cells: readonly GridCell[];
 }
 
-/** Fluxo A: ponto pré-processado da camada global Canvas ({var_id}_grid.json). */
+/** Flow A: preprocessed point of the global Canvas layer ({var_id}_grid.json). */
 export interface GlobalGridPoint {
   readonly lat: number;
   readonly lon: number;
@@ -140,7 +140,7 @@ export interface GlobalGridFile {
   readonly points: readonly GlobalGridPoint[];
 }
 
-/** Fluxo B: requisição tipada enviada exclusivamente ao backend Python (stats_engine.py). */
+/** Flow B: typed request sent exclusively to the Python backend (stats_engine.py). */
 export interface RegionAnalysisRequest {
   readonly variable_a: VariableId;
   readonly variable_b: VariableId | null;

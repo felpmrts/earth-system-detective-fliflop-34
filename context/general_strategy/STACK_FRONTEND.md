@@ -1,39 +1,39 @@
-# Stack do frontend — Earth System Detective
+# Frontend Stack — Earth System Detective
 
-## Decisão
+## Decision
 
-**React + TypeScript + Vite**, com deploy estático na **Vercel**. O mapa, os filtros, os gráficos e a comparação A/B rodam no navegador. Vite simplifica o build estático e a distribuição da demo local. Next.js fica como opção se páginas públicas com HTML renderizado ou uma camada de servidor mantida pelo front se tornarem requisitos concretos.
+**React + TypeScript + Vite**, with static deployment on **Vercel**. The map, filters, charts, and A/B comparison run in the browser. Vite simplifies the static build and distribution of the local demo. Next.js remains an option if public HTML-rendered pages or a frontend-maintained server layer become concrete requirements.
 
-A decisão assume que a equipe de dados disponibilizará uma API científica independente. A documentação de dados prevê um motor estatístico em Python e um contrato JSON com o frontend. O endpoint e o ambiente de integração ainda precisam ser confirmados.
+The decision assumes the data team will provide an independent scientific API. Data documentation specifies a Python statistical engine and a JSON contract with the frontend. The integration endpoint and environment still need confirmation.
 
-## Tecnologias e responsabilidades
+## Technologies and Responsibilities
 
-| Parte | Escolha |
+| Part | Choice |
 | --- | --- |
-| Interface e estado | React e TypeScript em modo estrito. Estado da análise na tela, com hooks e parâmetros na URL quando úteis para compartilhar uma consulta. |
-| Build e deploy | Vite. Previews na Vercel via Git e produção pela branch main, com integração em develop. |
-| Mapa | Leaflet 2D, com Canvas se o volume de pontos exigir. Legenda distingue direção, magnitude e significância. |
-| Gráficos | Biblioteca a definir após validar séries temporais, sobreposição, eixos duplos, escala symlog e exportação PNG. |
-| Integração | fetch por meio de um cliente tipado, com validação do JSON recebido, cancelamento de consultas obsoletas e estados de carregamento, erro e ausência de dados. |
-| Cache e offline | IndexedDB para dados consultados, além de grades globais e recursos cartográficos locais para resiliência sem rede. |
+| Interface & state | React and TypeScript in strict mode. Analysis state on screen, with hooks and URL parameters when useful to share a query. |
+| Build & deploy | Vite. Previews on Vercel via Git and production from branch `main`, with integration on `develop`. |
+| Map | 2D Leaflet, with Canvas when point volume requires it. Legend distinguishes direction, magnitude, and significance. |
+| Charts | Library to be finalized after validating time series, overlay, dual axes, symlog scale, and PNG export. |
+| Integration | `fetch` via a typed client, with validation of incoming JSON, cancellation of stale queries, and loading, error, and no-data states. |
+| Cache & offline | IndexedDB for queried data, plus local global grids and cartographic assets for network-free resilience. |
 
-## Fluxo do produto
+## Product Flow
 
-- O usuário escolhe a variável, seleciona locais A/B com composições de até nove células adjacentes, incluindo formatos como 1×3 e 2×1 e define um período válido para as duas séries. A bancada aceita comparações entre variáveis iguais ou diferentes.
-- O mapa carrega a grade global pré-processada e emite a seleção. Um adaptador consulta as séries e métricas regionais sob demanda. Mocks usam o mesmo contrato JSON para que mapa, gráficos e dados avancem em paralelo.
-- A API científica concentra a aquisição de dados da NASA, a agregação espacial, os cálculos e a integração com o copiloto. O front exibe séries brutas e anomalias, unidades por década, ajustes OLS, Theil–Sen e GAM, correlações em escalas distintas, outliers e significância conforme o contrato. O copiloto recebe as métricas da análise corrente. Credenciais ficam no servidor.
-- O primeiro marco é publicar uma variável real e comparar duas regiões de ponta a ponta. Validar em celular e 4G, com API lenta ou indisponível e com a demo desconectada. O modo offline cobre os pacotes de dados locais e as consultas já armazenadas em cache, conforme os recursos locais disponíveis.
+- The user picks the variable, selects A/B locations with compositions of up to nine adjacent cells, including shapes such as 1×3 and 2×1, and defines a valid period for both series. The bench accepts comparisons between identical or different variables.
+- The map loads the precomputed global grid and emits the selection. An adapter queries regional series and metrics on demand. Mocks use the same JSON contract so map, charts, and data progress in parallel.
+- The scientific API concentrates NASA data acquisition, spatial aggregation, statistical calculations, and co-pilot integration. The frontend displays raw and anomaly series, per-decade units, OLS, Theil–Sen, and GAM fits, multiscale correlations, outliers, and significance per the contract. The co-pilot receives metrics from the current analysis. Credentials stay on the server.
+- The first milestone is publishing one real variable and comparing two regions end-to-end. Validate on mobile and 4G, with a slow or unavailable API and with the demo disconnected. Offline mode covers local data bundles and already-cached queries, according to available local assets.
 
-## Pontos a fechar com Dados
+## Items to Close with Data
 
-- Confirmar se a entrega ao front será uma API, arquivos pré-processados ou ambos, além de responsável, ambiente e formato do contrato.
-- Conciliar o catálogo de 4–6 variáveis no contexto mestre com as 12 variáveis e consultas dinâmicas da estratégia. O desenho admite catálogo incremental, grade global pré-processada e consultas regionais dinâmicas.
-- Se a integração da NASA ou do copiloto ficar sob responsabilidade do front, reavaliar se endpoints coimplantados com Next.js simplificam a operação. Mais variáveis, gráficos ou processamento científico podem evoluir mantendo o front em Vite e ampliando a API.
+- Confirm whether delivery to the frontend will be an API, precomputed files, or both, as well as owner, environment, and contract format.
+- Reconcile the 4–6 variable catalog in the master context with the 12 variables and dynamic queries of the strategy. The design accommodates an incremental catalog, precomputed global grid, and dynamic regional queries.
+- If NASA or co-pilot integration falls under frontend responsibility, re-evaluate whether co-deployed endpoints with Next.js simplify operations. More variables, charts, or scientific processing can evolve while keeping the frontend on Vite and expanding the API.
 
-## Referências internas
+## Internal References
 
-- [Estratégia do projeto](./ESTRATEGIA_TREND_DETECTIVE.md)
-- [Recursos de dados NASA](../context/knowledge_data/nasa_final_resources.md)
-- [Especificação da NASA POWER API](../context/knowledge_data/NASA_POWER_API_SPECS.md)
-- [Contexto de mapas](../context/knowledge_maps/prod1_context.md)
-- [Contrato estatístico](../context/knowledge_base_estatistica/06_GUIA_OPERACIONAL_PARA_AGENTES_DE_IA_NO_HACKATHON.md)
+- [Project Strategy](./ESTRATEGIA_TREND_DETECTIVE.md)
+- [NASA Data Resources](../knowledge_data/nasa_final_resources.md)
+- [NASA POWER API Specification](../knowledge_data/NASA_POWER_API_SPECS.md)
+- [Maps Context](../knowledge_maps/prod1_context.md)
+- [Statistical Contract](../knowledge_base_estatistica/06_GUIA_OPERACIONAL_PARA_AGENTES_DE_IA_NO_HACKATHON.md)

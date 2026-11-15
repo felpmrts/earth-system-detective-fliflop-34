@@ -1,4 +1,4 @@
-"""Conector para NASA Giovanni / GES DISC (GLDAS, GPM IMERG e MODIS AOD)."""
+"""Connector for NASA Giovanni / GES DISC (GLDAS, GPM IMERG, and MODIS AOD)."""
 
 from __future__ import annotations
 
@@ -49,7 +49,7 @@ def fetch_cmr_sample_granule(
     token: str = "",
     timeout: int = 25,
 ) -> tuple[dict[str, Any] | None, int, float]:
-    """Busca 1 granule real no NASA CMR para o produto/ponto/janela informados."""
+    """Fetches 1 real granule from NASA CMR for the given product/point/time window."""
     headers = {"Authorization": f"Bearer {token}"} if token else {}
     temporal = f"{start_year}-01-01T00:00:00Z,{end_year}-12-31T23:59:59Z"
     base_params: dict[str, Any] = {
@@ -80,7 +80,7 @@ def fetch_cmr_sample_granule(
 
 
 def parse_giovanni_csv(csv_text: str) -> dict[str, float]:
-    """Lê séries temporais CSV exportadas do portal NASA Giovanni."""
+    """Parses CSV time series exported from the NASA Giovanni portal."""
     series: dict[str, float] = {}
     for row in csv.reader(io.StringIO(csv_text)):
         if not row or len(row) < 2 or row[0].startswith("#"):
@@ -108,7 +108,7 @@ def fetch_single_variable(
     cache: CellCacheStore | None = None,
     label: str = "NASA Giovanni",
 ) -> dict[str, Any]:
-    """Retorna séries Giovanni em cache ou hidrata por célula com validação CMR/GES DISC."""
+    """Returns cached Giovanni series or hydrates per cell with CMR/GES DISC validation."""
     spec = get_variable_spec(variable)
     product_id = spec.product_id or "GLDAS_NOAH025_M"
     giovanni_url = os.environ.get("NASA_GIOVANNI_URL", "https://giovanni.gsfc.nasa.gov/giovanni/")

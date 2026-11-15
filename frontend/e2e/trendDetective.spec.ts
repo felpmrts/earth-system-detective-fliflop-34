@@ -126,21 +126,21 @@ test.describe('Earth System Trend Detective — Suite E2E (vite preview)', () =>
     expect(canvasBox!.width).toBeGreaterThan(400);
     expect(canvasBox!.height).toBeGreaterThan(250);
 
-    // Ativa Mesmo Local (A=B) para espelhar MERRA-2 (0.5°×0.625°) -> CERES_SYN1deg (1.0°×1.0°)
+    // Ativa Same Location (A=B) para espelhar MERRA-2 (0.5°×0.625°) -> CERES_SYN1deg (1.0°×1.0°)
     const variables = page.locator('#variables-sidebar');
-    const localAInput = variables.getByLabel('Local A');
-    const localBInput = variables.getByLabel('Local B');
+    const localAInput = variables.getByLabel('Location A');
+    const localBInput = variables.getByLabel('Location B');
     await expect(localAInput).toBeVisible();
     await expect(localBInput).toBeVisible();
     await expect(localAInput).toHaveValue('');
     await expect(localBInput).toHaveValue('');
-    const sameLocationBtn = page.getByRole('button', { name: 'Mesmo Local (A=B)' });
+    const sameLocationBtn = page.getByRole('button', { name: 'Same Location (A=B)' });
     await sameLocationBtn.click();
     await expect(sameLocationBtn).toHaveAttribute('aria-pressed', 'true');
     const activeSameLocationBadge = await sameLocationBtn.evaluate(el =>
       getComputedStyle(el, '::after').content.replaceAll('"', ''),
     );
-    expect(activeSameLocationBadge).toBe('ATIVO');
+    expect(activeSameLocationBadge).toBe('ACTIVE');
 
     const mapBox = await mapContainer.boundingBox();
     expect(mapBox).not.toBeNull();
@@ -165,7 +165,7 @@ test.describe('Earth System Trend Detective — Suite E2E (vite preview)', () =>
     await expect(selectBBtn).toBeDisabled();
     await expect(page.locator('.summary-a')).toContainText('MERRA-2');
     await expect(page.locator('.summary-b')).toContainText('CERES_SYN1deg');
-    await expect(page.getByRole('button', { name: 'Analisar seleção' })).toBeEnabled();
+    await expect(page.getByRole('button', { name: 'Analyze selection' })).toBeEnabled();
 
     const sidebarBox = await variables.boundingBox();
     expect(sidebarBox).not.toBeNull();
@@ -177,13 +177,13 @@ test.describe('Earth System Trend Detective — Suite E2E (vite preview)', () =>
     }));
     expect(sidebarMetrics.scrollHeight).toBeLessThanOrEqual(sidebarMetrics.clientHeight);
 
-    const analyzeBox = await page.getByRole('button', { name: 'Analisar seleção' }).boundingBox();
+    const analyzeBox = await page.getByRole('button', { name: 'Analyze selection' }).boundingBox();
     expect(analyzeBox).not.toBeNull();
     expect(Math.abs((sidebarBox!.y + sidebarBox!.height) - (analyzeBox!.y + analyzeBox!.height))).toBeLessThanOrEqual(20);
 
-    await page.getByRole('button', { name: /Recolher painel/i }).click();
+    await page.getByRole('button', { name: /Collapse panel/i }).click();
     await expect(variables).toBeHidden();
-    const reopenBtn = page.getByRole('button', { name: /Variáveis/i });
+    const reopenBtn = page.getByRole('button', { name: /Variables/i });
     await expect(reopenBtn).toBeVisible();
     const reopenBox = await reopenBtn.boundingBox();
     const workflowBox = await page.locator('.workflow-progress').boundingBox();
@@ -257,7 +257,7 @@ test.describe('Earth System Trend Detective — Suite E2E (vite preview)', () =>
     }
 
     await page.mouse.click(centerX, centerY);
-    const locationText = await page.getByLabel('Local A').inputValue();
+    const locationText = await page.getByLabel('Location A').inputValue();
     const match = locationText.match(/Longitude\s+(-?[\d.,]+)°\s+·\s+Latitude\s+(-?[\d.,]+)°/);
     expect(match).not.toBeNull();
     const longitude = Number(match![1]!.replace(',', '.'));
@@ -276,7 +276,7 @@ test.describe('Earth System Trend Detective — Suite E2E (vite preview)', () =>
     });
 
     await page.goto('/');
-    const dragBtn = page.getByRole('button', { name: 'Arrastar Seleção' });
+    const dragBtn = page.getByRole('button', { name: 'Drag Selection' });
     await dragBtn.click();
     await expect(dragBtn).toHaveAttribute('aria-pressed', 'true');
 
@@ -296,7 +296,7 @@ test.describe('Earth System Trend Detective — Suite E2E (vite preview)', () =>
     await page.mouse.up();
 
     await expect(page.locator('.slot-switch button').nth(0)).toContainText('25/25');
-    await expect(page.locator('.map-message')).toContainText('25/25 célula(s)');
+    await expect(page.locator('.map-message')).toContainText('25/25 cell(s)');
   });
 
   test('Modo 100% Offline: sem CDNs externas, analisa seleção local, abre Bancada e exporta CSV e JSON', async ({ page }) => {
@@ -313,21 +313,21 @@ test.describe('Earth System Trend Detective — Suite E2E (vite preview)', () =>
     );
 
     await page.goto('/');
-    await page.getByRole('button', { name: 'Mesmo Local (A=B)' }).click();
+    await page.getByRole('button', { name: 'Same Location (A=B)' }).click();
     const mapBox = await page.locator('.map-container').boundingBox();
     expect(mapBox).not.toBeNull();
     await page.mouse.click(mapBox!.x + mapBox!.width * 0.5, mapBox!.y + mapBox!.height * 0.5);
 
-    await page.getByRole('button', { name: 'Analisar seleção' }).click();
+    await page.getByRole('button', { name: 'Analyze selection' }).click();
 
-    await expect(page.getByRole('heading', { name: 'Resumo da descoberta' })).toBeVisible();
+    await expect(page.getByRole('heading', { name: 'Discovery Summary' })).toBeVisible();
     await expect(page.locator('.diagnostic-drawer')).toBeVisible();
     await expect(page.locator('.js-plotly-plot').first()).toBeVisible();
     expect(unexpectedThirdPartyUrls).toEqual([]);
 
     const [csvDownload] = await Promise.all([
       page.waitForEvent('download'),
-      page.getByRole('button', { name: 'Exportar CSV' }).click(),
+      page.getByRole('button', { name: 'Export CSV' }).click(),
     ]);
     expect(csvDownload.suggestedFilename()).toMatch(/^trend-detective_GWETTOP_vs_T2M_MAX_.*\.csv$/);
     const csvPath = await csvDownload.path();
@@ -337,7 +337,7 @@ test.describe('Earth System Trend Detective — Suite E2E (vite preview)', () =>
 
     const [jsonDownload] = await Promise.all([
       page.waitForEvent('download'),
-      page.getByRole('button', { name: 'Exportar JSON' }).click(),
+      page.getByRole('button', { name: 'Export JSON' }).click(),
     ]);
     expect(jsonDownload.suggestedFilename()).toMatch(/^trend-detective_GWETTOP_vs_T2M_MAX_.*\.json$/);
     const jsonPath = await jsonDownload.path();
@@ -353,11 +353,11 @@ test.describe('Earth System Trend Detective — Suite E2E (vite preview)', () =>
       return cards.some(card => card.scrollWidth > card.clientWidth + 1);
     });
     expect(diagOverflow).toBe(false);
-    await expect(page.locator('.diagnostic-drawer')).toContainText('fração/década');
+    await expect(page.locator('.diagnostic-drawer')).toContainText('fraction/decade');
 
-    // AUD-05: voltar para o Mapa preserva o modo "Mesmo Local (A=B)" e o canvas Leaflet
-    await page.getByRole('button', { name: 'Mapa' }).click();
-    await expect(page.getByRole('button', { name: 'Mesmo Local (A=B)' })).toHaveClass(/active/);
+    // AUD-05: voltar para o Mapa preserva o modo "Same Location (A=B)" e o canvas Leaflet
+    await page.getByRole('button', { name: 'Map' }).click();
+    await expect(page.getByRole('button', { name: 'Same Location (A=B)' })).toHaveClass(/active/);
     const restoredMapBox = await page.locator('.map-container').boundingBox();
     expect(restoredMapBox).not.toBeNull();
     expect(restoredMapBox!.width).toBeGreaterThan(200);
@@ -381,7 +381,7 @@ test.describe('Earth System Trend Detective — Suite E2E (vite preview)', () =>
     }));
     expect(mobileOverflow.scrollWidth).toBeLessThanOrEqual(mobileOverflow.innerWidth);
 
-    const openDrawerBtn = page.getByRole('button', { name: 'Variáveis e período' });
+    const openDrawerBtn = page.getByRole('button', { name: 'Variables & period' });
     await expect(openDrawerBtn).toBeVisible();
     await openDrawerBtn.click();
 
@@ -403,7 +403,7 @@ test.describe('Earth System Trend Detective — Suite E2E (vite preview)', () =>
 
     // AUD-01: dropdown Mantine dentro do drawer mobile deve abrir acima do painel (z-index > 1200)
     await page.locator('#variables-sidebar .variable-picker-a input').first().click();
-    const visibleDropdown = page.getByRole('listbox', { name: 'Variável X' });
+    const visibleDropdown = page.getByRole('listbox', { name: 'Variable X' });
     await expect(visibleDropdown).toBeVisible();
     const dropdownOnTop = await visibleDropdown.evaluate(el => {
       const rect = el.getBoundingClientRect();
@@ -415,7 +415,7 @@ test.describe('Earth System Trend Detective — Suite E2E (vite preview)', () =>
     await page.keyboard.press('Escape');
 
     // AUD-01: datepicker Mantine também deve abrir acima do drawer mobile
-    await page.getByRole('button', { name: 'Mês inicial' }).click();
+    await page.getByRole('button', { name: 'Start month' }).click();
     const monthPopover = page.locator('.mantine-Popover-dropdown:visible').first();
     await expect(monthPopover).toBeVisible();
     const popoverOnTop = await monthPopover.evaluate(el => {
@@ -429,7 +429,7 @@ test.describe('Earth System Trend Detective — Suite E2E (vite preview)', () =>
     await expect(monthPopover).toHaveCount(0);
     await expect(page.locator('#variables-sidebar.drawer-open')).toBeVisible();
 
-    await page.getByRole('button', { name: 'Fechar painel de variáveis' }).click();
+    await page.getByRole('button', { name: 'Close variables panel' }).click();
     await expect(page.locator('#variables-sidebar.drawer-open')).toHaveCount(0);
 
     // AUD-12: legenda não colide com atribuição do Leaflet no mobile 375px
@@ -446,8 +446,8 @@ test.describe('Earth System Trend Detective — Suite E2E (vite preview)', () =>
     });
     expect(legendCollidesAttribution).toBe(false);
 
-    await page.getByRole('button', { name: 'Variáveis e período' }).click();
-    const analyzeBtn = page.getByRole('button', { name: 'Analisar seleção' });
+    await page.getByRole('button', { name: 'Variables & period' }).click();
+    const analyzeBtn = page.getByRole('button', { name: 'Analyze selection' });
     await analyzeBtn.scrollIntoViewIfNeeded();
     await expect(analyzeBtn).toBeVisible();
     const btnRect = await analyzeBtn.boundingBox();
@@ -475,11 +475,11 @@ test.describe('Earth System Trend Detective — Suite E2E (vite preview)', () =>
 
     const dialog = page.getByRole('dialog');
     await expect(dialog).toBeVisible();
-    await expect(dialog).toContainText('Bem-vindo ao Earth System Trend Detective');
+    await expect(dialog).toContainText('Welcome to Earth System Trend Detective');
     await expect(dialog.locator('.tutorial-step-counter')).toHaveText('1 / 8');
 
     // Avança pelas etapas testando edição interativa dentro da área destacada
-    await dialog.getByRole('button', { name: 'Próximo' }).click();
+    await dialog.getByRole('button', { name: 'Next' }).click();
     await expect(dialog.locator('.tutorial-step-counter')).toHaveText('2 / 8');
     await expect(page.locator('.tutorial-spotlight')).toBeVisible();
 
@@ -504,29 +504,29 @@ test.describe('Earth System Trend Detective — Suite E2E (vite preview)', () =>
     // Edita Variável A diretamente com o tutorial aberto (dropdown acima do scrim)
     const varAInput = page.locator('#variables-sidebar input').first();
     await varAInput.click();
-    await page.getByRole('option', { name: 'Temperatura Média do Ar (2m)', exact: true }).click();
+    await page.getByRole('option', { name: 'Mean Air Temperature (2m)' }).click();
     await expect(dialog.locator('.tutorial-mission-readout')).toContainText('X: T2M');
-    expect(await hitTagAndClass(page.getByRole('button', { name: 'Extremo +' }))).toContain('tutorial-scrim-path');
+    expect(await hitTagAndClass(page.getByRole('button', { name: 'Extreme +' }))).toContain('tutorial-scrim-path');
 
     // Avança para Missão 2/7 (Tendências Globais) -> apenas legenda + filtros de tendência em foco
-    await dialog.getByRole('button', { name: 'Próximo' }).click();
+    await dialog.getByRole('button', { name: 'Next' }).click();
     await expect(dialog.locator('.tutorial-step-counter')).toHaveText('3 / 8');
     await expect(page.locator('.tutorial-spotlight')).toHaveCount(2);
 
     expect(await hitTagAndClass(page.locator('[data-tour="map-legend"]'))).not.toContain('leaflet');
-    const sigOnlyBtn = page.getByRole('button', { name: 'Só q < 0,05' });
+    const sigOnlyBtn = page.getByRole('button', { name: 'Only q < 0.05' });
     await sigOnlyBtn.click();
     await expect(sigOnlyBtn).toHaveAttribute('aria-pressed', 'true');
-    expect(await hitTagAndClass(page.getByRole('button', { name: 'Mesmo Local (A=B)' }))).toContain('tutorial-scrim-path');
-    expect(await hitTagAndClass(page.getByRole('button', { name: 'Extremo +' }))).toContain('tutorial-scrim-path');
+    expect(await hitTagAndClass(page.getByRole('button', { name: 'Same Location (A=B)' }))).toContain('tutorial-scrim-path');
+    expect(await hitTagAndClass(page.getByRole('button', { name: 'Extreme +' }))).toContain('tutorial-scrim-path');
     expect(await hitTagAndClass(page.locator('.map-container'), 0.5, 0.15)).toMatch(/tutorial-scrim-path|tutorial-dialog/);
 
     // Avança para Missão 3/7 (Hotspots) -> apenas Extremo + / Extremo - liberados
-    await dialog.getByRole('button', { name: 'Próximo' }).click();
+    await dialog.getByRole('button', { name: 'Next' }).click();
     await expect(dialog.locator('.tutorial-step-counter')).toHaveText('4 / 8');
     await expect(page.locator('.tutorial-spotlight')).toHaveCount(1);
     expect(await hitTagAndClass(page.locator('.map-container'), 0.5, 0.15)).toMatch(/tutorial-scrim-path|tutorial-dialog/);
-    expect(await hitTagAndClass(page.getByRole('button', { name: 'Mesmo Local (A=B)' }))).toContain('tutorial-scrim-path');
+    expect(await hitTagAndClass(page.getByRole('button', { name: 'Same Location (A=B)' }))).toContain('tutorial-scrim-path');
 
     const expectCardDoesNotOverlap = async (selector: string) => {
       const cardBox = await dialog.boundingBox();
@@ -546,7 +546,7 @@ test.describe('Earth System Trend Detective — Suite E2E (vite preview)', () =>
 
     const expectNextButtonFullyVisible = async () => {
       const cardBox = await dialog.boundingBox();
-      const nextBtn = dialog.getByRole('button', { name: /Próximo|Concluir treinamento/ });
+      const nextBtn = dialog.getByRole('button', { name: /Next|Finish training/ });
       const nextBox = await nextBtn.boundingBox();
       expect(cardBox).not.toBeNull();
       expect(nextBox).not.toBeNull();
@@ -555,16 +555,16 @@ test.describe('Earth System Trend Detective — Suite E2E (vite preview)', () =>
     };
 
     // Avança para Missão 4/7 (Seleção Espacial, passo 5 / 8)
-    await dialog.getByRole('button', { name: 'Próximo' }).click();
+    await dialog.getByRole('button', { name: 'Next' }).click();
     await expect(dialog.locator('.tutorial-step-counter')).toHaveText('5 / 8');
-    expect(await hitTagAndClass(page.getByRole('button', { name: 'Extremo +' }))).toContain('tutorial-scrim-path');
+    expect(await hitTagAndClass(page.getByRole('button', { name: 'Extreme +' }))).toContain('tutorial-scrim-path');
     await expectCardDoesNotOverlap('[data-tour="map-selection-tools"]');
     await expectCardDoesNotOverlap('[data-tour="map-nav-tools"]');
     await expectNextButtonFullyVisible();
 
     // Interage diretamente com os botões espaciais e o mapa através do recorte aberto
-    await page.getByRole('button', { name: 'Mesmo Local (A=B)' }).click();
-    await dialog.getByRole('button', { name: 'Minimizar card do tutorial' }).click();
+    await page.getByRole('button', { name: 'Same Location (A=B)' }).click();
+    await dialog.getByRole('button', { name: 'Minimize tutorial card' }).click();
     await expect(dialog.locator('#tutorial-minimized-title')).toBeVisible();
 
     const mapBox = await page.locator('.map-container').boundingBox();
@@ -572,12 +572,12 @@ test.describe('Earth System Trend Detective — Suite E2E (vite preview)', () =>
     await page.mouse.click(mapBox!.x + mapBox!.width * 0.5, mapBox!.y + mapBox!.height * 0.5);
     await expect(page.locator('.slot-switch button').nth(0)).toContainText('1/25');
 
-    await dialog.getByRole('button', { name: 'Expandir' }).click();
-    await expect(dialog.locator('.tutorial-mission-readout')).toContainText('Região A: 1 cél. · Região B: 1 cél.');
+    await dialog.getByRole('button', { name: 'Expand' }).click();
+    await expect(dialog.locator('.tutorial-mission-readout')).toContainText('Region A: 1 cells · Region B: 1 cells');
 
     // Conclui as etapas restantes até 8 / 8
     for (let step = 5; step < 8; step += 1) {
-      await dialog.getByRole('button', { name: 'Próximo' }).click();
+      await dialog.getByRole('button', { name: 'Next' }).click();
       await expect(dialog.locator('.tutorial-step-counter')).toHaveText(`${step + 1} / 8`);
       await expect(page.locator('.tutorial-spotlight').first()).toBeVisible();
       await expectNextButtonFullyVisible();
@@ -587,8 +587,8 @@ test.describe('Earth System Trend Detective — Suite E2E (vite preview)', () =>
       }
     }
 
-    await expect(dialog).toContainText('Explore a Bancada Científica e Exporte Provas');
-    await dialog.getByRole('button', { name: 'Concluir treinamento' }).click();
+    await expect(dialog).toContainText('Explore the Scientific Workbench and Export Evidence');
+    await dialog.getByRole('button', { name: 'Finish training' }).click();
     await expect(dialog).toHaveCount(0);
 
     // Recarrega e confirma que não abre mais sozinho
@@ -597,7 +597,7 @@ test.describe('Earth System Trend Detective — Suite E2E (vite preview)', () =>
     await expect(page.getByRole('dialog')).toHaveCount(0);
 
     // Reabre manualmente pelo botão '?'
-    await page.getByRole('button', { name: 'Tutorial interativo (?)' }).click();
+    await page.getByRole('button', { name: 'Interactive tutorial (?)' }).click();
     await expect(page.getByRole('dialog')).toBeVisible();
     await expect(page.getByRole('dialog').locator('.tutorial-step-counter')).toHaveText('1 / 8');
   });
@@ -618,13 +618,13 @@ test.describe('Earth System Trend Detective — Suite E2E (vite preview)', () =>
     await page.goto('/');
     await expect(page.getByRole('dialog')).toHaveCount(0);
 
-    await page.getByRole('button', { name: 'Tutorial interativo (?)' }).click();
+    await page.getByRole('button', { name: 'Interactive tutorial (?)' }).click();
     const dialog = page.getByRole('dialog');
     await expect(dialog).toBeVisible();
 
     // Avança para Missão 1/7 (Variáveis e Período) -> abre automaticamente o drawer mobile
-    await dialog.getByRole('button', { name: 'Próximo' }).click();
-    await expect(dialog).toContainText('Escolha as Variáveis X/Y e o Período');
+    await dialog.getByRole('button', { name: 'Next' }).click();
+    await expect(dialog).toContainText('Choose X/Y Variables and Period');
     await expect(page.locator('#variables-sidebar.drawer-open')).toBeVisible();
 
     const stepOverflow = await page.evaluate(() => ({
@@ -634,7 +634,7 @@ test.describe('Earth System Trend Detective — Suite E2E (vite preview)', () =>
     expect(stepOverflow.scrollWidth).toBeLessThanOrEqual(stepOverflow.innerWidth);
 
     // Avança para Missão 2/7 (Mapa/Legenda) -> fecha o drawer automaticamente
-    await dialog.getByRole('button', { name: 'Próximo' }).click();
+    await dialog.getByRole('button', { name: 'Next' }).click();
     await expect(page.locator('#variables-sidebar.drawer-open')).toHaveCount(0);
 
     // Verifica que o card do tutorial permanece dentro da viewport mobile 375x812
@@ -664,31 +664,31 @@ test.describe('Earth System Trend Detective — Suite E2E (vite preview)', () =>
     );
 
     await page.goto('/');
-    await page.getByRole('button', { name: 'Mesmo Local (A=B)' }).click();
+    await page.getByRole('button', { name: 'Same Location (A=B)' }).click();
     const mapBox = await page.locator('.map-container').boundingBox();
     expect(mapBox).not.toBeNull();
     await page.mouse.click(mapBox!.x + mapBox!.width * 0.5, mapBox!.y + mapBox!.height * 0.5);
-    await page.getByRole('button', { name: 'Analisar seleção' }).click();
-    await expect(page.getByRole('heading', { name: 'Resumo da descoberta' })).toBeVisible();
+    await page.getByRole('button', { name: 'Analyze selection' }).click();
+    await expect(page.getByRole('heading', { name: 'Discovery Summary' })).toBeVisible();
 
     // Volta ao Mapa e reabre o tutorial pelo botão '?' com uma análise anterior já carregada
-    await page.getByRole('button', { name: 'Mapa' }).click();
-    await page.getByRole('button', { name: 'Tutorial interativo (?)' }).click();
+    await page.getByRole('button', { name: 'Map' }).click();
+    await page.getByRole('button', { name: 'Interactive tutorial (?)' }).click();
     const dialog = page.getByRole('dialog');
     await expect(dialog).toBeVisible();
 
     for (let i = 0; i < 6; i += 1) {
-      await dialog.getByRole('button', { name: 'Próximo' }).click();
+      await dialog.getByRole('button', { name: 'Next' }).click();
     }
 
     // Deve permanecer na etapa 7/8 (não pular automaticamente para 8/8 pela análise antiga)
     await expect(dialog.locator('.tutorial-step-counter')).toHaveText('7 / 8');
-    await expect(dialog).toContainText('Confira o Resumo e Dispare a Análise');
+    await expect(dialog).toContainText('Review the Summary and Run Analysis');
 
     // Dispara uma NOVA análise diretamente na etapa 7/8 -> avança automaticamente para 8/8 e abre a Bancada
-    await page.getByRole('button', { name: 'Analisar seleção' }).click();
+    await page.getByRole('button', { name: 'Analyze selection' }).click();
     await expect(dialog.locator('.tutorial-step-counter')).toHaveText('8 / 8');
-    await expect(page.getByRole('heading', { name: 'Resumo da descoberta' })).toBeVisible();
+    await expect(page.getByRole('heading', { name: 'Discovery Summary' })).toBeVisible();
     await expect(dialog).not.toHaveClass(/is-centered/);
 
     const cardBox = await dialog.boundingBox();
@@ -735,8 +735,8 @@ test.describe('Earth System Trend Detective — Suite E2E (vite preview)', () =>
     expect(actionsBox).not.toBeNull();
     expect(actionsBox!.y + actionsBox!.height).toBeLessThanOrEqual(340);
 
-    // Ao clicar em Próximo (etapa 2/8 -> destaque [data-tour="sidebar-controls"] dentro de #variables-sidebar), scrollTop do corpo reseta para 0
-    await dialog.getByRole('button', { name: 'Próximo' }).click();
+    // Ao clicar em Next (etapa 2/8 -> destaque [data-tour="sidebar-controls"] dentro de #variables-sidebar), scrollTop do corpo reseta para 0
+    await dialog.getByRole('button', { name: 'Next' }).click();
     await expect(dialog.locator('.tutorial-step-counter')).toHaveText('2 / 8');
     await expect.poll(async () => body.evaluate(el => el.scrollTop)).toBe(0);
 

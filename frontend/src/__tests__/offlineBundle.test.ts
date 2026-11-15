@@ -51,7 +51,7 @@ describe('Blindagem 100% Offline (PROD-1)', () => {
     expect(mapWorkspaceTsx).toContain('offlineBasePane');
     expect(mapWorkspaceTsx).toContain('tileerror');
     expect(mapWorkspaceTsx).toContain('errorTileUrl: TRANSPARENT_TILE_DATA_URI');
-    expect(mapWorkspaceTsx).toContain('Cartografia Local (Offline)');
+    expect(mapWorkspaceTsx).toContain('Local Cartography (Offline)');
 
     // Verifica que os auditores realmente capturam recursos bloqueantes se introduzidos
     expect(

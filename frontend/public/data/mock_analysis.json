@@ -11,10 +11,10 @@
   },
   "region_a_analysis": {
     "variable_id": "GWETTOP",
-    "variable_name": "Umidade do Solo Superficial (0–5 cm)",
+    "variable_name": "Surface Soil Moisture (0–5 cm)",
     "scale_type": "ratio",
-    "unit": "fração (0–1)",
-    "trend_unit": "fração/década",
+    "unit": "fraction (0–1)",
+    "trend_unit": "fraction/decade",
     "allow_percentage_change": false,
     "period": {
       "start": "2000-01",
@@ -52,7 +52,7 @@
         "expected_regression": -0.006433,
         "mahalanobis_d": 3.08,
         "direction": "below_ellipse",
-        "diagnostic_hint": "Evento extremo simulado para testar a visualização."
+        "diagnostic_hint": "Simulated extreme event for visualization testing."
       }
     ],
     "series": {
@@ -914,10 +914,10 @@
   },
   "region_b_analysis": {
     "variable_id": "T2M_MAX",
-    "variable_name": "Temperatura Máxima Diária a 2m",
+    "variable_name": "2m Daily Maximum Temperature",
     "scale_type": "interval",
     "unit": "°C",
-    "trend_unit": "°C/década",
+    "trend_unit": "°C/decade",
     "allow_percentage_change": false,
     "period": {
       "start": "2000-01",
@@ -1815,7 +1815,7 @@
       "long_term_secular_r": -0.74,
       "short_term_detrended_r": -0.61,
       "paradox_type": "OPPOSING_SECULAR_AND_COUPLED_DIPOLE",
-      "interpretation": "Cenário sintético de demonstração com aquecimento e redução de umidade. As métricas ilustram a interface."
+      "interpretation": "Synthetic demonstration scenario with warming and moisture reduction. Metrics illustrate the interface."
     }
   }
 }

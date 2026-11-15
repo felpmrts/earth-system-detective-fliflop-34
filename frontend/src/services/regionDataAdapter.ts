@@ -63,7 +63,7 @@ export class GlobalGridLoadError extends Error {
   readonly gridVariableId: VariableId;
 
   constructor(status: number, gridVariableId: VariableId) {
-    super(`Falha ao carregar grid global de ${gridVariableId} (${status})`);
+    super(`Failed to load global grid for ${gridVariableId} (${status})`);
     this.name = 'GlobalGridLoadError';
     this.status = status;
     this.gridVariableId = gridVariableId;
@@ -176,7 +176,7 @@ function buildRequestBody(params: GetRegionDataParams): RegionAnalysisRequest {
   };
 }
 
-/** Mescla o AbortSignal externo do chamador com o timeout de segurança da requisição. */
+/** Merges the caller's external AbortSignal with the request safety timeout. */
 function createLinkedController(
   externalSignal: AbortSignal | undefined,
   timeoutMs: number,
@@ -206,10 +206,10 @@ export function createRegionDataAdapter(overrides: Partial<AdapterConfig> = {}) 
   const config: AdapterConfig = {
     mode: overrides.mode ?? envDefaults.mode,
     apiBaseUrl: overrides.apiBaseUrl ?? envDefaults.apiBaseUrl,
-    // A primeira consulta pode incluir duas séries mensais e preencher o cache do backend.
+    // The first query may include two monthly series and warm the backend cache.
     timeoutMs: overrides.timeoutMs ?? 90000,
-    // Não armazene `window.fetch` diretamente: alguns navegadores exigem que ele
-    // seja invocado com o contexto global e lançam "Illegal invocation" caso contrário.
+    // Do not store `window.fetch` directly: some browsers require it to be
+    // invoked with the global context and throw "Illegal invocation" otherwise.
     fetchFn: overrides.fetchFn ?? ((input, init) => globalThis.fetch(input, init)),
     cache: overrides.cache ?? defaultRegionCache,
   };
@@ -217,7 +217,7 @@ export function createRegionDataAdapter(overrides: Partial<AdapterConfig> = {}) 
   async function loadOfflineFallback(signal?: AbortSignal): Promise<RegionAnalysisResponse> {
     const res = await config.fetchFn('/data/mock_analysis.json', { signal });
     if (!res.ok) {
-      throw new Error(`BACKEND_UNAVAILABLE: fallback offline falhou (${res.status})`);
+      throw new Error(`BACKEND_UNAVAILABLE: offline fallback failed (${res.status})`);
     }
     const raw: unknown = await res.json();
     const validated = validateAnalysisResponse(raw);
@@ -230,7 +230,7 @@ export function createRegionDataAdapter(overrides: Partial<AdapterConfig> = {}) 
     };
   }
 
-  /** Fluxo A: carrega a camada global pré-processada ({var_id}_grid.json) de public/data/, resolvendo aliases. */
+  /** Flow A: loads the pre-processed global layer ({var_id}_grid.json) from public/data/, resolving aliases. */
   async function getGlobalGrid(variableId: VariableId, signal?: AbortSignal): Promise<GlobalGridFile> {
     const { resolvedVariableId, url } = buildGlobalGridUrl(variableId);
     const res = await config.fetchFn(url, { signal });
@@ -250,8 +250,8 @@ export function createRegionDataAdapter(overrides: Partial<AdapterConfig> = {}) 
   }
 
   /**
-   * Fluxo B: consulta exclusivamente o backend Python (stats_engine.py) em modo "api"
-   * ou pacotes locais em public/data/ em modo "offline", com cache em IndexedDB.
+   * Flow B: queries exclusively the Python backend (stats_engine.py) in "api" mode
+   * or local packages in public/data/ in "offline" mode, with IndexedDB caching.
    */
   async function getRegionData(params: GetRegionDataParams): Promise<RegionAnalysisResponse> {
     const requestBody = buildRequestBody(params);
@@ -297,12 +297,12 @@ export function createRegionDataAdapter(overrides: Partial<AdapterConfig> = {}) 
       });
 
       if (!res.ok) {
-        let message = `HTTP ${res.status} do backend Python`;
+        let message = `HTTP ${res.status} from Python backend`;
         try {
           const payload = await res.json() as { error?: unknown };
           if (typeof payload.error === 'string' && payload.error.trim()) message = payload.error;
         } catch {
-          // Mantém a mensagem HTTP quando a resposta não contém JSON.
+          // Keep HTTP message when the response does not contain JSON.
         }
         throw new Error(message);
       }
@@ -318,7 +318,7 @@ export function createRegionDataAdapter(overrides: Partial<AdapterConfig> = {}) 
       await config.cache.set(cacheKey, validated);
       return validated;
     } catch (err) {
-      // Em modo API, nunca substitui silenciosamente dados reais pelo mock.
+      // In API mode, never silently replace real data with the mock.
       throw err;
     } finally {
       cleanup();
@@ -334,10 +334,10 @@ export function createRegionDataAdapter(overrides: Partial<AdapterConfig> = {}) 
     }
 
     const res = await config.fetchFn(`${config.apiBaseUrl}/api/catalog`, { signal });
-    if (!res.ok) throw new Error(`Catálogo do backend indisponível (HTTP ${res.status})`);
+    if (!res.ok) throw new Error(`Backend catalog unavailable (HTTP ${res.status})`);
     const raw: unknown = await res.json();
     if (!raw || typeof raw !== 'object' || !Array.isArray((raw as BackendCatalog).families)) {
-      throw new Error('Resposta inválida de /api/catalog');
+      throw new Error('Invalid response from /api/catalog');
     }
     return raw as BackendCatalog;
   }
@@ -769,21 +769,22 @@ function answerQuestionFromAnalysis(
         `Você pode perguntar sobre declive, significância AR(1)/FDR, extremos de Mahalanobis, curvatura GAM ou comparação A × B.`;
 }
 
-/** Garante no cliente o Invariante #3: remove números com '%' quando há variável intervalar bloqueada. */
-function enforceIntervalGuardrail(text: string, analysis: RegionAnalysisResponse): string {
+/** Enforces Invariant #3 on the client: removes numbers with '%' when an interval variable is blocked. */
+function enforceIntervalGuardrail(text: string, analysis: RegionAnalysisResponse, lang: CopilotLang = 'en'): string {
   const blockPct =
     !analysis.region_a_analysis.allow_percentage_change ||
     (analysis.region_b_analysis ? !analysis.region_b_analysis.allow_percentage_change : false);
   if (!blockPct) return text;
-  return text.replace(/(?<!IC 95)(?<!95)\s*%/g, ' (unid. física)');
+  const suffix = lang === 'pt' ? ' (unid. física)' : ' (physical unit)';
+  return text.replace(/(?<!IC 95)(?<!95)\s*%/g, suffix);
 }
 
 /**
- * Gera interpretação científica 100% determinística no cliente (< 5 ms), usando exclusivamente
- * os números já validados no `RegionAnalysisResponse` atual.
+ * Generates a 100% deterministic scientific interpretation on the client (< 5 ms), using exclusively
+ * the already-validated numbers in the current `RegionAnalysisResponse`.
  */
 export function buildClientCopilotResponse(params: AskCopilotParams): CopilotResponse {
-  const lang: CopilotLang = params.language === 'en' ? 'en' : 'pt';
+  const lang: CopilotLang = params.language === 'pt' ? 'pt' : 'en';
   const { analysis } = params;
   const regA = analysis.region_a_analysis;
   const regB = analysis.region_b_analysis;

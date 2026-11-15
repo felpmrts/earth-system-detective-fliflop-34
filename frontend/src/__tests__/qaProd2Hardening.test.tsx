@@ -191,15 +191,15 @@ describe('PROD-2 QA Hardening (AUD-02, AUD-03, AUD-05, AUD-10, AUD-13, AUD-15)',
       />,
     );
 
-    expect(screen.getByText('Resumo da descoberta')).toBeTruthy();
+    expect(screen.getByText('Discovery Summary')).toBeTruthy();
     expect(screen.getAllByText(/OLS:/).length).toBeGreaterThan(0);
-    // Verifica que start/end inválidos não lançam RangeError em new Date(...).toISOString() (AUD-03)
-    expect(screen.getByText(/não contém dados no período selecionado/i)).toBeTruthy();
+    // Verifies that invalid start/end do not throw RangeError in new Date(...).toISOString() (AUD-03)
+    expect(screen.getByText(/contains no data in the selected period/i)).toBeTruthy();
     // Verifica unidade de tendência no delta de declive (AUD-13)
-    expect(screen.getByText(/-0\.5080 fração\/década/)).toBeTruthy();
+    expect(screen.getByText(/-0\.5080 fraction\/decade/)).toBeTruthy();
     // Verifica unidade de OLS e A0 no Card 2 (AUD-13)
-    expect(document.body.textContent).toContain('0.0000 fração/década');
-    expect(document.body.textContent).toContain('— fração (0–1)');
+    expect(document.body.textContent).toContain('0.0000 fraction/decade');
+    expect(document.body.textContent).toContain('— fraction (0–1)');
 
     cleanup();
     capturedLayouts.length = 0;
@@ -227,8 +227,8 @@ describe('PROD-2 QA Hardening (AUD-02, AUD-03, AUD-05, AUD-10, AUD-13, AUD-15)',
       />,
     );
 
-    // Ativa Visão Dupla para renderizar ambos os gráficos Plotly e conferir margens (AUD-15)
-    fireEvent.click(screen.getByRole('button', { name: 'Visão Dupla' }));
+    // Activate Dual View to render both Plotly charts and check margins (AUD-15)
+    fireEvent.click(screen.getByRole('button', { name: 'Dual View' }));
     expect(capturedLayouts[0]?.margin).toEqual({ l: 48, t: 28, r: 44, b: 85 });
     expect(capturedLayouts.at(-1)?.margin).toEqual({ l: 48, t: 42, r: 20, b: 78 });
   });
@@ -271,10 +271,10 @@ describe('PROD-2 QA Hardening (AUD-02, AUD-03, AUD-05, AUD-10, AUD-13, AUD-15)',
     fireEvent.click(screen.getByTestId('shift-region-a-btn'));
     await waitFor(() => expect(capturedSignal?.aborted).toBe(true));
 
-    // Mesmo se a resposta antiga resolver depois, não muda para a Bancada
+    // Even if the old response resolves later, it does not switch to the Bench
     resolveDeferred(structuredClone(mockAnalysisJson) as unknown as RegionAnalysisResponse);
     await new Promise(r => setTimeout(r, 20));
-    expect(screen.queryByText('Resumo da descoberta')).toBeNull();
+    expect(screen.queryByText('Discovery Summary')).toBeNull();
   });
 
   it('AUD-05: alternar para Bancada e voltar ao Mapa mantém MapWorkspace montado sem perder estado local', () => {
@@ -286,14 +286,14 @@ describe('PROD-2 QA Hardening (AUD-02, AUD-03, AUD-05, AUD-10, AUD-13, AUD-15)',
       </MantineProvider>,
     );
 
-    fireEvent.click(screen.getByRole('button', { name: 'Mapa' }));
+    fireEvent.click(screen.getByRole('button', { name: 'Map' }));
     fireEvent.click(screen.getByTestId('toggle-same-local'));
     expect(screen.getByTestId('toggle-same-local').textContent).toBe('A=B ativo');
 
-    fireEvent.click(screen.getByRole('button', { name: 'Bancada científica' }));
+    fireEvent.click(screen.getByRole('button', { name: 'Scientific Bench' }));
     expect(document.querySelector('.map-tab-shell.is-hidden')).not.toBeNull();
 
-    fireEvent.click(screen.getByRole('button', { name: 'Mapa' }));
+    fireEvent.click(screen.getByRole('button', { name: 'Map' }));
     expect(document.querySelector('.map-tab-shell.is-hidden')).toBeNull();
     expect(screen.getByTestId('toggle-same-local').textContent).toBe('A=B ativo');
   });

@@ -1,10 +1,10 @@
 # Frontend — Earth System Trend Detective
 
-Este guia descreve como executar, manter e integrar a aplicação web. A stack usa React, TypeScript, Vite, Mantine para controles e Plotly.js para gráficos. O build estático pode ser publicado na Vercel com `frontend/` como diretório raiz.
+This guide describes how to run, maintain, and integrate the web application. The stack uses React, TypeScript, Vite, Mantine for controls, and Plotly.js for charts. The static build can be deployed to Vercel with `frontend/` as the root directory.
 
-## Ambiente local
+## Local Environment
 
-Use Node.js compatível com o Vite instalado e npm. Na raiz do repositório:
+Use a Node.js version compatible with the installed Vite and npm. From the repository root:
 
 ```powershell
 cd frontend
@@ -12,50 +12,50 @@ npm ci
 npm run dev
 ```
 
-Abra o endereço indicado pelo Vite. Para verificar alterações, execute `npm run typecheck`, `npm test` e `npm run build`. O build gera `frontend/dist/`. Use `npm run preview` para servir esse build localmente. Para homologar os 12 arquivos `{var_id}_grid.json` reais em `public/data/`, execute `npm run validate:grids -- --strict` (modo parcial sem `--strict` valida apenas os arquivos presentes e o alias `CLOUD_AMT -> CLDTOT_grid.json`).
+Open the address printed by Vite. To verify changes, run `npm run typecheck`, `npm test`, and `npm run build`. The build outputs `frontend/dist/`. Use `npm run preview` to serve that build locally. To homologate the 12 real `{var_id}_grid.json` files in `public/data/`, run `npm run validate:grids -- --strict` (partial mode without `--strict` validates only present files and the `CLOUD_AMT -> CLDTOT_grid.json` alias).
 
-## Jornada e estado
+## Journey and State
 
-1. Escolha as variáveis A e B nos seletores agrupados por família. Os dois lados podem usar a mesma variável.
-2. Selecione o mês inicial e o mês final. O início mínimo vem do maior ano inicial entre as duas variáveis. O limite superior é o mês corrente. A cobertura efetiva depende da consulta.
-3. A área Mapa usa NASA GIBS no Leaflet. Escolha o lado ativo e clique nas células para compor as regiões A e B (ou ative **Mesmo Local (A=B)** para espelhar A em B — com *re-snap* automático e deduplicação quando `MERRA-2` `0.5°×0.625°` e `CERES_SYN1deg` `1.0°×1.0°` diferirem). O limite de células conexas por região é variável e configurável via `VITE_MAX_CELLS_PER_REGION` (padrão `25`, equivalente a `5×5`), podendo ser alterado a qualquer momento.
-4. `Analisar seleção` envia uma única requisição `POST /api/analyze` depois que variáveis, período e regiões A/B estão completos. A Bancada recebe a resposta real e apresenta o erro do backend sem substituir silenciosamente a consulta por dados sintéticos.
+1. Choose variables A and B in the selectors grouped by family. Both sides can use the same variable.
+2. Select the start month and end month. The minimum start comes from the greater start year between the two variables. The upper bound is the current month. Effective coverage depends on the query.
+3. The Map area uses NASA GIBS in Leaflet. Choose the active side and click cells to compose regions A and B (or enable **Same Location (A=B)** to mirror A into B — with automatic *re-snap* and deduplication when `MERRA-2` `0.5°×0.625°` and `CERES_SYN1deg` `1.0°×1.0°` differ). The connected-cell limit per region is variable and configurable via `VITE_MAX_CELLS_PER_REGION` (default `25`, equivalent to `5×5`), and can be changed at any time.
+4. `Analyze selection` sends a single `POST /api/analyze` request once variables, period, and regions A/B are complete. The Bench receives the real response and displays backend errors without silently substituting synthetic data.
 
-O estado está em `src/App.tsx`. A aplicação inicia na aba Mapa e mantém as escolhas durante a troca de abas. Os controles de gráficos alternam série bruta e anomalia, curvas juntas e separadas, eixo Y duplo e tendências OLS/Theil–Sen. Unidades diferentes são separadas quando o eixo duplo está desativado. O recorte temporal preserva o alinhamento entre datas, valores e tendências e limita a navegação horizontal. O recorte usa os ajustes pré-calculados da fixture, válidos para o período original da análise.
+State lives in `src/App.tsx`. The app starts on the Map tab and preserves choices across tab switches. Chart controls toggle raw vs. anomaly series, overlaid vs. separated curves, dual Y-axis, and OLS/Theil–Sen trends. Different units are separated when dual axis is disabled. Temporal slicing preserves alignment between dates, values, and trends and constrains horizontal navigation. Slicing uses precomputed fits from the fixture, valid for the original analysis period.
 
-## Catálogo ambiental
+## Environmental Catalog
 
-`src/contracts/environmentalFamilies.json` é um recorte de apresentação do catálogo Python `data/catalog/environmental_catalog.py` da branch `data`, revisão `00efd67`. Preserva os nomes, códigos e a ordem das sete famílias e das 42 entradas. As opções que ainda não têm suporte no contrato operacional do frontend aparecem desabilitadas. A entrada legada `CLDTOT` permanece disponível na família de radiação e atmosfera para preservar o contrato atual. Dados também cadastra `CLOUD_AMT` como código distinto, cuja adoção depende de alinhar mapa, catálogo operacional e API.
+`src/contracts/environmentalFamilies.json` is a presentation slice of the Python catalog `data/catalog/environmental_catalog.py` from branch `data`, revision `00efd67`. It preserves the names, codes, and ordering of the seven families and 42 entries. Options not yet supported in the frontend operational contract appear disabled. The legacy entry `CLDTOT` remains available in the radiation and atmosphere family to preserve the current contract. Data also registers `CLOUD_AMT` as a distinct code, whose full adoption depends on aligning map, operational catalog, and API.
 
-Ao atualizar as famílias, confira se todos os códigos em `src/contracts/catalog.ts` continuam acessíveis. Esse arquivo concentra metadados operacionais, como unidade, resolução de grade, modelo, ano inicial e máscara terrestre. Novas fontes podem exigir metadados e regras espaciais próprios antes de serem habilitadas.
+When updating families, verify that all codes in `src/contracts/catalog.ts` remain accessible. That file centralizes operational metadata such as unit, grid resolution, model, start year, and land mask. New sources may require their own metadata and spatial rules before being enabled.
 
-## Organização do código
+## Code Organization
 
-| Caminho                               | Responsabilidade                                                                                        |
-| ------------------------------------- | ------------------------------------------------------------------------------------------------------- |
-| `src/main.tsx`                      | Inicializa React e o tema escuro do Mantine com locale pt-BR para datas.                                |
-| `src/App.tsx` e `src/bench.css`   | Estado de exploração, seletores, navegação, painel reservado ao mapa, gráfico e layout responsivo. |
-| `src/contracts/`                    | Tipos da consulta e da resposta, catálogo, famílias e validação do payload.                         |
-| `src/geo/gridGeometry.ts`           | Geometria, encaixe na grade nativa e composição de células conectadas (limite configurável via `VITE_MAX_CELLS_PER_REGION`, padrão `25`). |
-| `src/map/`                          | Mapa React/Leaflet, camadas NASA GIBS e OSM, seleção A/B, estilos e legenda.                           |
-| `src/services/regionDataAdapter.ts` | Catálogo do backend, análises reais, validação, timeout, cache e modo offline explícito.             |
-| `src/services/idbCache.ts`          | Persistência de análises no IndexedDB.                                                                |
-| `public/data/`                      | Grades pré-processadas e fixture sintética da bancada.                                                |
-| `src/__tests__/`                    | Testes do contrato, da geometria, da legenda e do adaptador.                                            |
+| Path                                  | Responsibility                                                                                        |
+| ------------------------------------- | ----------------------------------------------------------------------------------------------------- |
+| `src/main.tsx`                        | Initializes React and the Mantine dark theme with date locale.                                        |
+| `src/App.tsx` and `src/bench.css`     | Exploration state, selectors, navigation, map container panel, charts, and responsive layout.         |
+| `src/contracts/`                      | Query and response types, catalog, families, and payload validation.                                  |
+| `src/geo/gridGeometry.ts`             | Geometry, native grid snapping, and connected-cell composition (limit configurable via `VITE_MAX_CELLS_PER_REGION`, default `25`). |
+| `src/map/`                            | React/Leaflet map, NASA GIBS and OSM layers, A/B selection, styles, and legend.                       |
+| `src/services/regionDataAdapter.ts`   | Backend catalog, real analyses, validation, timeout, cache, and explicit offline mode.                |
+| `src/services/idbCache.ts`            | Persistence of analyses in IndexedDB.                                                                 |
+| `public/data/`                        | Precomputed global grids and synthetic bench fixture.                                                 |
+| `src/__tests__/`                      | Contract, geometry, legend, and adapter tests.                                                        |
 
-## Integração com PROD-1 e Dados
+## Integration with PROD-1 and Data
 
-A tela de exploração coordena o fluxo. O mapa recebe a variável pertinente a A ou B e devolve a seleção espacial tipada. As células de uma região seguem o modelo e a resolução daquela variável. Leaflet usa latitude/longitude, enquanto GeoJSON usa longitude/latitude. Confira os detalhes no [contrato da PROD-1](../context/knowledge_maps/CONTRATO_FRONTEND_PROD1.md).
+The exploration screen coordinates the flow. The map receives the variable relevant to A or B and returns the typed spatial selection. A region's cells follow that variable's model and resolution. Leaflet uses latitude/longitude, while GeoJSON uses longitude/latitude. See details in the [PROD-1 contract](../context/knowledge_maps/CONTRATO_FRONTEND_PROD1.md).
 
-O [contrato de dados](../CONTRATO_DE_DADOS.md) define `POST /api/analyze` com variáveis, regiões e datas mensais e uma resposta com análise de A, análise de B opcional e métricas de comparação. O backend agrega células, consulta as fontes e calcula as estatísticas. O navegador usa os valores já calculados. `series.linear_fit` alimenta OLS e a série opcional `sen_fit` alimenta Theil–Sen quando disponível. No mapa global, direção, magnitude e significância são dimensões distintas da legenda.
+The [data contract](../CONTRATO_DE_DADOS.md) defines `POST /api/analyze` with variables, regions, and monthly dates, returning an analysis for A, optional analysis for B, and comparison metrics. The backend aggregates cells, queries sources, and computes statistics. The browser renders the precomputed values. `series.linear_fit` feeds OLS and the optional `sen_fit` series feeds Theil–Sen when available. On the global map, direction, magnitude, and significance are distinct legend dimensions.
 
-### Configuração de dados e offline
+### Data and Offline Configuration
 
-O modo padrão é `api`. Copie `.env.example` para `.env.local` quando precisar ajustar configurações locais. `VITE_DATA_MODE=offline` ativa deliberadamente os arquivos sintéticos locais; `VITE_DATA_MODE=api` usa `VITE_API_BASE_URL` (exemplo local `http://localhost:8000`). O limite máximo de células por região é variável e definido por `VITE_MAX_CELLS_PER_REGION` (padrão `25`), podendo ser alterado a qualquer momento no `.env.local` (ou ambiente) — mantenha-o alinhado com `MAX_CELLS_PER_REGION` no backend. Variáveis `VITE_*` são públicas. Guarde credenciais no backend.
+The default mode is `api`. Copy `.env.example` to `.env.local` when local adjustments are needed. `VITE_DATA_MODE=offline` deliberately activates local synthetic files; `VITE_DATA_MODE=api` uses `VITE_API_BASE_URL` (local example `http://localhost:8000`). The maximum cells per region is variable and set by `VITE_MAX_CELLS_PER_REGION` (default `25`), and can be changed anytime in `.env.local` (or environment) — keep it aligned with `MAX_CELLS_PER_REGION` on the backend. `VITE_*` variables are public. Keep credentials on the backend.
 
-O front carrega famílias e disponibilidade por `GET /api/catalog`. As 22 variáveis NASA POWER em modo `realtime` ficam habilitadas; conectores de fila, demonstração ou que dependem de outras credenciais permanecem indisponíveis. Na confirmação final, o adaptador chama `POST /api/analyze`, valida a resposta e grava o resultado no IndexedDB. Em modo API, falhas são exibidas como falhas reais. O mock é usado somente quando `VITE_DATA_MODE=offline` é configurado explicitamente.
+The frontend loads families and availability via `GET /api/catalog`. The 22 NASA POWER variables in `realtime` mode are enabled; queue, demo, or credential-gated connectors remain unavailable. Upon final confirmation, the adapter calls `POST /api/analyze`, validates the response, and writes the result to IndexedDB. In API mode, failures are surfaced as real errors. The mock is used only when `VITE_DATA_MODE=offline` is explicitly configured.
 
-Para executar a integração local completa, inicie os dois processos em terminais separados:
+To run the full local integration, start both processes in separate terminals:
 
 ```powershell
 python -m data.api.server --port 8000
@@ -63,14 +63,14 @@ cd frontend
 npm run dev
 ```
 
-O backend espera meses no formato `YYYY-MM`. O front converte a seleção do Mantine para esse contrato e mantém datas completas apenas na apresentação do eixo do gráfico.
+The backend expects months in `YYYY-MM` format. The frontend converts Mantine's selection to that contract and keeps full dates only in chart axis presentation.
 
-## Verificação antes de integrar
+## Pre-Integration Checklist
 
-- Rode a checagem de tipos, os testes e o build.
-- Valide os seletores A/B no desktop e no celular, incluindo busca, limpeza, nomes longos e meses nos limites.
-- Confira as séries com A/B invertidos, duas unidades, série indisponível, período sem pontos e alternância entre bruto e anomalia.
-- Confira o encaixe geográfico, as células A/B, o limite de células configurado (`VITE_MAX_CELLS_PER_REGION`) e a preservação do estado ao alternar abas.
-- Na integração da API, confirme payloads de sucesso, ausência de dados, timeout, erro explícito e modo offline deliberado.
+- Run typecheck, tests, and build.
+- Validate A/B selectors on desktop and mobile, including search, clearing, long names, and boundary months.
+- Check series with swapped A/B, dual units, unavailable series, period with no points, and toggling between raw and anomaly.
+- Check geographic snapping, A/B cells, configured cell limit (`VITE_MAX_CELLS_PER_REGION`), and state preservation across tab switches.
+- In API integration, verify success payloads, missing data, timeout, explicit error, and deliberate offline mode.
 
-Desenvolvimento de interface ocorre em `frontend`, com integração em `develop` e produção em `main`. O mapa alimenta o estado espacial A/B e a chamada real ao backend já ocorre após `Analisar seleção`. O painel do copiloto ainda depende de integração. Veja também a [decisão de stack](../context/general_strategy/STACK_FRONTEND.md).
+UI development takes place on `frontend`, with integration on `develop` and production on `main`. The map feeds the A/B spatial state and the real backend call already fires after `Analyze selection`. The co-pilot panel still depends on integration. See also the [stack decision](../context/general_strategy/STACK_FRONTEND.md).

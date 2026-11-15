@@ -31,7 +31,7 @@ const fallbackVariableOptions = environmentalFamilies.map(({ group, items }) => 
   })),
 }));
 
-const coordinateFormat = new Intl.NumberFormat('pt-BR', { maximumFractionDigits: 4 });
+const coordinateFormat = new Intl.NumberFormat('en-US', { maximumFractionDigits: 4 });
 
 function formatRegionCoordinates(region: RegionSelection | null): string {
   const firstCell = region?.cells[0];
@@ -39,7 +39,7 @@ function formatRegionCoordinates(region: RegionSelection | null): string {
   const { cells } = region;
   const reference = firstCell.lon;
   const latitude = cells.reduce((sum, cell) => sum + cell.lat, 0) / cells.length;
-  // Desenrola longitudes próximas ao antimeridiano antes de calcular a média.
+  // Unwrap longitudes near the antimeridian before computing the mean.
   const longitudeOffset = cells.reduce((sum, cell) => sum + (cell.lon - reference + 540) % 360 - 180, 0) / cells.length;
   const longitude = (reference + longitudeOffset + 540) % 360 - 180;
   return `Longitude ${coordinateFormat.format(longitude)}° · Latitude ${coordinateFormat.format(latitude)}°`;
@@ -146,11 +146,11 @@ export default function App() {
 
   const selectionKey = `${variableA}|${variableB}|${start}|${end}|${regionA?.region_id ?? ''}|${regionB?.region_id ?? ''}`;
 
-  // Uma consulta iniciada por um caso já usa a chave da seleção que ele aplica.
+  // A query launched from a case preset already uses the selection key it applies.
   useEffect(() => {
     if (analysisSelectionKeyRef.current === selectionKey) return;
     analysisSelectionKeyRef.current = '';
-    analysisControllerRef.current?.abort('Seleção alterada durante a consulta.');
+    analysisControllerRef.current?.abort('Selection changed during query.');
     setAnalysis(undefined);
     setAnalyzedAt(null);
     setAnalysisError('');
@@ -169,7 +169,7 @@ export default function App() {
       }))))
       .catch(catalogRequestError => {
         if (!controller.signal.aborted) {
-          setCatalogError(catalogRequestError instanceof Error ? catalogRequestError.message : 'Catálogo indisponível.');
+          setCatalogError(catalogRequestError instanceof Error ? catalogRequestError.message : 'Catalog unavailable.');
         }
       });
     return () => controller.abort();
@@ -283,12 +283,12 @@ export default function App() {
       });
       if (controller.signal.aborted) return;
       setAnalysis(result);
-      setAnalyzedAt(new Date().toLocaleString('pt-BR', { dateStyle: 'short', timeStyle: 'medium' }));
+      setAnalyzedAt(new Date().toLocaleString('en-US', { dateStyle: 'short', timeStyle: 'medium' }));
       setTab('bench');
     } catch (requestError) {
       if (!controller.signal.aborted) {
         analysisSelectionKeyRef.current = '';
-        setAnalysisError(requestError instanceof Error ? requestError.message : 'Não foi possível analisar a seleção.');
+        setAnalysisError(requestError instanceof Error ? requestError.message : 'Could not analyze selection.');
       }
     } finally {
       if (analysisControllerRef.current === controller) {
@@ -377,17 +377,17 @@ export default function App() {
   }
 
   function cancelAnalysis() {
-    analysisControllerRef.current?.abort('Consulta cancelada pelo usuário.');
+    analysisControllerRef.current?.abort('Query canceled by user.');
   }
 
   const variablesReady = Boolean(variableA && variableB);
   const regionsReady = Boolean(regionA && regionB);
   const currentStep = !variablesReady ? 0 : !periodReady ? 1 : !regionsReady ? 2 : 3;
   const workflowSteps = [
-    { label: 'Variáveis', complete: variablesReady },
-    { label: 'Período', complete: periodReady },
-    { label: 'Regiões', complete: regionsReady },
-    { label: 'Análise', complete: Boolean(analysis) },
+    { label: 'Variables', complete: variablesReady },
+    { label: 'Period', complete: periodReady },
+    { label: 'Regions', complete: regionsReady },
+    { label: 'Analysis', complete: Boolean(analysis) },
   ];
 
   const currentTutorialStep = tutorialOpen ? TUTORIAL_STEPS[tutorialStepIndex] : undefined;
@@ -401,12 +401,12 @@ export default function App() {
         data-tour="close-variables"
         aria-expanded={effectiveSidebarOpen}
         aria-controls="variables-sidebar"
-        aria-label={effectiveSidebarOpen ? undefined : 'Abrir painel de variáveis'}
-        title={effectiveSidebarOpen ? 'Recolher painel de variáveis' : 'Variáveis'}
+        aria-label={effectiveSidebarOpen ? undefined : 'Open variables panel'}
+        title={effectiveSidebarOpen ? 'Collapse variables panel' : 'Variables'}
         onClick={() => setSidebarOpen(prev => !prev)}
       >
         {effectiveSidebarOpen ? (
-          '« Recolher painel'
+          '« Collapse panel'
         ) : (
           <svg
             width="20"
@@ -434,7 +434,7 @@ export default function App() {
         aria-controls="variables-sidebar"
         onClick={() => setMobileDrawerOpen(true)}
       >
-        Variáveis e período
+        Variables & period
       </button>
   );
 
@@ -456,27 +456,27 @@ export default function App() {
               ref={tutorialTriggerRef}
               type="button"
               className="tutorial-trigger"
-              aria-label="Tutorial interativo (?)"
+              aria-label="Interactive tutorial (?)"
               aria-expanded={tutorialOpen}
-              title="Abrir tutorial guiado passo a passo"
+              title="Open step-by-step guided tutorial"
               onClick={openTutorialFromStart}
             >
               <span className="tutorial-trigger-mark" aria-hidden="true">?</span>
               <span className="tutorial-trigger-label">Tutorial</span>
             </button>
           )}
-          <nav className="primary-nav" aria-label="Navegação principal">
+          <nav className="primary-nav" aria-label="Primary navigation">
             <button type="button" aria-current={tab === 'story' ? 'page' : undefined} onClick={() => setTab('story')}>
-              Início
+              Home
             </button>
             <button type="button" aria-current={tab === 'info' ? 'page' : undefined} onClick={handleOpenMoreInfoFull}>
-              Informações Gerais
+              Overview
             </button>
             <button type="button" aria-current={tab === 'map' ? 'page' : undefined} onClick={() => setTab('map')}>
-              Mapa
+              Map
             </button>
             <button type="button" data-tour="tab-bench" aria-current={tab === 'bench' ? 'page' : undefined} onClick={() => setTab('bench')}>
-              Bancada científica
+              Scientific Bench
             </button>
           </nav>
         </div>
@@ -506,23 +506,23 @@ export default function App() {
             <aside
               id="variables-sidebar"
               className={mobileDrawerOpen ? 'drawer-open' : ''}
-              aria-label="Catálogo de variáveis e período"
+              aria-label="Variables and period catalog"
             >
               <div className="sidebar-head">
-                <h2>Variáveis</h2>
+                <h2>Variables</h2>
                 {desktopSidebarToggle}
                 <button
                   type="button"
                   className="drawer-close"
                   data-tour="close-variables"
-                  aria-label="Fechar painel de variáveis"
+                  aria-label="Close variables panel"
                   onClick={() => setMobileDrawerOpen(false)}
                 >
                   ×
                 </button>
               </div>
               <div data-tour="sidebar-controls">
-                {catalogError && <p className="catalog-warning" role="alert">{catalogError} Usando catálogo local.</p>}
+                {catalogError && <p className="catalog-warning" role="alert">{catalogError} Using local catalog.</p>}
                 {([
                   { slot: 'A', symbol: 'X', region: regionA, value: variableA, onChange: handleVariableAChange },
                   { slot: 'B', symbol: 'Y', region: regionB, value: variableB, onChange: handleVariableBChange },
@@ -532,9 +532,9 @@ export default function App() {
                     <div key={slot} className={`variable-local-pair pair-${slot.toLowerCase()}`}>
                       <Select className={`variable-picker variable-picker-${slot.toLowerCase()}`}
                         classNames={{ input: 'selection-input', dropdown: 'selection-dropdown', option: 'selection-option' }}
-                        label={<span className={`slot-label slot-${slot.toLowerCase()}`}>Variável {symbol}</span>} placeholder="Buscar variável"
+                        label={<span className={`slot-label slot-${slot.toLowerCase()}`}>Variable {symbol}</span>} placeholder="Search variable"
                         data={variableOptions} searchable clearable clearSectionMode="clear"
-                        clearButtonProps={{ 'aria-label': 'Limpar variável ' + symbol }} nothingFoundMessage="Nenhuma variável encontrada"
+                        clearButtonProps={{ 'aria-label': 'Clear variable ' + symbol }} nothingFoundMessage="No variables found"
                         value={value || null} onChange={id => onChange(id ?? '')}
                         comboboxProps={{ width: 310, position: 'bottom-start', withinPortal: true, zIndex: tutorialOpen ? 1325 : 1300 }}
                         maxDropdownHeight={340} />
@@ -542,7 +542,7 @@ export default function App() {
                         readOnly
                         className={`variable-picker variable-picker-${slot.toLowerCase()} location-picker`}
                         classNames={{ input: 'selection-input' }}
-                        label={<span className={`slot-label slot-${slot.toLowerCase()}`}>Local {slot}</span>}
+                        label={<span className={`slot-label slot-${slot.toLowerCase()}`}>Location {slot}</span>}
                         value={locationValue}
                         placeholder=""
                         title={locationValue || undefined}
@@ -551,14 +551,14 @@ export default function App() {
                   );
                 })}
                 <fieldset className="period-picker" disabled={!minimumMonth}>
-                  <legend><span>Período da análise</span></legend>
-                  <MonthPickerInput className="variable-picker" classNames={{ input: 'selection-input' }} label="Mês inicial" placeholder="Selecione o mês"
-                    locale="pt-br" valueFormat="MMMM [de] YYYY" clearable disabled={!minimumMonth}
+                  <legend><span>Analysis period</span></legend>
+                  <MonthPickerInput className="variable-picker" classNames={{ input: 'selection-input' }} label="Start month" placeholder="Select month"
+                    locale="en" valueFormat="MMMM YYYY" clearable disabled={!minimumMonth}
                     popoverProps={{ withinPortal: true, zIndex: tutorialOpen ? 1325 : 1300 }}
                     minDate={minimumMonth ? minimumMonth + '-01' : undefined} maxDate={maximumMonth + '-01'}
                     value={start ? start + '-01' : null} onChange={value => setStartMonth(value?.slice(0, 7) ?? '')} />
-                  <MonthPickerInput className="variable-picker" classNames={{ input: 'selection-input' }} label="Mês final" placeholder="Selecione o mês"
-                    locale="pt-br" valueFormat="MMMM [de] YYYY" clearable disabled={!minimumMonth}
+                  <MonthPickerInput className="variable-picker" classNames={{ input: 'selection-input' }} label="End month" placeholder="Select month"
+                    locale="en" valueFormat="MMMM YYYY" clearable disabled={!minimumMonth}
                     popoverProps={{ withinPortal: true, zIndex: tutorialOpen ? 1325 : 1300 }}
                     minDate={minimumMonth ? (start || minimumMonth) + '-01' : undefined} maxDate={maximumMonth + '-01'}
                     value={end ? end + '-01' : null} onChange={value => setEndMonth(value?.slice(0, 7) ?? '')} />
@@ -572,7 +572,7 @@ export default function App() {
               </div>
             )}
             <div className="exploration">
-              <ol className="workflow-progress" data-tour="workflow-progress" aria-label="Etapas da investigação">
+              <ol className="workflow-progress" data-tour="workflow-progress" aria-label="Investigation steps">
                 {workflowSteps.map((step, index) => (
                   <li key={step.label} className={step.complete ? 'complete' : index === currentStep ? 'current' : ''}
                     aria-current={index === currentStep && !step.complete ? 'step' : undefined}>

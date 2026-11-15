@@ -1,7 +1,7 @@
 {
   "variable_id": "WS10M",
   "unit": "m/s",
-  "trend_unit": "m/s/década",
+  "trend_unit": "m/s/decade",
   "period": {
     "start": "1981-01",
     "end": "2025-12"

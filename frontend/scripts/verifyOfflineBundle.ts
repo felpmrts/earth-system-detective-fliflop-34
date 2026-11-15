@@ -19,7 +19,7 @@ const distDir = path.resolve(__dirname, '../dist');
 
 function verifyDistOfflineBundle(): void {
   if (!fs.existsSync(distDir) || !fs.existsSync(path.join(distDir, 'index.html'))) {
-    throw new Error(`Diretório dist/ ausente em ${distDir}. Execute "npm run build" antes.`);
+    throw new Error(`Missing dist/ directory at ${distDir}. Run "npm run build" first.`);
   }
 
   const requiredFiles = [
@@ -31,7 +31,7 @@ function verifyDistOfflineBundle(): void {
   for (const relPath of requiredFiles) {
     const absPath = path.join(distDir, relPath);
     if (!fs.existsSync(absPath)) {
-      throw new Error(`Artefato offline obrigatório ausente em dist/: ${relPath}`);
+      throw new Error(`Missing required offline artifact in dist/: ${relPath}`);
     }
   }
 
@@ -41,7 +41,7 @@ function verifyDistOfflineBundle(): void {
 
   const assetsDir = path.join(distDir, 'assets');
   if (!fs.existsSync(assetsDir)) {
-    throw new Error('Diretório dist/assets/ não encontrado.');
+    throw new Error('Directory dist/assets/ not found.');
   }
 
   const assetFiles = fs.readdirSync(assetsDir);
@@ -49,7 +49,7 @@ function verifyDistOfflineBundle(): void {
   const cssFiles = assetFiles.filter(file => file.endsWith('.css'));
 
   if (jsFiles.length === 0 || cssFiles.length === 0) {
-    throw new Error('Bundle dist/assets/ incompleto (esperado ao menos 1 .js e 1 .css).');
+    throw new Error('Incomplete dist/assets/ bundle (expected at least 1 .js and 1 .css file).');
   }
 
   for (const file of cssFiles) {
@@ -64,10 +64,10 @@ function verifyDistOfflineBundle(): void {
 
   if (issues.length > 0) {
     const summary = issues.map(i => `${i.file}: ${i.reason} (${i.match})`).join('\n');
-    throw new Error(`Referências bloqueantes externas encontradas no dist/:\n${summary}`);
+    throw new Error(`Blocking external references found in dist/:\n${summary}`);
   }
 
-  // Valida payloads estáticos empacotados em dist/data/
+  // Validate static payloads bundled in dist/data/
   const mockRaw = JSON.parse(fs.readFileSync(path.join(distDir, 'data/mock_analysis.json'), 'utf-8')) as unknown;
   const mockValidated = validateAnalysisResponse(mockRaw);
 
@@ -81,7 +81,7 @@ function verifyDistOfflineBundle(): void {
   }
 
   console.log(
-    `OK [dist/ 100% offline]: ${jsFiles.length} JS, ${cssFiles.length} CSS, ${HOMOLOGATION_REQUIRED_GRIDS.length} grades globais homologadas (${t2mValidated.points.length} pts em T2M_grid.json) e mock_analysis (${mockValidated.region_a_analysis.series.dates.length} meses) sem CDNs externos.`,
+    `OK [dist/ 100% offline]: ${jsFiles.length} JS, ${cssFiles.length} CSS, ${HOMOLOGATION_REQUIRED_GRIDS.length} homologated global grids (${t2mValidated.points.length} pts in T2M_grid.json) and mock_analysis (${mockValidated.region_a_analysis.series.dates.length} months) with no external CDNs.`,
   );
 }
 

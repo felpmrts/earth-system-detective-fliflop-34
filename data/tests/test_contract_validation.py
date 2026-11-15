@@ -71,7 +71,7 @@ def _assert_all_numbers_finite(node: Any, path: str = "root") -> None:
         return
     if isinstance(node, (int, float)):
         if not math.isfinite(float(node)):
-            raise AssertionError(f"Valor não finito em {path}: {node!r}")
+            raise AssertionError(f"Non-finite value at {path}: {node!r}")
     elif isinstance(node, dict):
         for key, value in node.items():
             _assert_all_numbers_finite(value, f"{path}.{key}")
@@ -92,7 +92,7 @@ class ContractRegionValidationTests(unittest.TestCase):
         self.assertEqual(len(query.cells), 2)
 
     def test_rejects_disconnected_cells(self) -> None:
-        with self.assertRaisesRegex(ContractSemanticError, "região conexa"):
+        with self.assertRaisesRegex(ContractSemanticError, "8-connected region"):
             _parse_contract_region(
                 merra_region([merra_cell(-20, -80), merra_cell(-20, -75)]),
                 "region_a",
@@ -101,7 +101,7 @@ class ContractRegionValidationTests(unittest.TestCase):
 
     def test_rejects_duplicate_cells(self) -> None:
         cell = merra_cell(-20, -80)
-        with self.assertRaisesRegex(ContractSemanticError, "duplicada"):
+        with self.assertRaisesRegex(ContractSemanticError, "Duplicate cell"):
             _parse_contract_region(merra_region([cell, dict(cell)]), "region_a", "T2M")
 
     def test_rejects_wrong_grid_metadata(self) -> None:
@@ -128,7 +128,7 @@ class CatalogInvariantTests(unittest.TestCase):
                     "endpoint_consultado": "https://power.larc.nasa.gov/api/temporal/monthly/point",
                     "family_id": "temperatura",
                     "variable": "T2M",
-                    "ui_name": "Temperatura Média do Ar a 2m",
+                    "ui_name": "2m Mean Air Temperature",
                     "unit": "°C",
                     "scale_type": "interval",
                     "allow_percentage_change": False,
@@ -141,7 +141,7 @@ class CatalogInvariantTests(unittest.TestCase):
                     "endpoint_consultado": "https://power.larc.nasa.gov/api/temporal/monthly/point",
                     "family_id": "dinamica",
                     "variable": "PS",
-                    "ui_name": "Pressão de Superfície",
+                    "ui_name": "Surface Pressure",
                     "unit": "kPa",
                     "scale_type": "interval",
                     "allow_percentage_change": False,
@@ -159,8 +159,8 @@ class CatalogInvariantTests(unittest.TestCase):
                     "end_date": "2023-12",
                 }
             )
-        self.assertEqual(result["region_a_analysis"]["trend_unit"], "°C/década")
-        self.assertEqual(result["region_b_analysis"]["trend_unit"], "kPa/década")
+        self.assertEqual(result["region_a_analysis"]["trend_unit"], "°C/decade")
+        self.assertEqual(result["region_b_analysis"]["trend_unit"], "kPa/decade")
         self.assertNotIn(" / ", result["region_a_analysis"]["trend_unit"])
         self.assertFalse(result["region_b_analysis"]["allow_percentage_change"])
 
@@ -170,8 +170,8 @@ class CatalogInvariantTests(unittest.TestCase):
         ceres_cldtot_series = _monthly_series(1984, 2023, 55.0, -0.18)
 
         for ceres_var, ceres_series, expected_trend_unit in (
-            ("ALLSKY_SFC_SW_DWN", ceres_sw_series, "MJ/m²/dia/década"),
-            ("CLDTOT", ceres_cldtot_series, "p.p./década"),
+            ("ALLSKY_SFC_SW_DWN", ceres_sw_series, "MJ/m²/day/decade"),
+            ("CLDTOT", ceres_cldtot_series, "p.p./decade"),
         ):
             backend_var = "CLOUD_AMT" if ceres_var == "CLDTOT" else ceres_var
             spec_ceres = get_variable_spec(backend_var)
@@ -183,7 +183,7 @@ class CatalogInvariantTests(unittest.TestCase):
                         "endpoint_consultado": "https://power.larc.nasa.gov/api/temporal/monthly/point",
                         "family_id": "temperatura",
                         "variable": "T2M",
-                        "ui_name": "Temperatura Média do Ar a 2m",
+                        "ui_name": "2m Mean Air Temperature",
                         "unit": "°C",
                         "scale_type": "interval",
                         "allow_percentage_change": False,
@@ -324,7 +324,7 @@ class ContractAnalysisTests(unittest.TestCase):
         from data.connectors import noaa_cdo
 
         lw_spec = get_variable_spec("ALLSKY_SFC_LW_DWN")
-        self.assertEqual(lw_spec.unit, "MJ/m²/dia")
+        self.assertEqual(lw_spec.unit, "MJ/m²/day")
 
         # If POWER reports W/m^2, _parse_power_parameter_series converts to MJ/m^2/day (* 0.0864)
         parsed = _parse_power_parameter_series(
@@ -374,7 +374,7 @@ class ContractAnalysisTests(unittest.TestCase):
                     "family_id": "solo" if var_code == "GWETPROF" else "radiacao",
                     "variable": var_code,
                     "ui_name": var_code,
-                    "unit": "Fração (0 a 1)",
+                    "unit": "Fraction (0 to 1)",
                     "scale_type": "ratio",
                     "allow_percentage_change": False,
                     "snapped_cells": [],
@@ -391,8 +391,8 @@ class ContractAnalysisTests(unittest.TestCase):
                     }
                 )
             reg_a = result["region_a_analysis"]
-            self.assertEqual(reg_a["unit"], "fração (0–1)")
-            self.assertEqual(reg_a["trend_unit"], "fração/década")
+            self.assertEqual(reg_a["unit"], "fraction (0–1)")
+            self.assertEqual(reg_a["trend_unit"], "fraction/decade")
             self.assertFalse(reg_a["allow_percentage_change"])
 
 

@@ -1,15 +1,15 @@
-"""Servidor HTTP REST leve (stdlib) do backend de dados para o frontend React/Vite.
+"""Lightweight HTTP REST server (stdlib) for the data backend serving the React/Vite frontend.
 
 Endpoints:
 - GET  /api/health
 - GET  /api/catalog
-- POST /api/analyze        (Contrato oficial `RegionAnalysisRequest -> RegionAnalysisResponse`)
-- POST /api/copilot        (Co-Piloto Estatístico Agêntico — Prompt + 7 Invariantes + Tools)
-- POST /api/discover       (Motor de Descoberta Dinâmica Camada 2 — Teleconexões/CUSUM/GCV <50ms)
+- POST /api/analyze        (Official contract `RegionAnalysisRequest -> RegionAnalysisResponse`)
+- POST /api/copilot        (Agentic Statistical Co-Pilot — Prompt + 7 Invariants + Tools)
+- POST /api/discover       (Layer 2 Dynamic Discovery Engine — Teleconnections/CUSUM/GCV <50ms)
 - POST /api/location/fetch
 - POST /api/compare
 
-Execução:
+Run:
     python3 -m data.api.server --port 8000
 """
 
@@ -26,7 +26,7 @@ from http.server import BaseHTTPRequestHandler, ThreadingHTTPServer
 from pathlib import Path
 from typing import Any
 
-# Permite iniciar com `python3 api/server.py` a partir de `data/` (ex.: Render Root Directory=data)
+# Allow running `python3 api/server.py` from `data/` (e.g., Render Root Directory=data)
 _REPO_ROOT = str(Path(__file__).resolve().parents[2])
 if _REPO_ROOT not in sys.path:
     sys.path.insert(0, _REPO_ROOT)
@@ -50,7 +50,7 @@ from data.services.ingestion_service import (
 
 
 class BackendRouter:
-    """Roteador puro (sem dependência de socket) para facilitar testes unitários e HTTP."""
+    """Pure router (no socket dependency) to facilitate unit and HTTP testing."""
 
     def __init__(self, cache: CellCacheStore | None = None) -> None:
         self.cache = cache or CellCacheStore()
@@ -87,7 +87,7 @@ class BackendRouter:
             return HTTPStatus.OK, {"status": "OK", "service": "earth-system-detective-data-backend"}
         if path == "/api/catalog":
             return HTTPStatus.OK, get_catalog_tree()
-        return HTTPStatus.NOT_FOUND, {"error": f"Rota GET desconhecida: {path}"}
+        return HTTPStatus.NOT_FOUND, {"error": f"Unknown GET route: {path}"}
 
     @staticmethod
     def _log_analyze_success(result: dict[str, Any]) -> None:
@@ -99,10 +99,10 @@ class BackendRouter:
         cells_a = meta.get("cells_count_a", 0)
         var_b = meta.get("variable_b")
         cells_b = meta.get("cells_count_b", 0)
-        summary_b = f" | Local B: {var_b or var_a} ({cells_b} cél.)" if (var_b or cells_b) else ""
+        summary_b = f" | Location B: {var_b or var_a} ({cells_b} cells)" if (var_b or cells_b) else ""
         print(
-            f"[OK 200] Análise concluída — Local A: {var_a} ({cells_a} cél.){summary_b} | "
-            f"Período efetivo: {period.get('start', '?')}..{period.get('end', '?')} ({months} meses)",
+            f"[OK 200] Analysis complete — Location A: {var_a} ({cells_a} cells){summary_b} | "
+            f"Effective period: {period.get('start', '?')}..{period.get('end', '?')} ({months} months)",
             flush=True,
         )
 
@@ -129,13 +129,13 @@ class BackendRouter:
                     status = HTTPStatus.NOT_FOUND if analysis_key else HTTPStatus.BAD_REQUEST
                     return status, {
                         "code": code,
-                        "error": "Campo 'analysis' com 'region_a_analysis' válido é obrigatório.",
+                        "error": "Field 'analysis' with a valid 'region_a_analysis' is required.",
                     }
 
                 response = generate_copilot_response(
                     analysis,
                     question=body.get("question"),
-                    language=str(body.get("language") or "pt"),
+                    language=str(body.get("language") or "en"),
                     history=body.get("history"),
                     cache=self.cache,
                 )
@@ -159,7 +159,7 @@ class BackendRouter:
                     else:
                         return HTTPStatus.NOT_FOUND, {
                             "code": "ANALYSIS_CACHE_MISS",
-                            "error": "Nenhuma análise encontrada para 'analysis_key'.",
+                            "error": "No analysis found for 'analysis_key'.",
                         }
                 elif isinstance(body.get("region_a_analysis"), dict):
                     analysis_key = self._remember_analysis(body, explicit_key=analysis_key)
@@ -179,7 +179,7 @@ class BackendRouter:
             end_year = int(body.get("end_year", 2023))
 
             if path == "/api/location/fetch":
-                loc = LocationQuery.from_dict(body.get("location", body), default_name="Local")
+                loc = LocationQuery.from_dict(body.get("location", body), default_name="Location")
                 vars_list = loc.get_variables()
                 if len(vars_list) == 1:
                     return HTTPStatus.OK, fetch_location_single_variable(
@@ -194,8 +194,8 @@ class BackendRouter:
                     result = analyze_regions_contract(body, cache=self.cache)
                     self._log_analyze_success(result)
                     return HTTPStatus.OK, result
-                loc_a = LocationQuery.from_dict(body["location_a"], default_name="Local A")
-                loc_b = LocationQuery.from_dict(body["location_b"], default_name="Local B")
+                loc_a = LocationQuery.from_dict(body["location_a"], default_name="Location A")
+                loc_b = LocationQuery.from_dict(body["location_b"], default_name="Location B")
                 if len(loc_a.get_variables()) == 1 and len(loc_b.get_variables()) == 1:
                     return HTTPStatus.OK, compare_locations_single_variable(
                         loc_a, loc_b, start_year, end_year, cache=self.cache
@@ -204,16 +204,16 @@ class BackendRouter:
                     loc_a, loc_b, start_year, end_year, cache=self.cache
                 )
 
-            return HTTPStatus.NOT_FOUND, {"error": f"Rota POST desconhecida: {path}"}
+            return HTTPStatus.NOT_FOUND, {"error": f"Unknown POST route: {path}"}
         except SemanticContractError as exc:
-            print(f"[AVISO 400 - {exc.code}] {exc.message}", flush=True)
+            print(f"[WARN 400 - {exc.code}] {exc.message}", flush=True)
             return HTTPStatus.BAD_REQUEST, {"code": exc.code, "error": exc.message}
         except ContractSemanticError as exc:
-            print(f"[AVISO {int(exc.status_code)} - {exc.code}] {exc}", flush=True)
+            print(f"[WARN {int(exc.status_code)} - {exc.code}] {exc}", flush=True)
             return exc.status_code, {"code": exc.code, "error": str(exc)}
         except (KeyError, TypeError, ValueError) as exc:
-            msg = f"Dados da requisição em formato inválido ou incompleto ({exc})."
-            print(f"[AVISO 400 - REQUISICAO_INVALIDA] {msg}", flush=True)
+            msg = f"Invalid or incomplete request payload ({exc})."
+            print(f"[WARN 400 - INVALID_REQUEST] {msg}", flush=True)
             return HTTPStatus.BAD_REQUEST, {"error": msg}
 
 
@@ -244,35 +244,35 @@ class _RequestHandler(BaseHTTPRequestHandler):
         try:
             length = int(self.headers.get("Content-Length", "0"))
         except ValueError:
-            self._send_json(HTTPStatus.BAD_REQUEST, {"error": "Content-Length inválido."})
+            self._send_json(HTTPStatus.BAD_REQUEST, {"error": "Invalid Content-Length."})
             return
         if length < 0 or length > self.max_body_bytes:
             self._send_json(
                 HTTPStatus.REQUEST_ENTITY_TOO_LARGE,
-                {"error": f"Payload excede o limite de {self.max_body_bytes} bytes."},
+                {"error": f"Payload exceeds the {self.max_body_bytes}-byte limit."},
             )
             return
         raw = self.rfile.read(length).decode("utf-8") if length > 0 else "{}"
         try:
             body = json.loads(raw)
         except json.JSONDecodeError as exc:
-            self._send_json(HTTPStatus.BAD_REQUEST, {"error": f"JSON inválido: {exc}"})
+            self._send_json(HTTPStatus.BAD_REQUEST, {"error": f"Invalid JSON: {exc}"})
             return
         status_code, payload = self.router.handle_post(self.path.split("?", 1)[0], body)
         self._send_json(status_code, payload)
 
 
 def run_server(host: str = "127.0.0.1", port: int = 8000) -> None:
-    """Inicia o servidor HTTP REST local para o frontend."""
+    """Starts the local HTTP REST server for the frontend."""
     server = ThreadingHTTPServer((host, port), _RequestHandler)
-    print(f"Servidor de dados ativo em http://{host}:{port} (Ctrl+C para encerrar)")
+    print(f"Data server listening at http://{host}:{port} (Ctrl+C to stop)")
     server.serve_forever()
 
 
 if __name__ == "__main__":
     default_host = os.environ.get("HOST", "0.0.0.0" if "PORT" in os.environ else "127.0.0.1")
     default_port = int(os.environ.get("PORT", "8000"))
-    parser = argparse.ArgumentParser(description="Servidor REST do Backend de Dados")
+    parser = argparse.ArgumentParser(description="Data Backend REST Server")
     parser.add_argument("--host", default=default_host)
     parser.add_argument("--port", type=int, default=default_port)
     args = parser.parse_args()

@@ -1,4 +1,4 @@
-"""Utilitários compartilhados por todos os conectores de API em `data/connectors/`."""
+"""Shared utilities for all API connectors in `data/connectors/`."""
 
 from __future__ import annotations
 
@@ -18,7 +18,7 @@ _ORIG_GETADDRINFO = socket.getaddrinfo
 
 
 def _ipv4_preferred_getaddrinfo(*args: Any, **kwargs: Any) -> list[Any]:
-    """Prioriza endereços IPv4 (AF_INET) para evitar timeouts/WinError 10013 em IPv6."""
+    """Prioritizes IPv4 addresses (AF_INET) to avoid timeouts/WinError 10013 on IPv6."""
     results = _ORIG_GETADDRINFO(*args, **kwargs)
     ipv4 = [entry for entry in results if entry[0] == socket.AF_INET]
     return ipv4 or results
@@ -29,7 +29,7 @@ if socket.getaddrinfo is not _ipv4_preferred_getaddrinfo:
 
 
 def load_env_file(env_path: Path | None = None) -> None:
-    """Carrega `data/.env` sem sobrescrever variáveis já exportadas no ambiente."""
+    """Loads `data/.env` without overwriting variables already exported in the environment."""
     target = env_path or (DATA_ROOT / ".env")
     if not target.is_file():
         return
@@ -48,17 +48,17 @@ load_env_file()
 
 
 def snap_merra2(lat: float, lon: float) -> tuple[float, float]:
-    """Arredonda (lat, lon) para o centro da grade MERRA-2 (0.5° lat × 0.625° lon)."""
+    """Snaps (lat, lon) to the MERRA-2 grid center (0.5° lat × 0.625° lon)."""
     return round(round(lat / 0.5) * 0.5, 4), round(round(lon / 0.625) * 0.625, 4)
 
 
 def snap_ceres(lat: float, lon: float) -> tuple[float, float]:
-    """Arredonda (lat, lon) para o centro da grade CERES (1.0° × 1.0°, centros em .5)."""
+    """Snaps (lat, lon) to the CERES grid center (1.0° × 1.0°, .5 centers)."""
     return round(math.floor(lat) + 0.5, 4), round(math.floor(lon) + 0.5, 4)
 
 
 def clean_fill_value(raw_value: Any, fill_threshold: float = -990.0) -> float | None:
-    """Converte sentinelas como `-999` em `None` sem alterar zeros físicos reais."""
+    """Converts sentinel values such as `-999` to `None` without altering real physical zeros."""
     if raw_value is None:
         return None
     try:
@@ -71,8 +71,8 @@ def clean_fill_value(raw_value: Any, fill_threshold: float = -990.0) -> float | 
 
 
 def log_api_pull(label: str, api_name: str, endpoint: str, variables_desc: str) -> None:
-    """Exibe no terminal qual API e variável estão sendo consultadas."""
-    print(f">>> PUXANDO API [{label}]: {api_name} | Endpoint: {endpoint} | Variável(is): {variables_desc}")
+    """Logs to the terminal which API and variable(s) are being queried."""
+    print(f">>> PULLING API [{label}]: {api_name} | Endpoint: {endpoint} | Variable(s): {variables_desc}")
 
 
 class _NoRedirectHandler(urllib.request.HTTPRedirectHandler):
@@ -97,7 +97,7 @@ def http_request(
     timeout: int = 30,
     follow_redirects: bool = True,
 ) -> dict[str, Any]:
-    """Executa requisição HTTP/HTTPS usando stdlib e retorna dicionário padronizado."""
+    """Executes an HTTP/HTTPS request using stdlib and returns a standardized dictionary."""
     merged_headers = {"User-Agent": DEFAULT_USER_AGENT}
     if headers:
         merged_headers.update(headers)
@@ -154,12 +154,12 @@ def http_request(
         "elapsed_s": round(time.monotonic() - t0, 3),
         "headers": {},
         "body": "",
-        "error": "Falha desconhecida ao executar requisição HTTP.",
+        "error": "Unknown failure while executing HTTP request.",
     }
 
 
 def aggregate_cell_series(per_cell_series: list[dict[str, float]]) -> dict[str, float]:
-    """Agrega séries mensais de múltiplas células por média espacial (nanmean)."""
+    """Aggregates monthly series from multiple cells using spatial mean (nanmean)."""
     buckets: dict[str, list[float]] = {}
     for cell_series in per_cell_series:
         for ym, val in cell_series.items():
@@ -182,7 +182,7 @@ def synthesize_monthly_series(
     start_year: int,
     end_year: int,
 ) -> dict[str, float]:
-    """Gera série mensal determinística calibrada por latitude/bioma quando a API é assíncrona ou sem cobertura pontual."""
+    """Generates a deterministic monthly series calibrated by latitude/biome when the API is asynchronous or lacks point coverage."""
     import datetime as _dt
     import random
 
@@ -288,7 +288,7 @@ def synthesize_monthly_series(
         noise_sd = 0.4
         min_v, max_v = -1000.0, 1000.0
 
-    # Evolui a partir de 1981 para garantir valores determinísticos idênticos em sub-janelas
+    # Evolve from 1981 onward to guarantee identical deterministic values across sub-windows
     origin_year = min(1981, start_year)
     phi = 0.42
     innov_sd = noise_sd * math.sqrt(max(0.05, 1.0 - phi * phi))
@@ -299,7 +299,7 @@ def synthesize_monthly_series(
         for month in range(1, 13):
             ym = f"{year:04d}-{month:02d}"
             t_years = (year - 2000) + (month - 0.5) / 12.0
-            # Pico de verão no hemisfério norte em jul (mês 7), sul em jan (mês 1); inverno invertido para neve
+            # Summer peak in Northern Hemisphere in Jul (month 7), Southern in Jan (month 1); inverted winter for snow
             phase_shift = 6.5 if hemisphere_sign > 0 else 0.5
             if variable in {"SNOW", "SNWD"}:
                 phase_shift += 6.0

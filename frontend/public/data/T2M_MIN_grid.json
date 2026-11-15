@@ -1,7 +1,7 @@
 {
   "variable_id": "T2M_MIN",
   "unit": "°C",
-  "trend_unit": "°C/década",
+  "trend_unit": "°C/decade",
   "period": {
     "start": "1981-01",
     "end": "2025-12"

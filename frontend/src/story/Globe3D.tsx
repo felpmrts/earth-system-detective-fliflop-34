@@ -20,12 +20,12 @@ export const GLOBE_TELEMETRY_FOCUSES: readonly GlobeFocusTelemetry[] = [
     id: 'teleconnection',
     modeId: 'spatial_dipole',
     chipLabel: 'A ≠ B · X = Y',
-    regionShort: 'Amazônia ↔ África',
-    badge: 'Dipolo Espacial · Amazônia ↔ África Central',
+    regionShort: 'Amazon ↔ Africa',
+    badge: 'Spatial Dipole · Amazon ↔ Central Africa',
     coordA: [-3.5, -60.0],
-    labelA: 'A: Amazônia Central (T2M)',
+    labelA: 'A: Central Amazon (T2M)',
     coordB: [0.5, 22.0],
-    labelB: 'B: Bacia do Congo (T2M)',
+    labelB: 'B: Congo Basin (T2M)',
     sameLocation: false,
     dualVariable: false,
     cameraTarget: [-2, -19],
@@ -35,11 +35,11 @@ export const GLOBE_TELEMETRY_FOCUSES: readonly GlobeFocusTelemetry[] = [
     modeId: 'local_coupling',
     chipLabel: 'A = B · X ≠ Y',
     regionShort: 'Cerrado (MG)',
-    badge: 'Causa Física Local · Norte de MG (Cerrado)',
+    badge: 'Local Physical Cause · Northern MG (Cerrado)',
     coordA: [-16.5, -44.0],
-    labelA: 'A=B: Cerrado / Norte de MG (GWETTOP)',
+    labelA: 'A=B: Cerrado / Northern MG (GWETTOP)',
     coordB: [-16.5, -44.0],
-    labelB: 'Mesma área · Calor máximo (T2M_MAX)',
+    labelB: 'Same area · Max Heat (T2M_MAX)',
     sameLocation: true,
     dualVariable: true,
     cameraTarget: [-14, -46],
@@ -48,12 +48,12 @@ export const GLOBE_TELEMETRY_FOCUSES: readonly GlobeFocusTelemetry[] = [
     id: 'cross-lag',
     modeId: 'cross_teleconnection',
     chipLabel: 'A ≠ B · X ≠ Y',
-    regionShort: 'Índia ↔ Japão',
-    badge: 'Teleconexão Cruzada · Índia ↔ Japão (Ásia)',
+    regionShort: 'India ↔ Japan',
+    badge: 'Cross-Teleconnection · India ↔ Japan (Asia)',
     coordA: [28.6, 77.2],
-    labelA: 'A: Índia / Delhi (AOD_550)',
+    labelA: 'A: India / Delhi (AOD_550)',
     coordB: [35.7, 139.7],
-    labelB: 'B: Japão / Honshu (PRECTOTCORR)',
+    labelB: 'B: Japan / Honshu (PRECTOTCORR)',
     sameLocation: false,
     dualVariable: true,
     cameraTarget: [30, 108],
@@ -62,12 +62,12 @@ export const GLOBE_TELEMETRY_FOCUSES: readonly GlobeFocusTelemetry[] = [
     id: 'arctic',
     modeId: 'univariate_xray',
     chipLabel: 'A = B · X = Y',
-    regionShort: 'Ártico (Svalbard)',
-    badge: 'Raio-X Interno · Ártico (Svalbard)',
+    regionShort: 'Arctic (Svalbard)',
+    badge: 'Internal X-Ray · Arctic (Svalbard)',
     coordA: [78.0, 15.0],
-    labelA: 'A=B: Svalbard · Polo Norte',
+    labelA: 'A=B: Svalbard · North Pole',
     coordB: [78.0, 15.0],
-    labelB: 'Tendência T2M + Curva GAM + AR(1)',
+    labelB: 'T2M Trend + GAM Curve + AR(1)',
     sameLocation: true,
     dualVariable: false,
     cameraTarget: [54, 12],
@@ -106,7 +106,7 @@ function latLonToUnit(latDeg: number, lonDeg: number): UnitPoint3 {
   };
 }
 
-/** Rotaciona ponto unitário para que (rotLon, rotLat) aponte exatamente para o centro (+z). */
+/** Rotates unit point so (rotLon, rotLat) points directly toward center (+z). */
 function rotateUnitPoint(
   pt: UnitPoint3,
   cosLon: number,
@@ -121,7 +121,7 @@ function rotateUnitPoint(
   return { x: x1, y: y2, z: z2, latDeg: pt.latDeg };
 }
 
-/** Calcula coordenadas rotacionadas (x, y, z) de um ponto para verificar centralização na câmera. */
+/** Computes rotated (x, y, z) coordinates of a point to verify camera centering. */
 export function projectCoordFacingCamera(
   coord: readonly [lat: number, lon: number],
   cameraTarget: readonly [lat: number, lon: number],
@@ -164,9 +164,9 @@ void main() {
 `;
 
 /**
- * Shader executado UMA ÚNICA VEZ na inicialização para pré-calcular a textura esférica
- * equiretangular (1024×512) de nuvens FBM 3D sem costura nos meridianos.
- * Isso elimina ~320 cálculos de hash 3D por pixel durante os frames de animação.
+ * Shader executed ONCE at initialization to pre-bake the seamless 3D FBM
+ * equirectangular cloud texture (1024×512) across meridians.
+ * Eliminates ~320 3D hash evaluations per pixel during animation frames.
  */
 const CLOUD_BAKE_FRAGMENT_SRC = `
 precision highp float;
@@ -237,8 +237,8 @@ void main() {
 `;
 
 /**
- * Shader por frame ultra-leve: usa apenas leituras de textura (u_tex + u_cloudTex pré-assada)
- * e iluminação vetorial direta, rodando a 60–120fps constantes sem travamentos.
+ * Ultra-lightweight per-frame shader: uses only texture lookups (u_tex + pre-baked u_cloudTex)
+ * and direct vector lighting, running at a steady 60–120fps without stutter.
  */
 const PLANET_FRAGMENT_SHADER_SRC = `
 precision highp float;
@@ -711,8 +711,8 @@ function readTargetZoomProgress(): number {
 }
 
 /**
- * Globo terrestre 3D fotorrealista (NASA Blue Marble + nuvens pré-assadas em GPU + iluminação Rayleigh),
- * 100% local/offline, mantendo o contexto WebGL vivo durante trocas de foco para 60fps constantes.
+ * Photorealistic 3D Earth globe (NASA Blue Marble + GPU-baked clouds + Rayleigh scattering),
+ * 100% local/offline, keeping the WebGL context alive across focus switches for steady 60fps.
  */
 export function Globe3D({ activeFocus, focusNonce, onZoomProgress }: Globe3DProps) {
   const canvasRef = useRef<HTMLCanvasElement | null>(null);
@@ -1009,7 +1009,7 @@ export function Globe3D({ activeFocus, focusNonce, onZoomProgress }: Globe3DProp
     try {
       event.currentTarget.setPointerCapture(event.pointerId);
     } catch {
-      // jsdom ou dispositivos sem pointer capture
+      // jsdom or devices without pointer capture
     }
   }
 
@@ -1036,7 +1036,7 @@ export function Globe3D({ activeFocus, focusNonce, onZoomProgress }: Globe3DProp
         ref={canvasRef}
         className="hero-globe-canvas"
         role="img"
-        aria-label={`Globo terrestre 3D interativo destacando ${activeFocus.badge}`}
+        aria-label={`Interactive 3D Earth globe highlighting ${activeFocus.badge}`}
         onPointerDown={handlePointerDown}
         onPointerMove={handlePointerMove}
         onPointerUp={handlePointerUp}
@@ -1050,7 +1050,7 @@ export function Globe3D({ activeFocus, focusNonce, onZoomProgress }: Globe3DProp
         </div>
 
         <div className="hero-float-pill pill-bottom-right">
-          <b>{activeFocus.sameLocation ? 'Modo Co-local' : 'Teleconexão 3D'}</b>
+          <b>{activeFocus.sameLocation ? 'Co-local Mode' : '3D Teleconnection'}</b>
           <span>{activeFocus.labelB}</span>
         </div>
       </div>

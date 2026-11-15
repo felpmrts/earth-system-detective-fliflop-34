@@ -1,1 +1,1 @@
-"""Testes automatizados do backend de dados."""
+"""Automated tests for the data backend."""

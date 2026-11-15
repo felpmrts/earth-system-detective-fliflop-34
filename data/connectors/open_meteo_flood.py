@@ -1,4 +1,4 @@
-"""Conector para a Open-Meteo Flood API (Modelo GloFAS — Vazão de Rios)."""
+"""Connector for the Open-Meteo Flood API (GloFAS Model — River Discharge)."""
 
 from __future__ import annotations
 
@@ -27,7 +27,7 @@ def _aggregate_daily_to_monthly(
     values: Sequence[Any],
     variable_code: str = "river_discharge",
 ) -> dict[str, float]:
-    """Agrega séries diárias do GloFAS em séries mensais respeitando o operador físico."""
+    """Aggregates daily GloFAS series into monthly series respecting the physical operator."""
     buckets: dict[str, list[float]] = defaultdict(list)
     for date_str, raw_val in zip(dates, values):
         if raw_val is None:
@@ -64,9 +64,9 @@ def fetch_multi_variables_batch(
     cache: CellCacheStore | None = None,
     label: str = "Open-Meteo GloFAS",
 ) -> dict[str, dict[str, Any]]:
-    """Busca 1 ou N variáveis hidrológicas do GloFAS com agregação mensal e cache."""
+    """Fetches 1 to N GloFAS hydrological variables with monthly aggregation and cache."""
     if not variables:
-        raise ValueError("Informe ao menos 1 variável hidrológica.")
+        raise ValueError("Provide at least 1 hydrological variable.")
 
     cache_store = cache or CellCacheStore()
     base_url = os.environ.get(
@@ -201,7 +201,7 @@ def fetch_single_variable(
     cache: CellCacheStore | None = None,
     label: str = "Open-Meteo GloFAS",
 ) -> dict[str, Any]:
-    """Busca 1 única variável hidrológica reutilizando o fluxo em lote."""
+    """Fetches a single hydrological variable reusing the batch flow."""
     return fetch_multi_variables_batch(
         [variable],
         cells,

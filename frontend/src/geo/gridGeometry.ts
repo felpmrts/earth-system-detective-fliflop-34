@@ -37,16 +37,16 @@ function roundCoord(value: number): number {
   return rounded === 0 ? 0 : rounded;
 }
 
-/** Valida latitude [-90, 90] e longitude [-180, 180] contra NaN/Infinity/inversão. */
+/** Validates latitude [-90, 90] and longitude [-180, 180] against NaN/Infinity/inversion. */
 export function assertValidLatLon(lat: number, lon: number): void {
   if (!Number.isFinite(lat) || !Number.isFinite(lon)) {
-    throw new Error(`Coordenadas inválidas (não finitas): lat=${lat}, lon=${lon}`);
+    throw new Error(`Invalid coordinates (non-finite): lat=${lat}, lon=${lon}`);
   }
   if (lat < -90 || lat > 90) {
-    throw new Error(`Latitude fora do intervalo [-90, 90]: ${lat}`);
+    throw new Error(`Latitude out of range [-90, 90]: ${lat}`);
   }
   if (lon < -180 || lon > 180) {
-    throw new Error(`Longitude fora do intervalo [-180, 180]: ${lon}`);
+    throw new Error(`Longitude out of range [-180, 180]: ${lon}`);
   }
 }
 
@@ -213,8 +213,8 @@ export function toggleCellInSelection(
 }
 
 /**
- * Gera um region_id determinístico ordenando os cell_ids, garantindo mesma chave de cache
- * independentemente da ordem em que o usuário clicou nas células.
+ * Generates a deterministic region_id by sorting cell_ids, guaranteeing the same cache key
+ * regardless of the order in which the user clicked the cells.
  */
 export function buildRegionSelection(
   slot: RegionSlot,
@@ -222,13 +222,13 @@ export function buildRegionSelection(
   cells: readonly GridCell[],
 ): RegionSelection {
   if (cells.length === 0) {
-    throw new Error('RegionSelection exige ao menos 1 célula selecionada.');
+    throw new Error('RegionSelection requires at least 1 selected cell.');
   }
   if (cells.length > MAX_CELLS_PER_REGION) {
-    throw new Error(`RegionSelection excede o limite de ${MAX_CELLS_PER_REGION} células.`);
+    throw new Error(`RegionSelection exceeds the limit of ${MAX_CELLS_PER_REGION} cells.`);
   }
   if (!isConnectedComponent(cells)) {
-    throw new Error('RegionSelection contém células desconexas (exige conectividade de 8 vizinhos).');
+    throw new Error('RegionSelection contains disconnected cells (requires 8-neighbor connectivity).');
   }
 
   const meta = getVariableMetadata(variableId);

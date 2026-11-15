@@ -1,16 +1,16 @@
 import type { ReactNode } from 'react';
 
 /**
- * Renderizador leve e SEGURO (somente nós React, nunca `dangerouslySetInnerHTML`) para respostas do
- * Co-Piloto: negrito (**x**), código inline (`x`), listas, títulos e destaque automático de métricas
- * (valores p/q, números com unidade e números decimais) em fonte monoespaçada.
+ * Lightweight, SAFE renderer (React nodes only, never `dangerouslySetInnerHTML`) for Co-Pilot
+ * responses: bold (**x**), inline code (`x`), lists, headings, and automatic highlighting of
+ * metrics (p/q values, numbers with units, and decimals) in monospace font.
  */
 const INLINE_PATTERN = new RegExp(
   [
-    '(\\*\\*[^*\\n]+\\*\\*)', // 1: negrito
-    '(`[^`\\n]+`)', // 2: código inline
+    '(\\*\\*[^*\\n]+\\*\\*)', // 1: bold
+    '(`[^`\\n]+`)', // 2: inline code
     '((?<![A-Za-z0-9_])[pq](?:_[A-Za-z0-9]+)?\\s*[=<>≥≤]\\s*[+\\-−]?\\d[\\d.,]*(?:e[+\\-]?\\d+)?)', // 3: p/q
-    '([+\\-−]?\\d+(?:[.,]\\d+)?(?:e[+\\-]?\\d+)?\\s?(?:°C|kPa|W\\/m²|m\\/s|mm|%|σ|ms|meses|months|fração)(?:\\/(?:década|decade))?)', // 4: número + unidade
+    '([+\\-−]?\\d+(?:[.,]\\d+)?(?:e[+\\-]?\\d+)?\\s?(?:°C|kPa|W\\/m²|m\\/s|mm|%|σ|ms|months|fraction)(?:\\/decade)?)', // 4: number + unit
     '((?<![A-Za-z0-9_])[+\\-−]?\\d+[.,]\\d+(?:e[+\\-]?\\d+)?)', // 5: decimal
   ].join('|'),
   'gi',

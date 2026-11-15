@@ -1,4 +1,4 @@
-"""Catálogo oficial das 7 Famílias Ambientais e suas variáveis."""
+"""Official catalog of the 7 Environmental Families and their variables."""
 
 from .environmental_catalog import (
     ENVIRONMENTAL_FAMILIES,

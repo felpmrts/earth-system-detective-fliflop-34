@@ -226,7 +226,7 @@ class TestCopilotTools(unittest.TestCase):
             "nonexistent_tool",
             {},
             self.mock_analysis,
-            language="pt",
+            language="en",
         )
         self.assertIn("error", payload)
         self.assertEqual(meta["status"], "error")
@@ -263,18 +263,18 @@ class TestCopilotAgenticLoopAndCache(unittest.TestCase):
 
             llm_json = {
                 "synthesis": {
-                    "mathematical_evidence": "Diagnóstico sazonal mostra aumento de 42% na T2M_MAX em JJA.",
-                    "physical_meaning": "Dessecação sazonal concentrada em JJA.",
-                    "false_conclusion_risk": "Confundir tendência secular com ciclo sazonal.",
+                    "mathematical_evidence": "Seasonal diagnosis shows a 42% increase in T2M_MAX in JJA.",
+                    "physical_meaning": "Seasonal desiccation concentrated in JJA.",
+                    "false_conclusion_risk": "Confusing secular trend with seasonal cycle.",
                 },
                 "four_answers": {
-                    "what": "Declínio de GWETTOP (-0.0366 fração/década).",
-                    "where": "Região A vs Região B.",
-                    "how_much": "Aumento de 42% em T2M_MAX no período.",
+                    "what": "GWETTOP decline (-0.0366 fraction/decade).",
+                    "where": "Region A vs Region B.",
+                    "how_much": "42% increase in T2M_MAX over the period.",
                     "is_significant": "p_AR1 = 0.0, Tier CONFIRMED_HIGH.",
                 },
-                "reply_markdown": "Na análise de temperatura T2M_MAX observou-se aumento de 42% no período.",
-                "suggested_questions": ["Testar sem 2015?"],
+                "reply_markdown": "In the T2M_MAX temperature analysis, a 42% increase was observed over the period.",
+                "suggested_questions": ["Test without 2015?"],
             }
             return {
                 "candidates": [
@@ -290,8 +290,8 @@ class TestCopilotAgenticLoopAndCache(unittest.TestCase):
         with patch.dict(os.environ, {"GEMINI_API_KEY": "fake-key-for-mock-test"}):
             resp = generate_copilot_response(
                 self.mock_analysis,
-                question="Qual estação dirige a tendência e há variação na temperatura?",
-                language="pt",
+                question="Which season drives the trend and is there a temperature shift?",
+                language="en",
                 use_llm=True,
                 http_post_fn=fake_http_post,
             )
@@ -318,8 +318,8 @@ class TestCopilotAgenticLoopAndCache(unittest.TestCase):
     def test_offline_deterministic_tool_routing(self) -> None:
         r_season = generate_copilot_response(
             self.mock_analysis,
-            question="Analise a tendência por estação JJA e DJF",
-            language="pt",
+            question="Analyze the trend by season JJA and DJF",
+            language="en",
             use_llm=False,
         )
         self.assertEqual(r_season["mode"], "heuristic_fallback")
@@ -330,8 +330,8 @@ class TestCopilotAgenticLoopAndCache(unittest.TestCase):
 
         r_lag = generate_copilot_response(
             self.mock_analysis,
-            question="Qual a defasagem lag entre A e B?",
-            language="pt",
+            question="What is the lag between A and B?",
+            language="en",
             use_llm=False,
         )
         self.assertIn(
@@ -341,8 +341,8 @@ class TestCopilotAgenticLoopAndCache(unittest.TestCase):
 
         r_out = generate_copilot_response(
             self.mock_analysis,
-            question="Faça sensibilidade sem outliers 2015",
-            language="pt",
+            question="Run sensitivity without outliers 2015",
+            language="en",
             use_llm=False,
         )
         self.assertIn(
@@ -352,15 +352,15 @@ class TestCopilotAgenticLoopAndCache(unittest.TestCase):
 
         r_ml = generate_copilot_response(
             self.mock_analysis,
-            question="Explique as descobertas de ML, teleconexões ENSO e quebra CUSUM",
-            language="pt",
+            question="Explain the ML discovery findings, ENSO teleconnections and CUSUM break",
+            language="en",
             use_llm=False,
         )
         self.assertIn(
             "run_ml_dynamic_discovery",
             [t["name"] for t in r_ml["tools_used"]],
         )
-        self.assertIn("Descoberta Dinâmica ML", r_ml["answer"])
+        self.assertIn("Dynamic ML Discovery", r_ml["answer"])
 
     def test_backend_router_analyze_and_copilot_analysis_key_cache(self) -> None:
         router = BackendRouter()
@@ -371,8 +371,8 @@ class TestCopilotAgenticLoopAndCache(unittest.TestCase):
             "/api/copilot",
             {
                 "analysis_key": analysis_key,
-                "question": "Qual estação dirige a tendência?",
-                "language": "pt",
+                "question": "Which season drives the trend?",
+                "language": "en",
                 "use_llm": False,
             },
         )
@@ -489,7 +489,7 @@ class TestCopilotAgenticLoopAndCache(unittest.TestCase):
         l_res = compute_lagged_crosscorrelation_ar1(analysis, max_lag=6)
         self.assertIn("q_detrended_fdr", l_res["best_detrended_lag"])
         self.assertFalse(l_res["best_detrended_lag"]["is_detrended_sig_fdr05"])
-        self.assertIn("Sem precedência estatisticamente significativa", l_res["precedence_interpretation"])
+        self.assertIn("No statistically significant precedence after FDR", l_res["precedence_interpretation"])
 
         # B2: GWETTOP (ratio, allow_percentage_change=False, unit != '%') must block relative '%' claims while keeping IC 95%
         sanitized, warns = sanitize_interval_scale_percentages(
@@ -502,7 +502,7 @@ class TestCopilotAgenticLoopAndCache(unittest.TestCase):
         self.assertGreater(len(warns), 0)
 
     def test_fractional_gwetprof_and_albedo_trend_unit(self) -> None:
-        """GWETPROF and ALLSKY_SRF_ALB must expose trend_unit='fração/década' and allow_percentage_change=False."""
+        """GWETPROF and ALLSKY_SRF_ALB must expose trend_unit='fraction/decade' and allow_percentage_change=False."""
         analysis = _load_mock_analysis()
         dates = _make_monthly_dates(2000, 20)
         series = {ym: round(0.42 + 0.0005 * i, 4) for i, ym in enumerate(dates)}
@@ -510,7 +510,7 @@ class TestCopilotAgenticLoopAndCache(unittest.TestCase):
         for var_code in ("GWETPROF", "ALLSKY_SRF_ALB"):
             with patch(
                 "backend.copilot_tools.fetch_location_single_variable",
-                return_value={"status": "OK", "unit": "Fração (0 a 1)", "series": series},
+                return_value={"status": "OK", "unit": "Fraction (0 to 1)", "series": series},
             ):
                 res = fetch_additional_variable_analysis(
                     analysis,
@@ -521,8 +521,8 @@ class TestCopilotAgenticLoopAndCache(unittest.TestCase):
                     end_date="2019-12",
                 )
             self.assertEqual(res["status"], "OK")
-            self.assertEqual(res["unit"], "fração (0–1)")
-            self.assertEqual(res["trend_unit"], "fração/década")
+            self.assertEqual(res["unit"], "fraction (0–1)")
+            self.assertEqual(res["trend_unit"], "fraction/decade")
             self.assertFalse(res["allow_percentage_change"])
 
 

@@ -1,8 +1,8 @@
-"""Ferramentas Científicas Determinísticas para o Chatbot Co-Piloto Estatístico.
+"""Deterministic Scientific Tools for the Statistical Co-Pilot Chatbot.
 
-Regra fundamental: a LLM formula hipóteses e escolhe testes; todo cálculo
-matemático é executado aqui em Python determinístico usando `backend/stats_engine.py`
-e `data/services/ingestion_service.py` com estrito respeito aos 7 Invariantes.
+Fundamental rule: the LLM formulates hypotheses and selects tests; all mathematical
+computations are executed here in deterministic Python using `backend/stats_engine.py`
+and `data/services/ingestion_service.py` with strict adherence to the 7 Invariants.
 """
 
 from __future__ import annotations
@@ -54,13 +54,13 @@ def _select_slot_block(analysis: Mapping[str, Any], slot: str = "A") -> Tuple[st
     block_a = analysis.get("region_a_analysis")
     if isinstance(block_a, dict):
         return "A", block_a
-    raise ValueError("Payload 'analysis' não contém 'region_a_analysis' válido.")
+    raise ValueError("Payload 'analysis' does not contain a valid 'region_a_analysis'.")
 
 
 def _extract_valid_points(
     block: Mapping[str, Any],
 ) -> List[Tuple[int, str, float, float, float]]:
-    """Retorna lista de (idx, date_yyyy_mm, anomaly, raw_val, linear_fit) válidos."""
+    """Returns list of valid (idx, date_yyyy_mm, anomaly, raw_val, linear_fit) tuples."""
     series = block.get("series") or {}
     dates = series.get("dates") or []
     anomalies = series.get("anomaly_values") or []
@@ -92,10 +92,10 @@ def _evaluate_regression_slice(
     *,
     step_months: int = 1,
 ) -> Dict[str, Any]:
-    """Roda OLS, Theil-Sen, GAM e significância AR(1) em uma fatia de anomalias válidas."""
+    """Runs OLS, Theil-Sen, GAM, and AR(1) significance on a slice of valid anomalies."""
     if len(points) < 6:
         raise ValueError(
-            f"Amostra insuficiente para re-estimação robusta ({len(points)} observações válidas; mínimo 6)."
+            f"Insufficient sample for robust re-estimation ({len(points)} valid observations; minimum 6)."
         )
 
     dates = [p[1] for p in points]
@@ -156,11 +156,11 @@ def run_subperiod_or_regime_split(
     end_date: Optional[str] = None,
     split_date: Optional[str] = None,
 ) -> Dict[str, Any]:
-    """Reavalia tendências em um subperíodo [start_date, end_date] ou compara pré vs. pós `split_date`."""
+    """Re-evaluates trends in a subperiod [start_date, end_date] or compares before vs. after `split_date`."""
     resolved_slot, block = _select_slot_block(analysis, slot)
     points = _extract_valid_points(block)
     if len(points) < 12:
-        raise ValueError("Série insuficiente para subamostragem ou quebra de regime (< 12 meses).")
+        raise ValueError("Insufficient series length for subsampling or regime split (< 12 months).")
 
     if start_date or end_date:
         s_bound = (start_date or points[0][1])[:7]
@@ -212,7 +212,7 @@ def run_sensitivity_without_outliers(
     exclude_dates: Optional[Sequence[str]] = None,
     exclude_years: Optional[Sequence[int]] = None,
 ) -> Dict[str, Any]:
-    """Testa robustez da tendência removendo extremos de Mahalanobis e/ou datas/anos explícitos."""
+    """Tests trend robustness by removing Mahalanobis extremes and/or explicit dates/years."""
     resolved_slot, block = _select_slot_block(analysis, slot)
     points = _extract_valid_points(block)
     outliers = block.get("outliers_mahalanobis") or []
@@ -275,11 +275,11 @@ def compute_seasonal_stratified_trends(
     *,
     slot: str = "A",
 ) -> Dict[str, Any]:
-    """Calcula tendências estratificadas por trimestre com agregação anual sazonal e BH-FDR (M3)."""
+    """Computes seasonally stratified trends with seasonal-year aggregation and BH-FDR (M3)."""
     resolved_slot, block = _select_slot_block(analysis, slot)
     points = _extract_valid_points(block)
     if len(points) < 12:
-        raise ValueError("Série insuficiente para estratificação sazonal (< 12 meses).")
+        raise ValueError("Insufficient series length for seasonal stratification (< 12 months).")
 
     seasons_out: Dict[str, Dict[str, Any]] = {}
     ok_keys: List[str] = []
@@ -382,11 +382,11 @@ def compute_lagged_crosscorrelation_ar1(
     *,
     max_lag: int = 6,
 ) -> Dict[str, Any]:
-    """Correlação cruzada com defasagem A(t) vs. B(t+lag) e correção Bretherton AR(1)."""
+    """Lagged cross-correlation A(t) vs. B(t+lag) with Bretherton AR(1) correction."""
     reg_a = analysis.get("region_a_analysis")
     reg_b = analysis.get("region_b_analysis")
     if not isinstance(reg_a, dict) or not isinstance(reg_b, dict):
-        raise ValueError("São necessárias Região A e Região B para análise de defasagem cruzada.")
+        raise ValueError("Both Region A and Region B are required for lagged cross-correlation analysis.")
 
     clamped_lag = max(1, min(12, int(max_lag)))
     pts_a = {p[1]: (p[2], p[2] - p[4]) for p in _extract_valid_points(reg_a)}
@@ -394,10 +394,10 @@ def compute_lagged_crosscorrelation_ar1(
 
     common_dates = sorted(set(pts_a.keys()) & set(pts_b.keys()))
     if len(common_dates) < 12:
-        raise ValueError("Sobreposição temporal insuficiente (< 12 meses) entre Região A e Região B.")
+        raise ValueError("Insufficient temporal overlap (< 12 months) between Region A and Region B.")
 
     lag_rows: List[Dict[str, Any]] = []
-    # Mapeia YYYY-MM para índice inteiro de meses contíguos para suportar lacunas reais
+    # Map YYYY-MM to contiguous integer month index to handle real temporal gaps
     def _ym_to_idx(ym: str) -> int:
         y, m = ym.split("-")
         return int(y) * 12 + (int(m) - 1)
@@ -432,7 +432,7 @@ def compute_lagged_crosscorrelation_ar1(
         )
 
     if not lag_rows:
-        raise ValueError("Não há pares suficientes em nenhum lag para calcular correlação cruzada.")
+        raise ValueError("Insufficient pairs at any lag to compute cross-correlation.")
 
     # Benjamini-Hochberg FDR across all 2*max_lag+1 tested lags (M4)
     q_raw_list, sig_raw_list = apply_spatial_fdr_bh(
@@ -452,21 +452,21 @@ def compute_lagged_crosscorrelation_ar1(
     det_lag = int(best_det["lag_months"])
     if not bool(best_det["is_detrended_sig_fdr05"]):
         precedence = (
-            f"Sem precedência estatisticamente significativa após FDR "
+            f"No statistically significant precedence after FDR "
             f"({len(lag_rows)} lags, q_FDR={best_det['q_detrended_fdr']:.4f} >= 0.05)"
         )
     elif det_lag > 0:
-        precedence = f"A ({reg_a.get('variable_id')}) precede B ({reg_b.get('variable_id')}) em +{det_lag} mês(es)"
+        precedence = f"A ({reg_a.get('variable_id')}) leads B ({reg_b.get('variable_id')}) by +{det_lag} month(s)"
     elif det_lag < 0:
-        precedence = f"B ({reg_b.get('variable_id')}) precede A ({reg_a.get('variable_id')}) em +{abs(det_lag)} mês(es)"
+        precedence = f"B ({reg_b.get('variable_id')}) leads A ({reg_a.get('variable_id')}) by +{abs(det_lag)} month(s)"
     else:
-        precedence = "Acoplamento contemporâneo síncrono (pico detrended em lag 0)"
+        precedence = "Synchronous contemporaneous coupling (detrended peak at lag 0)"
 
     return {
         "tool": "compute_lagged_crosscorrelation_ar1",
         "variable_a": reg_a.get("variable_id"),
         "variable_b": reg_b.get("variable_id"),
-        "lag_convention": "lag > 0 significa A(t) correlacionado com B(t + lag meses)",
+        "lag_convention": "lag > 0 means A(t) correlated with B(t + lag months)",
         "best_raw_lag": best_raw,
         "best_detrended_lag": best_det,
         "precedence_interpretation": precedence,
@@ -508,11 +508,11 @@ def inspect_quantiles_and_extremes(
     slot: str = "A",
     top_k: int = 5,
 ) -> Dict[str, Any]:
-    """Compara quantis (P10/P50/P90/IQR) entre 1ª e 2ª metades e detalha os top extremos."""
+    """Compares quantiles (P10/P50/P90/IQR) between 1st and 2nd halves and details top extremes."""
     resolved_slot, block = _select_slot_block(analysis, slot)
     points = _extract_valid_points(block)
     if len(points) < 8:
-        raise ValueError("Série insuficiente para decomposição em quantis (< 8 meses).")
+        raise ValueError("Insufficient series length for quantile decomposition (< 8 months).")
 
     mid = len(points) // 2
     first_half = points[:mid]
@@ -564,7 +564,7 @@ def inspect_quantiles_and_extremes(
 
 
 def _decode_cells_from_region_id(region_id: Optional[str]) -> List[CellCoord]:
-    """Reconstrói coordenadas nativas a partir de `{MODEL}__r{row}_c{col}+...`."""
+    """Reconstructs native coordinates from `{MODEL}__r{row}_c{col}+...`."""
     if not region_id or "__" not in region_id:
         return []
     model_part, cells_part = region_id.split("__", 1)
@@ -595,14 +595,14 @@ def fetch_additional_variable_analysis(
     end_date: Optional[str] = None,
     cache: Optional[CellCacheStore] = None,
 ) -> Dict[str, Any]:
-    """Busca nova variável do catálogo via `ingestion_service` e roda `stats_engine` ao vivo."""
+    """Fetches a new catalog variable via `ingestion_service` and runs `stats_engine` live."""
     var_code = str(variable_id or "").strip().upper()
     if var_code not in VARIABLE_BY_CODE:
         return {
             "tool": "fetch_additional_variable_analysis",
             "status": "INVALID_VARIABLE",
             "variable_id": var_code,
-            "error": f"Variável '{var_code}' não existe no catálogo oficial ({len(VARIABLE_BY_CODE)} variáveis).",
+            "error": f"Variable '{var_code}' does not exist in the official catalog ({len(VARIABLE_BY_CODE)} variables).",
             "sample_valid_codes": sorted(VARIABLE_BY_CODE.keys())[:15],
         }
 
@@ -628,7 +628,7 @@ def fetch_additional_variable_analysis(
             "tool": "fetch_additional_variable_analysis",
             "status": "MISSING_COORDINATES",
             "variable_id": var_code,
-            "error": "Informe `lat` e `lon` (ou analise regiões com cell_ids MERRA-2/CERES) para buscar nova variável.",
+            "error": "Provide `lat` and `lon` (or analyze regions with MERRA-2/CERES cell_ids) to fetch a new variable.",
         }
 
     base_period = base_block.get("period") or {}
@@ -682,17 +682,17 @@ def fetch_additional_variable_analysis(
     raw_unit = str(fetched.get("unit") or spec.unit)
     unit = str(
         cat_meta.get("unit")
-        or ("fração (0–1)" if raw_unit.lower().startswith("fração") else raw_unit)
+        or ("fraction (0–1)" if raw_unit.lower().startswith(("fraction", "fração")) else raw_unit)
     )
     trend_unit = str(
         fetched.get("trend_unit")
         or cat_meta.get("trend_unit")
         or (
-            "p.p./década"
+            "p.p./decade"
             if unit == "%"
-            else "fração/década"
-            if unit.lower().startswith("fração")
-            else f"{unit}/década"
+            else "fraction/decade"
+            if unit.lower().startswith(("fraction", "fração"))
+            else f"{unit}/decade"
         )
     )
     allow_pct = bool(
@@ -750,7 +750,7 @@ def run_ml_dynamic_discovery(
     slot: str = "A",
     cache: Optional[CellCacheStore] = None,
 ) -> Dict[str, Any]:
-    """Executa o Motor ML Camada 2 (`discover_from_analysis`) para quebra CUSUM, teleconexões parciais ENSO/Atlântico e atribuição Ridge GCV."""
+    """Runs the Layer 2 ML Engine (`discover_from_analysis`) for CUSUM breaks, partial ENSO/Atlantic teleconnections, and Ridge GCV attribution."""
     resolved_slot, primary_block = _select_slot_block(analysis, slot)
     other_key = "region_b_analysis" if resolved_slot == "A" else "region_a_analysis"
     other_block = analysis.get(other_key)
@@ -795,44 +795,44 @@ def run_ml_dynamic_discovery(
 _TOOL_REGISTRY: Dict[str, Dict[str, Any]] = {
     "run_subperiod_or_regime_split": {
         "fn": run_subperiod_or_regime_split,
-        "label_pt": "Subperíodo / Quebra de Regime",
+        "label_pt": "Subperiod / Regime Split",
         "label_en": "Subperiod / Regime Split",
     },
     "run_sensitivity_without_outliers": {
         "fn": run_sensitivity_without_outliers,
-        "label_pt": "Robustez sem Outliers (D_M > 2,5)",
+        "label_pt": "Sensitivity Excluding Outliers (D_M > 2.5)",
         "label_en": "Sensitivity Excluding Outliers",
     },
     "compute_seasonal_stratified_trends": {
         "fn": compute_seasonal_stratified_trends,
-        "label_pt": "Decomposição Sazonal (DJF–SON)",
+        "label_pt": "Seasonal Stratified Trends (DJF–SON)",
         "label_en": "Seasonal Stratified Trends",
     },
     "compute_lagged_crosscorrelation_ar1": {
         "fn": compute_lagged_crosscorrelation_ar1,
-        "label_pt": "Correlação Cruzada com Lag (AR1)",
+        "label_pt": "Lagged Cross-Correlation (AR1)",
         "label_en": "Lagged Cross-Correlation (AR1)",
     },
     "inspect_quantiles_and_extremes": {
         "fn": inspect_quantiles_and_extremes,
-        "label_pt": "Quantis P10/P50/P90 e Caudas",
+        "label_pt": "Quantiles & Tail Extremes (P10/P50/P90)",
         "label_en": "Quantiles & Tail Extremes",
     },
     "fetch_additional_variable_analysis": {
         "fn": fetch_additional_variable_analysis,
-        "label_pt": "Busca ao Vivo de Nova Variável",
+        "label_pt": "Live Additional Variable Fetch",
         "label_en": "Live Additional Variable Fetch",
     },
     "run_ml_dynamic_discovery": {
         "fn": run_ml_dynamic_discovery,
-        "label_pt": "Descoberta ML (CUSUM, Teleconexões & Ridge GCV)",
+        "label_pt": "ML Discovery (CUSUM, Teleconnections & Ridge GCV)",
         "label_en": "ML Discovery (CUSUM, Teleconnections & Ridge GCV)",
     },
 }
 
 
 def get_gemini_tool_declarations() -> List[Dict[str, Any]]:
-    """Declarações JSON Schema no formato oficial `functionDeclarations` da Gemini API."""
+    """JSON Schema declarations in the official Gemini API `functionDeclarations` format."""
     return [
         {
             "name": "run_subperiod_or_regime_split",
@@ -980,11 +980,7 @@ def _summarize_tool_execution(
                 f"(p_AR1={sub['p_value_ar1_corrected']:.4f})"
             )
         shift = float(result.get("slope_sen_shift_after_minus_before", 0.0))
-        return (
-            f"Pivot {result.get('split_date')}: ΔSen={shift:+.3f}"
-            if lang == "pt"
-            else f"Split {result.get('split_date')}: ΔSen={shift:+.3f}"
-        )
+        return f"Split {result.get('split_date')}: ΔSen={shift:+.3f}"
 
     if name == "run_sensitivity_without_outliers":
         filt = result["filtered"]
@@ -997,8 +993,8 @@ def _summarize_tool_execution(
         dom = result.get("dominant_season")
         if dom and dom in (result.get("seasons") or {}):
             s_val = result["seasons"][dom]
-            return f"Dominante {dom}: Sen={s_val['slope_per_decade_sen']:+.3f}"
-        return "4 trimestres"
+            return f"Dominant {dom}: Sen={s_val['slope_per_decade_sen']:+.3f}"
+        return "4 seasons"
 
     if name == "compute_lagged_crosscorrelation_ar1":
         best = result.get("best_detrended_lag") or {}
@@ -1015,7 +1011,7 @@ def _summarize_tool_execution(
     if name == "run_ml_dynamic_discovery":
         geom = result.get("regime_and_gam_geometry") or {}
         tel = result.get("partial_teleconnections") or {}
-        brk = geom.get("break_date") if geom.get("cusum_break_detected") else "sem quebra"
+        brk = geom.get("break_date") if geom.get("cusum_break_detected") else "no break"
         return (
             f"{geom.get('forensic_regime_diagnosis', 'OK')} (CUSUM={brk}) · "
             f"FDR tel={tel.get('significant_strict_both_fdr05_count', 0)}"
@@ -1030,13 +1026,13 @@ def execute_copilot_tool(
     analysis: Mapping[str, Any],
     *,
     cache: Optional[CellCacheStore] = None,
-    language: str = "pt",
+    language: str = "en",
 ) -> Tuple[Dict[str, Any], Dict[str, Any]]:
-    """Executa uma ferramenta científica registrada retornando (payload_json, metadado_auditoria)."""
-    lang = "en" if str(language).lower().startswith("en") else "pt"
+    """Executes a registered scientific tool returning (payload_json, audit_metadata)."""
+    lang = "en"
     entry = _TOOL_REGISTRY.get(name)
     if entry is None:
-        err_payload = {"error": f"Ferramenta desconhecida: {name}"}
+        err_payload = {"error": f"Unknown tool: {name}"}
         meta = {
             "name": name,
             "label": name,

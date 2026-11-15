@@ -84,145 +84,145 @@ class SemanticContractError(ValueError):
 VARIABLE_CATALOG: Dict[str, Dict[str, Any]] = {
     "T2M": {
         "variable_id": "T2M",
-        "variable_name": "Temperatura Média do Ar a 2m",
+        "variable_name": "2m Mean Air Temperature",
         "source_model": "MERRA-2",
         "resolution": {"dLat": 0.5, "dLon": 0.625},
         "min_year": 1981,
         "scale_type": "interval",
         "unit": "°C",
-        "trend_unit": "°C/década",
+        "trend_unit": "°C/decade",
         "allow_percentage_change": False,
         "land_only_mask": False,
     },
     "T2M_MAX": {
         "variable_id": "T2M_MAX",
-        "variable_name": "Temperatura Máxima Diária a 2m",
+        "variable_name": "2m Daily Maximum Temperature",
         "source_model": "MERRA-2",
         "resolution": {"dLat": 0.5, "dLon": 0.625},
         "min_year": 1981,
         "scale_type": "interval",
         "unit": "°C",
-        "trend_unit": "°C/década",
+        "trend_unit": "°C/decade",
         "allow_percentage_change": False,
         "land_only_mask": False,
     },
     "T2M_MIN": {
         "variable_id": "T2M_MIN",
-        "variable_name": "Temperatura Mínima Diária a 2m",
+        "variable_name": "2m Daily Minimum Temperature",
         "source_model": "MERRA-2",
         "resolution": {"dLat": 0.5, "dLon": 0.625},
         "min_year": 1981,
         "scale_type": "interval",
         "unit": "°C",
-        "trend_unit": "°C/década",
+        "trend_unit": "°C/decade",
         "allow_percentage_change": False,
         "land_only_mask": False,
     },
     "PRECTOTCORR": {
         "variable_id": "PRECTOTCORR",
-        "variable_name": "Precipitação Total Corrigida",
+        "variable_name": "Bias-Corrected Total Precipitation",
         "source_model": "MERRA-2",
         "resolution": {"dLat": 0.5, "dLon": 0.625},
         "min_year": 1981,
         "scale_type": "ratio",
-        "unit": "mm/mês",
-        "trend_unit": "mm/mês/década",
+        "unit": "mm/month",
+        "trend_unit": "mm/month/decade",
         "allow_percentage_change": True,
         "land_only_mask": False,
     },
     "GWETTOP": {
         "variable_id": "GWETTOP",
-        "variable_name": "Umidade do Solo Superficial (0–5 cm)",
+        "variable_name": "Surface Soil Moisture (0–5 cm)",
         "source_model": "MERRA-2",
         "resolution": {"dLat": 0.5, "dLon": 0.625},
         "min_year": 1981,
         "scale_type": "ratio",
-        "unit": "fração (0–1)",
-        "trend_unit": "fração/década",
+        "unit": "fraction (0–1)",
+        "trend_unit": "fraction/decade",
         "allow_percentage_change": False,
         "land_only_mask": True,
     },
     "GWETROOT": {
         "variable_id": "GWETROOT",
-        "variable_name": "Umidade do Solo Radicular (0–100 cm)",
+        "variable_name": "Root-Zone Soil Moisture (0–100 cm)",
         "source_model": "MERRA-2",
         "resolution": {"dLat": 0.5, "dLon": 0.625},
         "min_year": 1981,
         "scale_type": "ratio",
-        "unit": "fração (0–1)",
-        "trend_unit": "fração/década",
+        "unit": "fraction (0–1)",
+        "trend_unit": "fraction/decade",
         "allow_percentage_change": False,
         "land_only_mask": True,
     },
     "RH2M": {
         "variable_id": "RH2M",
-        "variable_name": "Umidade Relativa do Ar a 2m",
+        "variable_name": "2m Relative Humidity",
         "source_model": "MERRA-2",
         "resolution": {"dLat": 0.5, "dLon": 0.625},
         "min_year": 1981,
         "scale_type": "ratio",
         "unit": "%",
-        "trend_unit": "p.p./década",
+        "trend_unit": "p.p./decade",
         "allow_percentage_change": False,
         "land_only_mask": False,
     },
     "WS10M": {
         "variable_id": "WS10M",
-        "variable_name": "Velocidade do Vento a 10m",
+        "variable_name": "10m Wind Speed",
         "source_model": "MERRA-2",
         "resolution": {"dLat": 0.5, "dLon": 0.625},
         "min_year": 1981,
         "scale_type": "ratio",
         "unit": "m/s",
-        "trend_unit": "m/s/década",
+        "trend_unit": "m/s/decade",
         "allow_percentage_change": True,
         "land_only_mask": False,
     },
     "PS": {
         "variable_id": "PS",
-        "variable_name": "Pressão de Superfície",
+        "variable_name": "Surface Pressure",
         "source_model": "MERRA-2",
         "resolution": {"dLat": 0.5, "dLon": 0.625},
         "min_year": 1981,
         "scale_type": "interval",
         "unit": "kPa",
-        "trend_unit": "kPa/década",
+        "trend_unit": "kPa/decade",
         "allow_percentage_change": False,
         "land_only_mask": False,
     },
     "ALLSKY_SFC_SW_DWN": {
         "variable_id": "ALLSKY_SFC_SW_DWN",
-        "variable_name": "Irradiância Solar Onda Curta Descendente",
+        "variable_name": "Downward Shortwave Solar Irradiance",
         "source_model": "CERES_SYN1deg",
         "resolution": {"dLat": 1.0, "dLon": 1.0},
         "min_year": 1984,
         "scale_type": "ratio",
-        "unit": "MJ/m²/dia",
-        "trend_unit": "MJ/m²/dia/década",
+        "unit": "MJ/m²/day",
+        "trend_unit": "MJ/m²/day/decade",
         "allow_percentage_change": True,
         "land_only_mask": False,
     },
     "CLDTOT": {
         "variable_id": "CLDTOT",
-        "variable_name": "Cobertura Total de Nuvens",
+        "variable_name": "Total Cloud Cover",
         "source_model": "CERES_SYN1deg",
         "resolution": {"dLat": 1.0, "dLon": 1.0},
         "min_year": 1984,
         "scale_type": "ratio",
         "unit": "%",
-        "trend_unit": "p.p./década",
+        "trend_unit": "p.p./decade",
         "allow_percentage_change": False,
         "land_only_mask": False,
     },
     "ALLSKY_SFC_LW_DWN": {
         "variable_id": "ALLSKY_SFC_LW_DWN",
-        "variable_name": "Irradiância Térmica Onda Longa Descendente",
+        "variable_name": "Downward Longwave Thermal Irradiance",
         "source_model": "CERES_SYN1deg",
         "resolution": {"dLat": 1.0, "dLon": 1.0},
         "min_year": 1984,
         "scale_type": "ratio",
-        "unit": "MJ/m²/dia",
-        "trend_unit": "MJ/m²/dia/década",
+        "unit": "MJ/m²/day",
+        "trend_unit": "MJ/m²/day/decade",
         "allow_percentage_change": True,
         "land_only_mask": False,
     },
@@ -231,21 +231,21 @@ VARIABLE_CATALOG: Dict[str, Dict[str, Any]] = {
 
 # Known climate oscillations (ENSO / volcanic / extreme drought years) for diagnostic hints
 _KNOWN_CLIMATE_EVENTS: Dict[int, str] = {
-    1982: "Super El Niño 1982-1983",
-    1983: "Super El Niño 1982-1983",
-    1988: "Forte La Niña 1988-1989",
-    1989: "Forte La Niña 1988-1989",
-    1991: "Erupção do Monte Pinatubo / El Niño 1991-1992",
-    1997: "Super El Niño 1997-1998",
-    1998: "Super El Niño 1997-1998 / Transição La Niña",
-    1999: "Forte La Niña 1999-2000",
-    2005: "Seca extrema / Anomalia do Atlântico Tropical 2005",
-    2010: "Oscilação forte El Niño / La Niña 2010",
-    2015: "Super El Niño 2015-2016",
-    2016: "Super El Niño 2015-2016",
-    2020: "La Niña Tripla 2020-2022",
-    2023: "Super El Niño / Anomalia Térmica Global 2023-2024",
-    2024: "Super El Niño / Extremo Climático 2023-2024",
+    1982: "1982–1983 Super El Niño",
+    1983: "1982–1983 Super El Niño",
+    1988: "1988–1989 Strong La Niña",
+    1989: "1988–1989 Strong La Niña",
+    1991: "Mount Pinatubo Eruption / 1991–1992 El Niño",
+    1997: "1997–1998 Super El Niño",
+    1998: "1997–1998 Super El Niño / La Niña Transition",
+    1999: "1999–2000 Strong La Niña",
+    2005: "2005 Extreme Drought / Tropical Atlantic Anomaly",
+    2010: "2010 Strong El Niño / La Niña Oscillation",
+    2015: "2015–2016 Super El Niño",
+    2016: "2015–2016 Super El Niño",
+    2020: "2020–2022 Triple-Dip La Niña",
+    2023: "2023–2024 Super El Niño / Global Thermal Anomaly",
+    2024: "2023–2024 Super El Niño / Climate Extreme",
 }
 
 
@@ -322,9 +322,9 @@ def _parse_yyyy_mm(date_str: str) -> Tuple[int, int]:
     elif len(s) == 6 and s.isdigit():
         year, month = int(s[:4]), int(s[4:6])
     else:
-        raise ValueError(f"Formato de data inválido: {date_str!r}. Esperado 'YYYY-MM'.")
+        raise ValueError(f"Invalid date format: {date_str!r}. Expected 'YYYY-MM'.")
     if month < 1 or month > 12:
-        raise ValueError(f"Mês inválido ({month}) em {date_str!r}. Chave anual YYYY13 é proibida.")
+        raise ValueError(f"Invalid month ({month}) in {date_str!r}. Annual key YYYY13 is prohibited.")
     return year, month
 
 
@@ -407,12 +407,12 @@ def get_intersecting_date_bounds(
     (MERRA-2 starts in 1981; CERES_SYN1deg starts in 1984).
     """
     if variable_a not in VARIABLE_CATALOG:
-        raise SemanticContractError("CONTRACT_VIOLATION", f"Variável desconhecida: {variable_a}")
+        raise SemanticContractError("CONTRACT_VIOLATION", f"Unknown variable: {variable_a}")
     min_year = VARIABLE_CATALOG[variable_a]["min_year"]
 
     if variable_b is not None:
         if variable_b not in VARIABLE_CATALOG:
-            raise SemanticContractError("CONTRACT_VIOLATION", f"Variável desconhecida: {variable_b}")
+            raise SemanticContractError("CONTRACT_VIOLATION", f"Unknown variable: {variable_b}")
         min_year = max(min_year, VARIABLE_CATALOG[variable_b]["min_year"])
 
     min_start = f"{min_year:04d}-01"
@@ -422,7 +422,7 @@ def get_intersecting_date_bounds(
     if start_date > end_date:
         raise SemanticContractError(
             "INVALID_DATE_INTERSECTION",
-            f"Intervalo temporal inválido: start_date ({start_date}) > end_date ({end_date}).",
+            f"Invalid time window: start_date ({start_date}) > end_date ({end_date}).",
         )
 
     return {
@@ -487,7 +487,7 @@ def aggregate_cells_nanmean(
     if k < 1 or k > 9:
         raise SemanticContractError(
             "MAX_CELLS_EXCEEDED",
-            f"A composição espacial deve conter entre 1 e 9 células adjacentes (recebido K={k}).",
+            f"Spatial composition must contain between 1 and 9 adjacent cells (received K={k}).",
         )
 
     n_time = len(cells_series[0])
@@ -495,7 +495,7 @@ def aggregate_cells_nanmean(
         if len(s) != n_time:
             raise SemanticContractError(
                 "CONTRACT_VIOLATION",
-                f"Célula {idx} possui tamanho {len(s)} diferente de {n_time}.",
+                f"Cell {idx} has length {len(s)} different from {n_time}.",
             )
 
     aggregated: List[Optional[float]] = []
@@ -516,7 +516,7 @@ def aggregate_cells_nanmean(
     if valid_timestamps == 0:
         raise SemanticContractError(
             "OCEAN_MASK_NO_DATA",
-            f"Todas as {k} células selecionadas para {variable_id} retornaram sem dados válidos (-999 / máscara oceânica).",
+            f"All {k} selected cells for {variable_id} returned no valid data (-999 / ocean mask).",
         )
 
     return aggregated
@@ -537,7 +537,7 @@ def compute_climatological_anomalies(
     if len(dates) != len(raw_values):
         raise SemanticContractError(
             "CONTRACT_VIOLATION",
-            "Vetores dates e raw_values possuem tamanhos diferentes.",
+            "Vectors dates and raw_values have different lengths.",
         )
 
     month_buckets: Dict[int, List[float]] = {m: [] for m in range(1, 13)}
@@ -636,7 +636,7 @@ def compute_ols_regression(
     if n < 3:
         raise SemanticContractError(
             "CONTRACT_VIOLATION",
-            f"São necessárias ao menos 3 observações válidas para regressão (recebido N={n}).",
+            f"At least 3 valid observations are required for regression (received N={n}).",
         )
 
     t0 = t_years[0]
@@ -1177,10 +1177,10 @@ def detect_mahalanobis_outliers(
             year, _ = _parse_yyyy_mm(d_str)
             event_label = _KNOWN_CLIMATE_EVENTS.get(year)
             if event_label:
-                hint = f"Extremo fora da elipse bivariada (D_M = {dm:.2f}) associado a {event_label}"
+                hint = f"Outlier outside bivariate ellipse (D_M = {dm:.2f}) associated with {event_label}"
             else:
-                pole = "Pico positivo anômalo" if direction == "above_ellipse" else "Queda anômala severa"
-                hint = f"{pole} fora da elipse de Mahalanobis (D_M = {dm:.2f} > {threshold})"
+                pole = "Anomalous positive spike" if direction == "above_ellipse" else "Severe anomalous drop"
+                hint = f"{pole} outside Mahalanobis ellipse (D_M = {dm:.2f} > {threshold})"
 
             outliers.append(
                 {
@@ -1394,11 +1394,11 @@ def analyze_single_series(
         scale_type = str(variable_meta.get("scale_type") or "ratio")
         unit = str(variable_meta.get("unit") or "")
         inferred_trend_unit = (
-            "p.p./década"
+            "p.p./decade"
             if unit == "%"
-            else "fração/década"
-            if unit.lower().startswith("fração")
-            else f"{unit}/década"
+            else "fraction/decade"
+            if unit.lower().startswith(("fraction", "fração"))
+            else f"{unit}/decade"
         )
         meta: Dict[str, Any] = {
             "variable_id": str(variable_meta.get("variable_id") or variable_id),
@@ -1411,13 +1411,13 @@ def analyze_single_series(
     elif variable_id in VARIABLE_CATALOG:
         meta = VARIABLE_CATALOG[variable_id]
     else:
-        raise SemanticContractError("CONTRACT_VIOLATION", f"Variável desconhecida no catálogo: {variable_id}")
+        raise SemanticContractError("CONTRACT_VIOLATION", f"Unknown variable in catalog: {variable_id}")
 
     # Invariant #3 hard check: interval scales never allow percentage change
     allow_pct = False if meta["scale_type"] == "interval" else bool(meta["allow_percentage_change"])
 
     if len(dates) != len(raw_values) or len(dates) == 0:
-        raise SemanticContractError("CONTRACT_VIOLATION", "Séries dates e raw_values vazias ou desalinhadas.")
+        raise SemanticContractError("CONTRACT_VIOLATION", "Empty or misaligned dates and raw_values series.")
 
     anom_res = compute_climatological_anomalies(dates, raw_values)
     anomaly_values = anom_res["anomaly_values"]
@@ -1431,7 +1431,7 @@ def analyze_single_series(
     if len(valid_indices) < 3:
         raise SemanticContractError(
             "OCEAN_MASK_NO_DATA",
-            f"Observações válidas insuficientes ({len(valid_indices)}) para {variable_id}.",
+            f"Insufficient valid observations ({len(valid_indices)}) for {variable_id}.",
         )
 
     valid_dates = [dates[i] for i in valid_indices]
@@ -1599,7 +1599,7 @@ def compare_regions(
     if dates_a[0] != dates_b[0] or dates_a[-1] != dates_b[-1]:
         raise SemanticContractError(
             "INVALID_DATE_INTERSECTION",
-            f"Comparação proibida entre janelas desalinhadas: A ({dates_a[0]}..{dates_a[-1]}) vs B ({dates_b[0]}..{dates_b[-1]}).",
+            f"Comparison prohibited across misaligned windows: A ({dates_a[0]}..{dates_a[-1]}) vs B ({dates_b[0]}..{dates_b[-1]}).",
         )
 
     map_a = {
@@ -1627,7 +1627,7 @@ def compare_regions(
     if len(common_dates) < 3:
         raise SemanticContractError(
             "INVALID_DATE_INTERSECTION",
-            "Menos de 3 meses em comum válidos entre as duas séries comparadas.",
+            "Fewer than 3 valid common months between the two compared series.",
         )
 
     # Long-term secular correlation (low-frequency GAM smooth + deseasonalized anomaly cloud)
@@ -1658,38 +1658,38 @@ def compare_regions(
     if r_secular > 0.25 and r_detrended < -0.20:
         paradox_type = "MULTISCALE_PARADOX_POS_GLOBAL_NEG_LOCAL"
         interpretation = (
-            f"Paradoxo Multiescala Detectado: a longo prazo ({var_a} vs {var_b}) caminham na mesma direção "
-            f"(r_global = {r_secular:+.2f}), mas a curto prazo operam em oposição de fase / gangorra climática "
+            f"Multiscale Paradox Detected: over the long term ({var_a} vs {var_b}) move in the same direction "
+            f"(r_global = {r_secular:+.2f}), but on the short-term scale they operate in phase opposition / climate seesaw "
             f"(r_detrended = {r_detrended:+.2f})."
         )
     elif r_secular < -0.25 and r_detrended > 0.20:
         paradox_type = "MULTISCALE_PARADOX_NEG_GLOBAL_POS_LOCAL"
         interpretation = (
-            f"Paradoxo Multiescala Invertido: divergência secular de longo prazo (r_global = {r_secular:+.2f}), "
-            f"porém oscilações de curto prazo sincronizadas em fase (r_detrended = {r_detrended:+.2f})."
+            f"Inverted Multiscale Paradox: long-term secular divergence (r_global = {r_secular:+.2f}), "
+            f"yet short-term oscillations are synchronized in phase (r_detrended = {r_detrended:+.2f})."
         )
     elif spatial_divergence:
         paradox_type = "OPPOSING_SECULAR_AND_COUPLED_DIPOLE"
         interpretation = (
-            f"Divergência espacial confirmada ('sobe aqui, cai ali'): Região A apresenta {slope_a:+.3f} "
-            f"{analysis_a['trend_unit']} enquanto Região B apresenta {slope_b:+.3f} {analysis_b['trend_unit']}."
+            f"Confirmed spatial divergence ('rises here, falls there'): Region A exhibits {slope_a:+.3f} "
+            f"{analysis_a['trend_unit']} while Region B exhibits {slope_b:+.3f} {analysis_b['trend_unit']}."
         )
     elif abs(r_detrended) >= 0.30 and (r_secular * r_detrended > 0):
         paradox_type = "LOCAL_PHYSICAL_COUPLING"
         interpretation = (
-            f"Acoplamento físico consistente entre {var_a} e {var_b} tanto na tendência secular "
-            f"(r_global = {r_secular:+.2f}) quanto na variabilidade interanual (r_detrended = {r_detrended:+.2f})."
+            f"Consistent physical coupling between {var_a} and {var_b} in both the secular trend "
+            f"(r_global = {r_secular:+.2f}) and interannual variability (r_detrended = {r_detrended:+.2f})."
         )
     elif abs(r_secular) >= 0.40:
         paradox_type = "SYNCHRONOUS_SECULAR_TREND"
         interpretation = (
-            f"Co-evolução secular forte (r_global = {r_secular:+.2f}) com baixa interferência de curto prazo "
+            f"Strong secular co-evolution (r_global = {r_secular:+.2f}) with low short-term interference "
             f"(r_detrended = {r_detrended:+.2f})."
         )
     else:
         paradox_type = "UNCOUPLED_REGIMES"
         interpretation = (
-            f"Regimes fracamente acoplados no período analisado (r_global = {r_secular:+.2f}, "
+            f"Weakly coupled regimes over the analyzed period (r_global = {r_secular:+.2f}, "
             f"r_detrended = {r_detrended:+.2f})."
         )
 
@@ -1821,7 +1821,7 @@ def build_global_grid_payload(
     or `dates` + `raw_values`.
     """
     if variable_id not in VARIABLE_CATALOG:
-        raise SemanticContractError("CONTRACT_VIOLATION", f"Variável desconhecida: {variable_id}")
+        raise SemanticContractError("CONTRACT_VIOLATION", f"Unknown variable: {variable_id}")
     meta = VARIABLE_CATALOG[variable_id]
 
     interim_points: List[Dict[str, Any]] = []

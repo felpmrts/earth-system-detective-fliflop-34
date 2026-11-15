@@ -43,14 +43,14 @@ class TestStatsEngineInvariants(unittest.TestCase):
             if meta["scale_type"] == "interval":
                 self.assertFalse(
                     meta["allow_percentage_change"],
-                    f"Invariante #3 violado em {var_id}: variável intervalar não pode permitir %.",
+                    f"Invariant #3 violated for {var_id}: interval variable must not allow %.",
                 )
 
     def test_nasa_power_cleaning_yyyy13_sentinel_and_prectotcorr(self) -> None:
         """DADOS-1/2 Rule: discard YYYY13, replace -999 with None, convert PRECTOTCORR mm/day -> mm/month."""
         raw_power = {
-            "202001": 2.0,     # Jan 2020 (31 days) -> 62.0 mm/mês
-            "202002": 3.0,     # Feb 2020 (leap year, 29 days) -> 87.0 mm/mês
+            "202001": 2.0,     # Jan 2020 (31 days) -> 62.0 mm/month
+            "202002": 3.0,     # Feb 2020 (leap year, 29 days) -> 87.0 mm/month
             "202003": -999.0,  # Sentinel -> None
             "202013": 2.5,     # Annual key -> must be discarded!
         }
@@ -188,7 +188,7 @@ class TestStatsEngineInvariants(unittest.TestCase):
         top_outlier = next(o for o in stats["outliers_mahalanobis"] if o["date"] == "2015-11")
         self.assertGreater(top_outlier["mahalanobis_d"], 2.5)
         self.assertEqual(top_outlier["direction"], "below_ellipse")
-        self.assertIn("El Niño 2015-2016", top_outlier["diagnostic_hint"])
+        self.assertIn("2015–2016 Super El Niño", top_outlier["diagnostic_hint"])
         self.assertEqual(len(stats["series"]["raw_values"]), 540)
         self.assertEqual(len(stats["series"]["sen_fit"]), 540)
         self.assertEqual(len(stats["series"]["gam_smooth_fit"]), 540)
@@ -314,7 +314,7 @@ class TestStatsEngineInvariants(unittest.TestCase):
                 return {
                     "status": "OK",
                     "variable": "T2M_RANGE",
-                    "ui_name": "Amplitude Térmica Diurna (Tmax - Tmin)",
+                    "ui_name": "Diurnal Temperature Range (Tmax - Tmin)",
                     "unit": "°C",
                     "scale_type": "interval",
                     "allow_percentage_change": False,
@@ -329,8 +329,8 @@ class TestStatsEngineInvariants(unittest.TestCase):
             return {
                 "status": "OK",
                 "variable": "GWETTOP",
-                "ui_name": "Umidade Superficial do Solo",
-                "unit": "fração (0–1)",
+                "ui_name": "Surface Soil Moisture",
+                "unit": "fraction (0–1)",
                 "scale_type": "ratio",
                 "allow_percentage_change": False,
                 "api_puxada": "NASA POWER",
@@ -381,7 +381,7 @@ class TestStatsEngineInvariants(unittest.TestCase):
         self.assertEqual(len(block_a["series"]["gam_smooth_fit"]), 300)
         self.assertTrue(
             any(o["date"] == "2005-11" for o in block_a["outliers_mahalanobis"]),
-            "Outlier sintético 2005-11 não detectado via comparison_service -> MinCovDet.",
+            "Synthetic 2005-11 outlier not detected via comparison_service -> MinCovDet.",
         )
         self.assertIsNotNone(block_b)
         self.assertGreaterEqual(block_b["significance"]["fdr_q_value"], 0.0)

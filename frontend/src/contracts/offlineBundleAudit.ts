@@ -6,33 +6,33 @@ export interface OfflineAuditIssue {
 
 const BLOCKING_HTML_PATTERNS: readonly { readonly label: string; readonly regex: RegExp }[] = [
   {
-    label: 'Tag <script> externa por HTTP(S)',
+    label: 'External HTTP(S) <script> tag',
     regex: /<script\b[^>]*\bsrc=["']https?:\/\/[^"']+["']/gi,
   },
   {
-    label: 'Folha de estilo ou recurso <link> externo por HTTP(S)',
+    label: 'External HTTP(S) stylesheet or <link> resource',
     regex: /<link\b[^>]*\bhref=["']https?:\/\/[^"']+["']/gi,
   },
   {
-    label: 'Referência Google Fonts / CDN externo em HTML',
+    label: 'External Google Fonts / CDN reference in HTML',
     regex: /https?:\/\/(?:fonts\.googleapis\.com|fonts\.gstatic\.com|unpkg\.com|cdn\.jsdelivr\.net|cdnjs\.cloudflare\.com|esm\.sh|cdn\.skypack\.dev)[^\s"'<>]*/gi,
   },
 ];
 
 const BLOCKING_CSS_PATTERNS: readonly { readonly label: string; readonly regex: RegExp }[] = [
   {
-    label: 'Importação CSS externa (@import url(http...))',
+    label: 'External CSS import (@import url(http...))',
     regex: /@import\s+(?:url\(\s*)?["']?https?:\/\/[^"')\s;]+/gi,
   },
   {
-    label: 'Recurso CSS url(http...) (fontes ou imagens externas)',
+    label: 'External CSS url(http...) resource (fonts or images)',
     regex: /url\(\s*["']?https?:\/\/[^"')\s]+/gi,
   },
 ];
 
 const BLOCKING_JS_CDN_PATTERNS: readonly { readonly label: string; readonly regex: RegExp }[] = [
   {
-    label: 'CDN de fonte, script ou biblioteca externa embutida no JS',
+    label: 'External font, script, or library CDN embedded in JS',
     regex: /https?:\/\/(?:fonts\.googleapis\.com|fonts\.gstatic\.com|unpkg\.com|cdn\.jsdelivr\.net|cdnjs\.cloudflare\.com|esm\.sh|cdn\.skypack\.dev|ajax\.googleapis\.com)[^\s"'`)]*/gi,
   },
 ];

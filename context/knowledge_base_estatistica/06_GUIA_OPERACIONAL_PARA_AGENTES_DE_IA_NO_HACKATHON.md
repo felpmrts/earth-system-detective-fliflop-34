@@ -1,38 +1,38 @@
-# 06. Guia Operacional e Contrato Estatístico para Agentes de IA no Hackathon
+# 06. Operational Guide and Statistical Contract for AI Agents at the Hackathon
 
-> **Referência Base:** Síntese executável dos Documentos `01` a `05` integrada à governança de [`ESTRATEGIA_TREND_DETECTIVE.md`](file:///home/zrhyan/Principal/Computation/Space%20Apps/general_strategy/ESTRATEGIA_TREND_DETECTIVE.md)
-> **Objetivo para Agentes de IA:** Este documento é o **manual de bolso e checklist de auditoria** para qualquer agente de IA (seja GPT, Claude, Gemini ou subagentes) acionado durante as 39 horas do hackathon. Ele define **o que deve entrar no Contrato de Dados (Fase 1)**, **como cada pergunta do desafio é respondida matematicamente** e **quais erros jamais podem ser cometidos**.
+> **Base Reference:** Executable synthesis of Documents `01` through `05` integrated with the governance of [`ESTRATEGIA_TREND_DETECTIVE.md`](../general_strategy/ESTRATEGIA_TREND_DETECTIVE.md)
+> **Goal for AI Agents:** This document is the **pocket manual and audit checklist** for any AI agent (GPT, Claude, Gemini, or subagents) invoked during the 39 hours of the hackathon. It defines **what must go into the Data Contract (Phase 1)**, **how each challenge question is answered mathematically**, and **which errors must never be committed**.
 
 ---
 
-## 1. Mapeamento Matemático Oficial das 4 Perguntas do Desafio (#14)
+## 1. Official Mathematical Mapping of the 4 Challenge Questions (#14)
 
-Conforme definido na seção 1 de [`ESTRATEGIA_TREND_DETECTIVE.md`](file:///home/zrhyan/Principal/Computation/Space%20Apps/general_strategy/ESTRATEGIA_TREND_DETECTIVE.md#L30), o critério de aceitação ("definição de pronto") exige que, para qualquer variável e região clicada, a ferramenta responda de imediato: **O quê, Onde, Quanto e Significância**.
+As defined in Section 1 of [`ESTRATEGIA_TREND_DETECTIVE.md`](../general_strategy/ESTRATEGIA_TREND_DETECTIVE.md#L30), the acceptance criterion ("definition of done") requires that, for any clicked variable and region, the tool immediately answers: **What, Where, How Much, and Significance**.
 
-Abaixo está a especificação de **Estado da Arte** (baseada nos ensinamentos de Hindemburg Melão Jr. em [`transcricao.txt`](file:///home/zrhyan/Principal/Computation/Space%20Apps/transcricao.txt)) para cada uma das 4 respostas:
+Below is the **State-of-the-Art** specification (grounded in Hindemburg Melão Jr.'s teachings in `transcricao.txt`) for each of the 4 answers:
 
-| Pergunta do Desafio | Métrica Primária (Obrigatória) | Métrica Complementar (Estado da Arte) | Proibição Absoluta (Anti-Erro) |
+| Challenge Question | Primary Metric (Mandatory) | Complementary Metric (State of the Art) | Absolute Prohibition (Anti-Error) |
 | :--- | :--- | :--- | :--- |
-| **1. O QUE muda?** (*What is changing?*) | Nome físico da variável + **Anomalia Climatológica** ($Y'_{a,m} = Y_{a,m} - \bar{Y}_m$) + Regime da curva (**Linear constante**, **Acelerando** ou **Desacelerando/Saturando** via GAM/derivada). | Identificação de eventos extremos fora da **Elipse de Mahalanobis** ($D_M > 2{,}5$) e diagnóstico de saltos de sensores. | Nunca misturar sensores não-harmonizados nem regredir série mensal bruta dominada por ondas de verão/inverno sem extrair a anomalia (Princípio Henrietta Leavitt). |
-| **2. ONDE muda?** (*Where is it changing?*) | Coordenadas/Região + **Mapa de Divergência Espacial** colorido por $B_{\text{década}}$ + comparação direta com região de tendência oposta (*"Sobe aqui, cai ali"*). | **Decomposição de Correlação Multiescala** entre regiões: Correlação Secular de Longo Prazo ($r_{\text{global}}$) vs. Correlação Residual de Curto Prazo ($r_{\text{local}}$). | Nunca comparar duas regiões usando janelas de anos diferentes (ex.: $2000\text{–}2025$ vs. $2012\text{–}2025$). |
-| **3. QUANTO muda?** (*How much is it changing?*) | **Inclinação da Regressão sobre toda a nuvem** expressa por década: **Declive Robusto de Sen ($B_{\text{Sen}}$)** e **OLS ($B_{\text{OLS}}$)** + Variação acumulada na reta $\Delta \hat{Y} = B \cdot \Delta t$. | Parâmetro de nível inicial centralizado $A_0 = \hat{Y}(t_{\text{início}})$ + Curva não-linear **GAM / Spline Monotônica** para capturar curvatura física. | **PROIBIDO:** Calcular $Y_{\text{final}} - Y_{\text{inicial}}$ (erro primário do ponto inicial/final) e **PROIBIDO** calcular variação percentual ($\%$) em escalas intervalares como $^\circ\text{C}$ ou anomalias! |
-| **4. É SIGNIFICATIVO?** (*Is it statistically significant?*) | **$p\text{-valor}$ corrigido para Autocorrelação $\text{AR}(1)$** ($N_{\text{efetivo}}$ de Santer / Hamed-Rao) + **Controle Espacial de Falsas Descobertas (FDR Benjamini-Hochberg, $q < 0{,}05$)**. | **Coeficiente de Correlação ($r$ de Pearson e $\tau$ de Kendall)** medindo a estreiteza da elipse (quão bem o tempo prediz a variável). | Nunca usar $p < 0{,}05$ ingênuo sem corrigir autocorrelação serial e sem controlar múltiplos testes na grade do mapa. |
+| **1. WHAT is changing?** | Physical variable name + **Climatological Anomaly** ($Y'_{a,m} = Y_{a,m} - \bar{Y}_m$) + Curve regime (**Constant linear**, **Accelerating**, or **Decelerating/Saturating** via GAM/derivative). | Identification of extreme events outside the **Mahalanobis Ellipse** ($D_M > 2.5$) and diagnosis of sensor jumps. | Never mix unharmonized sensors or regress raw monthly series dominated by summer/winter waves without extracting the anomaly (Henrietta Leavitt Principle). |
+| **2. WHERE is it changing?** | Coordinates/Region + **Spatial Divergence Map** colored by $B_{\text{decade}}$ + direct comparison with an opposing-trend region (*"Up here, down there"*). | **Multiscale Correlation Decomposition** between regions: Long-Term Secular Correlation ($r_{\text{global}}$) vs. Short-Term Residual Correlation ($r_{\text{local}}$). | Never compare two regions using different year windows (e.g., $2000\text{–}2025$ vs. $2012\text{–}2025$). |
+| **3. HOW MUCH is it changing?** | **Regression Slope over the entire cloud** expressed per decade: **Robust Sen's Slope ($B_{\text{Sen}}$)** and **OLS ($B_{\text{OLS}}$)** + Cumulative line change $\Delta \hat{Y} = B \cdot \Delta t$. | Centered initial-level parameter $A_0 = \hat{Y}(t_{\text{start}})$ + Nonlinear **GAM / Monotonic Spline** curve to capture physical curvature. | **FORBIDDEN:** Computing $Y_{\text{final}} - Y_{\text{initial}}$ (primary start/end point error) and **FORBIDDEN** computing percentage change ($\%$) on interval scales such as $^\circ\text{C}$ or anomalies! |
+| **4. IS IT SIGNIFICANT?** | **$\text{AR}(1)$-Autocorrelation-Corrected $p\text{-value}$** (Santer $N_{\text{effective}}$ / Hamed-Rao) + **Spatial False Discovery Rate Control (Benjamini-Hochberg FDR, $q < 0.05$)**. | **Correlation Coefficient (Pearson's $r$ and Kendall's $\tau$)** measuring ellipse tightness (how well time predicts the variable). | Never use naive $p < 0.05$ without correcting serial autocorrelation and controlling multiple tests across the map grid. |
 
 ---
 
-## 2. Especificação dos Campos Estatísticos para o "Contrato de Dados" (Fase 1 — Sábado 09:45)
+## 2. Specification of Statistical Fields for the "Data Contract" (Phase 1 — Saturday 09:45)
 
-Na **Fase 1** de [`ESTRATEGIA_TREND_DETECTIVE.md`](file:///home/zrhyan/Principal/Computation/Space%20Apps/general_strategy/ESTRATEGIA_TREND_DETECTIVE.md#L228), `DADOS-1`, `DADOS-2` e `PROD-1` fecham o **Contrato de Dados** às 10:30 de sábado para que o Frontend trabalhe em paralelo com *mock data* enquanto o Backend processa os dados reais da NASA.
+In **Phase 1** of [`ESTRATEGIA_TREND_DETECTIVE.md`](../general_strategy/ESTRATEGIA_TREND_DETECTIVE.md#L228), `DADOS-1`, `DADOS-2`, and `PROD-1` lock the **Data Contract** by 10:30 AM Saturday so the Frontend can work in parallel with *mock data* while the Backend processes real NASA data.
 
-Para que o Frontend (`PROD-1` e `PROD-2`) já nasça preparado para exibir o estado da arte estatístico sem retrabalho, o JSON de cada região/ponto no Contrato de Dados deve incluir o seguinte bloco `statistics`:
+So that the Frontend (`PROD-1` and `PROD-2`) is built ready to display state-of-the-art statistics without rework, each region/point's JSON in the Data Contract should include the following `statistics` block:
 
 ```json
 {
   "variable_id": "grace_tws_anomaly",
-  "variable_name": "Anomalia de Armazenamento de Água Terrestre (GRACE/GRACE-FO)",
+  "variable_name": "Terrestrial Water Storage Anomaly (GRACE/GRACE-FO)",
   "scale_type": "interval",
   "unit": "cm EWT",
-  "trend_unit": "cm / década",
+  "trend_unit": "cm / decade",
   "allow_percentage_change": false,
   "period": {
     "start": "2002-04",
@@ -70,7 +70,7 @@ Para que o Frontend (`PROD-1` e `PROD-2`) já nasça preparado para exibir o est
       "expected_regression": -16.2,
       "mahalanobis_d": 3.12,
       "direction": "below_ellipse",
-      "diagnostic_hint": "Pico de seca associado ao Super El Niño 2015-2016"
+      "diagnostic_hint": "Drought peak associated with the 2015-2016 Super El Niño"
     }
   ],
   "series": {
@@ -83,7 +83,7 @@ Para que o Frontend (`PROD-1` e `PROD-2`) já nasça preparado para exibir o est
 }
 ```
 
-### E para o Comparador de Divergência entre 2 Regiões (`PROD-2`):
+### And for the 2-Region Divergence Comparator (`PROD-2`):
 
 ```json
 {
@@ -96,7 +96,7 @@ Para que o Frontend (`PROD-1` e `PROD-2`) já nasça preparado para exibir o est
       "long_term_secular_r": -0.78,
       "short_term_detrended_r": -0.64,
       "paradox_type": "OPPOSING_SECULAR_AND_COUPLED_DIPOLE",
-      "interpretation": "Enquanto a Região A perde água a longo prazo (-14,2 cm/década), a Região B ganha (+8,2 cm/década), impulsionadas por deslocamento meridional da ZCIT."
+      "interpretation": "While Region A loses water over the long term (-14.2 cm/decade), Region B gains (+8.2 cm/decade), driven by a meridional shift of the ITCZ."
     }
   }
 }
@@ -104,26 +104,26 @@ Para que o Frontend (`PROD-1` e `PROD-2`) já nasça preparado para exibir o est
 
 ---
 
-## 3. Checklist de Auditoria "Quatro Olhos" para a Fase 5 e Fase 6 (`DADOS-2` + `NARR`)
+## 3. "Four-Eyes" Audit Checklist for Phase 5 and Phase 6 (`DADOS-2` + `NARR`)
 
-Antes de gravar o vídeo de pitch no domingo (Fase 7) ou declarar qualquer "achado científico" na Fase 5, o agente de IA e o responsável por `DADOS-2` devem passar cada descoberta pelos **10 Testes de Blindagem Hindemburg**:
+Before recording the pitch video on Sunday (Phase 7) or declaring any "scientific finding" in Phase 5, the AI agent and the `DADOS-2` lead must pass every discovery through the **10 Hindemburg Shielding Tests**:
 
-- [ ] **1. Zero Erro Inicial/Final:** A taxa de variação citada no texto e no vídeo veio da inclinação $B$ da regressão sobre toda a nuvem de pontos (e **não** da subtração entre o último e o primeiro valor)?
-- [ ] **2. Isolamento Sazonal (Leavitt):** A regressão foi calculada sobre **anomalias mensais dessazonalizadas** (ou médias anuais completas), eliminando a contaminação verão/inverno?
-- [ ] **3. Respeito à Escala da Variável:** Se a variável está em escala intervalar ($^\circ\text{C}$ ou anomalia com valores positivos e negativos), garantimos que **não existe nenhuma porcentagem ($\%$)** associada a ela na tela ou no roteiro?
-- [ ] **4. Concordância OLS vs. Robusto (Theil-Sen):** A inclinação por Mínimos Quadrados ($B_{\text{OLS}}$) e o Declive Mediano de Sen ($B_{\text{Sen}}$) apontam na mesma direção? Se divergirem, inspecionamos quais *outliers* fora da elipse de Mahalanobis causaram a divergência?
-- [ ] **5. Distinção entre Inclinação ($B$) e Correlação ($r$):** Explicamos corretamente ao usuário tanto a velocidade da mudança ($B$, da regressão) quanto o grau de estreiteza/previsibilidade da nuvem ($r$, da correlação)?
-- [ ] **6. Verificação de Curvatura e Constrição Física (GAM):** A curva suave (GAM/Spline) mostra aceleração recente ou saturação física? Garantimos que nenhum polinômio livre gerou inversão não-física nas pontas da série?
-- [ ] **7. Diagnóstico de "Corcovas" e Quebras de Sensor:** Se há um salto ou "corcova" na série, verificamos na ficha de `DADOS-1` se não é uma troca de satélite (ex.: transição MODIS/VIIRS ou hiato GRACE)?
-- [ ] **8. Significância Corrigida para Memória Climática ($\text{AR}(1)$):** O $p\text{-valor}$ reportado leva em conta o tamanho efetivo da amostra ($N_{\text{eff}}$)?
-- [ ] **9. Controle Espacial de Falsas Descobertas (FDR):** O mapa de significância passou pelo filtro de Benjamini-Hochberg para não pintar $5\%$ do planeta como significativo por puro acaso?
-- [ ] **10. Ausência de Correlação Contaminada e Cautela Causal:** Ao cruzar duas variáveis ou regiões, garantimos que elas não são derivadas da mesma fórmula matemática interna e evitamos afirmar "X causou Y" sem respaldo físico documentado?
+- [ ] **1. Zero Start/End Error:** Did the rate of change cited in text and video come from regression slope $B$ over the full point cloud (and **not** from subtracting the first value from the last)?
+- [ ] **2. Seasonal Isolation (Leavitt):** Was regression computed on **deseasonalized monthly anomalies** (or full annual means), eliminating summer/winter contamination?
+- [ ] **3. Variable Scale Respect:** If the variable is on an interval scale ($^\circ\text{C}$ or an anomaly with positive and negative values), did we ensure **no percentage ($\%$)** is attached to it on screen or in the script?
+- [ ] **4. OLS vs. Robust (Theil-Sen) Agreement:** Do the Ordinary Least Squares slope ($B_{\text{OLS}}$) and Sen's Median Slope ($B_{\text{Sen}}$) point in the same direction? If they diverge, did we inspect which *outliers* outside the Mahalanobis ellipse caused the divergence?
+- [ ] **5. Distinction Between Slope ($B$) and Correlation ($r$):** Did we clearly explain to the user both the speed of change ($B$, from regression) and the tightness/predictability of the cloud ($r$, from correlation)?
+- [ ] **6. Curvature and Physical Constraint Check (GAM):** Does the smooth curve (GAM/Spline) show recent acceleration or physical saturation? Did we ensure no unconstrained polynomial produced a non-physical reversal at the ends of the series?
+- [ ] **7. Diagnosis of "Bumps" and Sensor Breaks:** If there is a jump or "bump" in the series, did we verify in `DADOS-1`'s log that it is not a satellite swap (e.g., MODIS/VIIRS transition or GRACE gap)?
+- [ ] **8. Significance Corrected for Climate Memory ($\text{AR}(1)$):** Does the reported $p\text{-value}$ account for effective sample size ($N_{\text{eff}}$)?
+- [ ] **9. Spatial False Discovery Rate Control (FDR):** Did the significance map pass through the Benjamini-Hochberg filter so we do not paint $5\%$ of the planet as significant by pure chance?
+- [ ] **10. Absence of Contaminated Correlation and Causal Caution:** When cross-referencing two variables or regions, did we ensure they are not derived from the same internal mathematical formula, and did we avoid claiming "X caused Y" without documented physical backing?
 
 ---
 
-## 4. Como Explicar Nosso Rigor Estatístico em 20 Segundos no Vídeo de Pitch (Fase 7)
+## 4. How to Explain Our Statistical Rigor in 20 Seconds in the Pitch Video (Phase 7)
 
-No item 5 da estrutura do vídeo de pitch em [`ESTRATEGIA_TREND_DETECTIVE.md`](file:///home/zrhyan/Principal/Computation/Space%20Apps/general_strategy/ESTRATEGIA_TREND_DETECTIVE.md#L358) (*"5. Rigor: como garantimos que não é ruído"*), `NARR` pode usar um argumento matador diretamente inspirado nesta base de conhecimento:
+In item 5 of the pitch video structure in [`ESTRATEGIA_TREND_DETECTIVE.md`](../general_strategy/ESTRATEGIA_TREND_DETECTIVE.md#L358) (*"5. Rigor: how we guarantee it's not noise"*), `NARR` can use a killer argument directly inspired by this knowledge base:
 
-> **Sugestão de Fala para o Pitch (Forte Impacto nos Jurados Cientistas da NASA):**
-> *"A maioria das análises falha ao comparar apenas o início e o fim de uma série — sendo facilmente enganada por um ano de El Niño ou pela sazonalidade. O nosso motor estatístico isola primeiro as anomalias climatológicas e analisa a nuvem completa de 20 anos combinando regressão robusta de Theil-Sen, curvas aditivas generalizadas (GAM) para capturar acelerações físicas, filtragem bivariada de outliers por Distância de Mahalanobis e testes de significância corrigidos para memória climática ($\text{AR}(1)$) e falsos positivos espaciais (FDR). O resultado não é apenas um gráfico bonito: é ciência auditável."*
+> **Suggested Pitch Script Line (High Impact on NASA Scientist Judges):**
+> *"Most analyses fail by comparing only the start and end of a series — easily fooled by an El Niño year or seasonality. Our statistical engine first isolates climatological anomalies and analyzes the full 20-year cloud by combining robust Theil-Sen regression, Generalized Additive Models (GAM) to capture physical accelerations, bivariate Mahalanobis Distance outlier filtering, and significance tests corrected for climate memory ($\text{AR}(1)$) and spatial false positives (FDR). The result isn't just a pretty chart: it is auditable science."*

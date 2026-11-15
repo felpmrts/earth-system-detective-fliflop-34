@@ -35,7 +35,7 @@ const STAR_POINTS: readonly StarPoint[] = Array.from({ length: 64 }, (_, idx) =>
   };
 });
 
-/** Campo estelar determinístico em SVG inline para profundidade cósmica 100% offline. */
+/** Deterministic inline SVG starfield for 100% offline cosmic depth. */
 export function StarfieldBackdrop() {
   return (
     <div className="story-starfield" aria-hidden="true">

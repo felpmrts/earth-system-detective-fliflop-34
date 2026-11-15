@@ -50,9 +50,9 @@ interface MapWorkspaceProps {
 }
 
 const selectionErrorMessages = {
-  MAX_CELLS_EXCEEDED: `Cada região aceita até ${MAX_CELLS_PER_REGION} células.`,
-  NOT_ADJACENT: 'A nova célula precisa tocar a região atual.',
-  WOULD_DISCONNECT: 'Essa célula conecta partes da região e não pode ser removida agora.',
+  MAX_CELLS_EXCEEDED: `Each region accepts up to ${MAX_CELLS_PER_REGION} cells.`,
+  NOT_ADJACENT: 'The new cell must touch the current region.',
+  WOULD_DISCONNECT: 'This cell connects parts of the region and cannot be removed right now.',
 } as const;
 
 const SOURCE_MODEL_LABELS: Record<string, { readonly short: string; readonly full: string }> = {
@@ -72,7 +72,7 @@ function formatActiveSources(models: readonly (string | undefined)[], variant: '
         .map(model => SOURCE_MODEL_LABELS[model]?.[variant] ?? model),
     ),
   );
-  return labels.length > 0 ? labels.join(' + ') : 'fontes climáticas';
+  return labels.length > 0 ? labels.join(' + ') : 'climate sources';
 }
 
 function clampWrappedLatLon(lat: number, lon: number) {
@@ -106,11 +106,11 @@ function buildGlobalPointTooltip(point: GlobalGridPoint, grid: GlobalGridFile): 
 
   const status = document.createElement('div');
   const qText = point.q_value_fdr < 0.0001 ? '< 0.0001' : point.q_value_fdr.toFixed(4);
-  status.textContent = `${point.is_sig ? 'Significativo (FDR)' : 'Não signif. / ruído'} · q = ${qText}`;
+  status.textContent = `${point.is_sig ? 'Significant (FDR)' : 'Not sig. / noise'} · q = ${qText}`;
   wrapper.appendChild(status);
 
   const coords = document.createElement('small');
-  coords.textContent = `${point.lat.toFixed(2)}°, ${point.lon.toFixed(2)}° · Clique: célula | Alt+Clique: bloco 3×3`;
+  coords.textContent = `${point.lat.toFixed(2)}°, ${point.lon.toFixed(2)}° · Click: cell | Alt+Click: 3×3 block`;
   wrapper.appendChild(coords);
 
   return wrapper;
@@ -176,7 +176,7 @@ export function MapWorkspace({
     readonly wasClamped: boolean;
   } | null>(null);
   const activeSlotRef = useRef<RegionSlot>('A');
-  const [notice, setNotice] = useState('Escolha A ou B e clique no mapa (Arrastar = Shift+Arrastar | Bloco 3×3 = Alt+Clique).');
+  const [notice, setNotice] = useState('Choose A or B and click on the map (Drag = Shift+Drag | 3×3 Block = Alt+Click).');
   const [noticeKind, setNoticeKind] = useState<'info' | 'success' | 'error'>('info');
   const [elapsedSeconds, setElapsedSeconds] = useState(0);
   const [historyDepth, setHistoryDepth] = useState(0);
@@ -218,12 +218,12 @@ export function MapWorkspace({
       : callbacksRef.current.onRegionBChange;
 
     if (!current.periodReady) {
-      setNotice('Defina as duas variáveis e o período antes de selecionar os locais.');
+      setNotice('Set both variables and the period before selecting locations.');
       setNoticeKind('error');
       return;
     }
     if (!variable) {
-      setNotice(`Selecione a variável ${slot === 'A' ? 'X' : 'Y'} antes de marcar o Local ${slot}.`);
+      setNotice(`Select variable ${slot === 'A' ? 'X' : 'Y'} before marking Location ${slot}.`);
       setNoticeKind('error');
       return;
     }
@@ -240,8 +240,8 @@ export function MapWorkspace({
       updateRegion(buildRegionSelection(slot, variable, blockCells));
       setNotice(
         current.sameLocation
-          ? `Mesmo Local (A=B): bloco 3×3 (${blockCells.length} célula(s)) em A espelhado em B.`
-          : `Região ${slot}: bloco 3×3 com ${blockCells.length} célula(s) selecionada(s).`,
+          ? `Same Location (A=B): 3×3 block (${blockCells.length} cell(s)) in A mirrored to B.`
+          : `Region ${slot}: 3×3 block with ${blockCells.length} cell(s) selected.`,
       );
       setNoticeKind('success');
       return;
@@ -250,7 +250,7 @@ export function MapWorkspace({
     const target = snapSafeCoord(lat, lon, variable);
     const result = toggleCellInSelection(region?.cells ?? [], target);
     if (!result.ok) {
-      setNotice(result.reason ? selectionErrorMessages[result.reason] : 'Seleção inválida.');
+      setNotice(result.reason ? selectionErrorMessages[result.reason] : 'Invalid selection.');
       setNoticeKind('error');
       return;
     }
@@ -258,8 +258,8 @@ export function MapWorkspace({
     updateRegion(result.cells.length ? buildRegionSelection(slot, variable, result.cells) : null);
     setNotice(
       current.sameLocation
-        ? `Mesmo Local (A=B): ${result.cells.length} célula(s) em A espelhadas em B.`
-        : `Região ${slot}: ${result.cells.length} célula(s) selecionada(s).`,
+        ? `Same Location (A=B): ${result.cells.length} cell(s) in A mirrored to B.`
+        : `Region ${slot}: ${result.cells.length} cell(s) selected.`,
     );
     setNoticeKind('success');
   };
@@ -349,7 +349,7 @@ export function MapWorkspace({
       }
       tileFailures += 1;
       if (tileFailures >= 2) {
-        setOfflineTileNotice('Tiles externos indisponíveis (modo offline): cartografia vetorial local ativa.');
+        setOfflineTileNotice('External tiles unavailable (offline mode): local vector cartography active.');
       }
     };
     const handleTileLoad = () => {
@@ -365,27 +365,27 @@ export function MapWorkspace({
     const isNavigatorOnline = typeof navigator !== 'undefined' ? navigator.onLine !== false : true;
     if (shouldUseOfflineBasemapByDefault(getConfiguredDataMode(), isNavigatorOnline)) {
       offlineCartographyMode.addTo(map);
-      setOfflineTileNotice('Cartografia vetorial local ativa (modo offline).');
+      setOfflineTileNotice('Local vector cartography active (offline mode).');
     } else {
       nasaGibs.addTo(map);
     }
 
     const layersControl = L.control.layers(
       {
-        'Satélite NASA': nasaGibs,
-        'Mapa de ruas': osm,
-        'Relevo': relief,
-        'Cartografia Local (Offline)': offlineCartographyMode,
+        'NASA Satellite': nasaGibs,
+        'Street Map': osm,
+        'Terrain': relief,
+        'Local Cartography (Offline)': offlineCartographyMode,
       },
       undefined,
       { position: 'topright', collapsed: true },
     ).addTo(map);
 
     const layerTooltips: Record<string, string> = {
-      'Satélite NASA': 'NASA Earthdata GIBS — Blue Marble Shaded Relief (Level 8)',
-      'Mapa de ruas': 'OpenStreetMap — Cartografia vetorial padrão',
-      'Relevo': 'OpenTopoMap — Curvas de nível e sombreamento topográfico (SRTM)',
-      'Cartografia Local (Offline)': 'Contornos continentais e retículo 100% locais (funciona sem internet)',
+      'NASA Satellite': 'NASA Earthdata GIBS — Blue Marble Shaded Relief (Level 8)',
+      'Street Map': 'OpenStreetMap — Standard vector cartography',
+      'Terrain': 'OpenTopoMap — Contour lines and topographic shading (SRTM)',
+      'Local Cartography (Offline)': '100% local continental outlines and graticule (works offline)',
     };
     const controlEl = layersControl.getContainer();
     if (controlEl) {
@@ -477,7 +477,7 @@ export function MapWorkspace({
         ).addTo(previewLayer);
         L.tooltip({ direction: 'top', opacity: 0.92 })
           .setLatLng(latlng)
-          .setContent(`${slot} · Bloco 3×3 (${blockCells.length} células)<br>${cell.lat.toFixed(4)}, ${cell.lon.toFixed(4)}`)
+          .setContent(`${slot} · 3×3 Block (${blockCells.length} cells)<br>${cell.lat.toFixed(4)}, ${cell.lon.toFixed(4)}`)
           .addTo(previewLayer);
       } else {
         L.rectangle(
@@ -648,12 +648,12 @@ export function MapWorkspace({
 
       const current = stateRef.current;
       if (!current.periodReady) {
-        setNotice('Defina as duas variáveis e o período antes de selecionar os locais.');
+        setNotice('Set both variables and the period before selecting locations.');
         setNoticeKind('error');
         return;
       }
       if (!finished.variable) {
-        setNotice(`Selecione a variável ${finished.slot === 'A' ? 'X' : 'Y'} antes de marcar o Local ${finished.slot}.`);
+        setNotice(`Select variable ${finished.slot === 'A' ? 'X' : 'Y'} before marking Location ${finished.slot}.`);
         setNoticeKind('error');
         return;
       }
@@ -669,12 +669,12 @@ export function MapWorkspace({
       updateRegion(buildRegionSelection(finished.slot, finished.variable, boxResult.cells));
 
       const clampNote = boxResult.wasClamped
-        ? ` (limitado às ${MAX_CELLS_PER_REGION} mais próximas do início do arraste).`
+        ? ` (capped at the ${MAX_CELLS_PER_REGION} nearest cells to drag start).`
         : '.';
       setNotice(
         current.sameLocation
-          ? `Mesmo Local (A=B): ${boxResult.cells.length}/${MAX_CELLS_PER_REGION} célula(s) em A espelhadas em B${clampNote}`
-          : `Região ${finished.slot}: ${boxResult.cells.length}/${MAX_CELLS_PER_REGION} célula(s) selecionada(s)${clampNote}`,
+          ? `Same Location (A=B): ${boxResult.cells.length}/${MAX_CELLS_PER_REGION} cell(s) in A mirrored to B${clampNote}`
+          : `Region ${finished.slot}: ${boxResult.cells.length}/${MAX_CELLS_PER_REGION} cell(s) selected${clampNote}`,
       );
       setNoticeKind(boxResult.wasClamped ? 'info' : 'success');
     };
@@ -686,7 +686,7 @@ export function MapWorkspace({
     };
 
     const onBrowserOffline = () => {
-      setOfflineTileNotice('Sem conexão: operando com cartografia vetorial local e dados em cache/offline.');
+      setOfflineTileNotice('Offline: operating with local vector cartography and cached/offline data.');
     };
     const onBrowserOnline = () => {
       tileFailures = 0;
@@ -836,7 +836,7 @@ export function MapWorkspace({
         setLoadedGrid({ requested: activeVariable, grid });
         if (grid.variable_id !== activeVariable) {
           const proxyMeta = getVariableMetadata(grid.variable_id);
-          setGridNotice(`Camada global via grade de referência ${proxyMeta.variable_name} (${grid.variable_id}).`);
+          setGridNotice(`Global layer via reference grid ${proxyMeta.variable_name} (${grid.variable_id}).`);
         } else {
           setGridNotice('');
         }
@@ -845,10 +845,10 @@ export function MapWorkspace({
         if (controller.signal.aborted) return;
         setLoadedGrid(null);
         if (err instanceof GlobalGridLoadError && err.status === 404) {
-          setGridNotice(`Camada global de ${err.gridVariableId} ainda não disponível; seleção manual segue ativa.`);
+          setGridNotice(`Global layer for ${err.gridVariableId} not available yet; manual selection remains active.`);
           return;
         }
-        setGridNotice(err instanceof Error ? `Camada global indisponível (${err.message}).` : '');
+        setGridNotice(err instanceof Error ? `Global layer unavailable (${err.message}).` : '');
       });
     return () => controller.abort();
   }, [activeVariable]);
@@ -905,9 +905,9 @@ export function MapWorkspace({
   const shortSourcesLabel = formatActiveSources([metadataA?.source_model, metadataB?.source_model], 'short');
   const fullSourcesLabel = formatActiveSources([metadataA?.source_model, metadataB?.source_model], 'full');
   const formatMonth = (month: string) => month
-    ? new Intl.DateTimeFormat('pt-BR', { month: 'short', year: 'numeric', timeZone: 'UTC' })
-      .format(new Date(`${month}-01T00:00:00Z`)).replace('.', '')
-    : 'pendente';
+    ? new Intl.DateTimeFormat('en-US', { month: 'short', year: 'numeric', timeZone: 'UTC' })
+      .format(new Date(`${month}-01T00:00:00Z`))
+    : 'pending';
 
   const focusHotspot = (kind: 'positive' | 'negative') => {
     const point = kind === 'positive' ? hotspots.positive : hotspots.negative;
@@ -974,8 +974,8 @@ export function MapWorkspace({
 
     map?.flyTo([point.lat, point.lon], hotspotZoom, { animate: true, duration: 0.65 });
     const qText = point.q_value_fdr < 0.0001 ? '< 0.0001' : point.q_value_fdr.toFixed(4);
-    const sigTag = point.q_value_fdr < 0.05 ? 'q < 0,05' : 'sem signif. FDR';
-    const label = kind === 'positive' ? 'Extremo +' : 'Extremo −';
+    const sigTag = point.q_value_fdr < 0.05 ? 'q < 0.05' : 'no FDR signif.';
+    const label = kind === 'positive' ? 'Extreme +' : 'Extreme −';
     setNotice(
       `${label} (${loadedGrid.grid.variable_id}): ${formatSignedTrend(point.slope_sen_decade)} ${loadedGrid.grid.trend_unit} · q = ${qText} (${sigTag}) · lat ${point.lat.toFixed(2)}°, lon ${point.lon.toFixed(2)}°`,
     );
@@ -998,7 +998,7 @@ export function MapWorkspace({
     recordHistory(regionA, regionB);
     if (slot === 'A') onRegionAChange(null);
     else onRegionBChange(null);
-    setNotice(`Região ${slot} limpa.`);
+    setNotice(`Region ${slot} cleared.`);
     setNoticeKind('info');
   };
 
@@ -1007,7 +1007,7 @@ export function MapWorkspace({
     recordHistory(regionA, regionB);
     onRegionAChange(null);
     onRegionBChange(null);
-    setNotice('Regiões A e B limpas.');
+    setNotice('Regions A and B cleared.');
     setNoticeKind('info');
   };
 
@@ -1017,7 +1017,7 @@ export function MapWorkspace({
     onRegionAChange(previous.regionA);
     onRegionBChange(previous.regionB);
     setHistoryDepth(historyRef.current.length);
-    setNotice('Última alteração espacial desfeita.');
+    setNotice('Last spatial change undone.');
     setNoticeKind('info');
   };
 
@@ -1028,33 +1028,33 @@ export function MapWorkspace({
       setActiveSlot('A');
       setNotice(
         regionA
-          ? 'Modo Mesmo Local (A=B) ativo: B espelhada na grade de referência.'
-          : 'Modo Mesmo Local (A=B) ativo: marque células em A para espelhar em B.',
+          ? 'Same Location mode (A=B) active: B mirrored on reference grid.'
+          : 'Same Location mode (A=B) active: select cells in A to mirror to B.',
       );
       setNoticeKind('info');
     } else {
-      setNotice('Modo A=B desativado: edite Local A (azul) e Local B (laranja) separadamente.');
+      setNotice('Mode A=B disabled: edit Location A (blue) and Location B (orange) separately.');
       setNoticeKind('info');
     }
   }
 
   return (
-    <section className="map-workspace" data-tour="map-workspace" aria-label="Seleção espacial">
+    <section className="map-workspace" data-tour="map-workspace" aria-label="Spatial selection">
       {controlsTarget && createPortal(
       <div className="map-toolbar">
         <div className="map-toolbar-group">
           <div className="sidebar-control-heading">
-            <h3>Seleção espacial</h3>
+            <h3>Spatial selection</h3>
           </div>
           <div className="map-selection-group" data-tour="map-selection-tools">
-            <div className="slot-switch" aria-label="Região ativa">
+            <div className="slot-switch" aria-label="Active region">
               <button
                 type="button"
                 className={activeSlot === 'A' ? 'active' : ''}
                 disabled={!variableA}
                 onClick={() => setActiveSlot('A')}
               >
-                Selecionar A <span>{regionA?.cells.length ?? 0}/{MAX_CELLS_PER_REGION}</span>
+                Select A <span>{regionA?.cells.length ?? 0}/{MAX_CELLS_PER_REGION}</span>
               </button>
               <button
                 type="button"
@@ -1062,7 +1062,7 @@ export function MapWorkspace({
                 disabled={!variableB || sameLocation}
                 onClick={() => setActiveSlot('B')}
               >
-                Selecionar B <span>{regionB?.cells.length ?? 0}/{MAX_CELLS_PER_REGION}</span>
+                Select B <span>{regionB?.cells.length ?? 0}/{MAX_CELLS_PER_REGION}</span>
               </button>
             </div>
             <button
@@ -1072,14 +1072,14 @@ export function MapWorkspace({
               disabled={!sameLocation && (!variableA || !variableB)}
               onClick={handleToggleSameLocation}
             >
-              Mesmo Local (A=B)
+              Same Location (A=B)
             </button>
             <button
               type="button"
               className={`drag-select-toggle${dragSelectMode ? ' active' : ''}`}
               aria-pressed={dragSelectMode}
               disabled={!variableA && !variableB}
-              title={`Arraste para selecionar até ${MAX_CELLS_PER_REGION} células (atalho: Shift + Arrastar)`}
+              title={`Drag to select up to ${MAX_CELLS_PER_REGION} cells (shortcut: Shift + Drag)`}
               onClick={() => {
                 previewLayerRef.current?.clearLayers();
                 previewCellIdRef.current = '';
@@ -1088,22 +1088,22 @@ export function MapWorkspace({
                   if (next) setBlockSelectMode(false);
                   setNotice(
                     next
-                      ? 'Modo Arrastar Seleção ativo: arraste para selecionar células (clique simples continua ativo).'
-                      : 'Modo de navegação ativo: use Shift + Arrastar para selecionar em caixa a qualquer momento.',
+                      ? 'Drag Select mode active: drag to select cells (single click remains active).'
+                      : 'Navigation mode active: use Shift + Drag for box selection anytime.',
                   );
                   setNoticeKind('info');
                   return next;
                 });
               }}
             >
-              Arrastar Seleção
+              Drag Selection
             </button>
             <button
               type="button"
               className={`block-select-toggle${blockSelectMode ? ' active' : ''}`}
               aria-pressed={blockSelectMode}
               disabled={!variableA && !variableB}
-              title="Clique no mapa ou marcador para selecionar bloco conexo 3×3 (atalho: Alt + Clique)"
+              title="Click on map or marker to select connected 3×3 block (shortcut: Alt + Click)"
               onClick={() => {
                 previewLayerRef.current?.clearLayers();
                 previewCellIdRef.current = '';
@@ -1112,19 +1112,19 @@ export function MapWorkspace({
                   if (next) setDragSelectMode(false);
                   setNotice(
                     next
-                      ? 'Modo Bloco 3×3 ativo: clique para selecionar bloco conexo de até 9 células (atalho: Alt + Clique).'
-                      : 'Modo Bloco 3×3 desativado: use Alt + Clique para selecionar blocos 3×3 a qualquer momento.',
+                      ? '3×3 Block mode active: click to select a connected block of up to 9 cells (shortcut: Alt + Click).'
+                      : '3×3 Block mode disabled: use Alt + Click to select 3×3 blocks anytime.',
                   );
                   setNoticeKind('info');
                   return next;
                 });
               }}
             >
-              Bloco 3×3
+              3×3 Block
             </button>
           </div>
-          <span className="control-group-label">Atalhos globais</span>
-          <div className="hotspot-actions" data-tour="hotspot-actions" aria-label="Extremos globais">
+          <span className="control-group-label">Global shortcuts</span>
+          <div className="hotspot-actions" data-tour="hotspot-actions" aria-label="Global extremes">
             <button
               type="button"
               className="hotspot-button hotspot-positive"
@@ -1132,11 +1132,11 @@ export function MapWorkspace({
               onClick={() => focusHotspot('positive')}
               title={
                 hotspots.positive
-                  ? `Ir para maior tendência positiva (${formatSignedTrend(hotspots.positive.slope_sen_decade)} ${loadedGrid?.grid.trend_unit ?? ''})`
-                  : 'Sem ponto de tendência positiva na grade ativa'
+                  ? `Go to strongest positive trend (${formatSignedTrend(hotspots.positive.slope_sen_decade)} ${loadedGrid?.grid.trend_unit ?? ''})`
+                  : 'No positive trend point in active grid'
               }
             >
-              Extremo +
+              Extreme +
             </button>
             <button
               type="button"
@@ -1145,50 +1145,50 @@ export function MapWorkspace({
               onClick={() => focusHotspot('negative')}
               title={
                 hotspots.negative
-                  ? `Ir para maior tendência negativa (${formatSignedTrend(hotspots.negative.slope_sen_decade)} ${loadedGrid?.grid.trend_unit ?? ''})`
-                  : 'Sem ponto de tendência negativa na grade ativa'
+                  ? `Go to strongest negative trend (${formatSignedTrend(hotspots.negative.slope_sen_decade)} ${loadedGrid?.grid.trend_unit ?? ''})`
+                  : 'No negative trend point in active grid'
               }
             >
-              Extremo −
+              Extreme −
             </button>
           </div>
         </div>
         <div className="map-actions" data-tour="map-actions">
-          {isAnalyzing && <button type="button" className="cancel-button" onClick={onCancel}>Cancelar</button>}
+          {isAnalyzing && <button type="button" className="cancel-button" onClick={onCancel}>Cancel</button>}
           <button type="button" className="analyze-button" data-tour="analyze-button" disabled={!readyToAnalyze || isAnalyzing} onClick={onAnalyze}>
-            {isAnalyzing ? `Consultando ${shortSourcesLabel}…` : 'Analisar seleção'}
+            {isAnalyzing ? `Querying ${shortSourcesLabel}…` : 'Analyze selection'}
           </button>
         </div>
       </div>, controlsTarget)}
-      <div className="query-summary" data-tour="query-summary" aria-label="Resumo da consulta preparada">
-        <div className="summary-region summary-a"><b>X</b><span><strong>{metadataA?.variable_name ?? 'Variável pendente'}</strong><small>{regionA?.cells.length ?? 0} célula(s) · {metadataA?.source_model ?? '—'}</small></span></div>
-        <div className="summary-region summary-b"><b>Y</b><span><strong>{metadataB?.variable_name ?? 'Variável pendente'}</strong><small>{regionB?.cells.length ?? 0} célula(s) · {metadataB?.source_model ?? '—'}</small></span></div>
-        <div className="summary-period"><span>Período</span><strong>{formatMonth(startMonth)} — {formatMonth(endMonth)}</strong></div>
+      <div className="query-summary" data-tour="query-summary" aria-label="Prepared query summary">
+        <div className="summary-region summary-a"><b>X</b><span><strong>{metadataA?.variable_name ?? 'Pending variable'}</strong><small>{regionA?.cells.length ?? 0} cell(s) · {metadataA?.source_model ?? '—'}</small></span></div>
+        <div className="summary-region summary-b"><b>Y</b><span><strong>{metadataB?.variable_name ?? 'Pending variable'}</strong><small>{regionB?.cells.length ?? 0} cell(s) · {metadataB?.source_model ?? '—'}</small></span></div>
+        <div className="summary-period"><span>Period</span><strong>{formatMonth(startMonth)} — {formatMonth(endMonth)}</strong></div>
       </div>
       {isAnalyzing && <div className="analysis-progress" role="status" aria-live="polite">
-        <div><strong>Consultando duas regiões ({fullSourcesLabel})</strong><span>{elapsedSeconds}s</span></div>
+        <div><strong>Querying two regions ({fullSourcesLabel})</strong><span>{elapsedSeconds}s</span></div>
         <div className="progress-track"><span /></div>
-        <small>A primeira consulta pode levar mais tempo enquanto o cache é preenchido.</small>
+        <small>The first query may take longer while the cache warms up.</small>
       </div>}
       <div className="map-stage" data-tour="map-stage">
         <div ref={containerRef} className={`map-container${dragSelectMode ? ' drag-select-mode' : blockSelectMode ? ' block-select-mode' : ''}`} />
         {dragPreview && (
           <div className={`box-select-badge slot-${dragPreview.slot.toLowerCase()}`} aria-live="polite">
-            <span>Local {dragPreview.slot} · </span>
-            <strong>{dragPreview.count}/{MAX_CELLS_PER_REGION} células</strong>
-            {dragPreview.wasClamped && <small> (máx. {MAX_CELLS_PER_REGION})</small>}
+            <span>Location {dragPreview.slot} · </span>
+            <strong>{dragPreview.count}/{MAX_CELLS_PER_REGION} cells</strong>
+            {dragPreview.wasClamped && <small> (max {MAX_CELLS_PER_REGION})</small>}
           </div>
         )}
-        <aside className="map-legend" data-tour="map-legend" aria-label="Legenda do mapa">
-          <strong>Seleção espacial</strong>
+        <aside className="map-legend" data-tour="map-legend" aria-label="Map legend">
+          <strong>Spatial selection</strong>
           <div className="legend-pair">
-            <span><i className="legend-swatch legend-a" aria-hidden="true">A</i> Região A (sólido)</span>
-            <span><i className="legend-swatch legend-b" aria-hidden="true">B</i> Região B (tracejado)</span>
+            <span><i className="legend-swatch legend-a" aria-hidden="true">A</i> Region A (solid)</span>
+            <span><i className="legend-swatch legend-b" aria-hidden="true">B</i> Region B (dashed)</span>
           </div>
-          <small>Grade ativa: {activeVariable ? `${getVariableMetadata(activeVariable).resolution.dLat}° × ${getVariableMetadata(activeVariable).resolution.dLon}°` : '—'} · até {MAX_CELLS_PER_REGION} células</small>
+          <small>Active grid: {activeVariable ? `${getVariableMetadata(activeVariable).resolution.dLat}° × ${getVariableMetadata(activeVariable).resolution.dLon}°` : '—'} · up to {MAX_CELLS_PER_REGION} cells</small>
           {activeLegend && (
             <div className="legend-global-block">
-              <strong>Tendência global ({activeLegend.trendUnit})</strong>
+              <strong>Global trend ({activeLegend.trendUnit})</strong>
               {loadedGrid && loadedGrid.requested !== loadedGrid.grid.variable_id && (
                 <small>Proxy: {activeLegend.title} ({loadedGrid.grid.variable_id})</small>
               )}
@@ -1199,7 +1199,7 @@ export function MapWorkspace({
                     aria-hidden="true"
                     style={{ backgroundColor: activeLegend.directionItems[0]?.color ?? '#d9480f' }}
                   />
-                  Positiva (+)
+                  Positive (+)
                 </span>
                 <span>
                   <i
@@ -1207,12 +1207,12 @@ export function MapWorkspace({
                     aria-hidden="true"
                     style={{ backgroundColor: activeLegend.directionItems[1]?.color ?? '#1864ab' }}
                   />
-                  Negativa (-)
+                  Negative (-)
                 </span>
               </div>
               <div className="legend-pair">
-                <span><i className="legend-dot legend-sig" aria-hidden="true" /> q &lt; 0,05</span>
-                <span><i className="legend-dot legend-nonsig" aria-hidden="true" /> q ≥ 0,05</span>
+                <span><i className="legend-dot legend-sig" aria-hidden="true" /> q &lt; 0.05</span>
+                <span><i className="legend-dot legend-nonsig" aria-hidden="true" /> q ≥ 0.05</span>
               </div>
               <small className="legend-magnitude-note">{activeLegend.magnitudeNote}</small>
             </div>
@@ -1230,7 +1230,7 @@ export function MapWorkspace({
         </span>
         <div className="map-tools" data-tour="map-tools">
           <div className="map-tools-section">
-            <strong className="map-tools-label">Tendências</strong>
+            <strong className="map-tools-label">Trends</strong>
             <div className="map-tools-group" data-tour="map-trend-tools">
               <button
                 type="button"
@@ -1238,9 +1238,9 @@ export function MapWorkspace({
                 aria-pressed={showGlobalGrid}
                 disabled={!loadedGrid}
                 onClick={() => setShowGlobalGrid(prev => !prev)}
-                title="Mostrar ou ocultar pontos de tendência global pré-calculada"
+                title="Show or hide precomputed global trend points"
               >
-                {showGlobalGrid ? 'Ocultar tendências' : 'Mostrar tendências'}
+                {showGlobalGrid ? 'Hide trends' : 'Show trends'}
               </button>
               <button
                 type="button"
@@ -1248,22 +1248,22 @@ export function MapWorkspace({
                 aria-pressed={significantOnly}
                 disabled={!loadedGrid || !showGlobalGrid}
                 onClick={() => setSignificantOnly(prev => !prev)}
-                title="Filtrar apenas pontos com significância estatística (AR(1) + FDR q < 0,05)"
+                title="Filter only statistically significant points (AR(1) + FDR q < 0.05)"
               >
-                Só q &lt; 0,05
+                Only q &lt; 0.05
               </button>
             </div>
           </div>
           <div className="map-tools-section">
-            <strong className="map-tools-label">Navegação e edição</strong>
+            <strong className="map-tools-label">Navigation &amp; editing</strong>
             <div className="map-tools-group" data-tour="map-nav-tools">
-              <button type="button" disabled={!regionA} onClick={() => focusRegions([regionA])}>Ir para A</button>
-              <button type="button" disabled={!regionB} onClick={() => focusRegions([regionB])}>Ir para B</button>
-              <button type="button" disabled={!regionA && !regionB} onClick={() => focusRegions([regionA, regionB])} title="Enquadrar regiões A e B no mapa">Enquadrar A + B</button>
-              <button type="button" disabled={!historyDepth} onClick={undoLastSelection}>Desfazer</button>
-              <button type="button" className="danger-action" disabled={!regionA && !regionB} onClick={clearAll}>Limpar tudo</button>
-              {regionA && <button type="button" className="compact-clear" aria-label="Limpar região A" onClick={() => clearRegion('A')}>× A</button>}
-              {regionB && <button type="button" className="compact-clear" aria-label="Limpar região B" onClick={() => { if (sameLocation) updateSameLocation(false); clearRegion('B'); }}>× B</button>}
+              <button type="button" disabled={!regionA} onClick={() => focusRegions([regionA])}>Go to A</button>
+              <button type="button" disabled={!regionB} onClick={() => focusRegions([regionB])}>Go to B</button>
+              <button type="button" disabled={!regionA && !regionB} onClick={() => focusRegions([regionA, regionB])} title="Fit regions A and B on map">Fit A + B</button>
+              <button type="button" disabled={!historyDepth} onClick={undoLastSelection}>Undo</button>
+              <button type="button" className="danger-action" disabled={!regionA && !regionB} onClick={clearAll}>Clear all</button>
+              {regionA && <button type="button" className="compact-clear" aria-label="Clear region A" onClick={() => clearRegion('A')}>× A</button>}
+              {regionB && <button type="button" className="compact-clear" aria-label="Clear region B" onClick={() => { if (sameLocation) updateSameLocation(false); clearRegion('B'); }}>× B</button>}
             </div>
           </div>
         </div>

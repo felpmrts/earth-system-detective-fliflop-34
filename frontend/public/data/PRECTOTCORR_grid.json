@@ -1,7 +1,7 @@
 {
   "variable_id": "PRECTOTCORR",
-  "unit": "mm/mês",
-  "trend_unit": "mm/mês/década",
+  "unit": "mm/month",
+  "trend_unit": "mm/month/decade",
   "period": {
     "start": "1981-01",
     "end": "2025-12"

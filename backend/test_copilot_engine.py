@@ -1,5 +1,5 @@
 """
-Unit test suite for `backend/copilot_engine.py` and `POST /api/copilot` (DADOS-2 — Fase 4).
+Unit test suite for `backend/copilot_engine.py` and `POST /api/copilot` (DADOS-2 — Phase 4).
 Validates System Prompts, 7 Statistical Invariants compliance (including Invariant #3),
 bilingual heuristic synthesis (PT/EN), Q&A routing, and BackendRouter endpoint `/api/copilot`.
 """
@@ -39,8 +39,8 @@ class TestCopilotEngine(unittest.TestCase):
         self.mock_analysis = _load_mock_analysis()
 
     def test_system_prompts_enforce_invariants(self) -> None:
-        """System Prompts (PT and EN) enforce no endpoint-minus-start and no % on interval scales."""
-        self.assertIn("Y_fim - Y_inicio", COPILOT_SYSTEM_PROMPT_PT)
+        """System Prompts (PT alias and EN) enforce no endpoint-minus-start and no % on interval scales."""
+        self.assertIn("Y_end - Y_start", COPILOT_SYSTEM_PROMPT_PT)
         self.assertIn("scale_type == \"interval\"", COPILOT_SYSTEM_PROMPT_PT)
         self.assertIn("Theil-Sen", COPILOT_SYSTEM_PROMPT_PT)
         self.assertIn("Mahalanobis", COPILOT_SYSTEM_PROMPT_PT)
@@ -52,24 +52,24 @@ class TestCopilotEngine(unittest.TestCase):
 
     def test_build_copilot_prompt_compacts_series(self) -> None:
         """Prompt builder serializes metadata/metrics without bloating context with raw 540-point arrays."""
-        prompt = build_copilot_prompt(self.mock_analysis, question="Resumo", language="pt")
+        prompt = build_copilot_prompt(self.mock_analysis, question="Summary", language="en")
         self.assertIn("GWETTOP", prompt)
         self.assertIn("T2M_MAX", prompt)
         self.assertIn("comparison_pair", prompt)
         self.assertNotIn("raw_values", prompt)
         self.assertLess(len(prompt), 6000)
 
-    def test_heuristic_synthesis_portuguese(self) -> None:
-        """Portuguese synthesis covers all 4 Detective Answers, OLS/Sen, AR(1)/FDR, Mahalanobis, and Multiscale."""
-        res = generate_heuristic_synthesis(self.mock_analysis, language="pt")
-        self.assertEqual(res["language"], "pt")
+    def test_heuristic_synthesis_default_english(self) -> None:
+        """Default synthesis covers all 4 Detective Answers, OLS/Sen, AR(1)/FDR, Mahalanobis, and Multiscale."""
+        res = generate_heuristic_synthesis(self.mock_analysis, language="en")
+        self.assertEqual(res["language"], "en")
         self.assertEqual(res["mode"], "heuristic_fallback")
         md = res["reply_markdown"]
 
-        self.assertIn("1. O QUE muda", md)
-        self.assertIn("2. ONDE", md)
-        self.assertIn("3. QUANTO muda", md)
-        self.assertIn("4. É SIGNIFICATIVO?", md)
+        self.assertIn("1. WHAT & Regime", md)
+        self.assertIn("2. WHERE & Multiscale Comparison", md)
+        self.assertIn("3. HOW MUCH", md)
+        self.assertIn("4. SIGNIFICANCE & COUPLING", md)
         self.assertIn("Theil–Sen", md)
         self.assertIn("OLS", md)
         self.assertIn("p_AR1", md)
@@ -101,22 +101,22 @@ class TestCopilotEngine(unittest.TestCase):
 
     def test_invariant_3_no_percentage_on_interval_t2m_max(self) -> None:
         """Invariant #3: no % associated with T2M_MAX (interval) and sanitizer blocks injected %."""
-        res = generate_heuristic_synthesis(self.mock_analysis, language="pt")
+        res = generate_heuristic_synthesis(self.mock_analysis, language="en")
         md = res["reply_markdown"]
         t2m_lines = [line for line in md.splitlines() if "T2M_MAX" in line or "°C" in line]
         self.assertTrue(t2m_lines)
         for line in t2m_lines:
-            self.assertNotIn("%", line, f"Porcentagem encontrada em linha intervalar: {line}")
+            self.assertNotIn("%", line, f"Percentage found in interval-scale line: {line}")
 
         fake_llm_output = (
-            "#### Região B — Temperatura Máxima Diária (`T2M_MAX`)\n"
-            "- A temperatura subiu +14.5% por década (IC 95%: [+0.55, +0.57] °C/década)."
+            "#### Region B — 2m Daily Maximum Temperature (`T2M_MAX`)\n"
+            "- Temperature rose +14.5% per decade (95% CI: [+0.55, +0.57] °C/decade)."
         )
         sanitized, warnings = sanitize_interval_scale_percentages(
-            fake_llm_output, self.mock_analysis, language="pt"
+            fake_llm_output, self.mock_analysis, language="en"
         )
         self.assertNotIn("+14.5%", sanitized)
-        self.assertIn("IC 95%", sanitized)
+        self.assertIn("95% CI", sanitized)
         self.assertEqual(len(warnings), 1)
 
     def test_specific_questions_and_llm_fallback_without_key(self) -> None:
@@ -125,17 +125,17 @@ class TestCopilotEngine(unittest.TestCase):
         try:
             q_sen = generate_copilot_response(
                 self.mock_analysis,
-                question="Por que usar Theil-Sen em vez de ponto final menos inicial?",
-                language="pt",
+                question="Why use Theil-Sen instead of endpoint minus start?",
+                language="en",
             )
             self.assertEqual(q_sen["mode"], "heuristic_fallback")
-            self.assertIn("Y_fim - Y_início", q_sen["reply_markdown"])
+            self.assertIn("Y_end - Y_start", q_sen["reply_markdown"])
             self.assertIn("Theil–Sen", q_sen["reply_markdown"])
 
             q_mahal = generate_copilot_response(
                 self.mock_analysis,
-                question="Explique os outliers de Mahalanobis",
-                language="pt",
+                question="Explain the Mahalanobis outliers",
+                language="en",
             )
             expected_total = len(
                 self.mock_analysis["region_a_analysis"].get("outliers_mahalanobis", [])
@@ -144,8 +144,8 @@ class TestCopilotEngine(unittest.TestCase):
                     "outliers_mahalanobis", []
                 )
             )
-            self.assertIn("Distância de Mahalanobis", q_mahal["reply_markdown"])
-            self.assertIn(f"{expected_total} evento(s) extremo(s)", q_mahal["reply_markdown"])
+            self.assertIn("Mahalanobis distance", q_mahal["reply_markdown"])
+            self.assertIn(f"{expected_total} extreme event(s)", q_mahal["reply_markdown"])
         finally:
             if prev_key is not None:
                 os.environ["GEMINI_API_KEY"] = prev_key
@@ -159,15 +159,15 @@ class TestCopilotEngine(unittest.TestCase):
                 "/api/copilot",
                 {
                     "analysis": self.mock_analysis,
-                    "question": "Essa tendência é ruído de El Niño?",
-                    "language": "pt",
+                    "question": "Is this trend just El Niño noise?",
+                    "language": "en",
                 },
             )
             self.assertEqual(int(status_ok), 200)
             self.assertIn("reply_markdown", payload_ok)
             self.assertIn("AR(1)", payload_ok["reply_markdown"])
 
-            status_bad, payload_bad = router.handle_post("/api/copilot", {"question": "Oi"})
+            status_bad, payload_bad = router.handle_post("/api/copilot", {"question": "Hi"})
             self.assertEqual(int(status_bad), 400)
             self.assertIn("error", payload_bad)
 

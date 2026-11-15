@@ -6,20 +6,20 @@ export type ScaleMode = 'linear' | 'symlog';
 export type ViewMode = 'timeseries' | 'scatter' | 'both' | 'lag' | 'seasonal';
 
 export const REGIME_LABELS: Readonly<Record<RegimeShape, string>> = {
-  linear: 'Tendência linear constante',
-  accelerating_rise: 'Alta em aceleração',
-  accelerating_decline: 'Queda em aceleração',
-  saturating: 'Desaceleração / saturação',
-  non_monotonic: 'Comportamento não monotônico',
+  linear: 'Steady linear trend',
+  accelerating_rise: 'Accelerating rise',
+  accelerating_decline: 'Accelerating decline',
+  saturating: 'Deceleration / saturation',
+  non_monotonic: 'Non-monotonic behavior',
 };
 
 export const CONFIDENCE_LABELS: Readonly<
   Record<ConfidenceTier, { readonly label: string; readonly tone: 'high' | 'moderate' | 'low' | 'neutral' }>
 > = {
-  CONFIRMED_HIGH: { label: 'Significativa (alta confiança)', tone: 'high' },
-  CONFIRMED_MODERATE: { label: 'Significativa (confiança moderada)', tone: 'moderate' },
-  INSUFFICIENT_SIGNAL: { label: 'Sinal insuficiente', tone: 'low' },
-  NO_TREND: { label: 'Sem tendência detectada', tone: 'neutral' },
+  CONFIRMED_HIGH: { label: 'Significant (high confidence)', tone: 'high' },
+  CONFIRMED_MODERATE: { label: 'Significant (moderate confidence)', tone: 'moderate' },
+  INSUFFICIENT_SIGNAL: { label: 'Insufficient signal', tone: 'low' },
+  NO_TREND: { label: 'No trend detected', tone: 'neutral' },
 };
 
 export interface GlossaryEntry {
@@ -29,44 +29,44 @@ export interface GlossaryEntry {
 
 export const SCIENTIFIC_GLOSSARY: readonly GlossaryEntry[] = [
   {
-    term: 'Anomalia climatológica',
+    term: 'Climatological anomaly',
     summary:
-      'Diferença de cada mês em relação à sua média histórica. Remove o ciclo natural de verão e inverno para revelar tendências reais.',
+      'Difference of each month from its historical seasonal mean. Removes the natural summer/winter cycle to reveal real trends.',
   },
   {
-    term: 'OLS (Mínimos Quadrados)',
+    term: 'OLS (Ordinary Least Squares)',
     summary:
-      'Reta ajustada sobre toda a nuvem de pontos. Mede a taxa média de mudança por década, sensível a extremos.',
+      'Line fitted across the full point cloud. Measures the average rate of change per decade, sensitive to extremes.',
   },
   {
     term: 'Theil–Sen',
     summary:
-      'Inclinação mediana entre pares de pontos. É robusta contra anos atípicos (como El Niño ou La Niña).',
+      'Median slope across all pairs of points. Robust against outlier years (such as El Niño or La Niña).',
   },
   {
-    term: 'AR(1) e N efetivo',
+    term: 'AR(1) and Effective N',
     summary:
-      'Corrige o teste estatístico para a memória climática: meses seguidos não são totalmente independentes, reduzindo falsos positivos.',
+      'Adjusts statistical significance for climate memory: consecutive months are not fully independent, reducing false positives.',
   },
   {
-    term: 'FDR (q < 0,05)',
+    term: 'FDR (q < 0.05)',
     summary:
-      'Controle da Taxa de Falsas Descobertas (Benjamini–Hochberg). Garante que menos de 5% dos pontos significativos no mapa sejam acaso.',
+      'False Discovery Rate control (Benjamini–Hochberg). Ensures fewer than 5% of significant map points are due to chance.',
   },
   {
-    term: 'Mahalanobis (D_M > 2,5)',
+    term: 'Mahalanobis (D_M > 2.5)',
     summary:
-      'Mede quão distante um mês está do comportamento esperado na elipse de tendência, destacando eventos extremos sem apagá-los.',
+      'Measures how far a month lies from expected behavior inside the trend ellipse, highlighting extreme events without erasing them.',
   },
   {
     term: 'Z-Score (σ)',
     summary:
-      'Padroniza a anomalia pelo desvio-padrão histórico, colocando variáveis de unidades físicas distintas na mesma escala vertical.',
+      'Standardizes the anomaly by historical standard deviation, placing variables with different physical units on the same vertical scale.',
   },
   {
-    term: 'GAM / Spline & Aceleração (B₂)',
+    term: 'GAM / Spline & Acceleration (B₂)',
     summary:
-      'Curva suave não-linear que captura aceleração, desaceleração ou ciclos oscilatórios além da reta média de longo prazo.',
+      'Smooth non-linear curve capturing acceleration, deceleration, or oscillatory cycles beyond the long-term linear trend.',
   },
 ];
 
@@ -89,11 +89,11 @@ export function countMissingValues(values: readonly (number | null)[]): number {
 }
 
 export function summarizeRegionCoords(region: RegionSelection | null): string {
-  if (!region || region.cells.length === 0) return 'Região não informada';
+  if (!region || region.cells.length === 0) return 'Region not specified';
   const count = region.cells.length;
   const avgLat = region.cells.reduce((sum, c) => sum + c.lat, 0) / count;
   const avgLon = region.cells.reduce((sum, c) => sum + c.lon, 0) / count;
-  return `${count} célula${count > 1 ? 's' : ''} · centro (${avgLat.toFixed(2)}°, ${avgLon.toFixed(2)}°)`;
+  return `${count} cell${count > 1 ? 's' : ''} · center (${avgLat.toFixed(2)}°, ${avgLon.toFixed(2)}°)`;
 }
 
 export function toSymlog(val: number): number {
@@ -199,9 +199,9 @@ export function transformRegionSeries(
 
   const baseUnit =
     metricMode === 'zscore'
-      ? 'Desvios-Padrão (σ)'
+      ? 'Standard Deviations (σ)'
       : metricMode === 'anomaly'
-        ? `${region.unit} (anomalia)`
+        ? `${region.unit} (anomaly)`
         : region.unit;
 
   return {

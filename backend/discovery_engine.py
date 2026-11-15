@@ -1,4 +1,4 @@
-"""Dynamic Scientific Discovery Engine (Camada 2) — Earth System Trend Detective.
+"""Dynamic Scientific Discovery Engine (Layer 2) — Earth System Trend Detective.
 
 Provides sub-50ms algebraic discovery on top of `backend/stats_engine.py` outputs for ANY
 user-selected map region or time series (`POST /api/discover`):
@@ -44,22 +44,22 @@ OCEAN_VARS = OCEAN_MERRA2_VARS + OCEAN_CERES_VARS
 OCEAN_BOX_SPECS: List[Dict[str, Any]] = [
     {
         "id": "pac_nino34",
-        "name": "Pacífico Equatorial Niño 3.4",
+        "name": "Equatorial Pacific Niño 3.4",
         "box_cells": [(-3.0, -160.0), (-3.0, -135.0), (3.0, -160.0), (3.0, -135.0)],
     },
     {
         "id": "atl_ne",
-        "name": "Atlântico Sul-Equatorial Nordeste (Box NE)",
+        "name": "Northeast South-Equatorial Atlantic (NE Box)",
         "box_cells": [(-5.5, -33.125), (-5.5, -30.625), (-3.5, -33.125), (-3.5, -30.625)],
     },
     {
         "id": "atl_tn",
-        "name": "Atlântico Tropical Norte (Dipolo Norte)",
+        "name": "Tropical North Atlantic (North Dipole)",
         "box_cells": [(11.5, -43.75), (11.5, -38.75), (14.5, -43.75), (14.5, -38.75)],
     },
     {
         "id": "atl_s",
-        "name": "Atlântico Subtropical Sul (SW Atlântico)",
+        "name": "Subtropical South Atlantic (SW Atlantic)",
         "box_cells": [(-29.5, -43.75), (-29.5, -40.00), (-26.5, -43.75), (-26.5, -40.00)],
     },
 ]
@@ -922,14 +922,14 @@ def attribute_mahalanobis_outliers(
 
         drivers: List[str] = []
         if abs(nino_z) >= 1.25:
-            phase = "El Niño Forte" if nino_z > 0 else "La Niña Forte"
+            phase = "Strong El Niño" if nino_z > 0 else "Strong La Niña"
             drivers.append(f"{phase} (Niño 3.4 Z={nino_z:+.2f}σ)")
         if abs(atl_grad_z) >= 1.25:
-            drivers.append(f"Dipolo Atlântico Meridional (Z={atl_grad_z:+.2f}σ)")
+            drivers.append(f"Atlantic Meridional Dipole (Z={atl_grad_z:+.2f}σ)")
         if abs(atl_ne_z) >= 1.25:
-            drivers.append(f"Anomalia Térmica Atlântico NE (Z={atl_ne_z:+.2f}σ)")
+            drivers.append(f"NE Atlantic Thermal Anomaly (Z={atl_ne_z:+.2f}σ)")
         if not drivers:
-            drivers.append("Forçante Radiativa/Hidrometeorológica Regional ou Queimadas")
+            drivers.append("Regional Radiative/Hydrometeorological Forcing or Biomass Burning")
 
         nino_rounded = round(float(nino_z), 2)
         atl_grad_rounded = round(float(atl_grad_z), 2)
@@ -970,7 +970,7 @@ def discover_from_analysis(
     cache_dir: Path = DEFAULT_CACHE_DIR,
     ocean_anom_override: Optional[Mapping[str, Mapping[str, Mapping[str, float]]]] = None,
 ) -> Dict[str, Any]:
-    """Main entry point for Camada 2 (`POST /api/discover`), executing in <50ms."""
+    """Main entry point for Layer 2 (`POST /api/discover`), executing in <50ms."""
     t_start = time.perf_counter()
 
     var_id = str(region_analysis["variable_id"])
@@ -1080,5 +1080,5 @@ def handle_discover_request(
 
     raise SemanticContractError(
         "CONTRACT_VIOLATION",
-        "Payload para /api/discover deve conter 'region_a_analysis', 'analysis', ou ('variable_id', 'dates', 'raw_values').",
+        "Payload for /api/discover must contain 'region_a_analysis', 'analysis', or ('variable_id', 'dates', 'raw_values').",
     )

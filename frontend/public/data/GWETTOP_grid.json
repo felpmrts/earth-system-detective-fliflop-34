@@ -1,7 +1,7 @@
 {
   "variable_id": "GWETTOP",
-  "unit": "fração (0–1)",
-  "trend_unit": "fração/década",
+  "unit": "fraction (0–1)",
+  "trend_unit": "fraction/decade",
   "period": {
     "start": "1981-01",
     "end": "2025-12"

@@ -1,47 +1,47 @@
-# Roadmap de UX/UI — Project Flipflop 34
+# UX/UI Roadmap — Project Flipflop 34
 
-Este documento reúne as melhorias propostas para transformar a aplicação em uma experiência científica guiada, legível e acessível. A ordem reflete impacto para o usuário, não dependência técnica absoluta.
+This document compiles the proposed improvements to turn the application into a guided, readable, and accessible scientific experience. The order reflects user impact rather than strict technical dependency.
 
-## Fase 1 — Fluxo principal
+## Phase 1 — Core Flow
 
-1. **Fluxo em quatro etapas** — Exibir `Variáveis → Período → Regiões → Análise`, com estados pendente, atual e concluído. **Implementado.**
-2. **Identidade persistente de A/B** — Ciano para A e laranja para B nos seletores, mapa, resumo, curvas e legendas. **Implementado.**
-3. **Resumo antes da consulta** — Mostrar variáveis, quantidade de células, modelo e período antes de analisar. **Implementado.**
-4. **Carregamento informativo e cancelável** — Indicar consulta à NASA POWER, tempo decorrido, progresso indeterminado e permitir cancelamento. **Implementado.**
-5. **Empty state da Bancada** — Não mostrar controles científicos sem resultado; orientar o usuário de volta ao mapa. **Implementado.**
+1. **Four-step flow** — Display `Variables → Period → Regions → Analysis` with pending, current, and completed states. **Implemented.**
+2. **Persistent A/B identity** — Cyan for A and orange for B across selectors, map, summary, curves, and legends. **Implemented.**
+3. **Pre-query summary** — Show variables, cell count, model, and period before analyzing. **Implemented.**
+4. **Informative, cancellable loading** — Indicate NASA POWER query, elapsed time, indeterminate progress, and allow cancellation. **Implemented.**
+5. **Bench empty state** — Do not show scientific controls without a result; guide the user back to the map. **Implemented.**
 
-## Fase 2 — Experiência do mapa
+## Phase 2 — Map Experience
 
-6. **Legenda fixa e compacta** — Explicar cores A/B, contorno, limite de nove células e resolução ativa. **Implementado.**
-7. **Pré-visualização da célula** — Destacar a célula sob o cursor antes do clique e mostrar coordenadas/código. **Implementado.**
-8. **Navegação espacial assistida** — Ações “Ir para A”, “Ir para B”, “Enquadrar A + B”, “Limpar tudo” e “Desfazer”. **Implementado.**
-9. **Nomes de camada orientados ao usuário** — Usar “Satélite NASA”, “Mapa de ruas” e “Relevo”, mantendo detalhes técnicos em tooltip. **Implementado.**
+6. **Compact fixed legend** — Explain A/B colors, outline, nine-cell limit, and active resolution. **Implemented.**
+7. **Cell preview** — Highlight the cell under the cursor before clicking and show coordinates/code. **Implemented.**
+8. **Assisted spatial navigation** — Actions “Go to A”, “Go to B”, “Fit A + B”, “Clear all”, and “Undo”. **Implemented.**
+9. **User-oriented layer names** — Use “NASA Satellite”, “Street map”, and “Terrain”, keeping technical details in tooltips. **Implemented.**
 
-## Fase 3 — Bancada científica
+## Phase 3 — Scientific Bench
 
-10. **Cabeçalho da descoberta** — Resumir comparação, local e período antes do gráfico. **Implementado.**
-11. **Controles segmentados** — Trocar checkboxes por grupos como `Bruto | Anomalia`, `Juntas | Separadas` e opções de tendência. **Implementado.**
-12. **Tooltips científicos** — Exibir mês, valor bruto, anomalia, unidade, variável, região e tendência estimada. **Implementado.**
-13. **Ajuda contextual** — Explicar OLS, Theil–Sen, FDR, AR(1), anomalia e Mahalanobis em linguagem direta. **Implementado.**
-14. **Origem e qualidade dos dados** — Mostrar fonte, cache/API, resolução, cobertura, células, valores ausentes e horário da consulta. **Implementado.**
+10. **Discovery header** — Summarize comparison, location, and period before the chart. **Implemented.**
+11. **Segmented controls** — Replace checkboxes with groups like `Raw | Anomaly`, `Overlaid | Separated`, and trend options. **Implemented.**
+12. **Scientific tooltips** — Show month, raw value, anomaly, unit, variable, region, and estimated trend. **Implemented.**
+13. **Contextual help** — Explain OLS, Theil–Sen, FDR, AR(1), anomaly, and Mahalanobis in plain language. **Implemented.**
+14. **Data provenance and quality** — Show source, cache/API, resolution, coverage, cells, missing values, and query timestamp. **Implemented.**
 
-## Fase 4 — Layout e continuidade
+## Phase 4 — Layout and Continuity
 
-15. **Barra lateral recolhível** — Ganhar área de mapa no desktop e usar drawer no mobile. **Implementado.**
-16. **Ações importantes fixas** — Manter “Analisar seleção” visível; no mobile, usar barra inferior fixa. **Implementado.**
-17. **Persistência da sessão** — Restaurar variáveis, período, regiões, aba e preferências do gráfico após recarregar. **Implementado.**
+15. **Collapsible sidebar** — Gain map area on desktop and use a drawer on mobile. **Implemented.**
+16. **Pinned primary actions** — Keep “Analyze selection” visible; on mobile, use a fixed bottom bar. **Implemented.**
+17. **Session persistence** — Restore variables, period, regions, tab, and chart preferences after reload. **Implemented.**
 
-## Fase 5 — Acessibilidade
+## Phase 5 — Accessibility
 
-18. **Não depender apenas de cor** — Diferenciar A/B também por rótulo, forma e padrão de linha. **Implementado.**
-19. **Navegação completa por teclado** — Foco visível, ordem lógica, calendários acessíveis e mensagens anunciadas. **Implementado.**
-20. **Preferências do sistema** — Suportar `prefers-reduced-motion` e `prefers-contrast`. **Implementado.**
+18. **Do not rely on color alone** — Differentiate A/B also by label, shape, and line pattern. **Implemented.**
+19. **Full keyboard navigation** — Visible focus, logical tab order, accessible calendars, and announced messages. **Implemented.**
+20. **System preferences** — Support `prefers-reduced-motion` and `prefers-contrast`. **Implemented.**
 
-## Próxima sequência recomendada
+## Recommended Next Sequence
 
-1. Legenda e pré-visualização das células.
-2. Cabeçalho e indicadores da descoberta.
-3. Controles segmentados da Bancada.
-4. Painel de origem e qualidade dos dados.
-5. Sidebar recolhível e experiência mobile.
-6. Persistência da sessão e auditoria completa de acessibilidade.
+1. Legend and cell preview.
+2. Discovery header and indicators.
+3. Bench segmented controls.
+4. Data provenance and quality panel.
+5. Collapsible sidebar and mobile experience.
+6. Session persistence and full accessibility audit.

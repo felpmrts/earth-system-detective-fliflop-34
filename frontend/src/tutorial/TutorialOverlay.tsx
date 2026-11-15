@@ -555,7 +555,7 @@ function isEditingControlOrPopup(target: EventTarget | null): boolean {
 const OPEN_MANTINE_TRIGGER_SELECTOR =
   '[role="combobox"][aria-expanded="true"], [aria-expanded="true"][aria-haspopup="dialog"], [data-dates-input][aria-expanded="true"]';
 
-/** Verifica se há algum menu/calendário Mantine aberto para priorizar o fechamento do popup antes de painéis/modais. */
+/** Checks if any Mantine menu/calendar is open so Esc closes the popup before panels/modals. */
 export function hasOpenMantinePopup(target?: EventTarget | null): boolean {
   if (
     (target instanceof HTMLElement && target.closest(OPEN_MANTINE_TRIGGER_SELECTOR)) ||
@@ -913,12 +913,12 @@ export function TutorialOverlay({
                 className="tutorial-btn-primary"
                 onClick={() => setIsMinimized(false)}
               >
-                Expandir
+                Expand
               </button>
               <button
                 type="button"
                 className="tutorial-close-btn"
-                aria-label="Fechar tutorial"
+                aria-label="Close tutorial"
                 onClick={() => onSkip(currentStep.id)}
               >
                 ×
@@ -956,8 +956,8 @@ export function TutorialOverlay({
                 <button
                   type="button"
                   className="tutorial-minimize-btn"
-                  aria-label="Minimizar card do tutorial"
-                  title="Minimizar para interagir sem obstáculos"
+                  aria-label="Minimize tutorial card"
+                  title="Minimize to interact without obstacles"
                   onClick={() => setIsMinimized(true)}
                 >
                   −
@@ -966,7 +966,7 @@ export function TutorialOverlay({
               <button
                 type="button"
                 className="tutorial-close-btn"
-                aria-label="Fechar tutorial"
+                aria-label="Close tutorial"
                 onClick={() => onSkip(currentStep.id)}
               >
                 ×
@@ -974,13 +974,13 @@ export function TutorialOverlay({
             </div>
           </header>
 
-          <ol className="tutorial-progress-track" aria-label="Progresso do treinamento">
+          <ol className="tutorial-progress-track" aria-label="Training progress">
             {steps.map((step, index) => (
               <li key={step.id}>
                 <button
                   type="button"
                   className={`tutorial-progress-segment${index === safeIndex ? ' is-active' : index < safeIndex ? ' is-done' : ''}`}
-                  aria-label={`Ir para etapa ${index + 1}: ${step.title}`}
+                  aria-label={`Go to step ${index + 1}: ${step.title}`}
                   aria-current={index === safeIndex ? 'step' : undefined}
                   onClick={() => onStepChange(index)}
                 />
@@ -1012,7 +1012,7 @@ export function TutorialOverlay({
             )}
 
             {currentStep.shortcuts && currentStep.shortcuts.length > 0 && (
-              <ul className="tutorial-shortcuts" aria-label="Atalhos desta etapa">
+              <ul className="tutorial-shortcuts" aria-label="Shortcuts for this step">
                 {currentStep.shortcuts.map(shortcut => (
                   <li key={shortcut.keys}>
                     <kbd>{shortcut.keys}</kbd>
@@ -1023,27 +1023,27 @@ export function TutorialOverlay({
             )}
 
             {resolved.showBenchPreview && (
-              <div className="tutorial-bench-preview" aria-label="Prévia do que desbloqueia na Bancada científica">
-                <span className="preview-label">Desbloqueado após clicar em &ldquo;Analisar seleção&rdquo;:</span>
+              <div className="tutorial-bench-preview" aria-label="Preview of what unlocks in the Scientific Workbench">
+                <span className="preview-label">Unlocked after clicking &ldquo;Analyze selection&rdquo;:</span>
                 <div className="preview-modules">
                   <div className="preview-module">
-                    <strong>Normalização &amp; Eixos</strong>
-                    <small>Bruto · Anomalia · Z-Score (σ) · Symlog · Dispersão X vs Y</small>
+                    <strong>Normalization &amp; Axes</strong>
+                    <small>Raw · Anomaly · Z-Score (σ) · Symlog · X vs Y Scatter</small>
                   </div>
                   <div className="preview-module">
-                    <strong>4 Respostas do Detetive</strong>
-                    <small>Acelerou? · Correlação AR(1) · Outliers D_M &gt; 2,5 · Multiescala</small>
+                    <strong>4 Detective Answers</strong>
+                    <small>Accelerated? · AR(1) Correlation · Outliers D_M &gt; 2.5 · Multiscale</small>
                   </div>
                   <div className="preview-module">
-                    <strong>Provas &amp; Glossário</strong>
-                    <small>Exportar CSV / JSON completo · Ajuda científica (?)</small>
+                    <strong>Evidence &amp; Glossary</strong>
+                    <small>Full CSV / JSON Export · Scientific help (?)</small>
                   </div>
                 </div>
               </div>
             )}
 
             <aside className="tutorial-field-tip">
-              <strong>Dica de Campo:</strong> <span>{currentStep.fieldTip}</span>
+              <strong>Field Tip:</strong> <span>{currentStep.fieldTip}</span>
             </aside>
           </div>
 
@@ -1053,7 +1053,7 @@ export function TutorialOverlay({
               className="tutorial-btn-ghost"
               onClick={() => onSkip(currentStep.id)}
             >
-              Pular tutorial
+              Skip tutorial
             </button>
             <div className="tutorial-nav-buttons">
               <button
@@ -1062,7 +1062,7 @@ export function TutorialOverlay({
                 disabled={isFirst}
                 onClick={() => onStepChange(Math.max(safeIndex - 1, 0))}
               >
-                Anterior
+                Previous
               </button>
               {isLast ? (
                 <button
@@ -1071,7 +1071,7 @@ export function TutorialOverlay({
                   className="tutorial-btn-primary"
                   onClick={() => onComplete(currentStep.id)}
                 >
-                  Concluir treinamento
+                  Finish training
                 </button>
               ) : (
                 <button
@@ -1080,7 +1080,7 @@ export function TutorialOverlay({
                   className="tutorial-btn-primary"
                   onClick={() => onStepChange(Math.min(safeIndex + 1, steps.length - 1))}
                 >
-                  Próximo
+                  Next
                 </button>
               )}
             </div>

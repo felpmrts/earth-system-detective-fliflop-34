@@ -203,26 +203,26 @@ function resolveSafeVariableMeta(stats: VariableStatistics): ExportedVariableMet
   let unit = stats.unit;
   let trendUnit = stats.trend_unit;
 
-  // Invariante #3: escalas intervalares (°C, PS/kPa) nunca exibem variação ou unidade com "%".
+  // Invariant #3: interval scales (°C, PS/kPa) never display "%" change or units.
   if (scaleType === 'interval') {
     if (unit.includes('%')) {
       unit =
         catalogMeta && !catalogMeta.unit.includes('%')
           ? catalogMeta.unit
-          : unit.replace(/%/g, '').trim() || 'unidade intervalar';
+          : unit.replace(/%/g, '').trim() || 'interval unit';
     }
     if (trendUnit.includes('%')) {
       trendUnit =
         catalogMeta && !catalogMeta.trend_unit.includes('%')
           ? catalogMeta.trend_unit
-          : trendUnit.replace(/%/g, '').trim() || 'unidade/década';
+          : trendUnit.replace(/%/g, '').trim() || 'unit/decade';
     }
   }
 
   return {
     variable_id: stats.variable_id,
     variable_name: stats.variable_name,
-    domain: catalogMeta?.domain ?? 'Climatologia',
+    domain: catalogMeta?.domain ?? 'Climatology',
     scale_type: scaleType,
     unit,
     trend_unit: trendUnit,
@@ -606,7 +606,7 @@ export function buildStructuredExportPayload(
   };
 }
 
-/** Gera o artefato JSON estruturado pronto para download ou serialização pura. */
+/** Generates the structured JSON artifact ready for download or pure serialization. */
 export function createJsonExport(
   analysis: RegionAnalysisResponse,
   options: ExportAnalysisOptions = {},
@@ -619,7 +619,7 @@ export function createJsonExport(
   };
 }
 
-/** Gera o artefato CSV científico com cabeçalho comentado (#) e tabela alinhada por timestamp. */
+/** Generates the scientific CSV artifact with a commented (#) header and timestamp-aligned table. */
 export function createCsvExport(
   analysis: RegionAnalysisResponse,
   options: ExportAnalysisOptions = {},
@@ -628,10 +628,10 @@ export function createCsvExport(
   const { slotA, slotB, alignedDates, comparisonPair } = prepared;
 
   const comments: string[] = [
-    '# Project Flipflop 34 - NASA Space Apps 2026 | Exportacao Cientifica (CSV)',
+    '# Project Flipflop 34 - NASA Space Apps 2026 | Scientific Export (CSV)',
     `# exported_at: ${sanitizeCommentValue(prepared.exportedAt)} | analyzed_at: ${sanitizeCommentValue(prepared.analyzedAt ?? 'N/A')}`,
     `# source: ${prepared.source} | spatial_aggregation: ${prepared.spatialAggregation}`,
-    `# period: ${prepared.start} a ${prepared.end} | aligned_observations=${alignedDates.length}`,
+    `# period: ${prepared.start} to ${prepared.end} | aligned_observations=${alignedDates.length}`,
     formatRegionCommentLine(slotA.regionMeta),
     formatStatsCommentLine('A', slotA),
   ];

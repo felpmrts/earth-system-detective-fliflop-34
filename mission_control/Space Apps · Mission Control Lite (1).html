@@ -1,5 +1,5 @@
 <!DOCTYPE html>
-<html lang="pt-BR">
+<html lang="en">
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
@@ -46,64 +46,64 @@ html,body{background:#020617;margin:0;font-family:system-ui,-apple-system,"Segoe
 <script type="text/babel">
 const { useState, useEffect, useRef } = React;
 
-/* ============ CONFIGURAÇÃO E DOMÍNIO OPERACIONAL (FONTE ÚNICA DA VERDADE v5.0) ============ */
+/* ============ CONFIGURATION & OPERATIONAL DOMAIN (SINGLE SOURCE OF TRUTH v5.0) ============ */
 const clock = { offset: 0, now() { return Date.now() + this.offset; } };
 const nowIso = () => new Date(clock.now()).toISOString();
 const uid = () => crypto.randomUUID ? crypto.randomUUID() : "id-" + clock.now().toString(36) + Math.random().toString(36).slice(2, 10);
 
 const MS = {
-  AVAILABLE: ["Disponível", "bg-cyan-400 text-slate-950", "bg-cyan-400"],
-  WORKING:   ["Trabalhando", "bg-emerald-500 text-slate-950", "bg-emerald-400"],
-  BLOCKED:   ["Bloqueado", "bg-amber-400 text-slate-950", "bg-amber-400"],
-  RESTING:   ["Descansando", "bg-slate-300 text-slate-950", "bg-slate-400"]
+  AVAILABLE: ["Available", "bg-cyan-400 text-slate-950", "bg-cyan-400"],
+  WORKING:   ["Working", "bg-emerald-500 text-slate-950", "bg-emerald-400"],
+  BLOCKED:   ["Blocked", "bg-amber-400 text-slate-950", "bg-amber-400"],
+  RESTING:   ["Resting", "bg-slate-300 text-slate-950", "bg-slate-400"]
 };
 const TS = ["BACKLOG", "READY", "IN_PROGRESS", "BLOCKED", "REVIEW", "DONE", "CANCELED"];
-const TL = { BACKLOG: "Backlog", READY: "A fazer (Pronto)", IN_PROGRESS: "Em andamento", BLOCKED: "Bloqueado", REVIEW: "Em revisão", DONE: "Concluído", CANCELED: "Cancelada" };
+const TL = { BACKLOG: "Backlog", READY: "To Do (Ready)", IN_PROGRESS: "In Progress", BLOCKED: "Blocked", REVIEW: "In Review", DONE: "Done", CANCELED: "Canceled" };
 const TD = { BACKLOG: "bg-slate-500", READY: "bg-sky-400", IN_PROGRESS: "bg-cyan-400", BLOCKED: "bg-amber-400", REVIEW: "bg-purple-400", DONE: "bg-emerald-400", CANCELED: "bg-slate-700" };
 const PR = { P0: "text-rose-300 border-rose-500/50 bg-rose-500/10", P1: "text-amber-300 border-amber-500/50 bg-amber-500/10", P2: "text-slate-400 border-slate-600 bg-slate-800" };
 const MO = ["", "MUST", "SHOULD", "COULD", "WONT"];
 const OPEN = t => t.status !== "DONE" && t.status !== "CANCELED";
 
-/* Especificação estática das 8 Fases + Janelas Operacionais */
+/* Static specification of the 8 Phases + Operational Windows */
 const PHASES_SPEC = [
-  { code: "F1", title: "Fase 1: Kickoff, Contrato JSON Unificado & Setup NASA POWER", window: "Sáb 09:00 – 10:30", startMin: 0, endMin: 90, leader: "COORD", summary: "Definir contrato JSON da matriz (A,X)x(B,Y), configurar repositório/backend e iniciar mapeamento no Gemini Deep Research." },
-  { code: "F2", title: "Fase 2: Cliente NASA POWER (Células Adjacentes K<=9), Motor Estatístico & Mapa 2D Base", window: "Sáb 10:30 – 12:30", startMin: 90, endMin: 210, leader: "DADOS-1 / DADOS-2", summary: "DADOS-1 cria cliente NASA POWER /temporal/monthly/point + agregador livre K<=9 células adjacentes com Semaphore(3) e limpeza (-999, YYYY13, mm/day->mm/mês); DADOS-2 codifica stats_engine.py; PROD-1/2 criam Mapa 2D Leaflet Canvas (1 var/área no MVP) e Bancada de Gráficos; NARR analisa Gemini Deep Research." },
-  { code: "F3", title: "Fase 3: Sistema de Análise de Dados Ponta a Ponta (Walking Skeleton)", window: "Sáb 12:30 – 16:00", startMin: 210, endMin: 420, leader: "COORD", summary: "Integrar Mapa 2D + NASA POWER ao vivo + Motor Estatístico + Gráficos respondendo às 3 Comparações Clássicas." },
-  { code: "F4", title: "Fase 4: Bancada Científica Completa (Eixo Duplo, Z-Score, Log) & Chatbot Co-Piloto", window: "Sáb 16:00 – 21:30", startMin: 420, endMin: 750, leader: "Todos (Modular)", summary: "Finalizar Sistema de Análise de Dados (curvas juntas/separadas, correlação X vs Y, escala log/symlog, Chatbot Co-Piloto Estatístico integrado) e decidir escopo do Sistema de Descoberta Científica." },
-  { code: "F5", title: "Fase 5: Sistema de Descoberta Científica (Início ML) & Blindagem dos Casos", window: "Sáb 21:30 – 23:30", startMin: 750, endMin: 870, leader: "NARR + DADOS-2", summary: "Iniciar protótipo do modelo de ML/mineração sobre nosso motor (Generalista ou Especializado no tema do Deep Research) + validar os 3 casos clássicos da demo." },
-  { code: "SLEEP", title: "Pausa Obrigatória: Sono Sincronizado (~6h30)", window: "Sáb 23:30 – Dom 06:30", startMin: 870, endMin: 1290, leader: "COORD", summary: "Descanso sincronizado de toda a equipe após handoff de 3 linhas no canal. Proibido alterar o Contrato JSON ou refatorar componentes de madrugada." },
-  { code: "F6", title: "Fase 6: Fechamento do Sistema de Descoberta Científica, Cache Offline & Feature Freeze", window: "Dom 06:30 – 13:00", startMin: 1290, endMin: 1680, leader: "COORD + PROD-1/2", summary: "Concluir achado do Sistema de Descoberta Científica, criar botões de Presets Científicos (cache instantâneo) e aplicar Feature Freeze às 13:00." },
-  { code: "F7", title: "Fase 7: Produção Focada do Vídeo de Pitch (240s)", window: "Dom 13:30 – 19:00", startMin: 1710, endMin: 2040, leader: "NARR + PROD-2", summary: "Gravação 1080p60 demonstrando o Sistema de Análise de Dados + Chatbot + a inovação encontrada pelo Sistema de Descoberta Científica." },
-  { code: "F8", title: "Fase 8: Submissão 'Quatro Olhos' & Testes Cegos 4G", window: "Dom 19:00 – 22:30", startMin: 2040, endMin: 2250, leader: "COORD + NARR", summary: "Preenchimento e revisão a quatro olhos no portal NASA Space Apps; bancada de jurados anônimos (DADOS-1/2, PROD-1/2) testando links em celulares via 4G/5G até 22:30 (90 min de buffer até 24:00)." }
+  { code: "F1", title: "Phase 1: Kickoff, Unified JSON Contract & NASA POWER Setup", window: "Sat 09:00 – 10:30", startMin: 0, endMin: 90, leader: "COORD", summary: "Define the (A,X)x(B,Y) matrix JSON contract, configure repository/backend, and launch Gemini Deep Research mapping." },
+  { code: "F2", title: "Phase 2: NASA POWER Client (Adjacent Cells K<=9), Stats Engine & Base 2D Map", window: "Sat 10:30 – 12:30", startMin: 90, endMin: 210, leader: "DADOS-1 / DADOS-2", summary: "DADOS-1 builds NASA POWER /temporal/monthly/point client + free aggregator K<=9 adjacent cells with Semaphore(3) and cleaning (-999, YYYY13, mm/day->mm/month); DADOS-2 codes stats_engine.py; PROD-1/2 build 2D Leaflet Canvas Map (1 var/area in MVP) and Chart Workbench; NARR analyzes Gemini Deep Research." },
+  { code: "F3", title: "Phase 3: End-to-End Data Analysis System (Walking Skeleton)", window: "Sat 12:30 – 16:00", startMin: 210, endMin: 420, leader: "COORD", summary: "Integrate 2D Map + live NASA POWER + Statistical Engine + Charts answering the 3 Classic Comparisons." },
+  { code: "F4", title: "Phase 4: Full Scientific Workbench (Dual Axis, Z-Score, Log) & Co-Pilot Chatbot", window: "Sat 16:00 – 21:30", startMin: 420, endMin: 750, leader: "All (Modular)", summary: "Finalize Data Analysis System (overlaid/split curves, X vs Y correlation, log/symlog scale, integrated Statistical Co-Pilot Chatbot) and decide scope of the Scientific Discovery System." },
+  { code: "F5", title: "Phase 5: Scientific Discovery System (ML Start) & Case Shielding", window: "Sat 21:30 – 23:30", startMin: 750, endMin: 870, leader: "NARR + DADOS-2", summary: "Start ML/mining model prototype on top of our engine (Generalist or Specialized in Deep Research topic) + validate the 3 classic demo cases." },
+  { code: "SLEEP", title: "Mandatory Break: Synchronized Sleep (~6h30)", window: "Sat 23:30 – Sun 06:30", startMin: 870, endMin: 1290, leader: "COORD", summary: "Synchronized rest for the entire team after a 3-line channel handoff. Forbidden to alter the JSON Contract or refactor components overnight." },
+  { code: "F6", title: "Phase 6: Scientific Discovery Closeout, Offline Cache & Feature Freeze", window: "Sun 06:30 – 13:00", startMin: 1290, endMin: 1680, leader: "COORD + PROD-1/2", summary: "Wrap up Scientific Discovery System finding, create Scientific Preset buttons (instant cache), and enforce Feature Freeze at 13:00." },
+  { code: "F7", title: "Phase 7: Focused Pitch Video Production (240s)", window: "Sun 13:30 – 19:00", startMin: 1710, endMin: 2040, leader: "NARR + PROD-2", summary: "1080p60 recording demonstrating the Data Analysis System + Chatbot + innovation found by the Scientific Discovery System." },
+  { code: "F8", title: "Phase 8: 'Four-Eyes' Submission & 4G Blind Tests", window: "Sun 19:00 – 22:30", startMin: 2040, endMin: 2250, leader: "COORD + NARR", summary: "Four-eyes completion and review on the NASA Space Apps portal; anonymous judge bench (DADOS-1/2, PROD-1/2) testing links on mobile via 4G/5G until 22:30 (90-min buffer until 24:00)." }
 ];
 
-/* Papéis, Módulos Exclusivos e Pares Anti-SPOF */
+/* Roles, Exclusive Modules & Anti-SPOF Pairs */
 const ROLE_META = {
-  "COORD":   { title: "Coordenação, Arquitetura, Backend & Deploy", backup: "NARR", modules: "Contrato JSON (A,X)x(B,Y), servidor de integração, controle de portões, decisão de escopo do Sistema de Descoberta Científica e submissão." },
-  "DADOS-1": { title: "Engenharia de Dados & Cliente NASA POWER API", backup: "DADOS-2", modules: "Consumo em tempo real da NASA POWER API (/temporal/monthly/point), agregação espacial em quadrados 1x1 (1 dado), 2x2 (média de 4 dados) e 3x3 (média de 9 dados), alinhamento temporal e cache local." },
-  "DADOS-2": { title: "Motor Estatístico, Chatbot Co-Piloto & ML (Descoberta)", backup: "DADOS-1", modules: "Anomalias mensais, OLS + Theil-Sen, GAM, Mahalanobis, AR(1)+FDR, correlação/regressão cruzada X vs Y, Chatbot Co-Piloto Estatístico (definição de LLM + prompt) e modelo de ML do Sistema de Descoberta Científica." },
-  "PROD-1":  { title: "Frontend: Mapa 2D & Seletor de Grade NASA (1x1, 2x2, 3x3)", backup: "PROD-2", modules: "Mapa 2D interativo, seleção de Local A e Local B (ou A=B), visualização dos quadrados da grade da NASA adaptados à variável (MERRA-2 55km vs CERES 111km) e seletores de variáveis/período." },
-  "PROD-2":  { title: "Frontend: Bancada Científica de Gráficos & UI do Chatbot", backup: "PROD-1", modules: "Gráficos sobrepostos ou separados, Eixo Y Duplo, Z-Score, dado bruto vs anomalia, escala linear vs logarítmica, camadas OLS/Sen/GAM/Outliers, gráfico de dispersão X vs Y e painel do Chatbot Co-Piloto." },
-  "NARR":    { title: "Gemini Deep Research, Casos Clássicos & Storytelling", backup: "COORD", modules: "Pesquisa profunda no Gemini Deep Research + Google Scholar para mapear fronteiras científicas, curadoria dos 3 casos clássicos da demo, roteiro e edição do vídeo de pitch." }
+  "COORD":   { title: "Coordination, Architecture, Backend & Deploy", backup: "NARR", modules: "JSON Contract (A,X)x(B,Y), integration server, gate control, Scientific Discovery System scope decision, and submission." },
+  "DADOS-1": { title: "Data Engineering & NASA POWER API Client", backup: "DADOS-2", modules: "Real-time consumption of NASA POWER API (/temporal/monthly/point), spatial aggregation in 1x1 (1 point), 2x2 (mean of 4), and 3x3 (mean of 9) grids, time alignment, and local cache." },
+  "DADOS-2": { title: "Statistical Engine, Co-Pilot Chatbot & ML (Discovery)", backup: "DADOS-1", modules: "Monthly anomalies, OLS + Theil-Sen, GAM, Mahalanobis, AR(1)+FDR, cross-correlation/regression X vs Y, Statistical Co-Pilot Chatbot (LLM + prompt design), and Scientific Discovery ML model." },
+  "PROD-1":  { title: "Frontend: 2D Map & NASA Grid Selector (1x1, 2x2, 3x3)", backup: "PROD-2", modules: "Interactive 2D map, Location A and Location B selection (or A=B), visualization of NASA grid squares adapted to variable (MERRA-2 55km vs CERES 111km), and variable/period selectors." },
+  "PROD-2":  { title: "Frontend: Scientific Chart Workbench & Chatbot UI", backup: "PROD-1", modules: "Overlaid or split charts, Dual Y-Axis, Z-Score, raw vs anomaly, linear vs log scale, OLS/Sen/GAM/Outliers layers, X vs Y scatter plot, and Co-Pilot Chatbot panel." },
+  "NARR":    { title: "Gemini Deep Research, Classic Cases & Storytelling", backup: "COORD", modules: "Deep Research in Gemini + Google Scholar to map scientific frontiers, curation of the 3 classic demo cases, pitch script, and video editing." }
 };
 
-/* Catálogo de Dados NASA POWER API */
+/* NASA POWER API Data Catalog */
 const DATA_CATALOG = [
-  { id: "CLIMA", prio: "CLIMA", domain: "Clima & Calor", res: "MERRA-2 (0,5° × 0,625° ≈ 55×69 km)", name: "T2M, T2M_MAX, T2M_MIN, TS (°C)", scale: "Intervalar (PROIBIDO %)", planA: "NASA POWER /temporal/monthly/point (1981–Presente)", planB: "Cache Local JSON pré-aquecido dos pontos de demonstração" },
-  { id: "AGUA", prio: "AGUA", domain: "Água & Umidade do Solo", res: "MERRA-2 (0,5° × 0,625° ≈ 55×69 km)", name: "GWETTOP, GWETROOT, GWETPROF (0–1), PRECTOTCORR (mm/dia), EVPTRNS (W/m²)", scale: "Razão (Zero físico real)", planA: "NASA POWER /temporal/monthly/point (1981–Presente)", planB: "Cache Local JSON + Recorte automático de datas" },
-  { id: "ENERGIA", prio: "ENERGIA", domain: "Energia Solar & Nuvens", res: "CERES (1,0° × 1,0° ≈ 111×111 km)", name: "ALLSKY_SFC_SW_DWN (kWh/m²/dia), CLOUD_AMT (%)", scale: "Razão (Zero físico real)", planA: "NASA POWER /temporal/monthly/point (1984–Presente)", planB: "Interseção automática para 1984 quando cruzado com MERRA-2" },
-  { id: "ATMOS", prio: "ATMOS", domain: "Atmosfera & Vento", res: "MERRA-2 (0,5° × 0,625° ≈ 55×69 km)", name: "RH2M (%), WS2M (m/s), PS (kPa)", scale: "Razão (Zero físico real)", planA: "NASA POWER /temporal/monthly/point (1981–Presente)", planB: "Padronização em Z-Score (σ) para cruzar qualquer unidade" }
+  { id: "CLIMA", prio: "CLIMA", domain: "Climate & Heat", res: "MERRA-2 (0.5° × 0.625° ≈ 55×69 km)", name: "T2M, T2M_MAX, T2M_MIN, TS (°C)", scale: "Interval (FORBIDDEN %)", planA: "NASA POWER /temporal/monthly/point (1981–Present)", planB: "Pre-warmed local JSON cache of demo points" },
+  { id: "AGUA", prio: "AGUA", domain: "Water & Soil Moisture", res: "MERRA-2 (0.5° × 0.625° ≈ 55×69 km)", name: "GWETTOP, GWETROOT, GWETPROF (0–1), PRECTOTCORR (mm/day), EVPTRNS (W/m²)", scale: "Ratio (True physical zero)", planA: "NASA POWER /temporal/monthly/point (1981–Present)", planB: "Local JSON cache + automatic date clipping" },
+  { id: "ENERGIA", prio: "ENERGIA", domain: "Solar Energy & Clouds", res: "CERES (1.0° × 1.0° ≈ 111×111 km)", name: "ALLSKY_SFC_SW_DWN (kWh/m²/day), CLOUD_AMT (%)", scale: "Ratio (True physical zero)", planA: "NASA POWER /temporal/monthly/point (1984–Present)", planB: "Automatic intersection to 1984 when crossed with MERRA-2" },
+  { id: "ATMOS", prio: "ATMOS", domain: "Atmosphere & Wind", res: "MERRA-2 (0.5° × 0.625° ≈ 55×69 km)", name: "RH2M (%), WS2M (m/s), PS (kPa)", scale: "Ratio (True physical zero)", planA: "NASA POWER /temporal/monthly/point (1981–Present)", planB: "Z-Score (σ) standardization to cross any unit" }
 ];
 
-/* Os 7 Invariantes Estatísticos de Estado da Arte */
+/* The 7 State-of-the-Art Statistical Invariants */
 const INVARIANTS = [
-  { n: 1, danger: true, title: "PROIBIDO Y_fim − Y_início", desc: "Descartar a trajetória intermediária confunde El Niño com tendência secular. Toda taxa ('Quanto muda?') deve vir da regressão sobre toda a nuvem: B_OLS e Declive Mediano de Theil-Sen (B_Sen) por década (10 × B_ano)." },
-  { n: 2, danger: false, title: "Isolamento Sazonal (Princípio Henrietta Leavitt)", desc: "Proibido regredir séries mensais brutas contaminadas pelo ciclo verão/inverno. Extrair primeiro a Anomalia Climatológica Mensal (Y'_{a,m} = Y_{a,m} − Ȳ_m) e garantir a mesma janela [t_0, t_f] entre regiões." },
-  { n: 3, danger: true, title: "PROIBIDO % em Escala Intervalar", desc: "Zero porcentagem (%) para variáveis sem zero absoluto real (Temperatura em °C ou Anomalias de Água GRACE em cm). Exibir apenas diferenças (±X °C/década). % só em escalas de razão puras (km², mm)." },
-  { n: 4, danger: false, title: "Distinção entre Inclinação (B) e Correlação (r / τ)", desc: "A regressão (B) informa quanto Y varia em função de X; a correlação (r de Pearson, τ de Kendall) informa quão estreita é a elipse de contorno (previsibilidade). Exibir ambos!" },
-  { n: 5, danger: false, title: "Decomposição de Correlação Multiescala", desc: "Ao comparar 2 regiões, medir tanto a correlação secular de longo prazo (r_global) quanto a correlação residual de curto prazo sem tendência (r_detrended) para capturar dipolos como El Niño." },
-  { n: 6, danger: false, title: "Modelagem Não-Linear com GAM/Splines", desc: "Nunca usar polinômios livres de grau alto. Combinar a reta de tendência com curva suave (GAM / Smoothing Spline) para revelar aceleração/saturação e diagnosticar 'corcovas' (sensor vs. El Niño vs. rampa)." },
-  { n: 7, danger: false, title: "Outliers via Mahalanobis + Significância AR(1) & FDR", desc: "Destacar extremos fora da elipse bivariada (Distância de Mahalanobis D_M > 2,5) sem apagá-los; corrigir p-valor para autocorrelação serial AR(1) (N_efetivo) e aplicar Benjamini-Hochberg (q_FDR < 0,05) na grade do mapa." }
+  { n: 1, danger: true, title: "FORBIDDEN: Y_end − Y_start", desc: "Discarding the intermediate trajectory confuses El Niño with secular trends. Every rate ('How much is it changing?') must come from regression over the entire cloud: B_OLS and Theil-Sen Median Slope (B_Sen) per decade (10 × B_year)." },
+  { n: 2, danger: false, title: "Seasonal Isolation (Henrietta Leavitt Principle)", desc: "Forbidden to regress raw monthly series contaminated by summer/winter cycles. Extract Monthly Climatological Anomaly first (Y'_{a,m} = Y_{a,m} − Ȳ_m) and enforce the exact same window [t_0, t_f] across regions." },
+  { n: 3, danger: true, title: "FORBIDDEN: % on Interval Scales", desc: "Zero percentage (%) for variables without a true absolute zero (Temperature in °C or GRACE Water Anomalies in cm). Display differences only (±X °C/decade). % only on pure ratio scales (km², mm)." },
+  { n: 4, danger: false, title: "Distinction Between Slope (B) and Correlation (r / τ)", desc: "Regression (B) tells how much Y changes per unit X; correlation (Pearson's r, Kendall's τ) tells how tight the contour ellipse is (predictability). Display both!" },
+  { n: 5, danger: false, title: "Multiscale Correlation Decomposition", desc: "When comparing 2 regions, measure both long-term secular correlation (r_global) and short-term detrended residual correlation (r_detrended) to capture dipoles like El Niño." },
+  { n: 6, danger: false, title: "Nonlinear Modeling with GAM/Splines", desc: "Never use unconstrained high-degree polynomials. Pair the trend line with a smooth curve (GAM / Smoothing Spline) to reveal acceleration/saturation and diagnose 'bumps' (sensor vs. El Niño vs. ramp)." },
+  { n: 7, danger: false, title: "Mahalanobis Outliers + AR(1) & FDR Significance", desc: "Highlight extremes outside the bivariate ellipse (Mahalanobis Distance D_M > 2.5) without deleting them; correct p-value for AR(1) serial autocorrelation (N_effective) and apply Benjamini-Hochberg (q_FDR < 0.05) across the map grid." }
 ];
 
 const OFFICIAL_ASSIGNEES = {
@@ -135,13 +135,13 @@ function seed() {
   const M = Object.fromEntries(roles.map((r, i) => [r, members[i].id]));
 
   const gatesRaw = [
-    [1, "Marco 0: Contrato JSON Unificado (A,X)x(B,Y) + Repositório & Setup", 90, "IF debate de schema passar das 10:15 → THEN COORD congela o contrato JSON da matriz (A,X)x(B,Y) e inicia setup NASA POWER."],
-    [2, "Portão 1: Cliente NASA POWER (Grade 1x1, 2x2, 3x3) + Motor Estatístico + UI Base", 210, "IF API NASA POWER sofrer rate limit às 11:45 → THEN DADOS-1 ativa cache local JSON dos pontos sentinelas em 10 min."],
-    [3, "Portão 2: Walking Skeleton Integrado (Mapa 2D + NASA POWER + Gráficos)", 420, "IF integração completa não estiver no ar às 16:00 → THEN fixar grade 1x1 e 2 variáveis centrais (T2M e GWET) até 16:45."],
-    [4, "Checkpoint 3: Bancada Científica Completa + Decisão ML Descoberta", 750, "IF dúvida entre ML Generalista vs Especializado às 21:30 → THEN adotar especialização no tema revelado pelo Gemini Deep Research."],
-    [5, "Portão 4: Feature Freeze Absoluto + Presets Científicos em Cache", 1680, "IF qualquer modelo ou feature estiver instável às 13:00 → THEN congelar o que está funcional e ativar presets em cache offline."],
-    [6, "Portão 5: Vídeo de Pitch (240s) Gravado em 1080p60 & Legendado", 2040, "IF edição passar das 17:30 → THEN cortar introdução teórica e focar na demo ao vivo da Análise de Dados e do Descoberta Científica."],
-    [7, "Portão 6: Submissão 'Quatro Olhos' & Testes Cegos 4G (Buffer 90m)", 2250, "IF portal Space Apps oscilar às 21:30 → THEN registrar submissão preliminar e apenas validar links até 22:30."]
+    [1, "Milestone 0: Unified JSON Contract (A,X)x(B,Y) + Repo & Setup", 90, "IF schema debate runs past 10:15 → THEN COORD freezes the (A,X)x(B,Y) matrix JSON contract and starts NASA POWER setup."],
+    [2, "Gate 1: NASA POWER Client (1x1, 2x2, 3x3 Grid) + Statistical Engine + Base UI", 210, "IF NASA POWER API hits rate limit at 11:45 → THEN DADOS-1 activates local JSON cache of sentinel points within 10 min."],
+    [3, "Gate 2: Integrated Walking Skeleton (2D Map + NASA POWER + Charts)", 420, "IF full integration is not live by 16:00 → THEN lock 1x1 grid and 2 core variables (T2M and GWET) until 16:45."],
+    [4, "Checkpoint 3: Full Scientific Workbench + ML Discovery Decision", 750, "IF undecided between Generalist vs Specialized ML at 21:30 → THEN adopt specialization on the topic revealed by Gemini Deep Research."],
+    [5, "Gate 4: Absolute Feature Freeze + Cached Scientific Presets", 1680, "IF any model or feature is unstable at 13:00 → THEN freeze what works and activate offline cached presets."],
+    [6, "Gate 5: Pitch Video (240s) Recorded in 1080p60 & Captioned", 2040, "IF editing runs past 17:30 → THEN cut theoretical intro and focus on live demo of Data Analysis and Scientific Discovery."],
+    [7, "Gate 6: 'Four-Eyes' Submission & 4G Blind Tests (90m Buffer)", 2250, "IF Space Apps portal fluctuates at 21:30 → THEN submit preliminary entry and only validate links until 22:30."]
   ];
   const gates = gatesRaw.map(([n, title, offset, rule]) => ({ id: uid(), n, title, offset, rule, status: "pending" }));
 
@@ -164,100 +164,100 @@ function seed() {
     schema_version: "6.0",
     version: 1,
     updatedAt: nowIso(),
-    updatedBy: "sistema",
+    updatedBy: "system",
     event: { start: st.toISOString(), minutes: 2340 },
-    focus: "Trend Detective: Sistema de Análise de Dados da Terra (NASA POWER em Grade 1x1, 2x2 e 3x3 + Motor Estatístico + Chatbot Co-Piloto) & Sistema de Descoberta Científica (Gemini Deep Research + Machine Learning).",
+    focus: "Trend Detective: Earth System Data Analysis System (NASA POWER in 1x1, 2x2, and 3x3 Grid + Statistical Engine + Co-Pilot Chatbot) & Scientific Discovery System (Gemini Deep Research + Machine Learning).",
     members,
     gates,
     tasks: [
-      /* Fase 1: Kickoff, Contrato JSON Unificado & Setup NASA POWER (Sáb 09:00 - 10:30 | Marco 0 @ 90m) */
-      T("Estruturar repositório Git, pastas Backend/Frontend, CI/CD e abrir DECISOES.md", "COORD", "P0", 90, "READY", "MUST", 1, "F1", "Configurar deploy contínuo (Vercel ou GitHub Pages) a partir da main. Abrir DECISOES.md para registrar congelamento de arquitetura. Garantir que todos tenham acesso de push."),
-      T("Validar chamada real à NASA POWER API (/temporal/monthly/point) e mapear grades (0,5°×0,625° vs 1,0°×1,0°) para o Contrato", "DADOS-1", "P0", 90, "READY", "MUST", 1, "F1", "Validar endpoint mensal da NASA POWER sem autenticação obrigatória. Testar requisições para T2M, PRECTOTCORR e GWETTOP e mapear as grades de resolução para o Contrato JSON."),
-      T("Especificar no Contrato JSON todos os campos de saída do Motor Estatístico (Anomalias, OLS, Sen, GAM, Mahalanobis, AR1+FDR)", "DADOS-2", "P0", 90, "READY", "MUST", 1, "F1", "Definir entradas, saídas e formatos numéricos do motor de estatística: anomalia mensal climatológica, inclinação OLS e Theil-Sen por década, resíduos GAM, distância de Mahalanobis e correção serial AR(1)+FDR."),
-      T("Definir no Contrato JSON o estado do fluxo '1º Variável → 2º Onde (Local A/B + Grade 1x1, 2x2, 3x3) → 3º Tempo' e iniciar boilerplate Frontend", "PROD-1", "P0", 90, "READY", "MUST", 1, "F1", "Estruturar o payload do fluxo de usuário (variável define grade e ano inicial; coordenadas A e B com blocos 1x1, 2x2, 3x3; intervalo [t0, tf]) e configurar boilerplate Frontend."),
-      T("Definir no Contrato JSON a estrutura das séries para a Bancada de Gráficos e gerar o arquivo mock_analysis.json", "PROD-2", "P0", 90, "READY", "MUST", 1, "F1", "Especificar a estrutura das séries (bruto, anomalia, Z-Score, retas OLS/Sen, elipse de Mahalanobis) para a Bancada Científica de Gráficos e gerar o arquivo mock_analysis.json para destravar o frontend."),
-      T("Disparar pesquisa profunda no Gemini Deep Research + Google Scholar e validar regras oficiais de submissão da NASA", "NARR", "P0", 90, "READY", "MUST", 1, "F1", "Executar prompts aprofundados no Gemini Deep Research levantando anomalias térmicas e hídricas contemporâneas, papers recentes para o Sistema de Descoberta e validar todas as regras oficiais de submissão do portal Space Apps."),
+      /* Phase 1: Kickoff, Unified JSON Contract & NASA POWER Setup (Sat 09:00 - 10:30 | Milestone 0 @ 90m) */
+      T("Structure Git repository, Backend/Frontend folders, CI/CD, and open DECISOES.md", "COORD", "P0", 90, "READY", "MUST", 1, "F1", "Configure continuous deployment (Vercel or GitHub Pages) from main. Open DECISOES.md to log architecture freezes. Ensure everyone has push access."),
+      T("Validate live call to NASA POWER API (/temporal/monthly/point) and map grids (0.5°×0.625° vs 1.0°×1.0°) to Contract", "DADOS-1", "P0", 90, "READY", "MUST", 1, "F1", "Validate NASA POWER monthly endpoint without mandatory auth. Test requests for T2M, PRECTOTCORR, and GWETTOP and map resolution grids to the JSON Contract."),
+      T("Specify all Statistical Engine output fields in the JSON Contract (Anomalies, OLS, Sen, GAM, Mahalanobis, AR1+FDR)", "DADOS-2", "P0", 90, "READY", "MUST", 1, "F1", "Define inputs, outputs, and numeric formats for the stats engine: monthly climatological anomaly, OLS and Theil-Sen decadal slope, GAM residuals, Mahalanobis distance, and AR(1)+FDR serial correction."),
+      T("Define state flow '1st Variable → 2nd Where (Loc A/B + 1x1, 2x2, 3x3 Grid) → 3rd Time' in JSON Contract and start Frontend boilerplate", "PROD-1", "P0", 90, "READY", "MUST", 1, "F1", "Structure the user-flow payload (variable sets grid and start year; coordinates A and B with 1x1, 2x2, 3x3 blocks; interval [t0, tf]) and set up Frontend boilerplate."),
+      T("Define series structure for the Chart Workbench in the JSON Contract and generate mock_analysis.json", "PROD-2", "P0", 90, "READY", "MUST", 1, "F1", "Specify series structure (raw, anomaly, Z-Score, OLS/Sen lines, Mahalanobis ellipse) for the Scientific Chart Workbench and generate mock_analysis.json to unblock frontend."),
+      T("Launch deep research in Gemini Deep Research + Google Scholar and validate official NASA submission rules", "NARR", "P0", 90, "READY", "MUST", 1, "F1", "Run deep prompts in Gemini Deep Research surveying contemporary thermal/hydrological anomalies and recent papers for the Discovery System, and validate all official Space Apps portal rules."),
 
-      /* Fase 2: Cliente NASA POWER (Células Adjacentes K<=9), Motor Estatístico & Mapa 2D Base (Sáb 10:30 - 12:30 | Portão 1 @ 210m) */
-      T("Construir cliente NASA POWER com agregador espacial de células adjacentes (1 <= K <= 9, ex: 1x1, 1x3, 2x1, 3x3) e Semaphore(3)", "DADOS-1", "P0", 210, "BACKLOG", "MUST", 2, "F2", "Consultar /temporal/monthly/point (malha MERRA-2 0,5°×0,625°) com asyncio.Semaphore(3) (limite 30 req/min), descartar YYYY13, converter -999 -> np.nan + nanmean() e PRECTOTCORR mm/day -> mm/mês."),
-      T("Implementar Cache Local no Backend (JSON/SQLite por célula e região, sem Parquet) e alinhador de datas (1981 MERRA-2 vs 1984 CERES)", "DADOS-1", "P0", 210, "BACKLOG", "MUST", 2, "F2", "Salvar em JSON/SQLite local por célula (lat, lon, var) e região (Parquet descartado no Módulo 1) e garantir recorte temporal limpo (nota: idbCache.ts e interseção no frontend já prontos na branch frontend)."),
-      T("Codificar stats_engine.py sobre o Mock: Anomalia Climatológica Mensal, OLS e Theil-Sen por década", "DADOS-2", "P0", 210, "BACKLOG", "MUST", 2, "F2", "Implementar sobre o Mock a extração de anomalia Y'_{a,m} = Y_{a,m} - Ȳ_m (isolamento do ciclo sazonal) e regressão robusta calculando inclinação por década (10 x B_ano) via OLS e Theil-Sen."),
-      T("Codificar no stats_engine.py: Curva GAM, Outliers Mahalanobis (D_M > 2,5) e teste AR(1)+FDR (Tendência Real vs Ruído)", "DADOS-2", "P0", 210, "BACKLOG", "MUST", 2, "F2", "Implementar ajuste polinomial suavizado (GAM/spline) para aceleração/saturação, cálculo de Distância de Mahalanobis bivariada (D_M > 2,5) e teste de significância com p-valor corrigido para autocorrelação AR(1) e Benjamini-Hochberg FDR."),
-      T("Construir componente visual <MapView /> em Leaflet (Canvas) e seletores (1 var/área no MVP + composição livre K <= 9) lendo o Mock", "PROD-1", "P0", 210, "BACKLOG", "MUST", 2, "F2", "Renderizar <MapView /> em Leaflet Canvas consumindo gridGeometry.ts (snap + 8-vizinhos K<=9 já prontos na branch frontend), desenhando L.rectangle para Local A e Local B e controles temporais."),
-      T("Construir casca da Bancada Científica de Gráficos (curvas juntas/separadas, Bruto vs Anomalia, retas OLS/Sen) lendo o Mock", "PROD-2", "P0", 210, "BACKLOG", "MUST", 2, "F2", "Renderizar linha de tempo consumindo o mock_analysis.json: alternador instantâneo entre série bruta e anomalia sem sazonalidade, retas de tendência OLS/Sen, modo juntas/separadas e Eixo Y Duplo."),
-      T("Analisar resultados do Gemini Deep Research, selecionar temas para o Sistema de Descoberta e fixar coordenadas dos casos de demo", "NARR", "P0", 210, "BACKLOG", "MUST", 2, "F2", "Sintetizar as controvérsias e dados trazidos pela pesquisa de IA, pré-selecionar os temas para o modelo de Descoberta Científica e documentar as coordenadas lat/lon exatas dos 3 Casos Clássicos da demonstração."),
-      T("Publicar 1º deploy funcional (com Mock JSON) em URL pública antes das 12:30", "COORD", "P0", 210, "BACKLOG", "MUST", 2, "F2", "Subir build no ambiente público (Vercel/GitHub Pages) consumindo o mock_analysis.json, verificar ausência de erros no console e validar tempo de carregamento < 2s."),
+      /* Phase 2: NASA POWER Client (Adjacent Cells K<=9), Statistical Engine & Base 2D Map (Sat 10:30 - 12:30 | Gate 1 @ 210m) */
+      T("Build NASA POWER client with adjacent-cell spatial aggregator (1 <= K <= 9, e.g., 1x1, 1x3, 2x1, 3x3) and Semaphore(3)", "DADOS-1", "P0", 210, "BACKLOG", "MUST", 2, "F2", "Query /temporal/monthly/point (MERRA-2 0.5°×0.625° grid) with asyncio.Semaphore(3) (30 req/min limit), drop YYYY13, convert -999 -> np.nan + nanmean() and PRECTOTCORR mm/day -> mm/month."),
+      T("Implement Local Cache in Backend (JSON/SQLite per cell and region, no Parquet) and date aligner (1981 MERRA-2 vs 1984 CERES)", "DADOS-1", "P0", 210, "BACKLOG", "MUST", 2, "F2", "Store in local JSON/SQLite per cell (lat, lon, var) and region (Parquet dropped in Module 1) and ensure clean time clipping (note: idbCache.ts and frontend intersection already ready on frontend branch)."),
+      T("Code stats_engine.py against Mock: Monthly Climatological Anomaly, OLS, and Theil-Sen per decade", "DADOS-2", "P0", 210, "BACKLOG", "MUST", 2, "F2", "Implement anomaly extraction Y'_{a,m} = Y_{a,m} - Ȳ_m (seasonal cycle isolation) and robust regression computing decadal slope (10 x B_year) via OLS and Theil-Sen against the Mock."),
+      T("Code in stats_engine.py: GAM Curve, Mahalanobis Outliers (D_M > 2.5), and AR(1)+FDR test (Real Trend vs Noise)", "DADOS-2", "P0", 210, "BACKLOG", "MUST", 2, "F2", "Implement smoothed fit (GAM/spline) for acceleration/saturation, bivariate Mahalanobis Distance (D_M > 2.5), and significance test with AR(1)-corrected p-value and Benjamini-Hochberg FDR."),
+      T("Build <MapView /> component in Leaflet (Canvas) and selectors (1 var/area in MVP + free K <= 9 composition) reading Mock", "PROD-1", "P0", 210, "BACKLOG", "MUST", 2, "F2", "Render <MapView /> in Leaflet Canvas consuming gridGeometry.ts (snap + 8-neighbors K<=9 already ready on frontend branch), drawing L.rectangle for Location A and Location B and time controls."),
+      T("Build Scientific Chart Workbench shell (overlaid/split curves, Raw vs Anomaly, OLS/Sen lines) reading Mock", "PROD-2", "P0", 210, "BACKLOG", "MUST", 2, "F2", "Render timeline consuming mock_analysis.json: instant toggle between raw series and deseasonalized anomaly, OLS/Sen trend lines, overlaid/split mode, and Dual Y-Axis."),
+      T("Analyze Gemini Deep Research results, select Discovery System topics, and lock demo case coordinates", "NARR", "P0", 210, "BACKLOG", "MUST", 2, "F2", "Synthesize controversies and data surfaced by AI research, shortlist topics for the Scientific Discovery model, and document exact lat/lon coordinates for the 3 Classic Demo Cases."),
+      T("Publish 1st working deploy (with Mock JSON) to public URL before 12:30", "COORD", "P0", 210, "BACKLOG", "MUST", 2, "F2", "Deploy build to public environment (Vercel/GitHub Pages) consuming mock_analysis.json, verify zero console errors, and validate < 2s load time."),
 
-      /* Fase 3: Sistema de Análise de Dados Ponta a Ponta (Walking Skeleton) (Sáb 12:30 - 16:00 | Portão 2 @ 420m) */
-      T("Integrar Mapa 2D + NASA POWER ao vivo + Motor Estatístico no fluxo principal", "COORD", "P0", 420, "BACKLOG", "MUST", 3, "F3", "Fechar o Walking Skeleton unificado: clique no mapa dispara requisição à NASA POWER (ou cache), alimenta motor de anomalias/tendências e atualiza a bancada de gráficos em < 1s."),
-      T("Homologar alinhamento temporal e recorte de datas para variáveis MERRA-2 e CERES", "DADOS-1", "P0", 390, "BACKLOG", "MUST", 3, "F3", "Garantir interseção de datas limpa (1984–presente quando cruzar com CERES, ou 1981–presente para MERRA-2) sem gerar NaNs nas séries emparelhadas."),
-      T("Implementar correlação cruzada e dispersão bivariada (X vs Y) com elipse de contorno", "DADOS-2", "P0", 390, "BACKLOG", "MUST", 3, "F3", "Calcular correlação de Pearson (r) e Kendall (tau) entre série A/X e série B/Y, tanto global quanto residual dessazonalizada (r_detrended), gerando coordenadas da elipse de Mahalanobis."),
-      T("Adicionar controles de seleção para Local A e Local B no Mapa 2D (ou A=B)", "PROD-1", "P0", 410, "BACKLOG", "MUST", 3, "F3", "Permitir marcar Ponto A (ex: marcador azul) e Ponto B (ex: marcador laranja) no mapa, com toggle 'Mesmo Local (A=B)' para correlação entre variáveis no mesmo lugar."),
-      T("Construir cards de diagnóstico científico das 4 Respostas (O Quê, Onde, Quanto, Significância)", "PROD-2", "P0", 410, "BACKLOG", "MUST", 3, "F3", "Exibir em tempo real: 1) Nome da variável e anomalia; 2) Coordenadas e grade selecionada; 3) Taxa decadal (B_Sen / B_OLS) sem porcentagem para °C; 4) p-valor AR(1) e significância FDR."),
-      T("Redigir glossário científico explicativo na interface para termos de estatística climática", "NARR", "P1", 420, "BACKLOG", "SHOULD", 3, "F3", "Escrever tooltips e explicações em linguagem acessível para OLS, Theil-Sen, GAM, Mahalanobis e AR(1), orientando o usuário e os jurados da NASA."),
+      /* Phase 3: End-to-End Data Analysis System (Walking Skeleton) (Sat 12:30 - 16:00 | Gate 2 @ 420m) */
+      T("Integrate 2D Map + live NASA POWER + Statistical Engine in the main flow", "COORD", "P0", 420, "BACKLOG", "MUST", 3, "F3", "Close the unified Walking Skeleton: map click triggers NASA POWER request (or cache), feeds anomaly/trend engine, and updates chart workbench in < 1s."),
+      T("Certify temporal alignment and date clipping for MERRA-2 and CERES variables", "DADOS-1", "P0", 390, "BACKLOG", "MUST", 3, "F3", "Guarantee clean date intersection (1984–present when crossing with CERES, or 1981–present for MERRA-2) without generating NaNs in paired series."),
+      T("Implement cross-correlation and bivariate scatter (X vs Y) with contour ellipse", "DADOS-2", "P0", 390, "BACKLOG", "MUST", 3, "F3", "Compute Pearson (r) and Kendall (tau) correlation between series A/X and series B/Y, both global and deseasonalized residual (r_detrended), generating Mahalanobis ellipse coordinates."),
+      T("Add selection controls for Location A and Location B on the 2D Map (or A=B)", "PROD-1", "P0", 410, "BACKLOG", "MUST", 3, "F3", "Allow marking Point A (e.g., blue marker) and Point B (e.g., orange marker) on the map, with 'Same Location (A=B)' toggle for cross-variable correlation at one site."),
+      T("Build scientific diagnosis cards for the 4 Answers (What, Where, How Much, Significance)", "PROD-2", "P0", 410, "BACKLOG", "MUST", 3, "F3", "Display in real time: 1) Variable name and anomaly; 2) Coordinates and selected grid; 3) Decadal rate (B_Sen / B_OLS) with no % on °C; 4) AR(1) p-value and FDR significance."),
+      T("Write in-app scientific glossary explaining climate statistics terms", "NARR", "P1", 420, "BACKLOG", "SHOULD", 3, "F3", "Write accessible tooltips and explanations for OLS, Theil-Sen, GAM, Mahalanobis, and AR(1), guiding users and NASA judges."),
 
-      /* Fase 4: Bancada Científica Completa & Chatbot Co-Piloto (Sáb 16:00 - 21:30 | Checkpoint @ 750m) */
-      T("Finalizar bancada com Eixo Y Duplo, Z-Score (σ), escala log/symlog e camadas visuais", "PROD-2", "P0", 720, "BACKLOG", "MUST", 4, "F4", "Implementar botões para: alternar Eixo Y Duplo independente, normalizar por Z-Score (média 0, desvio 1), escala logarítmica e ligar/desligar camadas de reta OLS, curva GAM e pontos Mahalanobis."),
-      T("Definir arquitetura e prompt do Chatbot Co-Piloto Estatístico para interpretação", "DADOS-2", "P0", 720, "BACKLOG", "MUST", 4, "F4", "Projetar motor do Chatbot Co-Piloto (via API de LLM rápida ou gerador de síntese estatística heurística com fallback): recebe JSON das séries e gera diagnóstico textual imediato em português/inglês."),
-      T("Construir painel lateral interativo do Chatbot Co-Piloto na interface", "PROD-2", "P0", 730, "BACKLOG", "MUST", 4, "F4", "Criar gaveta/card expansível do Chatbot com histórico de conversa, botão 'Analisar Cenário Atual com Co-Piloto' e respostas formatadas em Markdown."),
-      T("Sintetizar achados do Gemini Deep Research e propor 2 hipóteses de descoberta científica", "NARR", "P0", 730, "BACKLOG", "MUST", 4, "F4", "Compilar relatório do Deep Research destacando anomalias extremas ou teleconexões pouco exploradas entre bacias hidrográficas e radiação solar para guiar o modelo de Machine Learning."),
-      T("Ponto de Decisão (21:30): Definir escopo do Sistema de Descoberta (Generalista vs Especializado)", "COORD", "P0", 750, "BACKLOG", "MUST", 4, "F4", "Reunião de 15 min com equipe para bater o martelo: aplicar ML generalista de varredura ou especializar o modelo no achado específico apontado pelo Gemini Deep Research."),
-      T("Implementar exportação dos dados analisados em CSV e JSON estruturado", "DADOS-1", "P1", 750, "BACKLOG", "SHOULD", 4, "F4", "Permitir ao usuário baixar a série temporal completa com anomalias e estatísticas calculadas em formato aberto para reprodutibilidade científica."),
+      /* Phase 4: Full Scientific Workbench & Co-Pilot Chatbot (Sat 16:00 - 21:30 | Checkpoint @ 750m) */
+      T("Finalize workbench with Dual Y-Axis, Z-Score (σ), log/symlog scale, and visual layers", "PROD-2", "P0", 720, "BACKLOG", "MUST", 4, "F4", "Implement buttons to: toggle independent Dual Y-Axis, normalize by Z-Score (mean 0, std 1), toggle logarithmic scale, and toggle OLS line, GAM curve, and Mahalanobis points layers."),
+      T("Define architecture and prompt for the Statistical Co-Pilot Chatbot for interpretation", "DADOS-2", "P0", 720, "BACKLOG", "MUST", 4, "F4", "Design Co-Pilot Chatbot engine (fast LLM API or heuristic statistical synthesis generator with fallback): receives series JSON and outputs immediate textual diagnosis in Portuguese/English."),
+      T("Build interactive Co-Pilot Chatbot side panel in the UI", "PROD-2", "P0", 730, "BACKLOG", "MUST", 4, "F4", "Create expandable Chatbot drawer/card with conversation history, 'Analyze Current Scenario with Co-Pilot' button, and Markdown-formatted replies."),
+      T("Synthesize Gemini Deep Research findings and propose 2 scientific discovery hypotheses", "NARR", "P0", 730, "BACKLOG", "MUST", 4, "F4", "Compile Deep Research report highlighting extreme anomalies or underexplored teleconnections between river basins and solar radiation to guide the ML model."),
+      T("Decision Point (21:30): Define Discovery System scope (Generalist vs Specialized)", "COORD", "P0", 750, "BACKLOG", "MUST", 4, "F4", "15-min team meeting to lock decision: apply generalist scanning ML or specialize the model on the specific finding pointed out by Gemini Deep Research."),
+      T("Implement export of analyzed data in CSV and structured JSON", "DADOS-1", "P1", 750, "BACKLOG", "SHOULD", 4, "F4", "Allow users to download the full time series with anomalies and computed statistics in open format for scientific reproducibility."),
 
-      /* Fase 5: Sistema de Descoberta Científica (Início ML) & Blindagem (Sáb 21:30 - 23:30 | Checkpoint @ 870m) */
-      T("Desenvolver protótipo do modelo de Machine Learning / Mineração do Sistema de Descoberta", "DADOS-2", "P0", 850, "BACKLOG", "MUST", 4, "F5", "Treinar/codificar modelo (Random Forest / Autoencoder de Anomalias / Detecção de Quebra Estrutural) alimentado pelas features extraídas pelo motor estatístico para isolar a nova evidência científica."),
-      T("Validar e blindar os 3 Casos Clássicos da demo com o Checklist Hindemburg", "NARR", "P0", 850, "BACKLOG", "MUST", 4, "F5", "Verificar se nenhum caso tem Y_fim - Y_inicio, se unidades respeitam escala intervalar (°C sem %) e se os números batem exatamente com as séries da NASA."),
-      T("Consolidar handoff escrito e iniciar Pausa Obrigatória de Sono Sincronizado (23:30–06:30)", "COORD", "P0", 870, "BACKLOG", "MUST", 4, "F5", "Registrar status do modelo de ML e da UI no canal, congelar código e liberar toda a equipe para descanso completo de ~6h30."),
+      /* Phase 5: Scientific Discovery System (ML Start) & Shielding (Sat 21:30 - 23:30 | Checkpoint @ 870m) */
+      T("Develop prototype of the Discovery System Machine Learning / Mining model", "DADOS-2", "P0", 850, "BACKLOG", "MUST", 4, "F5", "Train/code model (Random Forest / Anomaly Autoencoder / Structural Break Detection) fed by features extracted by the stats engine to isolate the new scientific evidence."),
+      T("Validate and shield the 3 Classic Demo Cases with the Hindemburg Checklist", "NARR", "P0", 850, "BACKLOG", "MUST", 4, "F5", "Verify no case uses Y_end - Y_start, units respect interval scale (°C without %), and numbers match NASA series exactly."),
+      T("Consolidate written handoff and start Mandatory Synchronized Sleep Break (23:30–06:30)", "COORD", "P0", 870, "BACKLOG", "MUST", 4, "F5", "Log ML model and UI status in channel, freeze code, and release entire team for full ~6h30 rest."),
 
-      /* Fase 6: Fechamento do Sistema de Descoberta, Cache Offline & Feature Freeze (Dom 06:30 - 13:00 | Portão 4 Feature Freeze @ 1680m) */
-      T("Concluir saída científica do Sistema de Descoberta e gerar resumo interpretativo", "DADOS-2", "P0", 1600, "BACKLOG", "MUST", 5, "F6", "Ajustar hiperparâmetros, extrair coeficientes e gráficos de evidência da descoberta e documentar a relevância ecológica/climática encontrada pelo modelo."),
-      T("Criar botões de 'Presets Científicos' (1 clique carrega os casos da demo em cache)", "PROD-2", "P0", 1630, "BACKLOG", "MUST", 5, "F6", "Adicionar barra de botões com: 'Amazônia vs Sahel (Dipolo)', 'Calor vs Seca do Solo', 'El Niño (Ruído Natural)' e 'Descoberta ML', carregando dados instantaneamente sem latência de rede."),
-      T("Empacotar bundle 100% offline e validar renderização sem conexões externas", "PROD-1", "P0", 1650, "BACKLOG", "MUST", 5, "F6", "Garantir que os JSONs de demonstração, fontes e scripts funcionem em modo avião caso a rede do local de apresentação ou da NASA oscile."),
-      T("Fechar roteiro segundo a segundo do Pitch (240s) e testar demo com usuário cego", "NARR", "P0", 1660, "BACKLOG", "MUST", 5, "F6", "Finalizar texto da narração cronometrado para caber em 4 minutos exatos; conduzir teste com voluntário externo para verificar clareza da interface às 11:00."),
-      T("Aplicar Feature Freeze Absoluto às 13:00 e travar branch para gravações", "COORD", "P0", 1680, "BACKLOG", "MUST", 5, "F6", "Zero alterações de código de funcionalidade após as 13:00. Ocultar itens incompletos e liberar ambiente estável para a equipe de vídeo."),
+      /* Phase 6: Discovery System Closeout, Offline Cache & Feature Freeze (Sun 06:30 - 13:00 | Gate 4 Feature Freeze @ 1680m) */
+      T("Finalize Discovery System scientific output and generate interpretive summary", "DADOS-2", "P0", 1600, "BACKLOG", "MUST", 5, "F6", "Tune hyperparameters, extract evidence coefficients and charts for the discovery, and document ecological/climatic relevance found by the model."),
+      T("Create 'Scientific Presets' buttons (1 click loads cached demo cases)", "PROD-2", "P0", 1630, "BACKLOG", "MUST", 5, "F6", "Add button bar with: 'Amazon vs Sahel (Dipole)', 'Heat vs Soil Drought', 'El Niño (Natural Noise)', and 'ML Discovery', loading data instantaneously with zero network latency."),
+      T("Package 100% offline bundle and validate rendering without external connections", "PROD-1", "P0", 1650, "BACKLOG", "MUST", 5, "F6", "Ensure demo JSONs, fonts, and scripts work in airplane mode in case venue or NASA network fluctuates."),
+      T("Lock second-by-second Pitch script (240s) and run blind user test of demo", "NARR", "P0", 1660, "BACKLOG", "MUST", 5, "F6", "Finalize timed narration script to fit exactly 4 minutes; run test with external volunteer to verify UI clarity at 11:00."),
+      T("Enforce Absolute Feature Freeze at 13:00 and lock branch for recordings", "COORD", "P0", 1680, "BACKLOG", "MUST", 5, "F6", "Zero feature code changes after 13:00. Hide incomplete items and hand over stable environment to video team."),
 
-      /* Fase 7: Produção Focada do Vídeo de Pitch (240s) (Dom 13:30 - 19:00 | Portão 5 Vídeo @ 2040m) */
-      T("Gravar captura de tela em 1080p60 da Bancada Científica, Chatbot e Descoberta ML", "PROD-2", "P0", 1860, "BACKLOG", "MUST", 6, "F7", "Executar fluxo suave no navegador usando os botões de Presets Científicos: mostrar Mapa 2D, seleção de grades 1x1/2x2/3x3, gráficos com camadas e interação do Chatbot Co-Piloto."),
-      T("Auditar cada frase narrada no pitch contra os dados exibidos em tela", "DADOS-2", "P0", 1980, "BACKLOG", "MUST", 6, "F7", "Revisão científica minuciosa para garantir rigor absoluto nas terminologias (OLS, Theil-Sen, GAM, Mahalanobis, Z-Score, sem porcentagem em temperatura)."),
-      T("Gravar áudio, sincronizar com tela, legendar (burned-in) e exportar MP4 final (≤ 240s)", "NARR", "P0", 2020, "BACKLOG", "MUST", 6, "F7", "Mixar voz e trilha suave, embutir legendas visíveis no vídeo, exportar em alta qualidade respeitando o limite rígido de 240 segundos da NASA e subir para plataforma pública."),
-      T("Redigir formulário de submissão no portal NASA Space Apps e documentar README.md", "COORD", "P0", 2020, "BACKLOG", "MUST", 6, "F7", "Preencher campos oficiais: resumo executivo do projeto, links do GitHub, deploy público, vídeo do pitch e menção explícita às APIs da NASA POWER e fontes MERRA-2/CERES."),
+      /* Phase 7: Focused Pitch Video Production (240s) (Sun 13:30 - 19:00 | Gate 5 Video @ 2040m) */
+      T("Record 1080p60 screen capture of Scientific Workbench, Chatbot, and ML Discovery", "PROD-2", "P0", 1860, "BACKLOG", "MUST", 6, "F7", "Execute smooth browser walkthrough using Scientific Presets buttons: show 2D Map, 1x1/2x2/3x3 grid selectors, layered charts, and Co-Pilot Chatbot interaction."),
+      T("Audit every spoken sentence in the pitch against on-screen data", "DADOS-2", "P0", 1980, "BACKLOG", "MUST", 6, "F7", "Thorough scientific review ensuring absolute rigor in terminology (OLS, Theil-Sen, GAM, Mahalanobis, Z-Score, no percentages on temperature)."),
+      T("Record audio, sync with screen, burn in captions, and export final MP4 (≤ 240s)", "NARR", "P0", 2020, "BACKLOG", "MUST", 6, "F7", "Mix voice and soft soundtrack, burn visible captions into video, export in high quality respecting NASA's strict 240-second limit, and upload to public platform."),
+      T("Draft submission form on NASA Space Apps portal and document README.md", "COORD", "P0", 2020, "BACKLOG", "MUST", 6, "F7", "Fill official fields: project executive summary, GitHub links, public deploy, pitch video, and explicit credit to NASA POWER APIs and MERRA-2/CERES sources."),
 
-      /* Fase 8: Submissão 'Quatro Olhos' & Testes Cegos 4G (Dom 19:00 - 22:30 | Portão 6 Submissão @ 2250m) */
-      T("Submeter projeto no portal oficial da NASA em protocolo 'Quatro Olhos' (COORD + NARR)", "COORD", "P0", 2220, "BACKLOG", "MUST", 7, "F8", "Revisar todos os campos, anexar links definitivos e enviar antes das 22:30, preservando 90 minutos de folga total até o prazo limite mundial da NASA."),
-      T("Bancada de Jurados Anônimos: validar deploy e vídeo em celulares 4G/5G", "PROD-1", "P0", 2250, "BACKLOG", "MUST", 7, "F8", "DADOS-1, DADOS-2 e PROD-1 abrem o site público e vídeo em abas anônimas no celular via rede móvel 4G para certificar que nenhum recurso quebra para os avaliadores.")
+      /* Phase 8: 'Four-Eyes' Submission & 4G Blind Tests (Sun 19:00 - 22:30 | Gate 6 Submission @ 2250m) */
+      T("Submit project on official NASA portal under 'Four-Eyes' protocol (COORD + NARR)", "COORD", "P0", 2220, "BACKLOG", "MUST", 7, "F8", "Review all fields, attach final links, and submit before 22:30, preserving a full 90-minute buffer before NASA's global deadline."),
+      T("Anonymous Judge Bench: validate deploy and video on 4G/5G mobile phones", "PROD-1", "P0", 2250, "BACKLOG", "MUST", 7, "F8", "DADOS-1, DADOS-2, and PROD-1 open the public site and video in incognito tabs on mobile via 4G cellular network to verify nothing breaks for evaluators.")
     ],
     risks: [
-      { id: uid(), code: "R1", problem: "R1: Bloqueio ou Lentidão na NASA POWER API (Gatilho: Falha na requisição aos pontos)", ownerId: M["DADOS-1"], plan: "Ativar Cache Local JSON pré-aquecido dos pontos de demonstração e recorte imediato em < 100ms.", state: "OPEN" },
-      { id: uid(), code: "R2", problem: "R2: Sobrecarga na Agregação Espacial da Grade (Gatilho: Grade 3x3 com 9 requisições síncronas)", ownerId: M["DADOS-1"], plan: "Executar Promise.all paralelo no cliente NASA POWER com média ponderada rápida e memoização por coordenadas.", state: "OPEN" },
-      { id: uid(), code: "R3", problem: "R3: Erro Estatístico Primário no Código ou Vídeo (Gatilho: Y_fim − Y_início, % em °C, ou sazonalidade)", ownerId: M["DADOS-2"], plan: "Travar allow_percentage_change: false no JSON e auditar com Checklist dos 7 Invariantes Estatísticos na Fase 5.", state: "OPEN" },
-      { id: uid(), code: "R4", problem: "R4: Falsos Positivos Espaciais e Ruído Natural (Gatilho: Tendência aparente que é ruído vermelho)", ownerId: M["DADOS-2"], plan: "Exibir significância exclusivamente após correção serial AR(1) (N_efetivo) e Benjamini-Hochberg (q_FDR < 0,05).", state: "OPEN" },
-      { id: uid(), code: "R5", problem: "R5: Dessincronia entre Frontend e Contrato JSON às 15:30 (Gatilho: Quebra de formato de dados)", ownerId: M["COORD"], plan: "Validação estrita de schema JSON antes de commits; PROD-1 e PROD-2 desenvolvem sobre mock da matriz (A,X)x(B,Y).", state: "OPEN" },
-      { id: uid(), code: "R6", problem: "R6: Complexidade Excessiva no Modelo de Descoberta Científica (Gatilho: Sábado 21:30 sem convergência)", ownerId: M["DADOS-2"], plan: "Optar imediatamente por modelo focado na anomalia/descoberta detectada pelo Gemini Deep Research, usando motor estatístico como feature store.", state: "OPEN" },
-      { id: uid(), code: "R7", problem: "R7: Atraso na Gravação do Vídeo no Domingo (Gatilho: 16:30 Dom sem captura finalizada)", ownerId: M["NARR"], plan: "Gravar com botões de Presets Científicos na UI em 3 tomadas de 60s sem depender de digitação manual.", state: "OPEN" }
+      { id: uid(), code: "R1", problem: "R1: NASA POWER API Block or Slowness (Trigger: Point request failure)", ownerId: M["DADOS-1"], plan: "Activate pre-warmed local JSON Cache of demo points and instant clipping in < 100ms.", state: "OPEN" },
+      { id: uid(), code: "R2", problem: "R2: Grid Spatial Aggregation Overload (Trigger: 3x3 grid with 9 synchronous requests)", ownerId: M["DADOS-1"], plan: "Run parallel Promise.all in NASA POWER client with fast weighted mean and coordinate memoization.", state: "OPEN" },
+      { id: uid(), code: "R3", problem: "R3: Primary Statistical Error in Code or Video (Trigger: Y_end − Y_start, % on °C, or seasonality)", ownerId: M["DADOS-2"], plan: "Lock allow_percentage_change: false in JSON and audit with the 7 Statistical Invariants Checklist in Phase 5.", state: "OPEN" },
+      { id: uid(), code: "R4", problem: "R4: Spatial False Positives & Natural Noise (Trigger: Apparent trend that is red noise)", ownerId: M["DADOS-2"], plan: "Display significance exclusively after AR(1) serial correction (N_effective) and Benjamini-Hochberg (q_FDR < 0.05).", state: "OPEN" },
+      { id: uid(), code: "R5", problem: "R5: Frontend vs JSON Contract Desync at 15:30 (Trigger: Data format breakage)", ownerId: M["COORD"], plan: "Strict JSON schema validation before commits; PROD-1 and PROD-2 develop against (A,X)x(B,Y) matrix mock.", state: "OPEN" },
+      { id: uid(), code: "R6", problem: "R6: Excessive Complexity in Discovery Model (Trigger: Sat 21:30 without convergence)", ownerId: M["DADOS-2"], plan: "Immediately switch to a model focused on the anomaly/discovery flagged by Gemini Deep Research, using stats engine as feature store.", state: "OPEN" },
+      { id: uid(), code: "R7", problem: "R7: Sunday Video Recording Delay (Trigger: Sun 16:30 without finished capture)", ownerId: M["NARR"], plan: "Record using UI Scientific Presets buttons in three 60s takes without relying on manual typing.", state: "OPEN" }
     ],
     delivery: [
-      "Sistema de Análise de Dados: Matriz unificada (Local A, Var X) vs (Local B, Var Y) em tempo real",
-      "Seleção de Grade NASA POWER: Modos 1x1 (1 ponto), 2x2 (média 4 pontos) e 3x3 (média 9 pontos)",
-      "Bancada Científica: Gráficos juntos/separados, Eixo Duplo, Z-Score, Escala Logarítmica e Camadas Estatísticas",
-      "Motor Estatístico: Anomalias mensais, OLS, Theil-Sen, GAM, Mahalanobis e teste AR(1)+FDR",
-      "Chatbot Co-Piloto Estatístico: Análise interpretativa automática e respostas contextuais da análise",
-      "Sistema de Descoberta Científica: Modelo de ML/mineração treinado e hipótese validada via Gemini Deep Research",
-      "3 Comparações Clássicas da Demo: Lugares Opostos, Causas e Efeitos no Mesmo Lugar, Tendência vs Ruído Natural",
-      "Presets Científicos com Cache Local: Carregamento instantâneo de casos emblemáticos em 1 clique",
-      "Vídeo de Pitch (240s) 1080p60: Apresentação fluida da bancada, chatbot e achado do modelo de descoberta",
-      "Submissão 'Quatro Olhos': Revisão dupla concluída no portal NASA Space Apps até 22:30 (90m de buffer)"
+      "Data Analysis System: Unified real-time (Loc A, Var X) vs (Loc B, Var Y) matrix",
+      "NASA POWER Grid Selection: 1x1 (1 point), 2x2 (mean of 4 points), and 3x3 (mean of 9 points) modes",
+      "Scientific Workbench: Overlaid/split charts, Dual Axis, Z-Score, Logarithmic Scale, and Statistical Layers",
+      "Statistical Engine: Monthly anomalies, OLS, Theil-Sen, GAM, Mahalanobis, and AR(1)+FDR test",
+      "Statistical Co-Pilot Chatbot: Automatic interpretive analysis and contextual Q&A on loaded series",
+      "Scientific Discovery System: Trained ML/mining model and hypothesis validated via Gemini Deep Research",
+      "3 Classic Demo Comparisons: Opposite Places, Causes & Effects in Same Place, Trend vs Natural Noise",
+      "Scientific Presets with Local Cache: 1-click instant loading of emblematic cases",
+      "Pitch Video (240s) 1080p60: Smooth walkthrough of workbench, chatbot, and discovery model finding",
+      "'Four-Eyes' Submission: Dual review completed on NASA Space Apps portal by 22:30 (90m buffer)"
     ].map(t => ({ id: uid(), t, done: false })),
     scienceAudit: [
-      "1. Zero Erro Inicial/Final: Taxa veio da inclinação B (OLS e Theil-Sen) sobre toda a nuvem de pontos",
-      "2. Isolamento Sazonal (Leavitt): Regressão calculada sobre anomalias mensais dessazonalizadas",
-      "3. Respeito à Escala: Zero porcentagem (%) associada a °C ou anomalias de água na tela/vídeo",
-      "4. Concordância OLS vs. Theil-Sen: Inclinações apontam na mesma direção e outliers foram inspecionados",
-      "5. Distinção B vs. r: Velocidade da mudança (B) e correlação/estreiteza da elipse (r/τ) explicadas",
-      "6. Curvatura Física (GAM): Curva suave captura aceleração/saturação sem polinômio livre nas pontas",
-      "7. Diagnóstico de Outliers: Extremos Mahalanobis (D_M > 2,5) verificados contra anomalias reais",
-      "8. Memória Climática AR(1): p-valor reportado corrige o tamanho efetivo da amostra (N_efetivo)",
-      "9. Controle Espacial FDR: Grade filtrada por Benjamini-Hochberg (q < 0,05) contra falsos positivos",
-      "10. Cautela Causal e Zero Circularidade: Variáveis independentes e linguagem sem afirmar causa não provada"
+      "1. Zero Start/End Error: Rate came from slope B (OLS and Theil-Sen) across the entire point cloud",
+      "2. Seasonal Isolation (Leavitt): Regression computed on deseasonalized monthly anomalies",
+      "3. Scale Respect: Zero percentage (%) attached to °C or water anomalies on screen/video",
+      "4. OLS vs. Theil-Sen Agreement: Slopes point in the same direction and outliers were inspected",
+      "5. B vs. r Distinction: Speed of change (B) and correlation/ellipse tightness (r/τ) both explained",
+      "6. Physical Curvature (GAM): Smooth curve captures acceleration/saturation without free polynomials at endpoints",
+      "7. Outlier Diagnostics: Mahalanobis extremes (D_M > 2.5) checked against real anomalies",
+      "8. AR(1) Climate Memory: Reported p-value corrects effective sample size (N_effective)",
+      "9. Spatial FDR Control: Grid filtered by Benjamini-Hochberg (q < 0.05) against false positives",
+      "10. Causal Caution & Zero Circularity: Independent variables and language avoiding unproven causal claims"
     ].map(t => ({ id: uid(), t, done: false }))
   };
 }
@@ -271,7 +271,7 @@ function migrate(o) {
     schema_version: "6.0",
     version: (o.version || 1) + 1,
     updatedAt: o.updatedAt || nowIso(),
-    updatedBy: o.updatedBy || "migração",
+    updatedBy: o.updatedBy || "migration",
     event: { start: (o.event && o.event.start) || base.event.start, minutes: (o.event && o.event.minutes) || 2340 },
     focus: o.focus || (o.mvp && o.mvp.sentence) || base.focus,
     members: Array.isArray(o.members) && o.members.length === 6 ? o.members.map(m => {
@@ -301,7 +301,7 @@ function migrate(o) {
     })) : base.gates,
     tasks: Array.isArray(o.tasks) && o.tasks.length ? o.tasks.map(t => ({
       id: t.id || uid(),
-      title: t.title || "Tarefa",
+      title: t.title || "Task",
       notes: t.notes || "",
       ownerId: t.ownerId || "",
       priority: PR[t.priority] ? t.priority : "P1",
@@ -328,24 +328,24 @@ function migrate(o) {
 const IDR = /^[\w-]{6,}$/;
 function validate(s) {
   const e = m => ({ ok: false, err: m });
-  if (!s || typeof s !== "object") return e("Estado inválido");
-  for (const k of ["members", "tasks", "gates", "risks", "delivery"]) if (!Array.isArray(s[k])) return e("Campo ausente: " + k);
-  if (!s.event || isNaN(new Date(s.event.start)) || typeof s.event.minutes !== "number") return e("Dados do evento inválidos");
-  if (s.gates.length < 5) return e("São necessários ao menos 5 marcos");
+  if (!s || typeof s !== "object") return e("Invalid state");
+  for (const k of ["members", "tasks", "gates", "risks", "delivery"]) if (!Array.isArray(s[k])) return e("Missing field: " + k);
+  if (!s.event || isNaN(new Date(s.event.start)) || typeof s.event.minutes !== "number") return e("Invalid event data");
+  if (s.gates.length < 5) return e("At least 5 gates are required");
   const mid = new Set(s.members.map(m => m.id)), gid = new Set(s.gates.map(g => g.id));
-  for (const m of s.members) if (!IDR.test(m.id) || !MS[m.status]) return e("Membro inválido");
-  for (const g of s.gates) if (!IDR.test(g.id) || !["pending", "passed", "failed"].includes(g.status) || typeof g.offset !== "number") return e("Marco inválido");
+  for (const m of s.members) if (!IDR.test(m.id) || !MS[m.status]) return e("Invalid member");
+  for (const g of s.gates) if (!IDR.test(g.id) || !["pending", "passed", "failed"].includes(g.status) || typeof g.offset !== "number") return e("Invalid gate");
   for (const t of s.tasks) {
-    if (!IDR.test(t.id) || typeof t.title !== "string" || !TS.includes(t.status) || !PR[t.priority] || !MO.includes(t.moscow || "")) return e("Tarefa inválida: " + t.title);
-    if (t.ownerId && !mid.has(t.ownerId)) return e("Responsável inexistente em: " + t.title);
-    if (t.gateId && !gid.has(t.gateId)) return e("Marco inexistente em: " + t.title);
-    if (t.due && isNaN(new Date(t.due))) return e("Prazo inválido em: " + t.title);
+    if (!IDR.test(t.id) || typeof t.title !== "string" || !TS.includes(t.status) || !PR[t.priority] || !MO.includes(t.moscow || "")) return e("Invalid task: " + t.title);
+    if (t.ownerId && !mid.has(t.ownerId)) return e("Unknown owner in: " + t.title);
+    if (t.gateId && !gid.has(t.gateId)) return e("Unknown gate in: " + t.title);
+    if (t.due && isNaN(new Date(t.due))) return e("Invalid deadline in: " + t.title);
   }
-  for (const r of s.risks) if (!["OPEN", "CLOSED"].includes(r.state) || (r.ownerId && !mid.has(r.ownerId))) return e("Risco inválido");
+  for (const r of s.risks) if (!["OPEN", "CLOSED"].includes(r.state) || (r.ownerId && !mid.has(r.ownerId))) return e("Invalid risk");
   return { ok: true };
 }
 
-/* ============ REPOSITORY COM PERSISTÊNCIA LOCAL (mc-v6) E SINCRONIZAÇÃO EM REDE WI-FI (LAN) ============ */
+/* ============ REPOSITORY WITH LOCAL PERSISTENCE (mc-v6) & WI-FI LAN SYNC ============ */
 const ls = {
   get: k => { try { return localStorage.getItem(k); } catch (e) { return null; } },
   set: (k, v) => { try { localStorage.setItem(k, v); } catch (e) {} }
@@ -409,7 +409,7 @@ class LocalRepository {
   }
   getState() { return this.s; }
   subscribe(f) { this.l.add(f); return () => this.l.delete(f); }
-  userName() { const m = this.s.members.find(x => x.id === this.me); return m ? m.name : "anônimo"; }
+  userName() { const m = this.s.members.find(x => x.id === this.me); return m ? m.name : "anonymous"; }
   setMe(id) { this.me = id; ls.set("mc-me", id); this.notify(); }
   notify() { this.l.forEach(f => f()); }
 
@@ -438,7 +438,7 @@ class LocalRepository {
       this.es = null;
     }
 
-    // 1. Consulta o estado inicial do servidor
+    // 1. Fetch initial state from server
     fetch(targetUrl + "/api/state")
       .then(res => {
         if (!res.ok) throw new Error("HTTP " + res.status);
@@ -446,7 +446,7 @@ class LocalRepository {
       })
       .then(remote => {
         if (remote && remote.empty) {
-          // Servidor vazio: inicializa com o estado local atual
+          // Empty server: initialize with current local state
           this.pushToLan(this.s);
         } else if (remote && validate(remote).ok) {
           if (!this.s || (remote.version && remote.version > this.s.version) || remote.updatedAt !== this.s.updatedAt) {
@@ -456,9 +456,9 @@ class LocalRepository {
         this.startEventSource(targetUrl);
       })
       .catch(err => {
-        console.warn("Aviso ao conectar com LAN /api/state:", err);
+        console.warn("Warning connecting to LAN /api/state:", err);
         this.lanStatus = "offline";
-        this.lanError = err.message || "Erro de conexão";
+        this.lanError = err.message || "Connection error";
         this.notify();
         this.startEventSource(targetUrl);
       });
@@ -492,12 +492,12 @@ class LocalRepository {
             }
           }
         } catch (err) {
-          console.warn("Erro ao decodificar evento SSE:", err);
+          console.warn("Error decoding SSE event:", err);
         }
       };
     } catch (err) {
       this.lanStatus = "offline";
-      this.lanError = err.message || "EventSource não suportado";
+      this.lanError = err.message || "EventSource not supported";
       this.notify();
     }
   }
@@ -530,7 +530,7 @@ class LocalRepository {
       method: "POST",
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify(state)
-    }).catch(err => console.warn("Falha ao propagar estado para LAN:", err));
+    }).catch(err => console.warn("Failed to push state to LAN:", err));
   }
 
   commit(fn) {
@@ -560,7 +560,7 @@ class LocalRepository {
 
 const COLS = ["members", "tasks", "gates", "risks", "delivery", "scienceAudit"], META = ["id", "order", "updatedAt", "updatedBy"], sleep = ms => new Promise(r => setTimeout(r, ms));
 const HAS = !!(window.claude && window.claude.use);
-const bus = { impl: null, sh: null, fn: new Set(), status: HAS ? "connecting" : "local", lockMsg: HAS ? "Conectando ao servidor… aguarde" : "", say() {}, emit() { this.fn.forEach(f => f()); }, on(f) { this.fn.add(f); return () => this.fn.delete(f); } };
+const bus = { impl: null, sh: null, fn: new Set(), status: HAS ? "connecting" : "local", lockMsg: HAS ? "Connecting to server… please wait" : "", say() {}, emit() { this.fn.forEach(f => f()); }, on(f) { this.fn.add(f); return () => this.fn.delete(f); } };
 
 const local = new LocalRepository();
 local.subscribe(() => bus.emit());
@@ -590,7 +590,7 @@ const Tend = s => T0(s) + (s.event.minutes || 2340) * 6e4;
 const gAt = (s, g) => T0(s) + g.offset * 6e4;
 const freezeOn = (s, now) => { const g = s.gates.find(x => x.n === 5) || s.gates.find(x => x.offset === 1680); return g ? (now >= gAt(s, g) || g.status === "passed") : false; };
 
-/* Formatação com segundos para cronômetro regressivo de alta precisão */
+/* Formatting with seconds for high-precision countdown timer */
 const durSec = ms => {
   const totalSec = Math.floor(Math.abs(ms) / 1000);
   const d = Math.floor(totalSec / 86400);
@@ -604,7 +604,7 @@ const dur = ms => {
   const m = Math.floor(Math.abs(ms) / 6e4), d = Math.floor(m / 1440), h = Math.floor(m % 1440 / 60);
   return (d ? d + "d " : "") + `${h}h ${String(m % 60).padStart(2, "0")}m`;
 };
-const fmtAt = ts => new Date(ts).toLocaleString("pt-BR", { weekday: "short", day: "2-digit", month: "2-digit", hour: "2-digit", minute: "2-digit" });
+const fmtAt = ts => new Date(ts).toLocaleString("en-US", { weekday: "short", day: "2-digit", month: "2-digit", hour: "2-digit", minute: "2-digit" });
 const toLoc = iso => { if (!iso) return ""; const d = new Date(iso), p = n => String(n).padStart(2, "0"); return `${d.getFullYear()}-${p(d.getMonth() + 1)}-${p(d.getDate())}T${p(d.getHours())}:${p(d.getMinutes())}`; };
 const fromLoc = v => v ? new Date(v).toISOString() : "";
 const memberLabel = m => {
@@ -635,13 +635,13 @@ const allPeople = s => {
 const late = (t, now) => OPEN(t) && t.due && new Date(t.due).getTime() < now;
 const pct = a => a.length ? Math.round(a.filter(t => t.status === "DONE").length / a.length * 100) : 0;
 
-/* Identifica a Fase Atual com base nos minutos decorridos desde T0 */
+/* Identify Current Phase based on elapsed minutes since T0 */
 function currentPhaseInfo(s, now) {
   const elapsedMin = (now - T0(s)) / 6e4;
-  if (elapsedMin < 0) return { state: "PRE", elapsedMin, phase: PHASES_SPEC[0], label: "Pré-Kickoff (Aguardando Largada Sáb 09:00)" };
-  if (elapsedMin >= 2340) return { state: "POST", elapsedMin, phase: PHASES_SPEC[PHASES_SPEC.length - 1], label: "Hackathon Encerrado (Prazo Dom 24:00 Concluído)" };
-  if (elapsedMin >= 2250) return { state: "BUFFER", elapsedMin, phase: PHASES_SPEC[PHASES_SPEC.length - 1], label: "Buffer Exclusivo de Contingência (Dom 22:30 – 24:00)" };
-  if (elapsedMin >= 1680 && elapsedMin < 1710) return { state: "LUNCH", elapsedMin, phase: PHASES_SPEC[6], label: "Almoço & Setup Silencioso de Gravação (Dom 13:00 – 13:30)" };
+  if (elapsedMin < 0) return { state: "PRE", elapsedMin, phase: PHASES_SPEC[0], label: "Pre-Kickoff (Awaiting Launch Sat 09:00)" };
+  if (elapsedMin >= 2340) return { state: "POST", elapsedMin, phase: PHASES_SPEC[PHASES_SPEC.length - 1], label: "Hackathon Ended (Sun 24:00 Deadline Reached)" };
+  if (elapsedMin >= 2250) return { state: "BUFFER", elapsedMin, phase: PHASES_SPEC[PHASES_SPEC.length - 1], label: "Exclusive Contingency Buffer (Sun 22:30 – 24:00)" };
+  if (elapsedMin >= 1680 && elapsedMin < 1710) return { state: "LUNCH", elapsedMin, phase: PHASES_SPEC[6], label: "Lunch & Silent Recording Setup (Sun 13:00 – 13:30)" };
   const found = PHASES_SPEC.find(p => elapsedMin >= p.startMin && elapsedMin < p.endMin) || PHASES_SPEC[0];
   return { state: "ACTIVE", elapsedMin, phase: found, label: found.title };
 }
@@ -676,18 +676,18 @@ const Two = ({ on, children, cls = "bg-slate-700 text-white" }) => {
       onClick={() => { if (a) { setA(false); on(); } else { setA(true); setTimeout(() => setA(false), 3000); } }}
       className={`px-3 py-1.5 rounded-lg text-xs font-semibold transition ${a ? "bg-rose-500 text-white" : cls}`}
     >
-      {a ? "Confirmar?" : children}
+      {a ? "Confirm?" : children}
     </button>
   );
 };
 const FreezeBanner = () => (
   <div className="bg-rose-950/60 border border-rose-500 rounded-2xl p-3">
-    <b className="text-rose-300">🔒 PORTÃO 3 ATIVO — FEATURE FREEZE ABSOLUTO (DOM 13:00)</b>
-    <p className="text-xs text-rose-200/90 mt-1">Proibido iniciar novas features na main. Foco 100% em correção de bugs visuais críticos, pacote 100% offline, gravação do vídeo de 240s e submissão quatro olhos.</p>
+    <b className="text-rose-300">🔒 GATE 3 ACTIVE — ABSOLUTE FEATURE FREEZE (SUN 13:00)</b>
+    <p className="text-xs text-rose-200/90 mt-1">Forbidden to start new features on main. 100% focus on critical visual bugfixes, 100% offline bundle, 240s video recording, and four-eyes submission.</p>
   </div>
 );
 
-/* ============ ABA 1: COMMAND (SALA DE SITUAÇÃO & GESTÃO TEMPORAL) ============ */
+/* ============ TAB 1: COMMAND (SITUATION ROOM & TIME MANAGEMENT) ============ */
 function Command({ s, now, goTasksPhase }) {
   const [cfg, setCfg] = useState(false);
   const [selPhase, setSelPhase] = useState(null);
@@ -736,7 +736,7 @@ function Command({ s, now, goTasksPhase }) {
 
   const timeElapsedPct = Math.max(0, Math.min(100, Math.round(((now - startMs) / ((s.event.minutes || 2340) * 6e4)) * 100)));
 
-  /* Decomposição do temporizador de pré-largada */
+  /* Pre-launch timer decomposition */
   const preMs = Math.max(0, startMs - now);
   const preSecTotal = Math.ceil(preMs / 1000);
   const preD = Math.floor(preSecTotal / 86400);
@@ -759,7 +759,7 @@ function Command({ s, now, goTasksPhase }) {
     return t ? `[${t.phase || "F1"}] ${t.title}` : m.notes;
   };
 
-  /* Ajusta início ou fim mantendo a janela de 39h (2340 min) */
+  /* Adjust start or end while keeping the 39h (2340 min) window */
   const setStartIso = iso => {
     if (!iso) return;
     repo.commit(x => {
@@ -791,7 +791,7 @@ function Command({ s, now, goTasksPhase }) {
     <div className="space-y-4">
       {frz && <FreezeBanner />}
 
-      {/* ANIMAÇÃO DE IGNIÇÃO / LANÇAMENTO AO ATINGIR ZERO */}
+      {/* IGNITION / LAUNCH ANIMATION UPON REACHING ZERO */}
       {ignition && (
         <div className="ignition-banner relative overflow-hidden rounded-2xl border-2 border-emerald-400 bg-gradient-to-r from-emerald-950/90 via-cyan-950/90 to-purple-950/90 p-5 shadow-[0_0_50px_rgba(16,185,129,0.45)]">
           <div className="absolute -right-8 -top-8 w-36 h-36 rounded-full border-2 border-cyan-400/50 shockwave-ring pointer-events-none" />
@@ -799,42 +799,42 @@ function Command({ s, now, goTasksPhase }) {
             <div className="flex items-center gap-4">
               <div className="rocket-lift text-4xl sm:text-5xl select-none">🚀</div>
               <div>
-                <div className="mono text-xs uppercase tracking-[0.25em] text-emerald-300 font-bold">T-MINUS 00:00:00 · IGNIÇÃO CONFIRMADA</div>
-                <h2 className="text-xl sm:text-2xl font-extrabold text-white mt-0.5">HACKATHON INICIADO — FASE 1 ATIVA!</h2>
-                <p className="text-xs sm:text-sm text-cyan-200 mt-0.5">39 horas na linha do tempo. Missão: <b>Be An Earth System Trend Detective!</b> Marco 0 (Contrato JSON) às 10:30.</p>
+                <div className="mono text-xs uppercase tracking-[0.25em] text-emerald-300 font-bold">T-MINUS 00:00:00 · IGNITION CONFIRMED</div>
+                <h2 className="text-xl sm:text-2xl font-extrabold text-white mt-0.5">HACKATHON STARTED — PHASE 1 ACTIVE!</h2>
+                <p className="text-xs sm:text-sm text-cyan-200 mt-0.5">39 hours on the clock. Mission: <b>Be An Earth System Trend Detective!</b> Milestone 0 (JSON Contract) at 10:30.</p>
               </div>
             </div>
             <button onClick={() => setIgnition(false)} className="text-xs px-3 py-1.5 rounded-lg bg-emerald-400 text-slate-950 font-bold">
-              Iniciar Operação ✓
+              Start Operations ✓
             </button>
           </div>
         </div>
       )}
 
-      {/* HERO TEMPORIZADOR MOTIVADOR DE PRÉ-LARGADA (VISÍVEL ENQUANTO HACKATHON NÃO COMEÇOU) */}
+      {/* PRE-LAUNCH MOTIVATIONAL COUNTDOWN HERO (VISIBLE UNTIL HACKATHON STARTS) */}
       {isPreLaunch && (
         <div className="hero-countdown relative overflow-hidden rounded-2xl border border-cyan-400/60 bg-gradient-to-br from-slate-900 via-[#07132c] to-purple-950/50 p-5 sm:p-7">
           <div className="flex flex-wrap items-center justify-between gap-2 mb-4">
             <div className="flex items-center gap-2">
               <span className="w-3 h-3 rounded-full bg-cyan-400 animate-ping" />
-              <span className="mono text-xs uppercase tracking-[0.2em] text-cyan-300 font-bold">Contagem Regressiva para a Largada Oficial</span>
+              <span className="mono text-xs uppercase tracking-[0.2em] text-cyan-300 font-bold">Countdown to Official Launch</span>
             </div>
             <div className="flex items-center gap-2">
               <button onClick={testLaunch5s} className="text-[11px] font-mono px-2.5 py-1 rounded-lg bg-purple-500/20 hover:bg-purple-500/30 text-purple-200 border border-purple-400/40 transition">
-                🚀 Simular Largada (5s)
+                🚀 Simulate Launch (5s)
               </button>
               <button onClick={() => setCfg(!cfg)} className="text-[11px] font-mono px-2.5 py-1 rounded-lg bg-slate-800 hover:bg-slate-700 text-cyan-300 border border-slate-700 transition">
-                ⚙ Ajustar Data
+                ⚙ Adjust Date
               </button>
             </div>
           </div>
 
           <div className="grid grid-cols-4 gap-2 sm:gap-4 max-w-2xl mx-auto my-3">
             {[
-              [pad2(preD), preD === 1 ? "DIA" : "DIAS"],
-              [pad2(preH), "HORAS"],
-              [pad2(preM), "MINUTOS"],
-              [pad2(preS), "SEGUNDOS"]
+              [pad2(preD), preD === 1 ? "DAY" : "DAYS"],
+              [pad2(preH), "HOURS"],
+              [pad2(preM), "MINUTES"],
+              [pad2(preS), "SECONDS"]
             ].map(([val, lbl]) => (
               <div key={lbl} className="bg-slate-950/80 border border-cyan-500/30 rounded-2xl py-3 sm:py-5 px-2 text-center shadow-inner">
                 <div className={`mono text-3xl sm:text-5xl md:text-6xl font-extrabold tracking-tight ${preSecTotal <= 10 ? "text-emerald-300 animate-pulse" : "text-white"}`}>
@@ -847,70 +847,70 @@ function Command({ s, now, goTasksPhase }) {
 
           <div className="text-center mt-4 space-y-1">
             <div className="text-sm sm:text-base font-bold text-slate-100">
-              Prepare os motores: <span className="text-cyan-300">Earth System Trend Detective</span> · Largada em <span className="text-amber-300">{fmtAt(startMs)}</span>
+              Start your engines: <span className="text-cyan-300">Earth System Trend Detective</span> · Launch at <span className="text-amber-300">{fmtAt(startMs)}</span>
             </div>
             <p className="text-xs text-slate-400 max-w-2xl mx-auto">
-              Assim que o cronômetro zerar, a interface entrará automaticamente na <b>Fase 1 (Reconhecimento &amp; Contrato JSON)</b>.
+              As soon as the timer hits zero, the interface will automatically enter <b>Phase 1 (Reconnaissance &amp; JSON Contract)</b>.
             </p>
           </div>
         </div>
       )}
 
-      {/* PAINEL SUPERIOR DE GESTÃO TEMPORAL: PRÓXIMO MARCO + PRAZO FINAL + FASE ATUAL */}
+      {/* TOP TIME MANAGEMENT PANEL: NEXT GATE + FINAL DEADLINE + CURRENT PHASE */}
       <div className="grid lg:grid-cols-3 gap-4">
         <Card className="lg:col-span-2 border-cyan-500/40 bg-gradient-to-br from-slate-900 via-slate-900 to-cyan-950/30">
           <div className="flex flex-wrap items-center justify-between gap-2 mb-1">
             <div className="flex items-center gap-2">
               <span className="w-2.5 h-2.5 rounded-full bg-cyan-400 animate-ping" />
-              <span className="text-[11px] uppercase tracking-widest font-semibold text-cyan-300">Próximo Portão Inegociável (Hard Gate)</span>
+              <span className="text-[11px] uppercase tracking-widest font-semibold text-cyan-300">Next Non-Negotiable Gate (Hard Gate)</span>
             </div>
             <button onClick={() => setCfg(!cfg)} className="text-xs px-2.5 py-1 rounded-lg bg-slate-800 hover:bg-slate-700 text-cyan-300 border border-slate-700 font-medium">
-              ⚙ Configurar Relógio / Datas
+              ⚙ Configure Clock / Dates
             </button>
           </div>
 
           {nx ? (
             <div className="mt-1">
               <div className="text-lg sm:text-xl font-bold text-white">{nx.title}</div>
-              <div className="text-xs text-slate-400 mt-0.5">Alvo: <b className="text-slate-200">{fmtAt(gt)}</b></div>
+              <div className="text-xs text-slate-400 mt-0.5">Target: <b className="text-slate-200">{fmtAt(gt)}</b></div>
               <div className={`mono text-3xl sm:text-5xl font-bold my-2.5 tracking-tight ${now > gt ? "text-rose-400" : "text-cyan-300"}`}>
-                {now > gt ? "ATRASADO -" : ""}{durSec(gt - now)}
+                {now > gt ? "OVERDUE -" : ""}{durSec(gt - now)}
               </div>
               {nx.rule && (
                 <div className="bg-amber-950/40 border border-amber-500/40 rounded-xl p-2.5 text-xs text-amber-200">
-                  <b className="text-amber-300 uppercase font-mono">Regra Determinística IF/THEN:</b> {nx.rule}
+                  <b className="text-amber-300 uppercase font-mono">Deterministic IF/THEN Rule:</b> {nx.rule}
                 </div>
               )}
             </div>
           ) : (
-            <div className="text-lg font-bold text-emerald-300 py-4">✓ Todos os 7 Marcos e Portões foram concluídos!</div>
+            <div className="text-lg font-bold text-emerald-300 py-4">✓ All 7 Milestones and Gates have been completed!</div>
           )}
         </Card>
 
-        {/* INDICADOR DE FASE ATUAL E PRAZO FINAL (DOM 22:30 / 24:00) */}
+        {/* CURRENT PHASE INDICATOR & FINAL DEADLINE (SUN 22:30 / 24:00) */}
         <Card className="flex flex-col justify-between border-purple-500/30 bg-gradient-to-br from-slate-900 to-purple-950/20">
           <div>
             <div className="flex items-center justify-between">
-              <span className="text-[10px] uppercase tracking-widest font-semibold text-purple-300">Marco / Fase Atual</span>
+              <span className="text-[10px] uppercase tracking-widest font-semibold text-purple-300">Current Milestone / Phase</span>
               <span className="mono text-xs px-2 py-0.5 rounded bg-purple-500/20 text-purple-200 border border-purple-500/40">{cp.phase.code}</span>
             </div>
             <div className="text-sm font-bold text-white mt-1 leading-snug">{cp.label}</div>
-            <div className="text-xs text-slate-400 mt-0.5">{cp.phase.window} · Líder: <b className="text-cyan-300">{cp.phase.leader}</b></div>
+            <div className="text-xs text-slate-400 mt-0.5">{cp.phase.window} · Lead: <b className="text-cyan-300">{cp.phase.leader}</b></div>
             <p className="text-xs text-slate-300 mt-2 line-clamp-3">{cp.phase.summary}</p>
           </div>
 
           <div className="pt-3 mt-3 border-t border-slate-800 space-y-2">
             <div className="flex items-center justify-between text-xs">
-              <span className="text-slate-400">Portão 5 (Submissão 22:30):</span>
+              <span className="text-slate-400">Gate 6 (Submission 22:30):</span>
               <span className={`mono font-bold ${now > subTime ? "text-rose-400" : "text-emerald-300"}`}>{now > subTime ? "-" : ""}{durSec(subTime - now)}</span>
             </div>
             <div className="flex items-center justify-between text-xs">
-              <span className="text-slate-400">Prazo Final NASA (24:00):</span>
+              <span className="text-slate-400">NASA Hard Deadline (24:00):</span>
               <span className="mono font-semibold text-slate-200">{now > hardEnd ? "-" : ""}{dur(hardEnd - now)}</span>
             </div>
             <div>
               <div className="flex justify-between text-[10px] text-slate-400 mb-1">
-                <span>Tempo Decorrido da Maratona (39h)</span>
+                <span>Marathon Elapsed Time (39h)</span>
                 <span className="mono">{timeElapsedPct}%</span>
               </div>
               <Bar p={timeElapsedPct} c="bg-purple-400" />
@@ -919,78 +919,78 @@ function Command({ s, now, goTasksPhase }) {
         </Card>
       </div>
 
-      {/* MODAL / CARD DE CONFIGURAÇÃO DE DATA-ALVO E SIMULAÇÃO DE FASE */}
+      {/* TARGET DATE CONFIGURATION & PHASE SIMULATION MODAL / CARD */}
       {cfg && (
         <Card className="border-cyan-400/50 bg-slate-900">
-          <H right={<button onClick={() => setCfg(false)} className="text-xs text-slate-400 hover:text-white">✕ fechar</button>}>Configuração de Data-Alvo do Hackathon & Sincronia</H>
+          <H right={<button onClick={() => setCfg(false)} className="text-xs text-slate-400 hover:text-white">✕ close</button>}>Hackathon Target Date & Sync Configuration</H>
           <div className="grid sm:grid-cols-2 lg:grid-cols-3 gap-3 mt-2">
             <div>
-              <label className="text-xs text-slate-400 block mb-1">Largada Oficial (Sábado 09:00)</label>
+              <label className="text-xs text-slate-400 block mb-1">Official Launch (Saturday 09:00)</label>
               <input type="datetime-local" className={inp} value={toLoc(s.event.start)} onChange={e => e.target.value && setStartIso(fromLoc(e.target.value))} />
             </div>
             <div>
-              <label className="text-xs text-slate-400 block mb-1">Prazo Final Oficial (Domingo 24:00 / +39h)</label>
+              <label className="text-xs text-slate-400 block mb-1">Official Hard Deadline (Sunday 24:00 / +39h)</label>
               <input type="datetime-local" className={inp} value={toLoc(new Date(Tend(s)).toISOString())} onChange={e => e.target.value && setEndIso(fromLoc(e.target.value))} />
             </div>
             <div className="flex flex-wrap gap-2 items-end">
-              <button onClick={() => jumpToPhaseNow(0)} className="px-3 py-1.5 rounded-lg text-xs font-semibold bg-cyan-400 text-slate-950">Simular Largada Agora (F1)</button>
-              <Two on={() => repo.restore()}>Restaurar Backup</Two>
-              <Two on={() => repo.replace(seed())} cls="bg-rose-900/80 text-rose-200 border border-rose-500/40">Resetar p/ Plano v6.0</Two>
+              <button onClick={() => jumpToPhaseNow(0)} className="px-3 py-1.5 rounded-lg text-xs font-semibold bg-cyan-400 text-slate-950">Simulate Launch Now (F1)</button>
+              <Two on={() => repo.restore()}>Restore Backup</Two>
+              <Two on={() => repo.replace(seed())} cls="bg-rose-900/80 text-rose-200 border border-rose-500/40">Reset to Plan v6.0</Two>
             </div>
           </div>
           <div className="mt-3 pt-2 border-t border-slate-800 flex flex-wrap items-center gap-1.5">
-            <span className="text-[11px] text-slate-400 mr-1">Saltar relógio para testar fase:</span>
+            <span className="text-[11px] text-slate-400 mr-1">Jump clock to test phase:</span>
             {PHASES_SPEC.map(p => (
               <button key={p.code} onClick={() => jumpToPhaseNow(p.startMin + 5)} className="text-[11px] font-mono px-2 py-1 rounded bg-slate-800 hover:bg-slate-700 text-slate-200 border border-slate-700">
                 {p.code} ({p.window.split("–")[0].trim()})
               </button>
             ))}
           </div>
-          <p className="text-[11px] text-slate-500 mt-2">Persistência automática em <code>localStorage (mc-v6)</code> · Sincronização em tempo real via LAN (sync_server.py) · rev {s.version}</p>
+          <p className="text-[11px] text-slate-500 mt-2">Auto-persisted in <code>localStorage (mc-v6)</code> · Real-time LAN sync (sync_server.py) · rev {s.version}</p>
         </Card>
       )}
 
-      {/* BARRA DE PROGRESSO GLOBAL E INDICADORES DE SAÚDE OPERACIONAL */}
+      {/* GLOBAL PROGRESS BAR & OPERATIONAL HEALTH INDICATORS */}
       <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-6 gap-2.5">
         <Card className="p-3">
-          <div className="text-[11px] text-slate-400">Progresso Geral</div>
+          <div className="text-[11px] text-slate-400">Overall Progress</div>
           <div className="mono text-xl font-bold text-cyan-300 my-0.5">{totalPct}%</div>
           <Bar p={totalPct} c="bg-cyan-400" />
-          <div className="text-[10px] text-slate-500 mt-1">{doneCount}/{validTasks.length} concluídas</div>
+          <div className="text-[10px] text-slate-500 mt-1">{doneCount}/{validTasks.length} completed</div>
         </Card>
         <Card className="p-3">
           <div className="text-[11px] text-slate-400">MVP (MUST)</div>
           <div className="mono text-xl font-bold text-emerald-300 my-0.5">{pct(must)}%</div>
           <Bar p={pct(must)} c="bg-emerald-400" />
-          <div className="text-[10px] text-slate-500 mt-1">{must.filter(t => t.status === "DONE").length}/{must.length} itens MUST</div>
+          <div className="text-[10px] text-slate-500 mt-1">{must.filter(t => t.status === "DONE").length}/{must.length} MUST items</div>
         </Card>
         <Card className="p-3">
-          <div className="text-[11px] text-slate-400">Em Andamento</div>
+          <div className="text-[11px] text-slate-400">In Progress</div>
           <div className="mono text-xl font-bold text-sky-300 my-0.5">{doing.length}</div>
-          <div className="text-[10px] text-slate-500 mt-2">{act.length} abertas no total</div>
+          <div className="text-[10px] text-slate-500 mt-2">{act.length} open total</div>
         </Card>
         <Card className={`p-3 ${blk.length ? "border-amber-500/70 bg-amber-950/20" : ""}`}>
-          <div className="text-[11px] text-slate-400">Bloqueios Ativos</div>
+          <div className="text-[11px] text-slate-400">Active Blockers</div>
           <div className={`mono text-xl font-bold my-0.5 ${blk.length ? "text-amber-300" : "text-emerald-300"}`}>{blk.length}</div>
-          <div className="text-[10px] text-slate-500 mt-2">{lt.length} tarefa(s) atrasada(s)</div>
+          <div className="text-[10px] text-slate-500 mt-2">{lt.length} overdue task(s)</div>
         </Card>
         <Card className="p-3">
-          <div className="text-[11px] text-slate-400">Blindagem Científica</div>
+          <div className="text-[11px] text-slate-400">Scientific Shielding</div>
           <div className="mono text-xl font-bold text-amber-300 my-0.5">{sciPct}%</div>
           <Bar p={sciPct} c="bg-amber-400" />
-          <div className="text-[10px] text-slate-500 mt-1">10 Testes Hindemburg</div>
+          <div className="text-[10px] text-slate-500 mt-1">10 Hindemburg Tests</div>
         </Card>
         <Card className="p-3">
-          <div className="text-[11px] text-slate-400">Checklist Entrega</div>
+          <div className="text-[11px] text-slate-400">Delivery Checklist</div>
           <div className="mono text-xl font-bold text-purple-300 my-0.5">{dlPct}%</div>
           <Bar p={dlPct} c="bg-purple-400" />
-          <div className="text-[10px] text-slate-500 mt-1">Auditoria Dom 21:00</div>
+          <div className="text-[10px] text-slate-500 mt-1">Sun 21:00 Audit</div>
         </Card>
       </div>
 
-      {/* RÉGUA INTERATIVA DAS 8 FASES OPERACIONAIS */}
+      {/* INTERACTIVE 8-PHASE OPERATIONAL TIMELINE */}
       <Card>
-        <H right={<span className="text-[11px] text-slate-400">Clique numa fase para inspecionar as entregas</span>}>Cronograma das 8 Fases Operacionais (Sáb 09:00 → Dom 24:00)</H>
+        <H right={<span className="text-[11px] text-slate-400">Click a phase to inspect deliverables</span>}>8 Operational Phases Schedule (Sat 09:00 → Sun 24:00)</H>
         <div className="grid grid-cols-3 sm:grid-cols-5 lg:grid-cols-9 gap-1.5 mt-2">
           {PHASES_SPEC.map(p => {
             const isCur = cp.phase.code === p.code && cp.state === "ACTIVE";
@@ -1007,7 +1007,7 @@ function Command({ s, now, goTasksPhase }) {
                   <span className={`mono text-xs font-bold ${isCur ? "text-emerald-300" : "text-cyan-300"}`}>{p.code}</span>
                   {pTasks.length > 0 && <span className="mono text-[10px] text-slate-400">{pDone}%</span>}
                 </div>
-                <div className="text-[10px] text-slate-400 truncate mt-0.5">{p.window.replace("Sáb ", "").replace("Dom ", "")}</div>
+                <div className="text-[10px] text-slate-400 truncate mt-0.5">{p.window.replace("Sat ", "").replace("Sun ", "")}</div>
                 {pTasks.length > 0 && <div className="mt-1.5"><Bar p={pDone} c={pDone === 100 ? "bg-emerald-400" : "bg-cyan-400"} /></div>}
               </button>
             );
@@ -1022,39 +1022,39 @@ function Command({ s, now, goTasksPhase }) {
             </div>
             {activePhase.code !== "SLEEP" && (
               <button onClick={() => goTasksPhase(activePhase.code)} className="text-xs font-semibold px-3 py-1.5 rounded-lg bg-cyan-400/20 text-cyan-300 border border-cyan-400/40 hover:bg-cyan-400/30 shrink-0">
-                Ver Tarefas de {activePhase.code} →
+                View {activePhase.code} Tasks →
               </button>
             )}
           </div>
         )}
       </Card>
 
-      {/* FOCO / CENTRO DE GRAVIDADE EDITÁVEL */}
-      <Tx v={s.focus} on={v => repo.commit(x => { x.focus = v; })} placeholder="Centro de Gravidade (Schwerpunkt) e promessa do MVP…" />
+      {/* EDITABLE FOCUS / CENTER OF GRAVITY */}
+      <Tx v={s.focus} on={v => repo.commit(x => { x.focus = v; })} placeholder="Center of Gravity (Schwerpunkt) and MVP promise…" />
 
-      {/* QUADRO DE EXECUÇÃO EM TEMPO REAL: EM ANDAMENTO, BLOQUEIOS, EQUIPE E ATENÇÃO */}
+      {/* REAL-TIME EXECUTION BOARD: IN PROGRESS, BLOCKERS, TEAM & ATTENTION */}
       <div className="grid lg:grid-cols-2 gap-4">
         <Card>
-          <H right={<span className="mono text-xs text-cyan-300">{doing.length} ativa(s)</span>}>Em Andamento Agora</H>
-          {doing.length ? <div className="space-y-1">{doing.map(t => <T key={t.id} t={t} />)}</div> : <p className="text-sm text-slate-500">Nenhuma tarefa marcada como "Em andamento". Puxe uma tarefa na aba Tasks.</p>}
+          <H right={<span className="mono text-xs text-cyan-300">{doing.length} active</span>}>In Progress Now</H>
+          {doing.length ? <div className="space-y-1">{doing.map(t => <T key={t.id} t={t} />)}</div> : <p className="text-sm text-slate-500">No task marked as "In Progress". Pull a task on the Tasks tab.</p>}
         </Card>
 
         <Card className={blk.length || s.members.some(m => m.status === "BLOCKED") ? "border-amber-500/70 bg-amber-950/15" : ""}>
-          <H>Bloqueios & Alerta de Gargalo (Regra dos 5 Minutos)</H>
-          {!blk.length && !s.members.some(m => m.status === "BLOCKED") && <p className="text-sm text-emerald-300">✓ Nenhum bloqueio ativo na equipe.</p>}
+          <H>Blockers & Bottleneck Alert (5-Minute Rule)</H>
+          {!blk.length && !s.members.some(m => m.status === "BLOCKED") && <p className="text-sm text-emerald-300">✓ No active blockers on the team.</p>}
           {blk.map(t => (
             <div key={t.id} className="text-sm text-amber-200 py-1 border-b border-slate-800/80 last:border-0">
               ⚠ <b>[{t.phase}]</b> {t.title} <span className="text-slate-400">({nm(s, t.ownerId)})</span>
-              <div className="text-xs text-amber-300/80">Motivo: {t.blockedReason || "não informado — acionar Par de Backup ou COORD em 5 min"}</div>
+              <div className="text-xs text-amber-300/80">Reason: {t.blockedReason || "not provided — notify Backup Pair or COORD within 5 min"}</div>
             </div>
           ))}
           {s.members.filter(m => m.status === "BLOCKED" && !blk.some(t => t.ownerId === m.id)).map(m => (
-            <div key={m.id} className="text-sm text-amber-200">⚠ {m.name} (Par Backup: {m.backup || ROLE_META[m.role]?.backup}){m.notes ? ": " + m.notes : " precisa de desbloqueio"}</div>
+            <div key={m.id} className="text-sm text-amber-200">⚠ {m.name} (Backup Pair: {m.backup || ROLE_META[m.role]?.backup}){m.notes ? ": " + m.notes : " needs unblocking"}</div>
           ))}
         </Card>
 
         <Card>
-          <H right={<span className="text-[11px] text-slate-400">6 Pessoas · 4 Trilhas Paralelas</span>}>Status da Equipe & Progresso Individual</H>
+          <H right={<span className="text-[11px] text-slate-400">6 Roles · 4 Parallel Tracks</span>}>Team Status & Individual Progress</H>
           <div className="space-y-2">
             {s.members.map(m => {
               const mTasks = s.tasks.filter(t => t.ownerId === m.id && t.status !== "CANCELED");
@@ -1063,7 +1063,7 @@ function Command({ s, now, goTasksPhase }) {
                 <div key={m.id} className="flex items-center gap-2 text-sm">
                   <span className={`w-2.5 h-2.5 rounded-full shrink-0 ${MS[m.status][2]}`} />
                   <b className="w-20 font-mono text-xs truncate">{m.name}</b>
-                  <span className="text-xs text-slate-400 flex-1 truncate">{m.status === "RESTING" ? "Descansando (Sono)" : memberTask(m) || MS[m.status][0]}</span>
+                  <span className="text-xs text-slate-400 flex-1 truncate">{m.status === "RESTING" ? "Resting (Sleep)" : memberTask(m) || MS[m.status][0]}</span>
                   <span className="mono text-[11px] text-cyan-300 w-9 text-right">{mPct}%</span>
                 </div>
               );
@@ -1072,22 +1072,22 @@ function Command({ s, now, goTasksPhase }) {
         </Card>
 
         <Card>
-          <H>Radar de Atenção do Coordenador (COORD)</H>
-          {lt.length > 0 && <div className="mb-2"><div className="text-[11px] text-rose-300 font-semibold">ATRASADAS ({lt.length})</div>{lt.slice(0, 5).map(t => <T key={t.id} t={t} />)}</div>}
+          <H>Coordinator Attention Radar (COORD)</H>
+          {lt.length > 0 && <div className="mb-2"><div className="text-[11px] text-rose-300 font-semibold">OVERDUE ({lt.length})</div>{lt.slice(0, 5).map(t => <T key={t.id} t={t} />)}</div>}
           {nx && (
             <div className="mb-2">
-              <div className="text-[11px] text-cyan-300 font-semibold">PENDENTES PARA “{nx.title.toUpperCase()}” ({rel.length})</div>
-              {rel.length ? rel.slice(0, 6).map(t => <T key={t.id} t={t} />) : <p className="text-xs text-emerald-300">✓ Todas as tarefas deste marco já foram concluídas.</p>}
+              <div className="text-[11px] text-cyan-300 font-semibold">PENDING FOR “{nx.title.toUpperCase()}” ({rel.length})</div>
+              {rel.length ? rel.slice(0, 6).map(t => <T key={t.id} t={t} />) : <p className="text-xs text-emerald-300">✓ All tasks for this gate are already completed.</p>}
             </div>
           )}
-          {p0.length > 0 && <div><div className="text-[11px] text-amber-300 font-semibold">TAREFAS CRÍTICAS P0 EM ABERTO ({p0.length})</div>{p0.slice(0, 4).map(t => <T key={t.id} t={t} />)}</div>}
-          {s.risks.some(r => r.state === "OPEN") && <p className="text-xs text-amber-300 mt-2">⚠ {s.risks.filter(r => r.state === "OPEN").length} risco(s) monitorado(s) na matriz (R1–R7) — ver aba Delivery</p>}
+          {p0.length > 0 && <div><div className="text-[11px] text-amber-300 font-semibold">OPEN CRITICAL P0 TASKS ({p0.length})</div>{p0.slice(0, 4).map(t => <T key={t.id} t={t} />)}</div>}
+          {s.risks.some(r => r.state === "OPEN") && <p className="text-xs text-amber-300 mt-2">⚠ {s.risks.filter(r => r.state === "OPEN").length} risk(s) monitored in matrix (R1–R7) — see Delivery tab</p>}
         </Card>
       </div>
 
-      {/* LISTA COMPLETA DOS 7 MARCOS / PORTÕES E SUAS REGRAS IF/THEN */}
+      {/* FULL LIST OF THE 7 MILESTONES / GATES AND THEIR IF/THEN RULES */}
       <Card>
-        <H right={<span className="text-[11px] text-slate-400">Clique no botão de status para aprovar ou acionar contingência</span>}>Os 7 Marcos e Portões Inegociáveis (Hard Gates & Regras IF/THEN)</H>
+        <H right={<span className="text-[11px] text-slate-400">Click status button to approve or trigger contingency</span>}>The 7 Non-Negotiable Milestones & Gates (Hard Gates & IF/THEN Rules)</H>
         <div className="space-y-2.5 mt-2">
           {gs.map(g => (
             <div key={g.id} className="p-2.5 rounded-xl bg-slate-950/60 border border-slate-800/90 flex flex-col sm:flex-row sm:items-center justify-between gap-2">
@@ -1097,13 +1097,13 @@ function Command({ s, now, goTasksPhase }) {
                   <span className={g.status === "passed" ? "text-slate-400 line-through" : "text-slate-100"}>{g.title}</span>
                   <span className="text-xs font-mono text-cyan-300">· {fmtAt(gAt(s, g))}</span>
                 </div>
-                {g.rule && <div className="text-[11px] text-slate-400 pl-5"><b className="text-amber-300/90 font-mono">Contingência:</b> {g.rule}</div>}
+                {g.rule && <div className="text-[11px] text-slate-400 pl-5"><b className="text-amber-300/90 font-mono">Contingency:</b> {g.rule}</div>}
               </div>
               <button
                 onClick={() => repo.updateGate(g.id, { status: g.status === "pending" ? "passed" : g.status === "passed" ? "failed" : "pending" })}
                 className={`text-xs font-semibold px-3 py-1.5 rounded-lg shrink-0 ${g.status === "passed" ? "bg-emerald-500/20 text-emerald-300 border border-emerald-500/40" : g.status === "failed" ? "bg-rose-500/20 text-rose-300 border border-rose-500/40" : "bg-slate-800 text-slate-300 border border-slate-700"}`}
               >
-                {g.status === "pending" ? "⏳ Pendente" : g.status === "passed" ? "✓ Aprovado" : "⚠ Contingência Ativa"}
+                {g.status === "pending" ? "⏳ Pending" : g.status === "passed" ? "✓ Passed" : "⚠ Contingency Active"}
               </button>
             </div>
           ))}
@@ -1113,7 +1113,7 @@ function Command({ s, now, goTasksPhase }) {
   );
 }
 
-/* ============ ABA 2: TASKS (RASTREAMENTO POR MEMBRO, FASE E KANBAN) ============ */
+/* ============ TAB 2: TASKS (TRACKING BY MEMBER, PHASE & KANBAN) ============ */
 function TaskModal({ t, s, now, onClose }) {
   if (!t) return null;
   const set = p => repo.updateTask(t.id, p);
@@ -1131,49 +1131,49 @@ function TaskModal({ t, s, now, onClose }) {
               <Chip c={PR[t.priority]}>{t.priority}</Chip>
               {t.moscow && <Chip c="border-emerald-500/40 text-emerald-300">{t.moscow}</Chip>}
               <Chip c="border-slate-700 text-slate-300">{TL[t.status]}</Chip>
-              {ld && <Chip c="border-rose-500/60 text-rose-300">ATRASADA</Chip>}
+              {ld && <Chip c="border-rose-500/60 text-rose-300">OVERDUE</Chip>}
             </div>
             <div className="text-xs text-slate-400 font-mono">{phaseObj ? `${phaseObj.title} (${phaseObj.window})` : ""}</div>
           </div>
-          <button onClick={onClose} className="px-2.5 py-1 rounded-lg bg-slate-800 hover:bg-slate-700 text-xs text-slate-300">✕ Fechar</button>
+          <button onClick={onClose} className="px-2.5 py-1 rounded-lg bg-slate-800 hover:bg-slate-700 text-xs text-slate-300">✕ Close</button>
         </div>
 
         <div>
-          <label className="text-[11px] font-mono uppercase text-slate-400 block mb-1">Título da Tarefa / Entregável</label>
+          <label className="text-[11px] font-mono uppercase text-slate-400 block mb-1">Task / Deliverable Title</label>
           <Tx v={t.title} on={v => v.trim() && set({ title: v.trim() })} />
         </div>
 
         <div>
-          <label className="text-[11px] font-mono uppercase text-slate-400 block mb-1">Notas Detalhadas / Critérios / Links</label>
+          <label className="text-[11px] font-mono uppercase text-slate-400 block mb-1">Detailed Notes / Criteria / Links</label>
           <textarea
             className={`${inp} min-h-[110px] leading-relaxed`}
             defaultValue={t.notes || ""}
-            placeholder="Descreva aqui detalhes técnicos, links de arquivos, comandos ou observações importantes para quem assumir esta tarefa…"
+            placeholder="Describe technical details, file links, commands, or important notes for whoever picks up this task…"
             onBlur={e => { if (e.target.value !== (t.notes || "")) set({ notes: e.target.value }); }}
           />
         </div>
 
         <div className="grid sm:grid-cols-2 gap-3">
           <div>
-            <label className="text-[11px] font-mono uppercase text-slate-400 block mb-1">Cargo / Frente Responsável</label>
-            <Sel v={t.ownerId} on={v => set({ ownerId: v })} o={mOpts(s, "Sem responsável")} />
+            <label className="text-[11px] font-mono uppercase text-slate-400 block mb-1">Responsible Role / Track</label>
+            <Sel v={t.ownerId} on={v => set({ ownerId: v })} o={mOpts(s, "Unassigned")} />
             {owner && Array.isArray(owner.assignees) && owner.assignees.length > 0 && (
-              <div className="text-[11px] text-cyan-300 mt-1 font-mono">Equipe neste cargo: {owner.assignees.join(", ")}</div>
+              <div className="text-[11px] text-cyan-300 mt-1 font-mono">Team in this role: {owner.assignees.join(", ")}</div>
             )}
           </div>
           <div>
-            <label className="text-[11px] font-mono uppercase text-slate-400 block mb-1">Status no Kanban</label>
+            <label className="text-[11px] font-mono uppercase text-slate-400 block mb-1">Kanban Status</label>
             <Sel v={t.status} on={v => set({ status: v })} o={TS.map(k => [k, TL[k]])} />
           </div>
         </div>
 
         <div className="grid grid-cols-2 sm:grid-cols-4 gap-2">
           <div>
-            <label className="text-[11px] font-mono uppercase text-slate-400 block mb-1">Fase</label>
+            <label className="text-[11px] font-mono uppercase text-slate-400 block mb-1">Phase</label>
             <Sel v={t.phase || "F1"} on={v => set({ phase: v })} o={PHASES_SPEC.filter(p => p.code !== "SLEEP").map(p => [p.code, p.code])} />
           </div>
           <div>
-            <label className="text-[11px] font-mono uppercase text-slate-400 block mb-1">Prioridade</label>
+            <label className="text-[11px] font-mono uppercase text-slate-400 block mb-1">Priority</label>
             <Sel v={t.priority} on={v => set({ priority: v })} o={["P0", "P1", "P2"].map(x => [x, x])} />
           </div>
           <div>
@@ -1181,19 +1181,19 @@ function TaskModal({ t, s, now, onClose }) {
             <Sel v={t.moscow} on={v => set({ moscow: v })} o={MO.map(x => [x, x || "—"])} />
           </div>
           <div>
-            <label className="text-[11px] font-mono uppercase text-slate-400 block mb-1">Marco / Portão</label>
-            <Sel v={t.gateId} on={v => set({ gateId: v })} o={[["", "Opcional"], ...s.gates.map(g => [g.id, `G${g.n}: ${g.title.slice(0, 22)}`])]} />
+            <label className="text-[11px] font-mono uppercase text-slate-400 block mb-1">Milestone / Gate</label>
+            <Sel v={t.gateId} on={v => set({ gateId: v })} o={[["", "Optional"], ...s.gates.map(g => [g.id, `G${g.n}: ${g.title.slice(0, 22)}`])]} />
           </div>
         </div>
 
         <div className="grid sm:grid-cols-2 gap-3">
           <div>
-            <label className="text-[11px] font-mono uppercase text-slate-400 block mb-1">Prazo (Deadline)</label>
+            <label className="text-[11px] font-mono uppercase text-slate-400 block mb-1">Deadline</label>
             <input type="datetime-local" className={inp} value={toLoc(t.due)} onChange={e => set({ due: fromLoc(e.target.value) })} />
           </div>
           <div>
-            <label className="text-[11px] font-mono uppercase text-slate-400 block mb-1">Motivo de Bloqueio (se bloqueada)</label>
-            <Tx v={t.blockedReason} on={v => set({ blockedReason: v })} placeholder="Ex.: Aguardando API ou revisão…" />
+            <label className="text-[11px] font-mono uppercase text-slate-400 block mb-1">Blocker Reason (if blocked)</label>
+            <Tx v={t.blockedReason} on={v => set({ blockedReason: v })} placeholder="e.g.: Waiting on API or review…" />
           </div>
         </div>
 
@@ -1202,24 +1202,24 @@ function TaskModal({ t, s, now, onClose }) {
             <button
               onClick={() => {
                 repo.deleteTask(t.id);
-                bus.say("Tarefa excluída");
+                bus.say("Task deleted");
                 onClose();
               }}
               className="bg-rose-500/15 border border-rose-500/40 text-rose-300 px-3 py-1.5 rounded-lg text-xs hover:bg-rose-500/25 transition font-medium"
             >
-              🗑 Excluir Tarefa
+              🗑 Delete Task
             </button>
             <button
               onClick={() => {
                 set({ status: "BLOCKED" });
-                bus.say("Tarefa movida para Bloqueado");
+                bus.say("Task moved to Blocked");
               }}
               className="bg-amber-500/15 border border-amber-500/40 text-amber-300 px-3 py-1.5 rounded-lg text-xs hover:bg-amber-500/25 transition font-medium"
             >
-              ⚠ Mover para Bloqueado
+              ⚠ Move to Blocked
             </button>
           </div>
-          <button onClick={onClose} className="px-4 py-1.5 rounded-lg bg-cyan-400 text-slate-950 font-semibold text-xs hover:bg-cyan-300 transition">Concluir Edição</button>
+          <button onClick={onClose} className="px-4 py-1.5 rounded-lg bg-cyan-400 text-slate-950 font-semibold text-xs hover:bg-cyan-300 transition">Done Editing</button>
         </div>
       </div>
     </div>
@@ -1245,7 +1245,7 @@ function TaskCard({ t, s, now, onExpand }) {
     >
       <div className="flex gap-2 items-start">
         <button
-          aria-label="Concluir"
+          aria-label="Complete"
           onClick={() => set({ status: t.status === "DONE" ? "READY" : "DONE", blockedReason: "" })}
           className={`mt-0.5 w-5 h-5 rounded-md border-2 shrink-0 text-[11px] leading-none ${t.status === "DONE" ? "bg-emerald-400 border-emerald-400 text-slate-950 font-bold" : "border-slate-600 text-transparent"}`}
         >
@@ -1258,33 +1258,33 @@ function TaskCard({ t, s, now, onExpand }) {
         <Chip c="border-cyan-500/40 text-cyan-300 bg-cyan-950/30 font-mono">{t.phase || "F1"}</Chip>
         <Chip c={PR[t.priority]}>{t.priority}</Chip>
         {t.moscow && <Chip c={t.moscow === "MUST" ? "border-emerald-500/40 text-emerald-300" : "border-slate-700 text-slate-400"}>{t.moscow}</Chip>}
-        {t.due && <Chip c={ld ? "border-rose-500/60 text-rose-300" : "border-slate-700 text-slate-400"}>{ld ? "atrasada · " : ""}{fmtAt(t.due)}</Chip>}
+        {t.due && <Chip c={ld ? "border-rose-500/60 text-rose-300" : "border-slate-700 text-slate-400"}>{ld ? "overdue · " : ""}{fmtAt(t.due)}</Chip>}
       </div>
 
       {t.notes && <p className="text-[11px] text-slate-400 line-clamp-2 leading-relaxed">{t.notes}</p>}
-      {t.status === "BLOCKED" && <Tx v={t.blockedReason} on={v => set({ blockedReason: v })} placeholder="Por que está bloqueado?" />}
+      {t.status === "BLOCKED" && <Tx v={t.blockedReason} on={v => set({ blockedReason: v })} placeholder="Why is it blocked?" />}
 
       <div className="grid grid-cols-2 gap-1.5">
-        <Sel v={t.ownerId} on={v => set({ ownerId: v })} o={mOpts(s, "Sem resp.")} c="text-xs" />
+        <Sel v={t.ownerId} on={v => set({ ownerId: v })} o={mOpts(s, "No owner")} c="text-xs" />
         <Sel v={t.status} on={v => set({ status: v })} o={TS.map(k => [k, TL[k]])} c="text-xs" />
       </div>
 
       <div className="flex items-center justify-between pt-1 border-t border-slate-800/70 gap-1.5">
-        <span className="text-[11px] text-slate-400 truncate max-w-[130px]" title={people}>{people ? `👤 ${people}` : "Arraste para mover"}</span>
+        <span className="text-[11px] text-slate-400 truncate max-w-[130px]" title={people}>{people ? `👤 ${people}` : "Drag to move"}</span>
         <div className="flex items-center gap-1.5 shrink-0">
           <button
-            title="Excluir tarefa"
+            title="Delete task"
             onClick={e => {
               e.stopPropagation();
               repo.deleteTask(t.id);
-              bus.say("Tarefa excluída");
+              bus.say("Task deleted");
             }}
             className="text-xs text-slate-500 hover:text-rose-400 px-1.5 py-0.5 rounded bg-slate-800/80 hover:bg-rose-950/40 border border-slate-700/80 hover:border-rose-500/40 transition"
           >
             🗑
           </button>
           <button onClick={() => onExpand(t.id)} className="text-[11px] font-mono px-2 py-0.5 rounded bg-slate-800 hover:bg-cyan-500/20 text-cyan-300 border border-slate-700 hover:border-cyan-400/50 transition">
-            ⤢ Expandir
+            ⤢ Expand
           </button>
         </div>
       </div>
@@ -1323,7 +1323,7 @@ function Tasks({ s, now, say, initPhase, clearInitPhase, mePerson }) {
   const frz = freezeOn(s, now);
   const add = () => {
     if (!n.title.trim()) return;
-    if (frz && !ok) return say("🔒 Feature Freeze ativo: confirme que é bugfix/doc/integração");
+    if (frz && !ok) return say("🔒 Feature Freeze active: confirm this is a bugfix/doc/integration");
     repo.addTask({
       id: uid(),
       title: n.title.trim(),
@@ -1332,12 +1332,12 @@ function Tasks({ s, now, say, initPhase, clearInitPhase, mePerson }) {
       priority: n.priority,
       due: n.due,
       status: n.status || "READY",
-      blockedReason: n.status === "BLOCKED" ? "Bloqueado na criação" : "",
+      blockedReason: n.status === "BLOCKED" ? "Blocked on creation" : "",
       moscow: n.moscow || "MUST",
       gateId: "",
       phase: n.phase || "F1"
     });
-    say(`Tarefa criada em ${TL[n.status || "READY"]}!`);
+    say(`Task created in ${TL[n.status || "READY"]}!`);
     setN(prev => ({ ...prev, title: "", notes: "", due: "" }));
     setShowNotes(false);
     setOk(false);
@@ -1391,29 +1391,29 @@ function Tasks({ s, now, say, initPhase, clearInitPhase, mePerson }) {
       status: targetStatus,
       blockedReason: targetStatus === "BLOCKED" ? task.blockedReason : ""
     });
-    say(`Movida para ${TL[targetStatus]}`);
+    say(`Moved to ${TL[targetStatus]}`);
   };
 
   return (
     <div className="space-y-3">
       {frz && <FreezeBanner />}
 
-      {/* BARRA DE PROGRESSO DAS TAREFAS FILTRADAS */}
+      {/* FILTERED TASKS PROGRESS BAR */}
       <Card className="p-3">
         <div className="flex flex-wrap items-center justify-between gap-2 mb-1.5">
-          <span className="text-xs font-semibold text-cyan-300 uppercase tracking-wider">Progresso do Filtro Atual ({activeList.filter(t => t.status === "DONE").length}/{activeList.length} concluídas)</span>
+          <span className="text-xs font-semibold text-cyan-300 uppercase tracking-wider">Current Filter Progress ({activeList.filter(t => t.status === "DONE").length}/{activeList.length} completed)</span>
           <span className="mono text-sm font-bold text-emerald-300">{pct(activeList)}%</span>
         </div>
         <Bar p={pct(activeList)} c="bg-emerald-400" />
       </Card>
 
-      {/* CRIAR NOVA TAREFA COMPLETA & RÁPIDA */}
+      {/* CREATE NEW FULL & QUICK TASK */}
       <Card className="border-slate-800 bg-slate-900/90 space-y-2.5">
         <div className="flex items-center justify-between gap-2">
           <div className="flex items-center gap-2">
-            <span className="text-xs font-semibold text-cyan-300 uppercase tracking-wider font-mono">+ Criar Tarefa no Kanban</span>
+            <span className="text-xs font-semibold text-cyan-300 uppercase tracking-wider font-mono">+ Create Kanban Task</span>
             <span className={`text-[10px] font-mono px-2 py-0.5 rounded-full border ${n.status === "READY" ? "bg-sky-950/60 text-sky-300 border-sky-500/40" : n.status === "BACKLOG" ? "bg-slate-800 text-slate-300 border-slate-700" : n.status === "IN_PROGRESS" ? "bg-cyan-950/60 text-cyan-300 border-cyan-500/40" : "bg-amber-950/60 text-amber-300 border-amber-500/40"}`}>
-              Coluna: {TL[n.status || "READY"]}
+              Column: {TL[n.status || "READY"]}
             </span>
           </div>
           <button
@@ -1421,33 +1421,33 @@ function Tasks({ s, now, say, initPhase, clearInitPhase, mePerson }) {
             onClick={() => setShowNotes(!showNotes)}
             className={`text-xs font-mono px-2.5 py-1 rounded-lg border transition ${showNotes ? "bg-cyan-500/20 text-cyan-300 border-cyan-500/40" : "bg-slate-800 text-slate-400 border-slate-700 hover:text-slate-200"}`}
           >
-            {showNotes ? "▲ Ocultar Descrição" : "📝 + Descrição / Notas"}
+            {showNotes ? "▲ Hide Description" : "📝 + Description / Notes"}
           </button>
         </div>
 
         <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-12 gap-2">
-          {/* Título da tarefa */}
+          {/* Task title */}
           <div className="sm:col-span-2 lg:col-span-4">
             <input
               ref={titleInputRef}
               className={inp}
-              placeholder="Título da tarefa ou entregável…"
+              placeholder="Task or deliverable title…"
               value={n.title}
               onChange={e => setN({ ...n, title: e.target.value })}
               onKeyDown={e => e.key === "Enter" && add()}
             />
           </div>
 
-          {/* Coluna / Status inicial */}
+          {/* Initial Column / Status */}
           <div className="lg:col-span-2">
             <Sel
               v={n.status || "READY"}
               on={v => setN({ ...n, status: v })}
-              o={[["READY", "A Fazer (Pronto)"], ["BACKLOG", "Backlog"], ["IN_PROGRESS", "Em Andamento"], ["BLOCKED", "Bloqueado"]]}
+              o={[["READY", "To Do (Ready)"], ["BACKLOG", "Backlog"], ["IN_PROGRESS", "In Progress"], ["BLOCKED", "Blocked"]]}
             />
           </div>
 
-          {/* Fase */}
+          {/* Phase */}
           <div className="lg:col-span-1">
             <Sel
               v={n.phase}
@@ -1456,16 +1456,16 @@ function Tasks({ s, now, say, initPhase, clearInitPhase, mePerson }) {
             />
           </div>
 
-          {/* Cargo Responsável */}
+          {/* Responsible Role */}
           <div className="lg:col-span-2">
             <Sel
               v={n.ownerId || repo.me}
               on={v => setN({ ...n, ownerId: v })}
-              o={mOpts(s, "Cargo Resp.")}
+              o={mOpts(s, "Owner Role")}
             />
           </div>
 
-          {/* Prioridade e MoSCoW */}
+          {/* Priority and MoSCoW */}
           <div className="flex gap-1.5 lg:col-span-2">
             <Sel
               v={n.priority}
@@ -1481,40 +1481,40 @@ function Tasks({ s, now, say, initPhase, clearInitPhase, mePerson }) {
             />
           </div>
 
-          {/* Botão de criar */}
+          {/* Create button */}
           <div className="sm:col-span-2 lg:col-span-1">
             <button
               onClick={add}
               className="w-full bg-emerald-500 hover:bg-emerald-400 text-slate-950 font-bold rounded-lg px-3 py-1.5 text-xs transition"
             >
-              + Criar
+              + Create
             </button>
           </div>
         </div>
 
-        {/* Campo expansível de Descrição / Notas Detalhadas */}
+        {/* Expandable Description / Detailed Notes field */}
         {showNotes && (
           <div className="pt-2 border-t border-slate-800">
-            <label className="text-[11px] font-mono uppercase text-slate-400 block mb-1">Descrição / Notas Detalhadas (opcional)</label>
+            <label className="text-[11px] font-mono uppercase text-slate-400 block mb-1">Description / Detailed Notes (optional)</label>
             <textarea
               className={`${inp} min-h-[75px] text-xs leading-relaxed`}
-              placeholder="Explique critérios de aceite, comandos, links ou orientações para a tarefa…"
+              placeholder="Explain acceptance criteria, commands, links, or guidance for the task…"
               value={n.notes}
               onChange={e => setN({ ...n, notes: e.target.value })}
             />
           </div>
         )}
 
-        {frz && <label className="flex items-center gap-2 text-xs text-rose-300 mt-2"><input type="checkbox" checked={ok} onChange={e => setOk(e.target.checked)} /> Confirmo que não é feature nova (apenas correção de bug, doc, integração ou vídeo)</label>}
+        {frz && <label className="flex items-center gap-2 text-xs text-rose-300 mt-2"><input type="checkbox" checked={ok} onChange={e => setOk(e.target.checked)} /> I confirm this is not a new feature (only bugfix, doc, integration, or video)</label>}
       </Card>
 
-      {/* FILTROS POR CARGO, POR PESSOA E POR FASE */}
+      {/* FILTERS BY ROLE, PERSON & PHASE */}
       <div className="space-y-2">
         <div className="flex flex-wrap items-center gap-1.5">
-          <span className="text-[11px] font-mono uppercase text-slate-400 mr-1">Cargo / Frente:</span>
-          <Ch active={roleFilter === "ALL"} onClick={() => setRoleFilter("ALL")}>Todas ({s.tasks.filter(t => t.status !== "CANCELED").length})</Ch>
-          <Ch active={roleFilter === "MINE"} onClick={() => setRoleFilter("MINE")}>Minhas{mePerson ? ` (${mePerson})` : ""}</Ch>
-          <Ch active={roleFilter === "P0"} onClick={() => setRoleFilter("P0")}>Críticas P0</Ch>
+          <span className="text-[11px] font-mono uppercase text-slate-400 mr-1">Role / Track:</span>
+          <Ch active={roleFilter === "ALL"} onClick={() => setRoleFilter("ALL")}>All ({s.tasks.filter(t => t.status !== "CANCELED").length})</Ch>
+          <Ch active={roleFilter === "MINE"} onClick={() => setRoleFilter("MINE")}>Mine{mePerson ? ` (${mePerson})` : ""}</Ch>
+          <Ch active={roleFilter === "P0"} onClick={() => setRoleFilter("P0")}>Critical P0</Ch>
           {["COORD", "DADOS-1", "DADOS-2", "PROD-1", "PROD-2", "NARR"].map(r => (
             <Ch key={r} active={roleFilter === r} onClick={() => setRoleFilter(r)}>{r}</Ch>
           ))}
@@ -1522,8 +1522,8 @@ function Tasks({ s, now, say, initPhase, clearInitPhase, mePerson }) {
 
         {peopleList.length > 0 && (
           <div className="flex flex-wrap items-center gap-1.5">
-            <span className="text-[11px] font-mono uppercase text-slate-400 mr-1">Pessoa:</span>
-            <Ch active={personFilter === "ALL"} onClick={() => setPersonFilter("ALL")}>Todas</Ch>
+            <span className="text-[11px] font-mono uppercase text-slate-400 mr-1">Person:</span>
+            <Ch active={personFilter === "ALL"} onClick={() => setPersonFilter("ALL")}>All</Ch>
             {peopleList.map(p => (
               <Ch key={p.person} active={personFilter === p.person} onClick={() => setPersonFilter(p.person)}>
                 👤 {p.person} ({p.roles.map(r => r.role).join(", ")})
@@ -1533,19 +1533,19 @@ function Tasks({ s, now, say, initPhase, clearInitPhase, mePerson }) {
         )}
 
         <div className="flex flex-wrap items-center gap-1.5">
-          <span className="text-[11px] font-mono uppercase text-slate-400 mr-1">Fase:</span>
-          <Ch active={phaseFilter === "ALL"} onClick={() => setPhaseFilter("ALL")}>Todas (F1–F8)</Ch>
+          <span className="text-[11px] font-mono uppercase text-slate-400 mr-1">Phase:</span>
+          <Ch active={phaseFilter === "ALL"} onClick={() => setPhaseFilter("ALL")}>All (F1–F8)</Ch>
           {PHASES_SPEC.filter(p => p.code !== "SLEEP").map(p => (
             <Ch key={p.code} active={phaseFilter === p.code} onClick={() => setPhaseFilter(p.code)}>{p.code}</Ch>
           ))}
         </div>
       </div>
 
-      {roleFilter === "MINE" && !repo.me && !mePerson && <p className="text-xs text-amber-300">Selecione “Quem sou eu?” na barra superior para filtrar suas tarefas.</p>}
+      {roleFilter === "MINE" && !repo.me && !mePerson && <p className="text-xs text-amber-300">Select “Who am I?” in the top bar to filter your tasks.</p>}
 
-      <div className="text-[11px] text-slate-400 font-mono">💡 Dica: Arraste e solte qualquer cartão entre as colunas, ou clique em <b>⤢ Expandir</b> para ler/editar os detalhes sem aperto.</div>
+      <div className="text-[11px] text-slate-400 font-mono">💡 Tip: Drag and drop any card between columns, or click <b>⤢ Expand</b> to read/edit details comfortably.</div>
 
-      {/* KANBAN COM COLUNAS LARGAS E SCROLL HORIZONTAL CONFORTÁVEL + DRAG & DROP */}
+      {/* KANBAN WITH WIDE COLUMNS, COMFORTABLE HORIZONTAL SCROLL + DRAG & DROP */}
       <div className="flex gap-3 overflow-x-auto pb-4 items-start">
         {TS.slice(0, 6).map(k => {
           const col = list.filter(t => t.status === k);
@@ -1563,7 +1563,7 @@ function Tasks({ s, now, say, initPhase, clearInitPhase, mePerson }) {
                 <span className="text-xs font-bold uppercase tracking-wide text-slate-200">{TL[k]}</span>
                 <div className="ml-auto flex items-center gap-1.5">
                   <button
-                    title="Adicionar tarefa diretamente nesta coluna"
+                    title="Add task directly in this column"
                     onClick={() => startAddInCol(k)}
                     className="w-5 h-5 flex items-center justify-center rounded bg-slate-800 hover:bg-cyan-500/20 text-cyan-300 hover:border-cyan-400 border border-slate-700 text-xs font-bold transition"
                   >
@@ -1575,7 +1575,7 @@ function Tasks({ s, now, say, initPhase, clearInitPhase, mePerson }) {
               <div className="space-y-2.5">
                 {!col.length && (
                   <div className={`text-xs text-center py-8 rounded-xl border border-dashed ${isOver ? "border-cyan-400 text-cyan-300" : "border-slate-800 text-slate-600"}`}>
-                    {isOver ? "Solte aqui" : "Arraste tarefas para cá"}
+                    {isOver ? "Drop here" : "Drag tasks here"}
                   </div>
                 )}
                 {col.map(t => <TaskCard key={t.id} t={t} s={s} now={now} onExpand={setExpandedId} />)}
@@ -1588,7 +1588,7 @@ function Tasks({ s, now, say, initPhase, clearInitPhase, mePerson }) {
       {list.some(t => t.status === "CANCELED") && (
         <>
           <button onClick={() => setCn(!cn)} className="text-xs text-slate-500 underline">
-            {cn ? "ocultar" : "ver"} canceladas ({list.filter(t => t.status === "CANCELED").length})
+            {cn ? "hide" : "show"} canceled ({list.filter(t => t.status === "CANCELED").length})
           </button>
           {cn && (
             <div className="flex gap-3 overflow-x-auto pb-3">
@@ -1607,7 +1607,7 @@ function Tasks({ s, now, say, initPhase, clearInitPhase, mePerson }) {
   );
 }
 
-/* ============ ABA 3: TEAM (CARGOS COM MÚLTIPLAS PESSOAS & MAPA MULTI-CARGO) ============ */
+/* ============ TAB 3: TEAM (ROLES WITH MULTIPLE PEOPLE & MULTI-ROLE MAP) ============ */
 function Team({ s }) {
   const [drafts, setDrafts] = useState({});
   const peopleMap = allPeople(s);
@@ -1630,15 +1630,15 @@ function Team({ s }) {
   return (
     <div className="space-y-4">
       <Card className="p-4 bg-slate-900/90 border-cyan-500/30">
-        <H right={<span className="mono text-xs text-cyan-300">{peopleMap.length} pessoa(s) alocada(s)</span>}>
-          Mapa de Alocação Multi-Cargo (Várias Pessoas por Cargo · Vários Cargos por Pessoa)
+        <H right={<span className="mono text-xs text-cyan-300">{peopleMap.length} person(s) assigned</span>}>
+          Multi-Role Allocation Map (Multiple People per Role · Multiple Roles per Person)
         </H>
         <p className="text-xs text-slate-400 mb-3">
-          Adicione os nomes em cada frente abaixo (ex.: <code>Kaio, Renan, Felipe</code> em <code>DADOS-1</code>, ou <code>Rian</code> em <code>COORD</code>, <code>DADOS-2</code> e <code>NARR</code>). O painel cruza automaticamente quem está em quais frentes:
+          Add names to each track below (e.g., <code>Kaio, Renan, Felipe</code> in <code>DADOS-1</code>, or <code>Rian</code> in <code>COORD</code>, <code>DADOS-2</code>, and <code>NARR</code>). The panel automatically cross-references who is on which tracks:
         </p>
         {peopleMap.length === 0 ? (
           <div className="text-xs text-amber-300 bg-amber-950/30 border border-amber-500/30 rounded-xl p-2.5">
-            Nenhuma pessoa nominal cadastrada ainda. Digite os nomes da equipe nos cards abaixo!
+            No named people registered yet. Type team member names in the cards below!
           </div>
         ) : (
           <div className="grid sm:grid-cols-2 lg:grid-cols-3 gap-2">
@@ -1655,7 +1655,7 @@ function Team({ s }) {
                   </div>
                   <div className="text-right shrink-0">
                     <div className="mono text-xs font-bold text-emerald-300">{pct(pTasks)}%</div>
-                    <div className="text-[10px] text-slate-500">{pDone}/{pTasks.length} tarefas</div>
+                    <div className="text-[10px] text-slate-500">{pDone}/{pTasks.length} tasks</div>
                   </div>
                 </div>
               );
@@ -1683,22 +1683,22 @@ function Team({ s }) {
               </div>
               <div className="text-xs font-semibold text-cyan-300">{meta.title}</div>
 
-              {/* PESSOAS ALOCADAS NESTE CARGO */}
+              {/* PEOPLE ASSIGNED TO THIS ROLE */}
               <div className="mt-2.5 p-2.5 rounded-xl bg-slate-950/70 border border-slate-800 space-y-2">
-                <div className="text-[10px] font-mono uppercase tracking-wider text-slate-400">Pessoas neste cargo ({assignees.length})</div>
+                <div className="text-[10px] font-mono uppercase tracking-wider text-slate-400">People in this role ({assignees.length})</div>
                 <div className="flex flex-wrap gap-1.5">
-                  {assignees.length === 0 && <span className="text-[11px] text-slate-500">Ninguém alocado ainda</span>}
+                  {assignees.length === 0 && <span className="text-[11px] text-slate-500">Nobody assigned yet</span>}
                   {assignees.map(person => (
                     <span key={person} className="inline-flex items-center gap-1.5 text-xs px-2 py-0.5 rounded-full bg-cyan-500/15 border border-cyan-400/40 text-cyan-200">
                       {person}
-                      <button onClick={() => removeAssignee(m, person)} className="text-cyan-400 hover:text-rose-400 font-bold leading-none" title="Remover pessoa">×</button>
+                      <button onClick={() => removeAssignee(m, person)} className="text-cyan-400 hover:text-rose-400 font-bold leading-none" title="Remove person">×</button>
                     </span>
                   ))}
                 </div>
                 <div className="flex gap-1.5">
                   <input
                     className={`${inp} text-xs py-1`}
-                    placeholder="+ Nome (ou Kaio, Renan, Felipe)"
+                    placeholder="+ Name (or Kaio, Renan, Felipe)"
                     value={drafts[m.id] || ""}
                     onChange={e => setDrafts({ ...drafts, [m.id]: e.target.value })}
                     onKeyDown={e => e.key === "Enter" && addAssignee(m)}
@@ -1708,12 +1708,12 @@ function Team({ s }) {
               </div>
 
               <div className="text-[11px] text-slate-400 mt-2 leading-relaxed">
-                <b className="text-slate-300">Módulos Exclusivos:</b> {m.modules || meta.modules}
+                <b className="text-slate-300">Exclusive Modules:</b> {m.modules || meta.modules}
               </div>
 
               <div className="flex items-center justify-between text-[11px] mt-2 mb-1">
-                <span className="text-slate-400">Progresso do cargo</span>
-                <span className="mono text-emerald-300">{mDone}/{mTasks.length} entregas ({mPct}%)</span>
+                <span className="text-slate-400">Role progress</span>
+                <span className="mono text-emerald-300">{mDone}/{mTasks.length} deliverables ({mPct}%)</span>
               </div>
               <div className="mb-2.5"><Bar p={mPct} c="bg-emerald-400" /></div>
 
@@ -1731,10 +1731,10 @@ function Team({ s }) {
               <Sel
                 v={m.currentTaskId}
                 on={v => repo.updateMember(m.id, { currentTaskId: v })}
-                o={[["", "Tarefa em foco: automática"], ...s.tasks.filter(t => t.ownerId === m.id && OPEN(t)).map(t => [t.id, `[${t.phase}] ${t.title.slice(0, 42)}`])]}
+                o={[["", "Focus task: automatic"], ...s.tasks.filter(t => t.ownerId === m.id && OPEN(t)).map(t => [t.id, `[${t.phase}] ${t.title.slice(0, 42)}`])]}
                 c="mb-2 text-xs"
               />
-              <Tx v={m.notes} on={v => repo.updateMember(m.id, { notes: v })} placeholder={m.status === "BLOCKED" ? "Qual é o bloqueio? Acione " + (m.backup || meta.backup) : "Status curto / branch…"} />
+              <Tx v={m.notes} on={v => repo.updateMember(m.id, { notes: v })} placeholder={m.status === "BLOCKED" ? "What is the blocker? Notify " + (m.backup || meta.backup) : "Short status / branch…"} />
             </Card>
           );
         })}
@@ -1743,200 +1743,200 @@ function Team({ s }) {
   );
 }
 
-/* ============ ABA 4: STRATEGY (DOUTRINA OPERACIONAL, DUPLA CAMADA, PLANO B & 7 INVARIANTES) ============ */
+/* ============ TAB 4: STRATEGY (OPERATIONAL DOCTRINE, DUAL LAYER, PLAN B & 7 INVARIANTS) ============ */
 function Strategy() {
   return (
     <div className="space-y-4">
-      {/* DIVISÃO DAS DUAS CAMADAS DE PRODUTO */}
+      {/* SPLIT OF THE TWO PRODUCT LAYERS */}
       <div className="grid md:grid-cols-2 gap-4">
         <Card className="border-cyan-500/40 bg-slate-900/80">
-          <H right={<Chip c="border-cyan-500/40 text-cyan-300 font-mono">Primordial (MUST)</Chip>}>
-            1. Sistema de Análise de Dados da Terra
+          <H right={<Chip c="border-cyan-500/40 text-cyan-300 font-mono">Primary (MUST)</Chip>}>
+            1. Earth System Data Analysis System
           </H>
           <p className="text-xs text-slate-300 leading-relaxed mb-2">
-            Plataforma <b>generalista, interativa e aberta</b> para qualquer cientista investigar o planeta. Consome a <b>NASA POWER API</b> em tempo real nas resoluções MERRA-2 e CERES, permitindo explorar qualquer ponto do globo sem barreiras.
+            <b>Generalist, interactive, open</b> platform for any scientist to investigate the planet. Consumes the <b>NASA POWER API</b> in real time at MERRA-2 and CERES resolutions, allowing exploration of any point on the globe without barriers.
           </p>
           <ul className="text-xs text-slate-300 space-y-1 list-disc list-inside">
-            <li><b>Mapa 2D com Grade NASA:</b> Seleção de Local A e Local B em modos 1x1, 2x2 (4 pts) e 3x3 (9 pts).</li>
-            <li><b>Motor Estatístico Inviolável:</b> Anomalias mensais, regressão OLS + Theil-Sen, GAM, Mahalanobis e teste AR(1)+FDR.</li>
-            <li><b>Chatbot Co-Piloto Estatístico:</b> IA integrada que interpreta dinamicamente as regressões, correlações e desvios das séries carregadas.</li>
+            <li><b>2D Map with NASA Grid:</b> Location A and Location B selection in 1x1, 2x2 (4 pts), and 3x3 (9 pts) modes.</li>
+            <li><b>Inviolable Statistical Engine:</b> Monthly anomalies, OLS + Theil-Sen regression, GAM, Mahalanobis, and AR(1)+FDR test.</li>
+            <li><b>Statistical Co-Pilot Chatbot:</b> Integrated AI that dynamically interprets regressions, correlations, and deviations of loaded series.</li>
           </ul>
         </Card>
 
         <Card className="border-purple-500/40 bg-slate-900/80">
-          <H right={<Chip c="border-purple-500/40 text-purple-300 font-mono">Ambição (SHOULD)</Chip>}>
-            2. Sistema de Descoberta Científica
+          <H right={<Chip c="border-purple-500/40 text-purple-300 font-mono">Ambition (SHOULD)</Chip>}>
+            2. Scientific Discovery System
           </H>
           <p className="text-xs text-slate-300 leading-relaxed mb-2">
-            Camada de <b>inovação e geração de conhecimento novo</b>. Mapeia hipóteses de fronteira na literatura via <b>Gemini Deep Research + Google Scholar</b> e acopla modelos de Machine Learning sobre o nosso motor de dados.
+            <b>Innovation and new-knowledge generation</b> layer. Maps frontier hypotheses in the literature via <b>Gemini Deep Research + Google Scholar</b> and couples Machine Learning models onto our data engine.
           </p>
           <ul className="text-xs text-slate-300 space-y-1 list-disc list-inside">
-            <li><b>Gemini Deep Research:</b> Mapeamento acelerado das controvérsias climáticas recentes e teleconexões não resolvidas.</li>
-            <li><b>Ponto de Decisão (Sáb 21:30):</b> Escolha entre modelo de mineração generalista vs. modelo especializado no tema do Deep Research.</li>
-            <li><b>Descoberta Real:</b> Modelo de ML (detecção de quebras/anomalias) rodando sobre as séries para revelar uma nova evidência para o vídeo de pitch.</li>
+            <li><b>Gemini Deep Research:</b> Accelerated mapping of recent climate controversies and unresolved teleconnections.</li>
+            <li><b>Decision Point (Sat 21:30):</b> Choice between generalist mining model vs. model specialized on the Deep Research topic.</li>
+            <li><b>Real Discovery:</b> ML model (break/anomaly detection) running over the series to surface new evidence for the pitch video.</li>
           </ul>
         </Card>
       </div>
 
-      {/* AS 4 COMBINAÇÕES LIVRES DA MATRIZ (A,X) x (B,Y) */}
+      {/* THE 4 FREE COMBINATIONS OF THE (A,X) x (B,Y) MATRIX */}
       <Card className="border-cyan-500/40">
-        <H right={<span className="mono text-xs text-cyan-300">Espaço de Investigação Completo & Flexível</span>}>
-          As 4 Combinações Livres da Matriz Científica (Local A, Var X) × (Local B, Var Y)
+        <H right={<span className="mono text-xs text-cyan-300">Complete & Flexible Investigation Space</span>}>
+          The 4 Free Combinations of the Scientific Matrix (Loc A, Var X) × (Loc B, Var Y)
         </H>
         <p className="text-xs text-slate-300 leading-relaxed mt-1 mb-3">
-          O usuário possui <b>liberdade total</b> para cruzar quaisquer variáveis e coordenadas. A matriz de exploração não impõe amarras e cobre as 4 combinações possíveis do espaço global de dados:
+          The user has <b>total freedom</b> to cross any variables and coordinates. The exploration matrix imposes no shackles and covers all 4 possible combinations of the global data space:
         </p>
         <div className="grid sm:grid-cols-2 lg:grid-cols-4 gap-3 text-xs">
           <div className="p-3 rounded-xl bg-slate-950/70 border border-slate-800 space-y-1.5 flex flex-col justify-between">
             <div>
-              <div className="font-mono font-bold text-slate-300 text-[11px] mb-0.5">A = B &nbsp;e&nbsp; X = Y</div>
-              <div className="font-bold text-cyan-300">1. Linha de Base / Auto-Verificação</div>
+              <div className="font-mono font-bold text-slate-300 text-[11px] mb-0.5">A = B &nbsp;and&nbsp; X = Y</div>
+              <div className="font-bold text-cyan-300">1. Baseline / Self-Check</div>
               <p className="text-slate-300 leading-relaxed mt-1 text-[11px]">
-                Mesma variável no mesmo local. Análise univariada clássica para inspecionar série temporal única, calcular taxa decadal (OLS/Theil-Sen), curva GAM e anomalias locais.
+                Same variable at the same location. Classic univariate analysis to inspect a single time series, compute decadal rate (OLS/Theil-Sen), GAM curve, and local anomalies.
               </p>
             </div>
-            <div className="text-[10px] font-mono text-cyan-400/80 pt-1 border-t border-slate-800">Ex: T2M em Manaus vs T2M em Manaus</div>
+            <div className="text-[10px] font-mono text-cyan-400/80 pt-1 border-t border-slate-800">e.g.: T2M in Manaus vs T2M in Manaus</div>
           </div>
 
           <div className="p-3 rounded-xl bg-slate-950/70 border border-slate-800 space-y-1.5 flex flex-col justify-between">
             <div>
-              <div className="font-mono font-bold text-slate-300 text-[11px] mb-0.5">A = B &nbsp;e&nbsp; X ≠ Y</div>
-              <div className="font-bold text-emerald-300">2. Causas e Efeitos no Mesmo Lugar</div>
+              <div className="font-mono font-bold text-slate-300 text-[11px] mb-0.5">A = B &nbsp;and&nbsp; X ≠ Y</div>
+              <div className="font-bold text-emerald-300">2. Causes & Effects in the Same Place</div>
               <p className="text-slate-300 leading-relaxed mt-1 text-[11px]">
-                Variáveis diferentes na mesma região. Revela mecanismos de feedback biofísico local e acoplamento térmico-hídrico.
+                Different variables in the same region. Reveals local biophysical feedback mechanisms and thermal–hydrological coupling.
               </p>
             </div>
-            <div className="text-[10px] font-mono text-emerald-400/80 pt-1 border-t border-slate-800">Ex: TS vs GWETTOP (Calor secando o solo)</div>
+            <div className="text-[10px] font-mono text-emerald-400/80 pt-1 border-t border-slate-800">e.g.: TS vs GWETTOP (Heat drying soil)</div>
           </div>
 
           <div className="p-3 rounded-xl bg-slate-950/70 border border-slate-800 space-y-1.5 flex flex-col justify-between">
             <div>
-              <div className="font-mono font-bold text-slate-300 text-[11px] mb-0.5">A ≠ B &nbsp;e&nbsp; X = Y</div>
-              <div className="font-bold text-sky-300">3. Lugares Opostos / Dipolo Espacial</div>
+              <div className="font-mono font-bold text-slate-300 text-[11px] mb-0.5">A ≠ B &nbsp;and&nbsp; X = Y</div>
+              <div className="font-bold text-sky-300">3. Opposite Places / Spatial Dipole</div>
               <p className="text-slate-300 leading-relaxed mt-1 text-[11px]">
-                Mesma variável em biomas distantes. Evidencia divergência espacial ("sobe aqui, cai ali") e prova que médias globais escondem colapsos regionais.
+                Same variable across distant biomes. Highlights spatial divergence ("rises here, falls there") and proves global averages hide regional collapses.
               </p>
             </div>
-            <div className="text-[10px] font-mono text-sky-400/80 pt-1 border-t border-slate-800">Ex: Amazônia vs Sahel (Precipitação/Calor)</div>
+            <div className="text-[10px] font-mono text-sky-400/80 pt-1 border-t border-slate-800">e.g.: Amazon vs Sahel (Precipitation/Heat)</div>
           </div>
 
           <div className="p-3 rounded-xl bg-slate-950/70 border border-purple-500/30 bg-purple-950/10 space-y-1.5 flex flex-col justify-between">
             <div>
-              <div className="font-mono font-bold text-purple-300 text-[11px] mb-0.5">A ≠ B &nbsp;e&nbsp; X ≠ Y</div>
-              <div className="font-bold text-purple-300">4. Teleconexões Cruzadas Globais</div>
+              <div className="font-mono font-bold text-purple-300 text-[11px] mb-0.5">A ≠ B &nbsp;and&nbsp; X ≠ Y</div>
+              <div className="font-bold text-purple-300">4. Global Cross-Teleconnections</div>
               <p className="text-slate-300 leading-relaxed mt-1 text-[11px]">
-                <b>Variáveis diferentes em lugares diferentes.</b> Cruza forçantes oceânicas ou atmosféricas remotas com impactos hidrológicos em continentes distantes.
+                <b>Different variables in different places.</b> Crosses remote oceanic or atmospheric forcings with hydrological impacts on distant continents.
               </p>
             </div>
-            <div className="text-[10px] font-mono text-purple-400/80 pt-1 border-t border-slate-800">Ex: SST no Pacífico vs Chuva no Nordeste</div>
+            <div className="text-[10px] font-mono text-purple-400/80 pt-1 border-t border-slate-800">e.g.: Pacific SST vs Northeast Rainfall</div>
           </div>
         </div>
       </Card>
 
-      {/* O FLUXO LIVRE EM 3 PASSOS (POR QUE A VARIÁVEL VEM PRIMEIRO) */}
+      {/* THE 3-STEP FREE FLOW (WHY VARIABLE COMES FIRST) */}
       <Card className="border-cyan-500/30">
-        <H right={<Chip c="border-cyan-500/40 text-cyan-300 font-mono">1º Variável → 2º Onde → 3º Tempo</Chip>}>
-          O Fluxo Livre em 3 Passos & Por Que a Variável Vem Primeiro
+        <H right={<Chip c="border-cyan-500/40 text-cyan-300 font-mono">1st Variable → 2nd Where → 3rd Time</Chip>}>
+          The 3-Step Free Flow & Why Variable Comes First
         </H>
         <div className="grid md:grid-cols-3 gap-3 mt-2 text-xs">
           <div className="p-3 rounded-xl bg-slate-950/70 border border-slate-800 space-y-2">
             <div className="flex items-center gap-2">
               <span className="w-5 h-5 rounded-full bg-cyan-400 text-slate-950 font-bold flex items-center justify-center text-[11px]">1</span>
-              <span className="font-bold text-cyan-300">1º Escolher Variáveis (X, Y)</span>
+              <span className="font-bold text-cyan-300">1st Choose Variables (X, Y)</span>
             </div>
             <p className="text-slate-300 leading-relaxed">
-              <b>A física regula a geometria e o tempo:</b>
+              <b>Physics governs geometry and time:</b>
             </p>
             <ul className="text-slate-400 text-[11px] space-y-1 list-disc list-inside">
-              <li><b>Define a Resolução da Grade:</b> MERRA-2 opera em grade fina de 0,5° × 0,625° (≈ 55 × 69 km). CERES opera em 1,0° × 1,0° (≈ 111 × 111 km).</li>
-              <li><b>Define o Ano Mínimo:</b> MERRA-2 está disponível desde 1981; CERES inicia em 1984. Escolher a variável antes evita que o usuário selecione períodos inválidos ou grades incompatíveis.</li>
+              <li><b>Sets Grid Resolution:</b> MERRA-2 runs on a fine 0.5° × 0.625° (≈ 55 × 69 km) grid. CERES runs on 1.0° × 1.0° (≈ 111 × 111 km).</li>
+              <li><b>Sets Minimum Year:</b> MERRA-2 is available from 1981; CERES starts in 1984. Choosing the variable first prevents invalid periods or mismatched grids.</li>
             </ul>
           </div>
 
           <div className="p-3 rounded-xl bg-slate-950/70 border border-slate-800 space-y-2">
             <div className="flex items-center gap-2">
               <span className="w-5 h-5 rounded-full bg-emerald-400 text-slate-950 font-bold flex items-center justify-center text-[11px]">2</span>
-              <span className="font-bold text-emerald-300">2º Escolher Onde (Mapa 2D + Grade)</span>
+              <span className="font-bold text-emerald-300">2nd Choose Where (2D Map + Grid)</span>
             </div>
             <p className="text-slate-300 leading-relaxed">
-              <b>Geometria visual adaptativa no mapa:</b>
+              <b>Adaptive visual geometry on the map:</b>
             </p>
             <ul className="text-slate-400 text-[11px] space-y-1 list-disc list-inside">
-              <li><b>Clique no Mapa:</b> Usuário marca Local A e Local B livremente no globo (ou toggle A=B).</li>
-              <li><b>Blocos de Amostragem:</b> <b>1x1</b> (1 dado pontual mais próximo), <b>2x2</b> (média de 4 dados vizinhos) ou <b>3x3</b> (média de 9 dados para escala de bacia). O polígono desenhado no mapa reflete exatamente o tamanho físico da grade da variável selecionada.</li>
+              <li><b>Map Click:</b> User freely marks Location A and Location B on the globe (or toggles A=B).</li>
+              <li><b>Sampling Blocks:</b> <b>1x1</b> (1 nearest point), <b>2x2</b> (mean of 4 neighbor points), or <b>3x3</b> (mean of 9 points for basin scale). The drawn polygon reflects the exact physical grid size of the selected variable.</li>
             </ul>
           </div>
 
           <div className="p-3 rounded-xl bg-slate-950/70 border border-slate-800 space-y-2">
             <div className="flex items-center gap-2">
               <span className="w-5 h-5 rounded-full bg-amber-400 text-slate-950 font-bold flex items-center justify-center text-[11px]">3</span>
-              <span className="font-bold text-amber-300">3º Escolher Período [t₀, tf]</span>
+              <span className="font-bold text-amber-300">3rd Choose Period [t₀, tf]</span>
             </div>
             <p className="text-slate-300 leading-relaxed">
-              <b>Alinhamento temporal e recorte automático:</b>
+              <b>Temporal alignment and auto-clipping:</b>
             </p>
             <ul className="text-slate-400 text-[11px] space-y-1 list-disc list-inside">
-              <li><b>Interseção Limpa:</b> O seletor respeita o limite comum (ex.: 1984–presente se CERES estiver envolvida, ou 1981–presente para MERRA-2 pura).</li>
-              <li><b>Disparo do Motor:</b> Dispara a requisição paralela (ou lê do cache local) e atualiza a bancada de gráficos e o motor estatístico em menos de 1 segundo.</li>
+              <li><b>Clean Intersection:</b> The selector respects the common bound (e.g., 1984–present if CERES is involved, or 1981–present for pure MERRA-2).</li>
+              <li><b>Engine Trigger:</b> Fires parallel request (or reads local cache) and updates the chart workbench and statistical engine in under 1 second.</li>
             </ul>
           </div>
         </div>
       </Card>
 
-      {/* LÓGICA ESPACIAL DE GRADE NASA E TRIPLA NORMALIZAÇÃO */}
+      {/* SPATIAL NASA GRID LOGIC & TRIPLE NORMALIZATION */}
       <div className="grid md:grid-cols-2 gap-4">
         <Card>
           <H right={<Chip c="border-cyan-500/40 text-cyan-300 font-mono">1x1 · 2x2 · 3x3</Chip>}>
-            Lógica Espacial de Quadrados da NASA (Mapa 2D)
+            Spatial Logic of NASA Squares (2D Map)
           </H>
           <div className="text-xs text-slate-300 space-y-2 mt-1 leading-relaxed">
             <p>
-              Ao clicar no mapa, o usuário seleciona não apenas um ponto isolado, mas uma <b>amostragem com representatividade espacial controlada</b>:
+              By clicking the map, the user selects not just an isolated point, but a <b>sampling area with controlled spatial representativeness</b>:
             </p>
             <ul className="space-y-1 list-disc list-inside">
-              <li><b>1x1 (1 dado pontual):</b> Célula exata mais próxima da coordenada do clique. Ideal para medições locais específicas.</li>
-              <li><b>2x2 (média de 4 dados):</b> Bloco de 4 células vizinhas agregadas pela média. Reduz ruídos de mesoescala e microclima.</li>
-              <li><b>3x3 (média de 9 dados):</b> Bloco de 9 células vizinhas. Fornece representatividade regional robusta de bacias ou biomas inteiros.</li>
+              <li><b>1x1 (1 point datum):</b> Exact nearest cell to the clicked coordinate. Ideal for specific local measurements.</li>
+              <li><b>2x2 (mean of 4 data points):</b> Block of 4 neighboring cells averaged together. Reduces mesoscale and microclimate noise.</li>
+              <li><b>3x3 (mean of 9 data points):</b> Block of 9 neighboring cells. Provides robust regional representativeness for entire basins or biomes.</li>
             </ul>
             <p className="text-[11px] text-cyan-300 font-mono mt-1">
-              • MERRA-2 (Clima/Água/Atmosfera): Célula 0,5° × 0,625° ≈ 55 × 69 km.<br />
-              • CERES (Radiação/Nuvens): Célula 1,0° × 1,0° ≈ 111 × 111 km.
+              • MERRA-2 (Climate/Water/Atmosphere): Cell 0.5° × 0.625° ≈ 55 × 69 km.<br />
+              • CERES (Radiation/Clouds): Cell 1.0° × 1.0° ≈ 111 × 111 km.
             </p>
           </div>
         </Card>
 
         <Card>
-          <H right={<Chip c="border-emerald-500/40 text-emerald-300 font-mono">3 Camadas de Ajuste</Chip>}>
-            Tripla Normalização para Variáveis Diferentes
+          <H right={<Chip c="border-emerald-500/40 text-emerald-300 font-mono">3 Adjustment Layers</Chip>}>
+            Triple Normalization for Different Variables
           </H>
           <div className="text-xs text-slate-300 space-y-2 mt-1 leading-relaxed">
             <p>
-              Para permitir comparações visualmente honestas entre grandezas físicas distintas (ex.: °C vs. mm/dia vs. kWh/m²), aplicamos três níveis de normalização:
+              To allow visually honest comparisons across distinct physical quantities (e.g., °C vs. mm/day vs. kWh/m²), we apply three levels of normalization:
             </p>
             <ul className="space-y-1 list-disc list-inside">
-              <li><b>1. Normalização Temporal (Anomalia Mensal):</b> Subtrai a climatologia mensal histórica (Y'_{"{a,m}"} = Y_{"{a,m}"} − Ȳ_{"{m}"}), isolando a tendência secular do ciclo sazonal verão/inverno.</li>
-              <li><b>2. Normalização de Escala Física (Z-Score σ):</b> Padronização Z = (Y − μ) / σ transforma qualquer grandeza em desvios-padrão da média, viabilizando sobreposição no mesmo gráfico.</li>
-              <li><b>3. Normalização de Visualização (Eixo Y Duplo & Log):</b> Eixos Y independentes para séries brutas e escala logarítmica/symlog para variáveis com distribuições altamente assimétricas.</li>
+              <li><b>1. Temporal Normalization (Monthly Anomaly):</b> Subtracts historical monthly climatology (Y'_{"{a,m}"} = Y_{"{a,m}"} − Ȳ_{"{m}"}), isolating the secular trend from the summer/winter seasonal cycle.</li>
+              <li><b>2. Physical Scale Normalization (Z-Score σ):</b> Z = (Y − μ) / σ standardization converts any quantity into standard deviations from the mean, enabling overlay on the same chart.</li>
+              <li><b>3. Display Normalization (Dual Y-Axis & Log):</b> Independent Y-axes for raw series and logarithmic/symlog scale for variables with strongly skewed distributions.</li>
             </ul>
           </div>
         </Card>
       </div>
 
-      {/* CATÁLOGO DE DADOS NASA POWER API */}
+      {/* NASA POWER API DATA CATALOG */}
       <Card>
-        <H right={<span className="text-xs font-mono text-emerald-300">NASA POWER API v2.0 (tempo real + cache)</span>}>
-          Catálogo Oficial de Variáveis NASA POWER & Estratégia de Dados
+        <H right={<span className="text-xs font-mono text-emerald-300">NASA POWER API v2.0 (live + cache)</span>}>
+          Official NASA POWER Variable Catalog & Data Strategy
         </H>
         <div className="overflow-x-auto mt-2">
           <table className="w-full text-left border-collapse text-xs">
             <thead>
               <tr className="border-b border-slate-800 text-slate-400 font-mono uppercase">
-                <th className="py-2 pr-3">Domínio</th>
-                <th className="py-2 pr-3">Resolução Grade</th>
-                <th className="py-2 pr-3">Variáveis Físicas</th>
-                <th className="py-2 pr-3">Escala Científica</th>
-                <th className="py-2 pr-3">Endpoint API Primário</th>
-                <th className="py-2">Estratégia de Cache & Fallback</th>
+                <th className="py-2 pr-3">Domain</th>
+                <th className="py-2 pr-3">Grid Resolution</th>
+                <th className="py-2 pr-3">Physical Variables</th>
+                <th className="py-2 pr-3">Scientific Scale</th>
+                <th className="py-2 pr-3">Primary API Endpoint</th>
+                <th className="py-2">Cache & Fallback Strategy</th>
               </tr>
             </thead>
             <tbody className="divide-y divide-slate-800/70 text-slate-200">
@@ -1955,9 +1955,9 @@ function Strategy() {
         </div>
       </Card>
 
-      {/* OS 7 INVARIANTES ESTATÍSTICOS */}
+      {/* THE 7 STATISTICAL INVARIANTS */}
       <Card>
-        <H>Os 7 Invariantes Estatísticos de Estado da Arte (Regras Invioláveis)</H>
+        <H>The 7 State-of-the-Art Statistical Invariants (Inviolable Rules)</H>
         <div className="grid md:grid-cols-2 gap-2.5 mt-2">
           {INVARIANTS.map(inv => (
             <div key={inv.n} className={`p-3 rounded-xl border text-xs ${inv.danger ? "bg-rose-950/25 border-rose-500/40" : "bg-slate-950/60 border-slate-800"}`}>
@@ -1968,25 +1968,25 @@ function Strategy() {
         </div>
       </Card>
 
-      {/* ESTRUTURA CRONOMETRADA DO PITCH (240s) E RITUAIS COORD */}
+      {/* TIMED PITCH STRUCTURE (240s) & COORD RITUALS */}
       <div className="grid md:grid-cols-2 gap-4">
         <Card>
-          <H right={<span className="mono text-xs text-cyan-300">240s (4 min)</span>}>Estrutura Cronometrada do Vídeo de Pitch (Fase 7)</H>
+          <H right={<span className="mono text-xs text-cyan-300">240s (4 min)</span>}>Timed Pitch Video Structure (Phase 7)</H>
           <ol className="text-xs text-slate-300 space-y-1.5 list-decimal list-inside mt-2">
-            <li><b>00:00 – 00:25 | Gancho Visual:</b> Mapa dividido mostrando seca na Amazônia Meridional vs. aumento de água em outra bacia sob o mesmo aquecimento global.</li>
-            <li><b>00:25 – 00:50 | O Problema Científico:</b> O erro primário de olhar apenas médias globais ou subtrair ano final menos inicial (confundindo El Niño e sazonalidade com tendência).</li>
-            <li><b>00:50 – 02:15 | Demo ao Vivo do Sistema de Análise de Dados:</b> Operação fluida respondendo <i>O Quê, Onde, Quanto e Significância</i>, seletores de grade 1x1/2x2/3x3, Eixo Y Duplo e Chatbot Co-Piloto.</li>
-            <li><b>02:15 – 03:15 | Inovação do Sistema de Descoberta Científica:</b> Como o modelo de ML treinado sobre nosso motor isolou a nova evidência/anomalia indicada pelo Gemini Deep Research.</li>
-            <li><b>03:15 – Fim | Impacto, Rigor e Créditos NASA:</b> Dados NASA POWER, MERRA-2 e CERES; link aberto para teste imediato dos jurados.</li>
+            <li><b>00:00 – 00:25 | Visual Hook:</b> Split map showing drought in the Southern Amazon vs. water gain in another basin under the same global warming.</li>
+            <li><b>00:25 – 00:50 | The Scientific Problem:</b> The primary error of looking only at global averages or subtracting end year minus start year (confusing El Niño and seasonality with trends).</li>
+            <li><b>00:50 – 02:15 | Live Demo of the Data Analysis System:</b> Smooth operation answering <i>What, Where, How Much, and Significance</i>, 1x1/2x2/3x3 grid selectors, Dual Y-Axis, and Co-Pilot Chatbot.</li>
+            <li><b>02:15 – 03:15 | Scientific Discovery System Innovation:</b> How the ML model trained over our engine isolated the new evidence/anomaly flagged by Gemini Deep Research.</li>
+            <li><b>03:15 – End | Impact, Rigor & NASA Credits:</b> NASA POWER, MERRA-2, and CERES data; open link for immediate judge testing.</li>
           </ol>
         </Card>
         <Card>
-          <H>Rituais de Comando e Controle (COORD)</H>
+          <H>Command & Control Rituals (COORD)</H>
           <ul className="text-xs text-slate-300 space-y-2 mt-2 list-disc list-inside">
-            <li><b>Sincronias Rápidas no Sábado (10:30, 12:30, 16:00, 19:00, 21:30 — máx. 8 min):</b> 45s por pessoa (Entregue / Meta até próximo portão / Bloqueio).</li>
-            <li><b>Silêncio de Fluxo no Domingo à Tarde (Fase 7):</b> Standups coletivos suspensos durante gravação e edição do vídeo; <code>COORD</code> faz ponte silenciosa individual.</li>
-            <li><b>Regra dos 5 Minutos:</b> Impasse técnico &gt; 5 min é decidido por <code>COORD</code> e registrado em 2 linhas no <code>DECISOES.md</code>.</li>
-            <li><b>Disciplina de Deploy:</b> Branch <code>main</code> sempre funcional; JSONs passam pelo validador antes do commit.</li>
+            <li><b>Saturday Quick Syncs (10:30, 12:30, 16:00, 19:00, 21:30 — max 8 min):</b> 45s per person (Shipped / Goal for next gate / Blocker).</li>
+            <li><b>Sunday Afternoon Flow Silence (Phase 7):</b> Group standups suspended during video recording and editing; <code>COORD</code> bridges individuals silently.</li>
+            <li><b>5-Minute Rule:</b> Any technical impasse &gt; 5 min is decided by <code>COORD</code> and logged in 2 lines in <code>DECISOES.md</code>.</li>
+            <li><b>Deploy Discipline:</b> <code>main</code> branch always working; JSONs pass validator before commit.</li>
           </ul>
         </Card>
       </div>
@@ -1994,7 +1994,7 @@ function Strategy() {
   );
 }
 
-/* ============ ABA 5: DELIVERY (10 TESTES HINDEMBURG, CHECKLIST FINAL, MVP MUST & RISCOS R1-R7) ============ */
+/* ============ TAB 5: DELIVERY (10 HINDEMBURG TESTS, FINAL CHECKLIST, MVP MUST & RISKS R1-R7) ============ */
 function Delivery({ s, now }) {
   const [mv, setMv] = useState(""), [di, setDi] = useState("");
   const must = s.tasks.filter(t => t.moscow === "MUST" && t.status !== "CANCELED");
@@ -2008,18 +2008,18 @@ function Delivery({ s, now }) {
     <div className="space-y-4">
       {frz ? <FreezeBanner /> : gFr && (
         <Card>
-          <H>Contagem para o Portão 3 — Feature Freeze Absoluto (Dom 13:00)</H>
-          <p className="text-sm">Faltam <b className="mono text-cyan-300">{durSec(gAt(s, gFr) - now)}</b> ({fmtAt(gAt(s, gFr))}). Após as 13:00 de domingo: zero features novas na <code>main</code>.</p>
+          <H>Countdown to Gate 3 — Absolute Feature Freeze (Sun 13:00)</H>
+          <p className="text-sm">Remaining: <b className="mono text-cyan-300">{durSec(gAt(s, gFr) - now)}</b> ({fmtAt(gAt(s, gFr))}). After Sunday 13:00: zero new features on <code>main</code>.</p>
         </Card>
       )}
 
-      {/* CHECKLIST DOS 10 TESTES DE BLINDAGEM CIENTÍFICA HINDEMBURG + CHECKLIST PRE-SUBMISSÃO */}
+      {/* 10 HINDEMBURG SCIENTIFIC SHIELDING TESTS CHECKLIST + PRE-SUBMISSION CHECKLIST */}
       <div className="grid lg:grid-cols-2 gap-4">
         <Card className="border-amber-500/30">
           <H right={<span className="mono text-sm text-amber-300">{sciDone}/{sci.length} ({sci.length ? Math.round(sciDone / sci.length * 100) : 0}%)</span>}>
-            10 Testes de Blindagem Científica Hindemburg (Fase 5)
+            10 Hindemburg Scientific Shielding Tests (Phase 5)
           </H>
-          <p className="text-[11px] text-slate-400 mb-2">Auditoria obrigatória de <code>DADOS-2</code> + <code>NARR</code> sobre cada número antes de gravar o vídeo:</p>
+          <p className="text-[11px] text-slate-400 mb-2">Mandatory audit by <code>DADOS-2</code> + <code>NARR</code> on every number before recording the video:</p>
           <div className="space-y-1.5">
             {sci.map(item => (
               <label key={item.id} className="flex items-start gap-2 text-xs sm:text-sm cursor-pointer py-0.5">
@@ -2037,9 +2037,9 @@ function Delivery({ s, now }) {
 
         <Card className="border-purple-500/30">
           <H right={<span className="mono text-sm text-purple-300">{dn}/{s.delivery.length} ({s.delivery.length ? Math.round(dn / s.delivery.length * 100) : 0}%)</span>}>
-            Checklist Final de Auditoria Pré-Submissão (Dom 21:00)
+            Final Pre-Submission Audit Checklist (Sun 21:00)
           </H>
-          <p className="text-[11px] text-slate-400 mb-2">Protocolo Quatro Olhos (<code>COORD</code> + <code>NARR</code>) e Bancada de Testes Cegos 4G:</p>
+          <p className="text-[11px] text-slate-400 mb-2">Four-Eyes Protocol (<code>COORD</code> + <code>NARR</code>) and 4G Blind Test Bench:</p>
           <div className="space-y-1.5">
             {s.delivery.map(d => (
               <div key={d.id} className="flex items-start gap-2 text-xs sm:text-sm py-0.5">
@@ -2056,7 +2056,7 @@ function Delivery({ s, now }) {
           </div>
           <input
             className={`${inp} mt-3`}
-            placeholder="+ Adicionar item de verificação final…"
+            placeholder="+ Add final verification item…"
             value={di}
             onChange={e => setDi(e.target.value)}
             onKeyDown={e => { if (e.key === "Enter" && di.trim()) { repo.commit(x => { x.delivery.push({ id: uid(), t: di.trim(), done: false }); }); setDi(""); } }}
@@ -2064,10 +2064,10 @@ function Delivery({ s, now }) {
         </Card>
       </div>
 
-      {/* ESCOPO MUST (TAREFAS VINCULADAS) */}
+      {/* MUST SCOPE (LINKED TASKS) */}
       <Card>
         <H right={<span className="mono text-sm text-emerald-300">{pct(must)}% ({must.filter(t => t.status === "DONE").length}/{must.length})</span>}>
-          Escopo Blindado MVP · Entregáveis MUST (Invioláveis)
+          Shielded MVP Scope · MUST Deliverables (Inviolable)
         </H>
         <div className="grid sm:grid-cols-2 gap-1.5 mt-2">
           {must.map(t => (
@@ -2087,7 +2087,7 @@ function Delivery({ s, now }) {
         <div className="flex gap-2 mt-3">
           <input
             className={inp}
-            placeholder="+ Adicionar entregável MUST ao escopo…"
+            placeholder="+ Add MUST deliverable to scope…"
             value={mv}
             onChange={e => setMv(e.target.value)}
             onKeyDown={e => { if (e.key === "Enter" && mv.trim()) { repo.addTask({ id: uid(), title: mv.trim(), ownerId: repo.me || "", priority: "P0", due: "", status: "READY", blockedReason: "", moscow: "MUST", gateId: "", phase: "F4" }); setMv(""); } }}
@@ -2095,23 +2095,23 @@ function Delivery({ s, now }) {
         </div>
       </Card>
 
-      {/* MATRIZ DE RISCOS OPERACIONAIS R1-R7 */}
+      {/* OPERATIONAL RISK MATRIX R1-R7 */}
       <Card>
-        <H right={<button onClick={() => repo.addRisk({ id: uid(), code: `R${s.risks.length + 1}`, problem: "", ownerId: repo.me || "", plan: "", state: "OPEN" })} className="text-xs text-cyan-300 font-semibold">+ Novo Risco</button>}>
-          Matriz de Riscos Operacionais e Mitigação Preventiva (R1–R7)
+        <H right={<button onClick={() => repo.addRisk({ id: uid(), code: `R${s.risks.length + 1}`, problem: "", ownerId: repo.me || "", plan: "", state: "OPEN" })} className="text-xs text-cyan-300 font-semibold">+ New Risk</button>}>
+          Operational Risk Matrix & Preventive Mitigation (R1–R7)
         </H>
-        {!s.risks.length && <p className="text-sm text-slate-500">Nenhum risco registrado.</p>}
+        {!s.risks.length && <p className="text-sm text-slate-500">No risks registered.</p>}
         <div className="space-y-2 mt-2">
           {s.risks.map(r => (
             <div key={r.id} className={`grid sm:grid-cols-[1.2fr_auto_1.4fr_auto] gap-2 items-center p-2 rounded-xl border border-slate-800/80 bg-slate-950/40 ${r.state === "CLOSED" ? "opacity-50" : ""}`}>
-              <Tx v={r.problem} on={v => repo.updateRisk(r.id, { problem: v })} placeholder="Risco e Gatilho de Alerta" />
-              <Sel v={r.ownerId} on={v => repo.updateRisk(r.id, { ownerId: v })} o={mOpts(s, "Resp.")} c="text-xs" />
-              <Tx v={r.plan} on={v => repo.updateRisk(r.id, { plan: v })} placeholder="Resposta Operacional Imediata" />
+              <Tx v={r.problem} on={v => repo.updateRisk(r.id, { problem: v })} placeholder="Risk & Alert Trigger" />
+              <Sel v={r.ownerId} on={v => repo.updateRisk(r.id, { ownerId: v })} o={mOpts(s, "Owner")} c="text-xs" />
+              <Tx v={r.plan} on={v => repo.updateRisk(r.id, { plan: v })} placeholder="Immediate Operational Response" />
               <button
                 onClick={() => repo.updateRisk(r.id, { state: r.state === "OPEN" ? "CLOSED" : "OPEN" })}
                 className={`text-[11px] font-semibold px-3 py-1.5 rounded-lg ${r.state === "OPEN" ? "bg-amber-400 text-slate-950" : "bg-slate-700 text-slate-300"}`}
               >
-                {r.state === "OPEN" ? "ATIVO" : "MITIGADO"}
+                {r.state === "OPEN" ? "ACTIVE" : "MITIGATED"}
               </button>
             </div>
           ))}
@@ -2121,7 +2121,7 @@ function Delivery({ s, now }) {
   );
 }
 
-/* ============ APLICAÇÃO PRINCIPAL (SHELL & SINCRONIZAÇÃO JSON) ============ */
+/* ============ MAIN APPLICATION (SHELL & JSON SYNC) ============ */
 const TABS = [
   ["cmd",   "Command",  "M4 15s1-1 4-1 5 2 8 2 4-1 4-1V3s-1 1-4 1-5-2-8-2-4 1-4 1z M4 22v-7"],
   ["tasks", "Tasks",    "M6 5v11 M12 5v6 M18 5v14"],
@@ -2138,26 +2138,26 @@ const IO = {
 };
 
 const SYNC = {
-  live:       ["●", "Ao vivo", "text-emerald-300 border-emerald-500/50"],
-  connecting: ["○", "Conectando…", "text-amber-300 border-amber-500/50"],
-  readonly:   ["◐", "Somente leitura", "text-purple-300 border-purple-500/50"],
-  offline:    ["✕", "Sem conexão", "text-rose-300 border-rose-500/50"],
-  local:      ["●", "Salvo no navegador", "text-emerald-300 border-emerald-500/50"]
+  live:       ["●", "Live", "text-emerald-300 border-emerald-500/50"],
+  connecting: ["○", "Connecting…", "text-amber-300 border-amber-500/50"],
+  readonly:   ["◐", "Read-only", "text-purple-300 border-purple-500/50"],
+  offline:    ["✕", "Offline", "text-rose-300 border-rose-500/50"],
+  local:      ["●", "Saved in browser", "text-emerald-300 border-emerald-500/50"]
 };
 const SyncChip = () => {
   if (repo.lanStatus === "connected") {
     return (
-      <span title={`Sincronização em tempo real ativa na LAN (${repo.lanUrl})`} className="text-[11px] font-semibold px-2 py-1 rounded-full border whitespace-nowrap text-emerald-300 border-emerald-500/50 flex items-center gap-1.5">
+      <span title={`Real-time LAN sync active (${repo.lanUrl})`} className="text-[11px] font-semibold px-2 py-1 rounded-full border whitespace-nowrap text-emerald-300 border-emerald-500/50 flex items-center gap-1.5">
         <span className="relative flex h-2 w-2">
           <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-emerald-400 opacity-75"></span>
           <span className="relative inline-flex rounded-full h-2 w-2 bg-emerald-500"></span>
         </span>
-        <span className="hidden min-[430px]:inline">Ao vivo na LAN</span>
+        <span className="hidden min-[430px]:inline">Live on LAN</span>
       </span>
     );
   }
   const [d, l, c] = SYNC[bus.status] || SYNC.local;
-  return <span title={bus.lockMsg || "Persistência ativa em localStorage (mc-v6)"} className={`text-[11px] font-semibold px-2 py-1 rounded-full border whitespace-nowrap ${c}`}>{d}<span className="hidden min-[430px]:inline"> {l}</span></span>;
+  return <span title={bus.lockMsg || "Persistence active in localStorage (mc-v6)"} className={`text-[11px] font-semibold px-2 py-1 rounded-full border whitespace-nowrap ${c}`}>{d}<span className="hidden min-[430px]:inline"> {l}</span></span>;
 };
 
 function App() {
@@ -2194,13 +2194,13 @@ function App() {
     a.download = `trend-detective-mc-${nowIso().slice(0, 16).replace(/[:T]/g, "-")}.json`;
     a.click();
     URL.revokeObjectURL(a.href);
-    say("Estado JSON exportado!");
+    say("JSON state exported!");
   };
   const copyState = async () => {
     const t = payload();
     try {
       await navigator.clipboard.writeText(t);
-      say("Estado JSON copiado! Cole no grupo da equipe");
+      say("JSON state copied! Paste in the team chat");
     } catch (e) {
       const ta = document.createElement("textarea");
       ta.value = t;
@@ -2209,26 +2209,26 @@ function App() {
       let ok = false;
       try { ok = document.execCommand("copy"); } catch (_) {}
       ta.remove();
-      say(ok ? "Estado JSON copiado! Cole no grupo" : "Falha ao copiar");
+      say(ok ? "JSON state copied! Paste in the chat" : "Copy failed");
     }
   };
   const prepare = txt => {
     try {
       const j = JSON.parse(txt);
-      if (j.app !== undefined && j.app !== s.app) return say("Arquivo de outra aplicação");
+      if (j.app !== undefined && j.app !== s.app) return say("File belongs to another application");
       let st = j.state || j;
       const v = st.schema_version || j.schema_version;
       if (v === "2.0" || v === "3.0" || v === "4.0" || v === "5.0") st = migrate(st);
-      else if (v !== "6.0") return say("Versão de schema não suportada");
+      else if (v !== "6.0") return say("Unsupported schema version");
       const r = validate(st);
-      if (!r.ok) return say("Importação recusada: " + r.err);
-      setPend({ st, info: `Tarefas ${s.tasks.length} → ${st.tasks.length} · Marcos ${s.gates.length} → ${st.gates.length} · rev v${s.version} → v${st.version}${j.exported_by ? " · por " + j.exported_by : ""}` });
+      if (!r.ok) return say("Import rejected: " + r.err);
+      setPend({ st, info: `Tasks ${s.tasks.length} → ${st.tasks.length} · Gates ${s.gates.length} → ${st.gates.length} · rev v${s.version} → v${st.version}${j.exported_by ? " · by " + j.exported_by : ""}` });
     } catch (e) {
-      say("JSON inválido");
+      say("Invalid JSON");
     }
   };
   const pasteState = async () => {
-    try { prepare(await navigator.clipboard.readText()); } catch (e) { say("Colar bloqueado pelo navegador: use o botão Importar arquivo"); }
+    try { prepare(await navigator.clipboard.readText()); } catch (e) { say("Paste blocked by browser: use the Import file button"); }
   };
   const importFile = e => {
     const f = e.target.files[0];
@@ -2268,64 +2268,64 @@ function App() {
       <header className={`sticky top-0 z-30 bg-slate-950/90 backdrop-blur border-b border-slate-800 px-3 py-2 flex items-center gap-2 transition-all ${padLeft}`}>
         <button
           onClick={toggleSidebar}
-          title={collapsed ? "Expandir barra lateral" : "Recolher barra lateral"}
+          title={collapsed ? "Expand sidebar" : "Collapse sidebar"}
           className="hidden md:inline-flex items-center justify-center w-8 h-8 rounded-lg bg-slate-900 hover:bg-slate-800 border border-slate-700 text-cyan-300 text-xs font-mono"
         >
           {collapsed ? "»" : "«"}
         </button>
         <SyncChip />
         <select
-          aria-label="Quem sou eu"
+          aria-label="Who am I"
           className="bg-slate-900 border border-slate-700 rounded-lg text-xs px-2 py-1.5 max-w-[165px]"
           value={mePerson ? `P:${mePerson}` : repo.me}
           onChange={e => handleMeChange(e.target.value)}
         >
-          <option value="">Quem sou eu?</option>
+          <option value="">Who am I?</option>
           {peopleList.length > 0 && (
-            <optgroup label="Por Pessoa (Multi-Cargo)">
+            <optgroup label="By Person (Multi-Role)">
               {peopleList.map(p => <option key={p.person} value={`P:${p.person}`}>👤 {p.person} ({p.roles.map(r => r.role).join("+")})</option>)}
             </optgroup>
           )}
-          <optgroup label="Por Cargo">
+          <optgroup label="By Role">
             {s.members.map(m => <option key={m.id} value={m.id}>{memberLabel(m)}</option>)}
           </optgroup>
         </select>
         <span className="hidden lg:inline-flex items-center gap-1.5 text-xs font-mono px-2.5 py-1 rounded-lg bg-slate-900 border border-slate-800 text-cyan-300">
-          <span>Fase Atual:</span>
+          <span>Current Phase:</span>
           <b>{cp.phase.code}</b>
           <span className="text-slate-400">({cp.phase.window})</span>
         </span>
         <div className="ml-auto flex items-center gap-1.5 flex-wrap">
-          {/* Botão/Indicador de Rede Wi-Fi */}
+          {/* Wi-Fi Network Button/Indicator */}
           {repo.lanStatus === "connected" ? (
             <button
               onClick={() => { setLanInputUrl(repo.lanUrl || ""); setShowLanModal(true); }}
-              title={`🟢 Ao Vivo na Rede (${repo.lanUrl}) · Clique para ver detalhes ou desconectar`}
+              title={`🟢 Live on Network (${repo.lanUrl}) · Click for details or to disconnect`}
               className={`${btn} bg-emerald-500/20 text-emerald-300 border border-emerald-500/50 hover:bg-emerald-500/30`}
             >
               <span className="relative flex h-2 w-2 mr-1">
                 <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-emerald-400 opacity-75"></span>
                 <span className="relative inline-flex rounded-full h-2 w-2 bg-emerald-500"></span>
               </span>
-              <span className="hidden sm:inline">Ao Vivo na Rede</span>
-              <span className="sm:hidden">Rede</span>
+              <span className="hidden sm:inline">Live on Network</span>
+              <span className="sm:hidden">LAN</span>
             </button>
           ) : (
             <button
               onClick={() => { setLanInputUrl(repo.lanUrl || "http://localhost:8765"); setShowLanModal(true); }}
-              title="Conectar sincronização em tempo real na rede Wi-Fi (LAN)"
+              title="Connect real-time sync on Wi-Fi network (LAN)"
               className={`${btn} bg-slate-800 hover:bg-slate-700 text-cyan-300 border border-slate-700`}
             >
               <span className="mr-1">📡</span>
-              <span className="hidden sm:inline">Rede Wi-Fi</span>
+              <span className="hidden sm:inline">Wi-Fi LAN</span>
               <span className="sm:hidden">LAN</span>
             </button>
           )}
 
-          <button onClick={copyState} title="Copiar estado JSON para a área de transferência" className={`${btn} bg-emerald-500 hover:bg-emerald-400 text-slate-950`}><Ic d={IO.copy} c="w-4 h-4" /><span className="hidden sm:inline">Copiar</span></button>
-          <button onClick={pasteState} title="Colar estado JSON da área de transferência" className={`${btn} bg-slate-800 hover:bg-slate-700 text-white border border-slate-700`}><Ic d={IO.paste} c="w-4 h-4" /><span className="hidden sm:inline">Colar</span></button>
-          <button onClick={exportJson} title="Baixar arquivo .json de estado da operação" className={`${btn} bg-cyan-400 hover:bg-cyan-300 text-slate-950`}><Ic d={IO.down} c="w-4 h-4" /><span className="hidden sm:inline">Exportar</span></button>
-          <button onClick={() => fileRef.current.click()} title="Importar arquivo .json de estado da operação" className={`${btn} bg-purple-500 hover:bg-purple-400 text-white`}><Ic d={IO.up} c="w-4 h-4" /><span className="hidden sm:inline">Importar</span></button>
+          <button onClick={copyState} title="Copy JSON state to clipboard" className={`${btn} bg-emerald-500 hover:bg-emerald-400 text-slate-950`}><Ic d={IO.copy} c="w-4 h-4" /><span className="hidden sm:inline">Copy</span></button>
+          <button onClick={pasteState} title="Paste JSON state from clipboard" className={`${btn} bg-slate-800 hover:bg-slate-700 text-white border border-slate-700`}><Ic d={IO.paste} c="w-4 h-4" /><span className="hidden sm:inline">Paste</span></button>
+          <button onClick={exportJson} title="Download operations state .json file" className={`${btn} bg-cyan-400 hover:bg-cyan-300 text-slate-950`}><Ic d={IO.down} c="w-4 h-4" /><span className="hidden sm:inline">Export</span></button>
+          <button onClick={() => fileRef.current.click()} title="Import operations state .json file" className={`${btn} bg-purple-500 hover:bg-purple-400 text-white`}><Ic d={IO.up} c="w-4 h-4" /><span className="hidden sm:inline">Import</span></button>
           <input ref={fileRef} type="file" accept="application/json,.json" className="hidden" onChange={importFile} />
         </div>
       </header>
@@ -2355,9 +2355,9 @@ function App() {
         </nav>
         {!collapsed && (
           <div className="pt-3 border-t border-slate-800 text-[11px] text-slate-400 space-y-1">
-            <div className="font-mono text-slate-300">Janela: 39h (~30h prod)</div>
-            <div>Dupla Camada + 7 Invariantes</div>
-            <div className="text-[10px] text-slate-500">Atualizado por: {s.updatedBy}</div>
+            <div className="font-mono text-slate-300">Window: 39h (~30h prod)</div>
+            <div>Dual Layer + 7 Invariants</div>
+            <div className="text-[10px] text-slate-500">Updated by: {s.updatedBy}</div>
           </div>
         )}
       </aside>
@@ -2380,14 +2380,14 @@ function App() {
         ))}
       </nav>
 
-      {/* Modal de Conexão / Status da Rede Wi-Fi */}
+      {/* Wi-Fi Network Connection / Status Modal */}
       {showLanModal && (
         <div className="fixed inset-0 z-50 bg-black/80 backdrop-blur-sm flex items-center justify-center p-4">
           <div className="bg-slate-900 border border-slate-700 rounded-2xl max-w-lg w-full p-5 space-y-4 shadow-2xl">
             <div className="flex items-center justify-between border-b border-slate-800 pb-3">
               <div className="flex items-center gap-2">
                 <span className="text-xl">📡</span>
-                <h3 className="font-bold text-white text-base">Sincronização em Tempo Real na Rede Wi-Fi (LAN)</h3>
+                <h3 className="font-bold text-white text-base">Real-Time Wi-Fi Network Sync (LAN)</h3>
               </div>
               <button onClick={() => setShowLanModal(false)} className="text-slate-400 hover:text-white text-sm font-mono p-1">✕</button>
             </div>
@@ -2400,13 +2400,13 @@ function App() {
                       <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-emerald-400 opacity-75"></span>
                       <span className="relative inline-flex rounded-full h-2.5 w-2.5 bg-emerald-500"></span>
                     </span>
-                    🟢 Ao Vivo na Rede com a Equipe!
+                    🟢 Live on Network with Team!
                   </div>
                   <div className="text-xs text-slate-300">
-                    Servidor conectado: <code className="bg-slate-950 px-2 py-0.5 rounded text-cyan-300 font-mono text-[11px] border border-slate-800">{repo.lanUrl}</code>
+                    Connected server: <code className="bg-slate-950 px-2 py-0.5 rounded text-cyan-300 font-mono text-[11px] border border-slate-800">{repo.lanUrl}</code>
                   </div>
                   <p className="text-[11px] text-slate-400 leading-relaxed pt-1">
-                    Todas as alterações em tarefas, membros e marcos feitas por você ou pelos outros membros são transmitidas instantaneamente via SSE (Server-Sent Events) para todos os computadores da equipe.
+                    All changes to tasks, members, and gates made by you or other members are broadcast instantaneously via SSE (Server-Sent Events) to every computer on the team.
                   </p>
                 </div>
 
@@ -2414,50 +2414,50 @@ function App() {
                   <button
                     onClick={() => {
                       repo.disconnectLan();
-                      say("Desconectado da rede Wi-Fi");
+                      say("Disconnected from Wi-Fi network");
                       setShowLanModal(false);
                     }}
                     className="px-3.5 py-1.5 rounded-lg text-xs font-semibold bg-rose-900/70 hover:bg-rose-800 text-rose-200 border border-rose-700/50"
                   >
-                    Desconectar da Rede
+                    Disconnect from Network
                   </button>
                   <button
                     onClick={() => setShowLanModal(false)}
                     className="px-4 py-1.5 rounded-lg text-xs font-semibold bg-cyan-400 hover:bg-cyan-300 text-slate-950"
                   >
-                    Fechar
+                    Close
                   </button>
                 </div>
               </div>
             ) : (
               <div className="space-y-3.5 text-xs text-slate-300">
                 <div className="p-3.5 rounded-xl bg-slate-950/80 border border-slate-800 space-y-2">
-                  <div className="font-semibold text-cyan-300 text-xs">Como parear a equipe no mesmo Wi-Fi:</div>
+                  <div className="font-semibold text-cyan-300 text-xs">How to pair the team on the same Wi-Fi:</div>
                   <ol className="list-decimal list-inside space-y-2 text-slate-300 text-[11px] leading-relaxed">
                     <li>
-                      <b>Na máquina host (um dos membros):</b> abra o terminal na pasta <code>mission_control</code> e execute:<br />
+                      <b>On the host machine (one team member):</b> open a terminal in the <code>mission_control</code> folder and run:<br />
                       <code className="inline-block mt-1 bg-slate-900 text-emerald-400 px-2.5 py-1 rounded font-mono text-xs border border-slate-700 select-all">python3 sync_server.py</code>
                     </li>
                     <li>
-                      <b>Nos computadores da equipe no mesmo Wi-Fi:</b> acesse no navegador o endereço exibido no terminal do host (ex.: <code className="text-cyan-300 font-mono">http://IP_DO_HOST:8765</code>) ou cole o endereço abaixo para sincronizar mesmo se abrir o arquivo localmente:
+                      <b>On team computers on the same Wi-Fi:</b> open the URL shown in the host terminal in a browser (e.g., <code className="text-cyan-300 font-mono">http://HOST_IP:8765</code>) or paste the address below to sync even when opening the file locally:
                     </li>
                   </ol>
                 </div>
 
                 <div className="space-y-1.5">
-                  <label className="block text-slate-400 text-[11px] font-mono">Endereço do Servidor Wi-Fi (Host):</label>
+                  <label className="block text-slate-400 text-[11px] font-mono">Wi-Fi Server Address (Host):</label>
                   <div className="flex gap-2">
                     <input
                       type="text"
                       className="flex-1 bg-slate-950 border border-slate-700 rounded-lg px-3 py-1.5 text-xs text-white font-mono focus:outline-none focus:border-cyan-400"
                       value={lanInputUrl}
-                      placeholder="http://192.168.1.X:8765 ou http://localhost:8765"
+                      placeholder="http://192.168.1.X:8765 or http://localhost:8765"
                       onChange={e => setLanInputUrl(e.target.value)}
                       onKeyDown={e => {
                         if (e.key === "Enter" && lanInputUrl.trim()) {
                           repo.connectLan(lanInputUrl);
                           setShowLanModal(false);
-                          say("Conectando ao servidor Wi-Fi...");
+                          say("Connecting to Wi-Fi server...");
                         }
                       }}
                     />
@@ -2466,11 +2466,11 @@ function App() {
                         if (!lanInputUrl.trim()) return;
                         repo.connectLan(lanInputUrl);
                         setShowLanModal(false);
-                        say("Conectando ao servidor Wi-Fi...");
+                        say("Connecting to Wi-Fi server...");
                       }}
                       className="px-4 py-1.5 rounded-lg text-xs font-semibold bg-emerald-500 hover:bg-emerald-400 text-slate-950"
                     >
-                      Conectar
+                      Connect
                     </button>
                   </div>
                 </div>
@@ -2480,7 +2480,7 @@ function App() {
                     onClick={() => setShowLanModal(false)}
                     className="px-3.5 py-1.5 rounded-lg text-xs font-semibold bg-slate-800 hover:bg-slate-700 text-slate-300 border border-slate-700"
                   >
-                    Cancelar
+                    Cancel
                   </button>
                 </div>
               </div>
@@ -2491,11 +2491,11 @@ function App() {
 
       {pend && (
         <div className="fixed inset-x-3 bottom-24 md:bottom-6 md:left-64 z-50 bg-slate-900 border border-purple-500 rounded-2xl p-4 shadow-2xl">
-          <b className="text-sm">Confirmar importação de estado JSON?</b>
-          <p className="text-xs text-slate-400 my-2">{pend.info}. Um backup automático do estado atual será salvo antes da substituição.</p>
+          <b className="text-sm">Confirm JSON state import?</b>
+          <p className="text-xs text-slate-400 my-2">{pend.info}. An automatic backup of the current state will be saved before replacing.</p>
           <div className="flex gap-2">
-            <button onClick={() => { repo.replace(pend.st); setPend(null); say("Estado importado com sucesso (backup salvo)"); }} className="bg-purple-500 text-white text-xs font-semibold px-4 py-2 rounded-lg">Importar Agora</button>
-            <button onClick={() => setPend(null)} className="bg-slate-700 text-xs px-4 py-2 rounded-lg">Cancelar</button>
+            <button onClick={() => { repo.replace(pend.st); setPend(null); say("State imported successfully (backup saved)"); }} className="bg-purple-500 text-white text-xs font-semibold px-4 py-2 rounded-lg">Import Now</button>
+            <button onClick={() => setPend(null)} className="bg-slate-700 text-xs px-4 py-2 rounded-lg">Cancel</button>
           </div>
         </div>
       )}

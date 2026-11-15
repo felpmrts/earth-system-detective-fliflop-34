@@ -14,9 +14,17 @@ export interface GridHomologationReport {
   readonly validated: GlobalGridFile;
 }
 
+function normalizeTrendUnit(unit: string): string {
+  return unit
+    .replaceAll('década', 'decade')
+    .replaceAll('dia', 'day')
+    .replaceAll('mês', 'month')
+    .replaceAll('fração', 'fraction');
+}
+
 /**
- * Homologa um JSON de grade global ({var_id}_grid.json) segundo o contrato de DADOS-1/2:
- * valida schema + Invariante #3, exige points > 0 e verifica alinhamento do variable_id e trend_unit.
+ * Homologates a global grid JSON ({var_id}_grid.json) according to the DATA-1/2 contract:
+ * validates schema + Invariant #3, requires points > 0, and verifies variable_id and trend_unit alignment.
  */
 export function validateHomologatedGrid(
   requestedVariableId: VariableId,
@@ -27,30 +35,34 @@ export function validateHomologatedGrid(
   const validated = validateGlobalGrid(rawPayload);
   if (validated.variable_id !== resolvedVariableId) {
     throw new ContractValidationError(
-      `Arquivo de grade incompatível: esperado variable_id="${resolvedVariableId}", recebido "${validated.variable_id}".`,
+      `Incompatible grid file: expected variable_id="${resolvedVariableId}", received "${validated.variable_id}".`,
     );
   }
   if (validated.points.length === 0) {
     throw new ContractValidationError(
-      `Grade global de ${resolvedVariableId} não possui pontos em "points".`,
+      `Global grid for ${resolvedVariableId} has no points in "points".`,
     );
   }
 
   const meta = getVariableMetadata(resolvedVariableId);
-  if (validated.trend_unit !== meta.trend_unit) {
+  if (normalizeTrendUnit(validated.trend_unit) !== normalizeTrendUnit(meta.trend_unit)) {
     throw new ContractValidationError(
-      `trend_unit divergente em ${resolvedVariableId}: esperado "${meta.trend_unit}", recebido "${validated.trend_unit}".`,
+      `Mismatched trend_unit in ${resolvedVariableId}: expected "${meta.trend_unit}", received "${validated.trend_unit}".`,
     );
   }
+
+  const normalizedGrid = validated.trend_unit === meta.trend_unit
+    ? validated
+    : { ...validated, trend_unit: meta.trend_unit };
 
   return {
     requestedVariableId,
     resolvedVariableId,
     pointsCount: validated.points.length,
     isRealDensity: validated.points.length >= minRealPoints,
-    validated,
+    validated: normalizedGrid,
   };
 }
 
-/** Lista única das 12 variáveis NASA POWER esperadas para homologação global + verificação de alias. */
+/** Canonical list of the 12 NASA POWER variables expected for global homologation + alias verification. */
 export const HOMOLOGATION_REQUIRED_GRIDS: readonly VariableId[] = CORE_GLOBAL_GRID_VARIABLES;

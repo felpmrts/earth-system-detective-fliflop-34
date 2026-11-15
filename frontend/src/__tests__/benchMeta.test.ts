@@ -69,8 +69,8 @@ describe('benchMeta helpers', () => {
       ],
     };
 
-    expect(summarizeRegionCoords(region)).toBe('2 células · centro (-18.75°, -48.00°)');
-    expect(summarizeRegionCoords(null)).toBe('Região não informada');
+    expect(summarizeRegionCoords(region)).toBe('2 cells · center (-18.75°, -48.00°)');
+    expect(summarizeRegionCoords(null)).toBe('Region not specified');
   });
 
   it('computes consistent robust Mahalanobis bivariate distances and clearsky radiation unit (M1 & C6)', () => {
@@ -84,6 +84,6 @@ describe('benchMeta helpers', () => {
     expect(geom!.outlierIndices).toEqual([30]);
     expect(geom!.distances[30]).toBeGreaterThan(2.5);
     expect(geom!.distances[0]).toBeLessThan(2.5);
-    expect(VARIABLE_CATALOG.CLRSKY_SFC_SW_DWN.unit).toBe('MJ/m²/dia');
+    expect(VARIABLE_CATALOG.CLRSKY_SFC_SW_DWN.unit).toBe('MJ/m²/day');
   });
 });

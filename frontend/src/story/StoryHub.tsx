@@ -113,7 +113,7 @@ function RevealSection({
 function TrapDiagram({ trapId }: { readonly trapId: StoryTrapItem['id'] }) {
   if (trapId === 'noise') {
     return (
-      <svg className="trap-svg" viewBox="0 0 260 88" role="img" aria-label="Ilustração de ruído aleatório com falso alarme">
+      <svg className="trap-svg" viewBox="0 0 260 88" role="img" aria-label="Illustration of random noise causing a false alarm">
         <defs>
           <linearGradient id="trapNoiseBand" x1="0" y1="0" x2="1" y2="0">
             <stop offset="0%" stopColor="#38bdf8" stopOpacity="0.18" />
@@ -133,7 +133,7 @@ function TrapDiagram({ trapId }: { readonly trapId: StoryTrapItem['id'] }) {
         <line x1="10" y1="56" x2="250" y2="38" stroke="#fbbf24" strokeWidth="1.8" strokeDasharray="5 4" />
         <circle cx="230" cy="26" r="4" fill="#f87171" />
         <text x="14" y="17" fill="#8fa0c4" fontSize="9.8" fontWeight="600">
-          Reta comum superestima · AR(1)+FDR filtra sorte
+          Plain line overestimates · AR(1)+FDR filters luck
         </text>
       </svg>
     );
@@ -141,7 +141,7 @@ function TrapDiagram({ trapId }: { readonly trapId: StoryTrapItem['id'] }) {
 
   if (trapId === 'nonlinear') {
     return (
-      <svg className="trap-svg" viewBox="0 0 260 88" role="img" aria-label="Ilustração de curva não-linear versus reta simples">
+      <svg className="trap-svg" viewBox="0 0 260 88" role="img" aria-label="Illustration of nonlinear curve versus straight line">
         <line x1="12" y1="62" x2="248" y2="28" stroke="#64748b" strokeWidth="1.8" strokeDasharray="4 4" />
         <path
           className="svg-draw-path"
@@ -154,14 +154,14 @@ function TrapDiagram({ trapId }: { readonly trapId: StoryTrapItem['id'] }) {
         <circle cx="152" cy="48" r="4.2" fill="#fbbf24" />
         <line x1="152" y1="22" x2="152" y2="74" stroke="rgba(251, 191, 36, 0.45)" strokeDasharray="3 3" />
         <text x="14" y="17" fill="#8fa0c4" fontSize="9.8" fontWeight="600">
-          Reta plana vs. aceleração detectada por GAM (B₂)
+          Flat line vs. acceleration detected by GAM (B₂)
         </text>
       </svg>
     );
   }
 
   return (
-    <svg className="trap-svg" viewBox="0 0 260 88" role="img" aria-label="Ilustração de paradoxo multiescala e extremos">
+    <svg className="trap-svg" viewBox="0 0 260 88" role="img" aria-label="Illustration of multiscale paradox and extremes">
       <path
         className="svg-draw-series"
         d="M12 64 L 38 42 L 64 58 L 90 36 L 116 52 L 142 28 L 168 46 L 194 22 L 220 38 L 248 18"
@@ -179,19 +179,19 @@ function TrapDiagram({ trapId }: { readonly trapId: StoryTrapItem['id'] }) {
       />
       <circle cx="194" cy="22" r="4" fill="#f87171" />
       <text x="14" y="17" fill="#8fa0c4" fontSize="9.8" fontWeight="600">
-        Mesmo rumo secular · oposição nos picos (El Niño)
+        Same secular direction · opposite peaks (El Niño)
       </text>
     </svg>
   );
 }
 
 const TOUR_STEP_LABELS = [
-  'Visão geral',
-  'Mapa interativo',
-  'Diagnóstico automático',
-  'Motor estatístico',
-  'Casos prontos',
-  'Rigor científico',
+  'Overview',
+  'Interactive Map',
+  'Automated Diagnostic',
+  'Statistical Engine',
+  'Ready-Made Cases',
+  'Scientific Rigor',
 ] as const;
 
 export function StoryHub({
@@ -222,30 +222,30 @@ export function StoryHub({
   const featureCards: readonly StoryFeatureCard[] = [
     {
       id: 'spatial',
-      title: 'Cobertura Espacial 100% do Globo',
-      description: `Clique em qualquer ponto do planeta ou selecione até ${MAX_CELLS_PER_REGION} células vizinhas direto no mapa.`,
-      ctaLabel: 'Ver o Mapa em destaque ↓',
+      title: '100% Global Spatial Coverage',
+      description: `Click any point on the planet or select up to ${MAX_CELLS_PER_REGION} neighboring cells directly on the map.`,
+      ctaLabel: 'See Map Spotlight ↓',
       actionType: 'scroll_map_showcase',
     },
     {
       id: 'catalog',
-      title: `${VARIABLE_LIST.length} variáveis ambientais reais`,
-      description: 'Cruze chuva, temperatura, umidade do solo, radiação solar, vegetação e rios (1981–2025).',
-      ctaLabel: 'Ver casos prontos →',
+      title: `${VARIABLE_LIST.length} Real Environmental Variables`,
+      description: 'Cross-analyze rain, temperature, soil moisture, solar radiation, vegetation, and rivers (1981–2025).',
+      ctaLabel: 'See Ready-Made Cases →',
       actionType: 'scroll_cases',
     },
     {
       id: 'engine',
-      title: 'Tendência real sem falsos alarmes',
-      description: 'Filtra anos atípicos, falsos alarmes e memória climática para confirmar se a tendência é real.',
-      ctaLabel: 'Entender o motor estatístico →',
+      title: 'True Trends Without False Alarms',
+      description: 'Filters out extreme years, false alarms, and climatic memory to confirm whether a trend is real.',
+      ctaLabel: 'Explore Statistical Engine →',
       actionType: 'scroll_engine',
     },
     {
       id: 'modes',
-      title: 'Compare lugares e variáveis',
-      description: 'Compare dois lugares diferentes (A ≠ B) ou duas variáveis na mesma área (A = B).',
-      ctaLabel: 'Testar livremente no Mapa →',
+      title: 'Compare Places and Variables',
+      description: 'Compare two different places (A ≠ B) or two variables in the exact same area (A = B).',
+      ctaLabel: 'Try Freely on the Map →',
       actionType: 'open_map',
     },
   ];
@@ -346,11 +346,11 @@ export function StoryHub({
                 labelledBy="story-features-title"
               >
                 <header className="story-section-head">
-                  <span className="story-kicker">VISÃO GERAL</span>
-                  <h3 id="story-features-title">Quatro pilares para investigar qualquer canto da Terra</h3>
+                  <span className="story-kicker">OVERVIEW</span>
+                  <h3 id="story-features-title">Four pillars to investigate any corner of Earth</h3>
                   <p>
-                    Escolha onde olhar no mapa, combine variáveis da NASA e deixe o motor estatístico separar tendências
-                    reais de ruído.
+                    Pick where to look on the map, combine NASA variables, and let the statistical engine separate
+                    true trends from noise.
                   </p>
                 </header>
 
@@ -386,10 +386,10 @@ export function StoryHub({
                 labelledBy="story-map-showcase-title"
               >
                 <header className="story-section-head">
-                  <span className="story-kicker">O CORAÇÃO DA APLICAÇÃO · MAPA INTERATIVO</span>
-                  <h3 id="story-map-showcase-title">Tudo começa no Mapa: clique em qualquer lugar da Terra e investigue ao vivo</h3>
+                  <span className="story-kicker">THE HEART OF THE APP · INTERACTIVE MAP</span>
+                  <h3 id="story-map-showcase-title">Everything starts on the Map: click anywhere on Earth and investigate live</h3>
                   <p>
-                    Selecione células de satélite com 1 clique ou Shift+Arrastar, troque entre visão orbital e relevo e dispare sua análise na hora.
+                    Select satellite cells with 1 click or Shift+Drag, switch between orbital imagery and terrain, and launch your analysis in seconds.
                   </p>
                 </header>
 
@@ -406,10 +406,10 @@ export function StoryHub({
                 labelledBy="story-bench-showcase-title"
               >
                 <header className="story-section-head">
-                  <span className="story-kicker">DIAGNÓSTICO AUTOMÁTICO</span>
-                  <h3 id="story-bench-showcase-title">Depois de escolher no Mapa, a Bancada responde se é tendência real ou sorte</h3>
+                  <span className="story-kicker">AUTOMATED DIAGNOSTIC</span>
+                  <h3 id="story-bench-showcase-title">After picking on the Map, the Workbench answers whether it is a real trend or luck</h3>
                   <p>
-                    Alterne as abas abaixo para ver um resultado real de 45 anos (1981–2025) com retas de tendência, curvas e meses extremos.
+                    Switch the tabs below to inspect a real 45-year result (1981–2025) with trend lines, curves, and extreme months.
                   </p>
                 </header>
 
@@ -426,15 +426,15 @@ export function StoryHub({
                 labelledBy="story-engine-title"
               >
                 <header className="story-section-head">
-                  <span className="story-kicker">MOTOR ESTATÍSTICO · DENTRO DA BANCADA CIENTÍFICA</span>
-                  <h3 id="story-engine-title">Como funciona o motor estatístico da Bancada Científica</h3>
+                  <span className="story-kicker">STATISTICAL ENGINE · INSIDE THE SCIENTIFIC WORKBENCH</span>
+                  <h3 id="story-engine-title">How the Scientific Workbench statistical engine works</h3>
                   <p>
-                    Ao analisar qualquer região, o motor executa um pipeline em 4 etapas e libera especialidades
-                    avançadas na Bancada para validar se a tendência é física ou puro acaso.
+                    When analyzing any region, the engine runs a 4-stage pipeline and unlocks advanced capabilities
+                    in the Workbench to verify whether the trend is physical or pure chance.
                   </p>
                 </header>
 
-                <div className="engine-pipeline-grid" role="tablist" aria-label="Etapas do motor estatístico">
+                <div className="engine-pipeline-grid" role="tablist" aria-label="Statistical engine stages">
                   {STAT_ENGINE_STAGES.map(stage => {
                     const active = stage.id === selectedEngineStage.id;
                     return (
@@ -461,7 +461,7 @@ export function StoryHub({
                       <h4>{selectedEngineStage.title}</h4>
                       <p>{selectedEngineStage.howItWorks}</p>
                       <p className="engine-bench-note">
-                        <strong>Na Bancada Científica:</strong> {selectedEngineStage.benchSpecialty}
+                        <strong>In the Scientific Workbench:</strong> {selectedEngineStage.benchSpecialty}
                       </p>
                       <div className="engine-metric-chips">
                         {selectedEngineStage.outputMetrics.map(metric => (
@@ -476,7 +476,7 @@ export function StoryHub({
                         className="story-btn-primary"
                         onClick={() => onOpenFreeMap()}
                       >
-                        Selecionar áreas no Mapa →
+                        Select areas on the Map →
                       </button>
                       {hasExistingAnalysis && (
                         <button
@@ -484,14 +484,14 @@ export function StoryHub({
                           className="story-btn-secondary"
                           onClick={onOpenBench}
                         >
-                          Abrir Bancada Científica
+                          Open Scientific Workbench
                         </button>
                       )}
                     </div>
                   </div>
                 </div>
 
-                <div className="engine-specialties-grid" aria-label="Especialidades do motor na Bancada Científica">
+                <div className="engine-specialties-grid" aria-label="Engine specialties in the Scientific Workbench">
                   {STAT_ENGINE_SPECIALTIES.map(item => (
                     <article key={item.id} className="engine-specialty-card">
                       <span className="engine-specialty-kicker">{item.kicker}</span>
@@ -512,10 +512,10 @@ export function StoryHub({
                 labelledBy="story-cases-title"
               >
                 <header className="story-section-head">
-                  <span className="story-kicker">CASOS PRONTOS EM 1 CLIQUE</span>
-                  <h3 id="story-cases-title">Quatro investigações reais prontas para abrir no Mapa</h3>
+                  <span className="story-kicker">1-CLICK READY-MADE CASES</span>
+                  <h3 id="story-cases-title">Four real investigations ready to open on the Map</h3>
                   <p>
-                    Abra qualquer caso direto no Mapa ou clique em Analisar agora para ver o diagnóstico completo.
+                    Open any case directly on the Map or click Analyze now to view the complete diagnostic.
                   </p>
                 </header>
 
@@ -526,7 +526,7 @@ export function StoryHub({
                     return (
                       <article key={preset.id} className="story-case-card">
                         <div className="case-card-top">
-                          <span className="case-archetype">{`CASO 0${idx + 1} · ${preset.archetypeLabel}`}</span>
+                          <span className="case-archetype">{`CASE 0${idx + 1} · ${preset.archetypeLabel}`}</span>
                           <span className="case-formula">{preset.formula}</span>
                         </div>
 
@@ -554,14 +554,14 @@ export function StoryHub({
                               className="case-btn-map"
                               onClick={() => onLaunchPreset(preset, { autoAnalyze: false })}
                             >
-                              Abrir no Mapa →
+                              Open on Map →
                             </button>
                             <button
                               type="button"
                               className="case-btn-run"
                               onClick={() => onLaunchPreset(preset, { autoAnalyze: true })}
                             >
-                              Analisar agora
+                              Analyze now
                             </button>
                           </div>
                         </div>
@@ -581,10 +581,10 @@ export function StoryHub({
                 labelledBy="story-traps-title"
               >
                 <header className="story-section-head">
-                  <span className="story-kicker">RIGOR CIENTÍFICO</span>
-                  <h3 id="story-traps-title">Três armadilhas estatísticas que o sistema bloqueia para você</h3>
+                  <span className="story-kicker">SCIENTIFIC RIGOR</span>
+                  <h3 id="story-traps-title">Three statistical traps the system blocks for you</h3>
                   <p>
-                    Todo clique no Mapa passa automaticamente por estas três verificações antes de confirmar uma tendência.
+                    Every click on the Map automatically runs through these three checks before confirming a trend.
                   </p>
                 </header>
 
@@ -599,7 +599,7 @@ export function StoryHub({
                       <p className="trap-problem">{trap.trapSummary}</p>
                       <TrapDiagram trapId={trap.id} />
                       <p className="trap-defense">
-                        <strong>Nossa defesa:</strong> {trap.solutionText}
+                        <strong>Our defense:</strong> {trap.solutionText}
                       </p>
                     </article>
                   ))}
@@ -607,25 +607,25 @@ export function StoryHub({
 
                 <aside className="story-freedom-banner">
                   <div>
-                    <strong>Pronto para explorar o planeta por conta própria?</strong>
+                    <strong>Ready to explore the planet on your own?</strong>
                     <p>
-                      Abra o Mapa Interativo, clique em qualquer ponto da Terra e descubra se o clima está mudando de verdade.
+                      Open the Interactive Map, click anywhere on Earth, and discover whether the climate is truly changing.
                     </p>
                   </div>
                   <button type="button" className="story-btn-primary" onClick={() => onOpenFreeMap()}>
-                    <span>Abrir o Mapa Interativo Agora</span>
+                    <span>Open Interactive Map Now</span>
                     <span className="btn-arrow" aria-hidden="true">→</span>
                   </button>
                 </aside>
 
-                <footer className="story-sources-footer" aria-label="Fontes científicas integradas">
-                  <span>Fontes e grades nativas integradas:</span>
+                <footer className="story-sources-footer" aria-label="Integrated scientific sources">
+                  <span>Integrated scientific sources and native grids:</span>
                   <ul>
                     <li>NASA POWER · MERRA-2 (0.5° × 0.625°)</li>
                     <li>NASA CERES SYN1deg (1.0° × 1.0°)</li>
                     <li>MODIS AppEEARS &amp; NASA Giovanni / GPM</li>
-                    <li>Open-Meteo GloFAS (Bacias &amp; Vazão)</li>
-                    <li>NOAA CDO (Estações em Solo)</li>
+                    <li>Open-Meteo GloFAS (Basins &amp; Discharge)</li>
+                    <li>NOAA CDO (Ground Stations)</li>
                   </ul>
                 </footer>
               </RevealSection>
@@ -642,7 +642,7 @@ export function StoryHub({
           <section className="story-hero story-hero-showcase" aria-labelledby="story-hero-title">
             <header className="story-hero-top hero-entrance">
               <h2 id="story-hero-title" className="story-hero-title">
-                O planeta inteiro é o seu laboratório. Tendência real ou sorte?
+                The entire planet is your laboratory. Real trend or luck?
               </h2>
             </header>
 
@@ -656,7 +656,7 @@ export function StoryHub({
               </div>
 
               <div ref={bottomDockRef} className="story-hero-bottom">
-                <div className="globe-telemetry-bar" aria-label="Pré-visualizações orbitais no globo 3D">
+                <div className="globe-telemetry-bar" aria-label="Orbital previews on the 3D globe">
                   <div className="globe-focus-chips">
                     {GLOBE_TELEMETRY_FOCUSES.map(focus => {
                       const selected = focus.id === activeGlobeFocus.id;
@@ -677,9 +677,9 @@ export function StoryHub({
                 </div>
 
                 <p className="story-hero-subtitle">
-                  Clique em qualquer ponto do <strong>Mapa Interativo</strong>, cruze{' '}
-                  <strong>{VARIABLE_LIST.length} variáveis da NASA (1981–2025)</strong> e descubra em segundos se a
-                  mudança climática é real ou apenas acaso.
+                  Click any point on the <strong>Interactive Map</strong>, cross-analyze{' '}
+                  <strong>{VARIABLE_LIST.length} NASA variables (1981–2025)</strong>, and discover in seconds whether
+                  climate change is real or just chance.
                 </p>
 
                 <div className="story-hero-ctas">
@@ -693,12 +693,12 @@ export function StoryHub({
                     {tourStarting ? (
                       <>
                         <span className="story-tour-spinner" aria-hidden="true" />
-                        <span>Iniciando...</span>
+                        <span>Starting...</span>
                         <span className="story-tour-progress" aria-hidden="true" />
                       </>
                     ) : (
                       <>
-                        <span>Iniciar Tour</span>
+                        <span>Start Tour</span>
                         <span className="btn-arrow" aria-hidden="true">→</span>
                       </>
                     )}
@@ -709,7 +709,7 @@ export function StoryHub({
                     onClick={() => onOpenFreeMap()}
                     disabled={tourStarting}
                   >
-                    Abrir Mapa
+                    Open Map
                   </button>
                 </div>
               </div>
@@ -722,7 +722,7 @@ export function StoryHub({
         <div className="story-tour-stage">
           <div className="story-tour-content">{infoSections}</div>
 
-          <div className="story-tour-footer" aria-label="Navegação guiada do tour">
+          <div className="story-tour-footer" aria-label="Guided tour navigation">
             <div className="story-tour-meta">
               {activeTourStep > 0 && (
                 <button
@@ -730,11 +730,11 @@ export function StoryHub({
                   className="story-tour-back-btn"
                   onClick={() => updateTourStep(activeTourStep - 1)}
                 >
-                  ← Voltar
+                  ← Back
                 </button>
               )}
               <span className="story-tour-step-indicator">
-                Etapa {activeTourStep + 1} de {TOUR_STEP_LABELS.length} · {TOUR_STEP_LABELS[activeTourStep]}
+                Step {activeTourStep + 1} of {TOUR_STEP_LABELS.length} · {TOUR_STEP_LABELS[activeTourStep]}
               </span>
             </div>
 
@@ -744,7 +744,7 @@ export function StoryHub({
                 className="story-btn-primary story-tour-next-btn"
                 onClick={() => updateTourStep(activeTourStep + 1)}
               >
-                <span>Entendi</span>
+                <span>Got it</span>
                 <span className="btn-arrow" aria-hidden="true">→</span>
               </button>
             )}

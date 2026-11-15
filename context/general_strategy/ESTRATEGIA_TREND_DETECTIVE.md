@@ -1,636 +1,636 @@
-# Plano Diretor Operacional — "Be An Earth System Trend Detective!" (NASA Space Apps 2026)
+# Operational Master Plan — "Be An Earth System Trend Detective!" (NASA Space Apps 2026)
 
-> **Status do Documento:** Doutrina Operacional de Execução Oficial (Versão Refatorada e Auditada pela Equipe).  
-> **Janela Real de Operação:** Sábado 09:00 $\to$ Domingo 24:00 (**39h corridas / ~30h produtivas por pessoa**, descontando 6h30m de sono obrigatório e pausas).  
-> **Arquitetura Oficial de Dados:** Consumo em Tempo Real via **NASA POWER API** (`/api/temporal/monthly/point`) com **Cache Local Resiliente** (IndexedDB / Memória / Proxy local), eliminando dependência de downloads pesados de NetCDF4 e garantindo respostas em $< 2\text{ s}$ no uso livre e $< 50\text{ ms}$ no pitch.  
-> **Arquitetura de Produto:** **Dois Sistemas Integrados** — Módulo 1 (Sistema de Análise de Dados Generalista — `MUST`) e Módulo 2 (Sistema de Descoberta Científica via ML / Mineração — Sábado à Noite e Domingo).
-
----
-
-## 1. Missão, Arquitetura Dual e Critério de Aceitação
-
-### 1.1 O Problema Científico e o Centro de Gravidade (*Schwerpunkt*)
-O planeta Terra opera como um sistema acoplado e dinâmico (atmosfera, hidrosfera, biosfera, criosfera e radiação solar). Variáveis ambientais monitoradas por satélites e modelos reanalisados da NASA evoluem ao longo das décadas sob forçantes globais complexos. No entanto, cientistas enfrentam frequentemente três desafios analíticos fundamentais:
-1. **Divergência Espacial:** O mesmo fenômeno global produz tendências de alta severa em uma região e de queda acentuada em outra (ex.: o aquecimento global provocando dessecação extrema no Cerrado enquanto expande o volume de chuva no Sudeste da América do Sul).
-2. **Paradoxo Multiescala:** Séries temporais podem exibir forte tendência de alta secular em 30–40 anos ($r_{\text{global}} > 0$), enquanto operam em oposição sistemática de fase em oscilações interanuais de 12 a 36 meses ($r_{\text{detrended}} < 0$, devido a eventos cíclicos como El Niño/Oscilação Sul).
-3. **Acoplamento Físico de Causa e Efeito ($X \neq Y$):** Variáveis de diferentes domínios interagem localmente ou à distância com atrasos e retroalimentações (ex.: ondas de calor com aumento de temperatura máxima acelerando o esgotamento da água no solo superficial, ou anomalias térmicas oceânicas alterando o regime de chuvas continental).
-
-- **Centro de Gravidade (*Schwerpunkt*) do Produto e do Pitch:** Tornar a **divergência espacial**, as **correlações físicas de causa e efeito** e a **validação estatística contra o ruído natural** imediatamente visíveis, comparáveis em tempo real e blindadas contra erros clássicos de análise climática.
+> **Document Status:** Official Operational Execution Doctrine (Team-Refactored and Audited Version).
+> **Real Operating Window:** Saturday 09:00 $\to$ Sunday 24:00 (**39 consecutive hours / ~30 productive hours per person**, subtracting 6h30m mandatory sleep and breaks).
+> **Official Data Architecture:** Real-Time Consumption via **NASA POWER API** (`/api/temporal/monthly/point`) with **Resilient Local Cache** (IndexedDB / Memory / Local Proxy), eliminating heavy NetCDF4 downloads and guaranteeing responses in $< 2\text{ s}$ during free exploration and $< 50\text{ ms}$ during the pitch.
+> **Product Architecture:** **Two Integrated Systems** — Module 1 (Generalist Data Analysis System — `MUST`) and Module 2 (ML / Mining Scientific Discovery System — Saturday Night & Sunday).
 
 ---
 
-### 1.2 Os Dois Sistemas Oficiais da Plataforma
+## 1. Mission, Dual Architecture, and Acceptance Criteria
 
-A plataforma é estruturada oficialmente em **dois módulos complementares**:
+### 1.1 The Scientific Problem and Center of Gravity (*Schwerpunkt*)
+Planet Earth operates as a coupled dynamic system (atmosphere, hydrosphere, biosphere, cryosphere, and solar radiation). Environmental variables monitored by NASA satellites and reanalysis models evolve over decades under complex global forcings. However, scientists frequently face three fundamental analytical challenges:
+1. **Spatial Divergence:** The same global phenomenon produces steep upward trends in one region and sharp declines in another (e.g., global warming driving extreme desiccation in the Cerrado while expanding rainfall volume in Southeastern South America).
+2. **Multiscale Paradox:** Time series can exhibit a strong secular upward trend over 30–40 years ($r_{\text{global}} > 0$) while operating in systematic phase opposition across 12-to-36-month interannual oscillations ($r_{\text{detrended}} < 0$, due to cyclical events such as El Niño/Southern Oscillation).
+3. **Physical Cause-and-Effect Coupling ($X \neq Y$):** Variables from different domains interact locally or remotely with lags and feedbacks (e.g., heatwaves with rising maximum temperature accelerating surface soil-water depletion, or ocean thermal anomalies altering continental rainfall regimes).
+
+- **Product and Pitch Center of Gravity (*Schwerpunkt*):** Make **spatial divergence**, **physical cause-and-effect correlations**, and **statistical validation against natural noise** immediately visible, comparable in real time, and shielded against classic climate-analysis errors.
+
+---
+
+## 1.2 The Platform's Two Official Systems
+
+The platform is officially structured into **two complementary modules**:
 
 ```mermaid
 flowchart LR
-    subgraph M1["MÓDULO 1: Sistema de Análise de Dados (MUST - Primordial)"]
+    subgraph M1["MODULE 1: Data Analysis System (MUST - Primary)"]
         direction TB
-        M1_Flow["Fluxo Operacional:\n1º Variável -> 2º Onde (Grade 1x1/2x2/3x3) -> 3º Tempo"]
+        M1_Flow["Operational Flow:\n1st Variable -> 2nd Where (1x1/2x2/3x3 Grid) -> 3rd Time"]
         M1_API["NASA POWER API\n(/api/temporal/monthly/point) + Cache"]
-        M1_Bench["Bancada Científica de Gráficos\n(Tripla Normalização: Eixo Duplo, Z-Score, Datas)"]
-        M1_Pilot["Chatbot Co-Piloto Estatístico\n(7 Invariantes + JSON ao Vivo)"]
+        M1_Bench["Scientific Charts Bench\n(Triple Normalization: Dual Axis, Z-Score, Dates)"]
+        M1_Pilot["Statistical Co-Pilot Chatbot\n(7 Invariants + Live JSON)"]
         M1_Flow --> M1_API --> M1_Bench <--> M1_Pilot
     end
 
-    subgraph M2["MÓDULO 2: Sistema de Descoberta Científica (Ambição - Sáb Noite/Dom)"]
+    subgraph M2["MODULE 2: Scientific Discovery System (Ambition - Sat Night/Sun)"]
         direction TB
-        M2_Lit["Etapa 1: Mapeamento de Literatura\n(Gemini Deep Research + Google Scholar)"]
-        M2_ML["Etapa 2: Modelo de ML / Mineração\n(Pontos de Inflexão, Correlações Recordes)"]
-        M2_Gate{"Portão Sáb 21:30\nGeneralista vs Especializado"}
+        M2_Lit["Stage 1: Literature Mapping\n(Gemini Deep Research + Google Scholar)"]
+        M2_ML["Stage 2: ML / Mining Model\n(Inflection Points, Record Correlations)"]
+        M2_Gate{"Sat 21:30 Gate\nGeneralist vs Specialized"}
         M2_Lit --> M2_Gate --> M2_ML
     end
 
-    M1 -->|Fundação de Dados e Estatística| M2
+    M1 -->|Data & Statistics Foundation| M2
 ```
 
-#### Módulo 1 — Sistema de Análise de Dados (Primordial / `MUST` — Generalista)
-- **Objetivo:** Funcionar como uma estação de trabalho para **qualquer cientista**, independentemente da sua área de especialização (climatologia, hidrologia, agronomia, geologia, energia solar ou meteorologia).
-- **Flexibilidade Irrestrita:** O pesquisador clica livremente em qualquer coordenada da Terra, seleciona duas áreas e duas variáveis quaisquer do catálogo de 12 variáveis da NASA, define a escala espacial de agregação e obtém diagnósticos estatísticos completos instantaneamente.
-- **Co-Piloto Estatístico Integrado:** Um agente conversacional inteligente alimentado diretamente com o payload JSON dos cálculos estatísticos em tempo real e com as diretrizes dos 7 Invariantes Estatísticos, auxiliando o cientista a validar hipóteses e evitar conclusões precipitadas.
+#### Module 1 — Data Analysis System (Primary / `MUST` — Generalist)
+- **Objective:** Function as a workstation for **any scientist**, regardless of specialization (climatology, hydrology, agronomy, geology, solar energy, or meteorology).
+- **Unrestricted Flexibility:** The researcher clicks freely on any coordinate on Earth, selects any two areas and any two variables from the 12-variable NASA catalog, sets the spatial aggregation scale, and obtains complete statistical diagnostics instantaneously.
+- **Integrated Statistical Co-Pilot:** An intelligent conversational agent fed directly with the real-time JSON payload of statistical calculations and the 7 Statistical Invariants guidelines, helping the scientist validate hypotheses and avoid hasty conclusions.
 
-#### Módulo 2 — Sistema de Descoberta Científica (Ambição / Grande Adicional — Sábado à Noite e Domingo)
-- **Objetivo:** Ir além de uma ferramenta analítica passiva e atuar como um **motor ativo de descoberta científica**, capaz de minerar e sintetizar achados com densidade e originalidade suficientes para fundamentar um artigo científico (*paper*).
-- **Etapa 1 — Mapeamento de Literatura de Vanguarda (Sábado à Noite):** Utilização do *Gemini Deep Research* combinado com o *Google Scholar* para mapear os temas, lacunas e hipóteses mais aquecidos e debatidos na comunidade científica recente em ciências da Terra e clima.
-- **Etapa 2 — Modelo de Machine Learning & Mineração de Inovações:** Construído diretamente sobre a infraestrutura e o motor estatístico do Módulo 1. Aplica algoritmos de mineração estatística e ML para varrer séries históricas da NASA POWER, buscando correlações excepcionais, quebras estruturais, anomalias multivariadas e pontos de inflexão não documentados.
-- **Decisão Arquitetural em Aberto (Portão de Sábado 21:30):** A equipe decide no checkpoint se o Módulo 2 operará em modo **Generalista** (permitindo a qualquer cientista aplicar o minerador de ML em qualquer região/variável) ou **Especializado** (verticalizado no tema de maior impacto selecionado pelo *Gemini Deep Research*).
+#### Module 2 — Scientific Discovery System (Ambition / Major Add-On — Saturday Night & Sunday)
+- **Objective:** Go beyond a passive analytical tool and act as an **active scientific discovery engine**, capable of mining and synthesizing findings with enough density and originality to underpin a scientific paper.
+- **Stage 1 — Cutting-Edge Literature Mapping (Saturday Night):** Use *Gemini Deep Research* combined with *Google Scholar* to map the hottest, most debated topics, gaps, and hypotheses in recent Earth and climate science literature.
+- **Stage 2 — Machine Learning & Innovation Mining Model:** Built directly atop Module 1's infrastructure and statistical engine. Applies statistical mining and ML algorithms to sweep NASA POWER historical series, searching for exceptional correlations, structural breaks, multivariate anomalies, and undocumented inflection points.
+- **Open Architectural Decision (Saturday 21:30 Gate):** The team decides at the checkpoint whether Module 2 will operate in **Generalist** mode (allowing any scientist to run the ML miner on any region/variable) or **Specialized** mode (verticalized on the highest-impact topic selected by *Gemini Deep Research*).
 
 ---
 
-### 1.3 A Matriz Combinatória Completa $(A, X) \times (B, Y)$, Liberdade Total e o Fluxo Operacional
+### 1.3 The Complete Combinatorial Matrix $(A, X) \times (B, Y)$, Total Freedom, and Operational Flow
 
-#### Liberdade Total do Pesquisador (Sem Perguntas Engessadas)
-Fica categoricamente estabelecido (para que nem desenvolvedores, nem IAs e nem usuários se confundam) que **NÃO existe uma pergunta inicial engessada** na interface obrigando o cientista a escolher previamente entre opções pré-moldadas. 
+#### Total Researcher Freedom (No Rigid Prompts)
+It is categorically established (so neither developers, AIs, nor users get confused) that **there is NO rigid initial question** in the interface forcing the scientist to pick beforehand from pre-baked options.
 
-A plataforma oferece **liberdade combinatória total** sobre a matriz $(A, X) \times (B, Y)$, cobrindo todas as **4 combinações físicas e espaciais possíveis**:
+The platform offers **full combinatorial freedom** over the $(A, X) \times (B, Y)$ matrix, covering all **4 possible physical and spatial combinations**:
 
 ```mermaid
 flowchart TD
-    subgraph Matrix["Matriz Combinatória Completa (A, X) x (B, Y)"]
+    subgraph Matrix["Complete Combinatorial Matrix (A, X) x (B, Y)"]
         direction TB
-        C1["1. A ≠ B e X = Y\n(Contraste Espacial / Dipolos Climáticos)\nEx: mesma variável física em duas regiões distintas"]
-        C2["2. A = B e X ≠ Y\n(Causa e Efeito Local / Acoplamento Físico)\nEx: T2M_MAX vs. GWETTOP na mesma região"]
-        C3["3. A ≠ B e X ≠ Y\n(Teleconexões Físicas Cruzadas à Distância)\nEx: Radiação/TS em A afetando Chuva/Solo em B"]
-        C4["4. A = B e X = Y\n(Análise Univariada Profunda Local)\nTendência Secular vs. Ruído Natural"]
+        C1["1. A ≠ B and X = Y\n(Spatial Contrast / Climate Dipoles)\nEx: same physical variable in two distinct regions"]
+        C2["2. A = B and X ≠ Y\n(Local Cause & Effect / Physical Coupling)\nEx: T2M_MAX vs. GWETTOP in the same region"]
+        C3["3. A ≠ B and X ≠ Y\n(Cross-Distance Physical Teleconnections)\nEx: Radiation/TS in A affecting Rain/Soil in B"]
+        C4["4. A = B and X = Y\n(Deep Local Univariate Analysis)\nSecular Trend vs. Natural Noise"]
     end
 
-    subgraph Transversal["Validação Estatística Transversal Obrigatória"]
-        Stats["Motor Estatístico Universal\nAR(1) + FDR + Theil-Sen/OLS Decadal + GAM + Mahalanobis"]
+    subgraph Transversal["Mandatory Cross-Cutting Statistical Validation"]
+        Stats["Universal Statistical Engine\nAR(1) + FDR + Decadal Theil-Sen/OLS + GAM + Mahalanobis"]
     end
 
     C1 & C2 & C3 & C4 --> Stats
 ```
 
-1. **$A \neq B$ e $X = Y$ (Mesma variável em lugares diferentes — Contraste Espacial / Dipolos Climáticos):**
-   - *Exemplo de Aplicação:* Comparar Umidade do Solo Superficial (`GWETTOP`) ou Temperatura (`T2M`) entre duas bacias ou biomas distintos selecionados livremente no mapa ao longo das últimas 4 décadas.
-   - *Objetivo Científico:* Identificar divergências espaciais e assimetrias regionais sob o mesmo forçante secular.
-2. **$A = B$ e $X \neq Y$ (Variáveis diferentes no mesmo lugar — Causa e Efeito Local / Acoplamento Físico):**
-   - *Exemplo de Aplicação:* Cruzar Temperatura Máxima (`T2M_MAX`) com Umidade do Solo (`GWETTOP`) na mesma célula ou bloco geográfico selecionado no mapa.
-   - *Objetivo Científico:* Quantificar como picos térmicos aceleram a evapotranspiração e drenam a água superficial.
-3. **$A \neq B$ e $X \neq Y$ (Variáveis diferentes em lugares diferentes — Teleconexões Físicas Cruzadas):**
-   - *Exemplo Real:* Temperatura da Superfície (`TS`) ou Radiação Solar (`ALLSKY_SFC_SW_DWN`) em uma região geradora $A$ (ex.: Atlântico Tropical ou Pacífico Equatorial) cruzada com a Precipitação (`PRECTOTCORR`) ou Umidade do Solo em uma bacia agrícola distante $B$.
-   - *Objetivo Científico:* Rastrear ondas planetárias, teleconexões de grande escala e transferências de calor e umidade entre regiões oceânicas/continentais remotas.
-4. **$A = B$ e $X = Y$ (Mesma variável no mesmo lugar — Análise Univariada Profunda):**
-   - *Exemplo Real:* Série histórica isolada de Temperatura Média (`T2M`) ou Precipitação (`PRECTOTCORR`) em uma única região geográfica.
-   - *Objetivo Científico:* Avaliar a magnitude da tendência decadal secular ($B_{\text{Sen}}$), identificar o regime físico via GAM (linear, aceleração ou platô) e determinar se o sinal supera o ruído estocástico local.
+1. **$A \neq B$ and $X = Y$ (Same variable in different places — Spatial Contrast / Climate Dipoles):**
+   - *Application Example:* Compare Surface Soil Wetness (`GWETTOP`) or Temperature (`T2M`) between two distinct basins or biomes freely selected on the map over the last 4 decades.
+   - *Scientific Goal:* Identify spatial divergences and regional asymmetries under the same secular forcing.
+2. **$A = B$ and $X \neq Y$ (Different variables in the same place — Local Cause & Effect / Physical Coupling):**
+   - *Application Example:* Cross Maximum Temperature (`T2M_MAX`) with Soil Wetness (`GWETTOP`) on the same geographic cell or block selected on the map.
+   - *Scientific Goal:* Quantify how thermal peaks accelerate evapotranspiration and drain surface water.
+3. **$A \neq B$ and $X \neq Y$ (Different variables in different places — Crossed Physical Teleconnections):**
+   - *Real Example:* Surface Skin Temperature (`TS`) or Solar Radiation (`ALLSKY_SFC_SW_DWN`) in a driver region $A$ (e.g., Tropical Atlantic or Equatorial Pacific) crossed with Precipitation (`PRECTOTCORR`) or Soil Wetness in a distant agricultural basin $B$.
+   - *Scientific Goal:* Track planetary waves, large-scale teleconnections, and heat/moisture transfers between remote oceanic/continental regions.
+4. **$A = B$ and $X = Y$ (Same variable in the same place — Deep Univariate Analysis):**
+   - *Real Example:* Isolated historical series of Mean Temperature (`T2M`) or Precipitation (`PRECTOTCORR`) in a single geographic region.
+   - *Scientific Goal:* Assess the magnitude of the secular decadal trend ($B_{\text{Sen}}$), identify the physical regime via GAM (linear, accelerating, or plateau), and determine whether the signal exceeds local stochastic noise.
 
 > [!IMPORTANT]
-> **Natureza Transversal da Validação Estatística:** O teste de **Tendência Real vs. Ruído Natural** via autocorrelação $\text{AR}(1)$ ($N_{\text{efetivo}}$ de Santer/Hamed-Rao) e controle de taxa de falsas descobertas (FDR de Benjamini-Hochberg, $p_{\text{adj}} < 0{,}05$) **não é um modo separado**, mas uma camada matemática aplicada transversal e compulsoriamente a **qualquer uma das 4 combinações** da matriz durante a exploração livre no mapa interativo ou no pipeline de descoberta científica (ML).
+> **Cross-Cutting Nature of Statistical Validation:** Testing **Real Trend vs. Natural Noise** via $\text{AR}(1)$ autocorrelation (Santer/Hamed-Rao $N_{\text{effective}}$) and False Discovery Rate control (Benjamini–Hochberg FDR, $p_{\text{adj}} < 0.05$) **is not a separate mode**, but a mathematical layer applied cross-cuttingly and mandatorily to **any of the 4 combinations** of the matrix during free exploration on the interactive map or in the scientific discovery (ML) pipeline.
 
 > [!NOTE]
-> **Escopo do MVP para o Walking Skeleton (Fases 1–3):** Para simplificar a entrega ponta a ponta do *Walking Skeleton*, o **MVP (Fases 1–3) inicia com 1 variável por área (`variable_x` / `variable_y`)**, viabilizando testes ágeis e determinísticos de contraste univariado ($X=Y$) e bivariado ($X \neq Y$). A expansão para múltiplas variáveis por área (agrupadas por família ambiental ou seleção livre multivariada) ocorrerá em ciclos posteriores pós-MVP.
+> **MVP Scope for the Walking Skeleton (Phases 1–3):** To simplify end-to-end delivery of the *Walking Skeleton*, the **MVP (Phases 1–3) starts with 1 variable per area (`variable_x` / `variable_y`)**, enabling fast, deterministic tests of univariate ($X=Y$) and bivariate ($X \neq Y$) contrast. Expansion to multiple variables per area (grouped by environmental family or free multivariate selection) will occur in post-MVP cycles.
 
 ---
 
-#### Ordem Oficial de Interação na Interface (`1º Variável -> 2º Onde -> 3º Período de Tempo`)
-Para garantir uma experiência de usuário infalível, livre de inconsistências físicas e com validação imediata na malha computacional da NASA, o fluxo de configuração inicial na interface segue estritamente a seguinte ordem técnica:
+#### Official UI Interaction Order (`1st Variable -> 2nd Where -> 3rd Time Period`)
+To guarantee a foolproof user experience free of physical inconsistencies and with immediate validation against NASA's computational mesh, initial configuration in the UI strictly follows this technical order:
 
 ```mermaid
 flowchart LR
-    P1["Passo 1: Escolher Variáveis (X, Y)\nDefine resolução nativa da malha\n(0.5°x0.625° vs. 1.0°x1.0°) e máscara"]
-    P2["Passo 2: Escolher Onde no Mapa 2D\nDesenha célula nativa exata 1x1\n(Local A e B, grade 1x1, 2x2 ou 3x3)"]
-    P3["Passo 3: Escolher Período de Tempo\nTrava na interseção histórica válida\n(ex: 1981 vs. 1984 -> [1984, Presente])"]
+    P1["Step 1: Choose Variables (X, Y)\nDefines native mesh resolution\n(0.5°x0.625° vs. 1.0°x1.0°) and mask"]
+    P2["Step 2: Choose Where on 2D Map\nDraws exact 1x1 native cell\n(Loc A and B, 1x1, 2x2, or 3x3 grid)"]
+    P3["Step 3: Choose Time Period\nLocks to valid historical intersection\n(e.g., 1981 vs. 1984 -> [1984, Present])"]
 
     P1 --> P2 --> P3
-    P3 -.->|Liberdade Total de Reconfiguração| P1
+    P3 -.->|Full Reconfiguration Freedom| P1
 ```
 
-1. **Passo 1 — Escolher as Variáveis ($X$ e $Y$, podendo ser iguais ou diferentes):**
-   - *Nota de Escopo do MVP (Fases 1–3):* O **MVP (Fases 1–3) inicia com 1 variável por área (`variable_x` / `variable_y`)** para simplificar o *Walking Skeleton*, com expansão posterior para múltiplas variáveis por área (por família ambiental ou livre).
-   - *Justificativa Técnica Inegociável:* Vem obrigatoriamente primeiro porque **a área mínima física da NASA depende da variável selecionada**. Variáveis meteorológicas e hidrológicas do modelo **MERRA-2** possuem grade nativa de $0{,}5^\circ \text{ lat} \times 0{,}625^\circ \text{ lon}$ ($\approx 55\times 69\text{ km}$ no equador), enquanto variáveis de radiação solar e nuvens do satélite **CERES SYN1deg** possuem grade nativa de $1{,}0^\circ \text{ lat} \times 1{,}0^\circ \text{ lon}$ ($\approx 111\times 111\text{ km}$). Além disso, variáveis de umidade de solo (`GWETTOP`, `GWETROOT`) possuem máscara continental (só existem em terra firme). Definir a variável primeiro garante que o mapa opere com a geometria correta desde o início.
-2. **Passo 2 — Escolher Onde no Mapa 2D (Local $A$ e Local $B$, com composição flexível de células adjacentes):**
-   - *Justificativa Técnica Inegociável:* Como as variáveis já foram selecionadas no Passo 1, ao clicar no mapa 2D a interface desenha imediatamente o retângulo ou quadrado $1\times 1$ com as dimensões geográficas nativas exatas da respectiva variável. Em seguida, permite ao cientista compor livremente a área adicionando células **adjacentes** (que tenham pelo menos um ponto/vértice em comum, ex.: $1\times 3$, $2\times 1$, $2\times 2$, até o teto de 9 células), podendo escolher uma geometria para $X$ (ex.: $1\times 3$) e outra distinta para $Y$ (ex.: $2\times 1$).
-3. **Passo 3 — Escolher o Período de Tempo ($[t_0, t_f]$):**
-   - *Justificativa Técnica Inegociável:* Vem em 3º lugar porque a disponibilidade histórica dos registros depende das variáveis escolhidas no Passo 1 (`1981–Presente` para MERRA-2 vs. `1984–Presente` para CERES). O componente de seleção de datas já abre travado e delimitado no intervalo comum $[\max(t_{0,X}, t_{0,Y}), \min(t_{f,X}, t_{f,Y})]$, eliminando consultas inválidas e erros 400 da API da NASA.
-   - *Regra de Flexibilidade:* Após a configuração inicial dos 3 passos, o usuário tem **liberdade total para alterar qualquer parâmetro** (trocar de ponto no mapa, mudar de variável, alterar a janela temporal ou chavear a escala de grade) a qualquer instante, disparando atualizações reativas automáticas na bancada gráfica.
+1. **Step 1 — Choose Variables ($X$ and $Y$, same or different):**
+   - *MVP Scope Note (Phases 1–3):* The **MVP (Phases 1–3) starts with 1 variable per area (`variable_x` / `variable_y`)** to simplify the *Walking Skeleton*, with later expansion to multiple variables per area (by environmental family or free choice).
+   - *Non-Negotiable Technical Rationale:* Must come first because **NASA's minimum physical area depends on the selected variable**. Meteorological and hydrological variables from the **MERRA-2** model have a native grid of $0.5^\circ \text{ lat} \times 0.625^\circ \text{ lon}$ ($\approx 55\times 69\text{ km}$ at the equator), whereas solar radiation and cloud variables from **CERES SYN1deg** have a native grid of $1.0^\circ \text{ lat} \times 1.0^\circ \text{ lon}$ ($\approx 111\times 111\text{ km}$). Moreover, soil moisture variables (`GWETTOP`, `GWETROOT`) carry a land-only mask (existing only over land). Defining the variable first ensures the map operates with the right geometry from the start.
+2. **Step 2 — Choose Where on the 2D Map (Location $A$ and Location $B$, with flexible adjacent-cell composition):**
+   - *Non-Negotiable Technical Rationale:* Since variables were already selected in Step 1, clicking the 2D map immediately draws the $1\times 1$ rectangle or square with the exact native geographic dimensions of the respective variable. It then lets the scientist freely compose the area by adding **adjacent** cells (sharing at least one point/vertex, e.g., $1\times 3$, $2\times 1$, $2\times 2$, up to 9 cells), with freedom to pick one geometry for $X$ (e.g., $1\times 3$) and a distinct one for $Y$ (e.g., $2\times 1$).
+3. **Step 3 — Choose Time Period ($[t_0, t_f]$):**
+   - *Non-Negotiable Technical Rationale:* Comes 3rd because historical record availability depends on the variables chosen in Step 1 (`1981–Present` for MERRA-2 vs. `1984–Present` for CERES). The date-picker component opens already clamped and bounded to the common interval $[\max(t_{0,X}, t_{0,Y}), \min(t_{f,X}, t_{f,Y})]$, eliminating invalid queries and NASA API 400 errors.
+   - *Flexibility Rule:* After initial 3-step configuration, the user has **total freedom to change any parameter** (switch map point, change variable, adjust time window, or switch grid scale) at any time, triggering automatic reactive updates in the chart bench.
 
 ---
 
-### 1.4 Critério de Aceitação (Definição de Pronto — DoD)
+### 1.4 Acceptance Criteria (Definition of Done — DoD)
 
-O MVP do Sistema de Análise de Dados está concluído quando, para quaisquer coordenadas selecionadas e quaisquer variáveis do catálogo, o usuário recebe em **menos de 2 segundos** as **5 Respostas do Detetive**:
-1. **O QUE muda?** (*What is changing?* — Variável física expressa em unidades corretas, alternância entre Série Bruta e Anomalia Climatológica Mensal sem sazonalidade, classificação de regime físico via GAM — *linear, acelerando ou saturando* — e identificação de extremos pela Elipse de Mahalanobis $D_M > 2{,}5$).
-2. **ONDE muda?** (*Where is it changing?* — Mapa 2D com a área mínima da grade NASA desenhada no local do clique e composição livre de células adjacentes (ex.: $1\times 3$, $2\times 1$, $2\times 2$, até 9 células), com exibição de Local A e Local B conectados visualmente).
-3. **QUANDO muda?** (*When is it changing?* — Janela temporal $[t_0, t_f]$ ajustável, com interseção automática de períodos comuns quando $X \neq Y$).
-4. **QUANTO muda?** (*How much is it changing?* — Taxa de variação decadal calculada sobre **toda a nuvem de pontos** via Declive Mediano Robusto de Theil-Sen ($B_{\text{Sen}}$) e Mínimos Quadrados ($B_{\text{OLS}}$), com proibição estrita de usar $Y_{\text{fim}} - Y_{\text{início}}$ ou porcentagens ($\%$) em escalas intervalares como $^\circ\text{C}$).
-5. **É ESTATISTICAMENTE SIGNIFICATIVO?** (*Is it statistically significant?* — $p\text{-valor}$ rigorosamente corrigido para persistência climática $\text{AR}(1)$ ($N_{\text{efetivo}}$), taxa de falsas descobertas $p_{\text{adj}}$ (FDR) e acoplamento via correlação de Pearson $r$, $\tau$ de Kendall e separação multiescala $r_{\text{global}}$ vs. $r_{\text{detrended}}$).
+The Data Analysis System MVP is complete when, for any selected coordinates and any catalog variables, the user receives in **under 2 seconds** the **5 Detective Answers**:
+1. **WHAT is changing?** (Physical variable expressed in proper units, toggle between Raw Series and Monthly Climatological Anomaly without seasonality, physical regime classification via GAM — *linear, accelerating, or saturating* — and extreme detection via Mahalanobis Ellipse $D_M > 2.5$).
+2. **WHERE is it changing?** (2D map with NASA's minimum grid area drawn at the click location and free composition of adjacent cells (e.g., $1\times 3$, $2\times 1$, $2\times 2$, up to 9 cells), showing visually connected Location A and Location B).
+3. **WHEN is it changing?** (Adjustable time window $[t_0, t_f]$, with automatic common-period intersection when $X \neq Y$).
+4. **HOW MUCH is it changing?** (Decadal rate of change computed over **the entire point cloud** via Theil–Sen Robust Median Slope ($B_{\text{Sen}}$) and Ordinary Least Squares ($B_{\text{OLS}}$), strictly forbidding $Y_{\text{end}} - Y_{\text{start}}$ or percentages ($\%$) on interval scales like $^\circ\text{C}$).
+5. **IS IT STATISTICALLY SIGNIFICANT?** ($p\text{-value}$ rigorously corrected for $\text{AR}(1)$ climate persistence ($N_{\text{effective}}$), false discovery rate $p_{\text{adj}}$ (FDR), and coupling via Pearson $r$, Kendall $\tau$, and multiscale separation $r_{\text{global}}$ vs. $r_{\text{detrended}}$).
 
 ---
 
-### 1.5 Alinhamento aos 4 Critérios dos Jurados da NASA (25% cada)
+### 1.5 Alignment with the 4 NASA Judging Criteria (25% Each)
 
-| Critério Oficial (25%) | Como Nossa Nova Arquitetura Maximiza a Nota |
+| Official Criterion (25%) | How Our New Architecture Maximizes the Score |
 | :--- | :--- |
-| **1. Impacto Galáctico** | Entrega uma ferramenta generalista que capacita cientistas de qualquer domínio a investigar o sistema Terra e inclui um Módulo de Descoberta com potencial de gerar artigos científicos inéditos. |
-| **2. Uso de Dados da NASA** | Integração direta e dinâmica com a NASA POWER API, consumindo dados calibrados de satélites e modelos de reanálise de ponta (**MERRA-2** e **CERES**), com metadados e DOIs documentados. |
-| **3. Protótipo MVP** | Aplicação interativa em tempo real com mapas, grade física real da NASA ($1\times 1 \to 2\times 2 \to 3\times 3$), gráficos de dupla escala, regressões robustas e Cache Local que torna a experiência instantânea. |
-| **4. Pitch & Storytelling (240s)** | Apresentação conduzida por uma descoberta científica tangível minerada pela própria plataforma e validada pelos 7 Invariantes Estatísticos. |
+| **1. Galactic Impact** | Delivers a generalist tool empowering scientists of any domain to investigate the Earth system and includes a Discovery Module capable of generating original scientific papers. |
+| **2. Use of NASA Data** | Direct, dynamic integration with the NASA POWER API, consuming calibrated satellite and state-of-the-art reanalysis models (**MERRA-2** and **CERES**), with documented metadata and DOIs. |
+| **3. MVP Prototype** | Real-time interactive application with maps, true NASA physical grid ($1\times 1 \to 2\times 2 \to 3\times 3$), dual-scale charts, robust regressions, and Local Cache making the experience instantaneous. |
+| **4. Pitch & Storytelling (240s)** | Presentation driven by a tangible scientific discovery mined by the platform itself and validated by the 7 Statistical Invariants. |
 
 ---
 
-## 2. Especificação Técnica da NASA POWER API, Grade Espacial e Bancada de Gráficos
+## 2. Technical Specification of NASA POWER API, Spatial Grid, and Charts Bench
 
-### 2.1 Consumo de Dados em Tempo Real via NASA POWER API
+### 2.1 Real-Time Data Consumption via NASA POWER API
 
-A **NASA POWER API v2** (Prediction Of Worldwide Energy Resources) é a espinha dorsal de dados do projeto. Ela sintetiza terabytes de dados brutos de satélites e reanálises climáticas em endpoints REST de alta performance, devolvendo tabelas limpas e estruturadas em JSON:
+The **NASA POWER API v2** (Prediction Of Worldwide Energy Resources) is the project's data backbone. It distills terabytes of raw satellite and climate reanalysis data into high-performance REST endpoints returning clean, structured JSON tables:
 
-- **Endpoints Oficiais:**
-  - `/api/temporal/monthly/point` (1 coordenada, aceita até **20 parâmetros** na mesma chamada; latência $\approx 0{,}8\text{--}1{,}8\text{ s}$).
-  - `/api/temporal/monthly/regional` (retângulo `bbox` com tamanho mínimo de **$2^\circ \times 2^\circ$** e máximo síncrono de **$10^\circ \times 10^\circ$**; aceita apenas **1 parâmetro por requisição**, senão retorna `422 Unprocessable Entity`; latência $\approx 1{,}5\text{--}3{,}5\text{ s}$).
-- **URL Base (`/point`):**  
+- **Official Endpoints:**
+  - `/api/temporal/monthly/point` (1 coordinate, accepts up to **20 parameters** in the same call; latency $\approx 0.8\text{--}1.8\text{ s}$).
+  - `/api/temporal/monthly/regional` (`bbox` rectangle with minimum size **$2^\circ \times 2^\circ$** and synchronous maximum **$10^\circ \times 10^\circ$**; accepts only **1 parameter per request**, otherwise returns `422 Unprocessable Entity`; latency $\approx 1.5\text{--}3.5\text{ s}$).
+- **Base URL (`/point`):**
   `https://power.larc.nasa.gov/api/temporal/monthly/point?parameters={PARAMS}&community=AG&longitude={LON}&latitude={LAT}&start={START_YEAR}&end={END_YEAR}&format=JSON`
-- **Autenticação:** Aberta ao público, **não exige chave de API privada**. Requer apenas cabeçalho `User-Agent` informativo (ex.: `User-Agent: TrendDetective-NASASpaceApps/1.0`).
-- **Formato da Resposta e Limpeza Obrigatória no Backend:**
-  - Estrutura `properties.parameter.{VAR_NAME}.{YYYYMM}` (ex.: `198101: 24.32`).
-  - **Filtro de `YYYY13`:** A NASA POWER inclui a chave anual `YYYY13` junto aos meses `01..12`; o backend **deve descartar `YYYY13`** antes de qualquer cálculo.
-  - **Valores Faltantes e Máscara Oceânica (`-999`):** O *fill value* padrão da API é **`-999`** (ou `-999.0`), inclusive quando `GWETTOP`/`GWETROOT` (MERRA-2 Land) caem no oceano. O backend deve converter `-999` para `np.nan` (`df.replace(-999, np.nan)`) e usar `np.nanmean()` na agregação espacial costeira/regional.
-  - **Conversão de `PRECTOTCORR` (`mm/day` $\to$ `mm/mês`):** Na comunidade `AG`, `PRECTOTCORR` vem em taxa média diária (`"units": "mm/day"`). Para exibir volume mensal acumulado (`mm/mês`), multiplicar pelo número de dias de cada mês (`calendar.monthrange(ano, mes)[1]`, tratando anos bissextos).
-- **Rate Limits e Camada de Resiliência/Cache Local:**
-  - Limite oficial de **30 requisições/minuto por IP** e tolerância a rajadas de **3 a 5 chamadas simultâneas** (disparar 9 chamadas de uma vez causa `429 Too Many Requests`).
-  - O backend controla concorrência com **`asyncio.Semaphore(3)`** + *backoff* exponencial e grava cada célula `(lat, lon, var)` em cache local (disco/SQLite/memória no backend e **IndexedDB** no navegador), retornando consultas repetidas em **$< 50\text{ ms}$**.
+- **Authentication:** Publicly open, **requires no private API key**. Only requires an informative `User-Agent` header (e.g., `User-Agent: TrendDetective-NASASpaceApps/1.0`).
+- **Response Format and Mandatory Backend Cleaning:**
+  - Structure `properties.parameter.{VAR_NAME}.{YYYYMM}` (e.g., `198101: 24.32`).
+  - **`YYYY13` Filter:** NASA POWER includes the annual key `YYYY13` alongside months `01..12`; the backend **must discard `YYYY13`** before any calculation.
+  - **Missing Values and Ocean Mask (`-999`):** The API's default *fill value* is **`-999`** (or `-999.0`), including when `GWETTOP`/`GWETROOT` (MERRA-2 Land) fall over the ocean. The backend must convert `-999` to `np.nan` (`df.replace(-999, np.nan)`) and use `np.nanmean()` in coastal/regional spatial aggregation.
+  - **`PRECTOTCORR` Conversion (`mm/day` $\to$ `mm/month`):** In the `AG` community, `PRECTOTCORR` arrives as a daily mean rate (`"units": "mm/day"`). To display monthly accumulated volume (`mm/month`), multiply by the number of days in each month (`calendar.monthrange(year, month)[1]`, handling leap years).
+- **Rate Limits and Resilience / Local Cache Layer:**
+  - Official limit of **30 requests/minute per IP** and tolerance for short bursts of **3 to 5 concurrent calls** (firing 9 calls at once causes `429 Too Many Requests`).
+  - The backend controls concurrency with **`asyncio.Semaphore(3)`** + exponential *backoff* and writes each `(lat, lon, var)` cell to local cache (disk/SQLite/memory on backend and **IndexedDB** in browser), returning repeated queries in **$< 50\text{ ms}$**.
 
 ---
 
-### 2.2 Lógica Espacial de Composição da Grade NASA (Células Adjacentes até $K \le 9$) e Resoluções Nativas
+### 2.2 Spatial Logic of NASA Grid Composition (Adjacent Cells up to $K \le 9$) and Native Resolutions
 
-Em vez de polígonos arbitrários ou apenas quadrados fixos, o Trend Detective adota a **geometria física nativa dos modelos da NASA** com **composição flexível de células adjacentes**:
+Instead of arbitrary polygons or fixed squares only, Trend Detective adopts the **native physical geometry of NASA's models** with **flexible adjacent-cell composition**:
 
 ```mermaid
 flowchart TD
-    Click["Clique do Usuário no Mapa (lat, lon)"] --> Resolve["Resolução da Célula Nativa na Grade"]
-    Resolve --> ModeCheck{"Composição de Células Adjacentes (K <= 9)"}
+    Click["User Clicks on Map (lat, lon)"] --> Resolve["Resolve Native Grid Cell"]
+    Resolve --> ModeCheck{"Adjacent Cell Composition (K <= 9)"}
     
-    ModeCheck -->|K = 1: Mínimo Físico| G1["1 Célula Nativa\nMERRA-2: 0.5° x 0.625° (~55x69 km)\nCERES: 1.0° x 1.0° (~111x111 km)\n1 Requisição /point (~0.8-1.8 s)"]
-    ModeCheck -->|K = 2..9: Composição Livre| G2["K Células Adjacentes (Semaphore(3) + Cache por Célula)\nEx: 1x3, 2x1, 2x2, 3x3 (pelo menos 1 ponto em comum)\nMédia Espacial: Y_bar(t) = nanmean(Y_i(t))\nTeto Máximo: K <= 9"]
+    ModeCheck -->|K = 1: Physical Minimum| G1["1 Native Cell\nMERRA-2: 0.5° x 0.625° (~55x69 km)\nCERES: 1.0° x 1.0° (~111x111 km)\n1 /point Request (~0.8-1.8 s)"]
+    ModeCheck -->|K = 2..9: Free Composition| G2["K Adjacent Cells (Semaphore(3) + Per-Cell Cache)\nEx: 1x3, 2x1, 2x2, 3x3 (at least 1 shared point)\nSpatial Mean: Y_bar(t) = nanmean(Y_i(t))\nMax Cap: K <= 9"]
 
-    G1 --> Series["Série Temporal Unificada da Região"]
+    G1 --> Series["Unified Region Time Series"]
     G2 --> Series
 ```
 
-1. **A Menor Área Física Possível da NASA (Célula $1\times 1$):**
-   - Ao clicar no mapa 2D, o sistema calcula a célula mínima de grade correspondente à coordenada geográfica:
-     - **Variáveis do MERRA-2 (Meteorologia, Água e Solo):** A grade nativa é de **$0{,}5^\circ \text{ latitude} \times 0{,}625^\circ \text{ longitude}$** ($\approx 55\text{ km} \times 69\text{ km}$ no equador). O mapa desenha exatamente esse retângulo delimitador sobre a superfície.
-     - **Variáveis do CERES (Radiação Solar e Nuvens):** A grade nativa é de **$1{,}0^\circ \text{ latitude} \times 1{,}0^\circ \text{ longitude}$** ($\approx 111\text{ km} \times 111\text{ km}$). O mapa desenha esse quadrado de resolução solar.
-2. **Composição Livre de Células Adjacentes ($1\times 3$, $2\times 1$, $2\times 2$, etc.):**
-   - O cientista pode acompanhar um rio, faixa costeira, bacia ou região escolhendo qualquer composição de $K$ células **adjacentes** (regra: cada nova célula precisa ter **pelo menos um ponto/vértice em comum** com o conjunto já selecionado, i.e., $\max(|\Delta i|, |\Delta j|) \le 1$ na grade discreta).
-   - **Independência entre $X$ e $Y$:** O cientista pode selecionar, por exemplo, uma área **$1\times 3$** para o dado $X$ e outra área **$2\times 1$** para o dado $Y$.
-   - **Agregação Espacial Segura (`Semaphore(3)` + `nanmean`):** Como composições de até $3\times 3$ no MERRA-2 ($1{,}5^\circ \times 1{,}875^\circ$) são menores que o mínimo de $2^\circ \times 2^\circ$ exigido pelo `/regional`, o backend consulta as células não cacheadas via `/point` usando **`asyncio.Semaphore(3)`** (ou usa `/regional` quando a caixa atingir $\ge 2^\circ \times 2^\circ$ com 1 variável) e calcula a média espacial ignorando células oceânicas (`-999` $\to$ `NaN`):
-     $$Y_{\text{área}}(t) = \operatorname{nanmean}_{i=1..K}\big(Y_i(t)\big)$$
-   - **Limite Estrito de Segurança:** O teto máximo é **$K \le 9$ células por região**, protegendo contra erro `429 Too Many Requests` (limite de 30 req/min).
-3. **Stack Oficial de Frontend e Payload de Saída do Mapa (`PROD-1`):**
-   - **Stack Oficial Fechada:** **Leaflet com renderer Canvas + React + TypeScript + Vite** (client-side puro, sem SSR, build 100% offline), garantindo máxima fluidez e rendering determinístico na manipulação vetorial das grades geográficas da NASA.
-   - **Payload de Saída do Mapa:** O componente de mapa emite para o estado do fluxo e para o pipeline de análise o seguinte payload de saída:
+1. **NASA's Smallest Possible Physical Area ($1\times 1$ Cell):**
+   - When clicking on the 2D map, the system computes the minimum grid cell corresponding to the geographic coordinate:
+     - **MERRA-2 Variables (Meteorology, Water, and Soil):** Native grid is **$0.5^\circ \text{ latitude} \times 0.625^\circ \text{ longitude}$** ($\approx 55\text{ km} \times 69\text{ km}$ at the equator). The map draws that exact bounding rectangle over the surface.
+     - **CERES Variables (Solar Radiation and Clouds):** Native grid is **$1.0^\circ \text{ latitude} \times 1.0^\circ \text{ longitude}$** ($\approx 111\text{ km} \times 111\text{ km}$). The map draws that solar-resolution square.
+2. **Free Composition of Adjacent Cells ($1\times 3$, $2\times 1$, $2\times 2$, etc.):**
+   - The scientist can follow a river, coastline, basin, or region by choosing any composition of $K$ **adjacent** cells (rule: each new cell must share **at least one point/vertex** with the already selected set, i.e., $\max(|\Delta i|, |\Delta j|) \le 1$ on the discrete grid).
+   - **Independence Between $X$ and $Y$:** The scientist can select, for example, a **$1\times 3$** area for variable $X$ and another **$2\times 1$** area for variable $Y$.
+   - **Safe Spatial Aggregation (`Semaphore(3)` + `nanmean`):** Since compositions up to $3\times 3$ on MERRA-2 ($1.5^\circ \times 1.875^\circ$) are smaller than the $2^\circ \times 2^\circ$ minimum required by `/regional`, the backend queries uncached cells via `/point` using **`asyncio.Semaphore(3)`** (or uses `/regional` when the box reaches $\ge 2^\circ \times 2^\circ$ with 1 variable) and computes the spatial mean ignoring ocean cells (`-999` $\to$ `NaN`):
+     $$Y_{\text{area}}(t) = \operatorname{nanmean}_{i=1..K}\big(Y_i(t)\big)$$
+   - **Strict Safety Cap:** The maximum cap is **$K \le 9$ cells per region**, protecting against `429 Too Many Requests` (30 req/min limit).
+3. **Official Frontend Stack and Map Output Payload (`PROD-1`):**
+   - **Locked Official Stack:** **Leaflet with Canvas renderer + React + TypeScript + Vite** (pure client-side, no SSR, 100% offline build), ensuring maximum fluidity and deterministic rendering when manipulating NASA geographic grids.
+   - **Map Output Payload:** The map component emits the following output payload to flow state and the analysis pipeline:
      ```typescript
      {
        variable_x: string;
        variable_y?: string;
        grid_resolution: { dlat: number; dlon: number };
-       cells_a: [number, number][]; // 1 <= cells_a.length <= 9, coordenadas [lat, lon]
-       cells_b?: [number, number][]; // 1 <= cells_b.length <= 9, coordenadas [lat, lon]
+       cells_a: [number, number][]; // 1 <= cells_a.length <= 9, [lat, lon] coordinates
+       cells_b?: [number, number][]; // 1 <= cells_b.length <= 9, [lat, lon] coordinates
        start_year: number;
        end_year: number;
      }
      ```
-     - Regras de validação:
-       - `variable_x`: variável obrigatória para a Área A;
-       - `variable_y?`: variável opcional para a Área B (presente em comparações bivariadas);
-       - `grid_resolution: { dlat, dlon }`: resolução nativa correspondente à variável selecionada ($0{,}5^\circ \times 0{,}625^\circ$ para MERRA-2 ou $1{,}0^\circ \times 1{,}0^\circ$ para CERES);
-       - `cells_a`: array de $1 \le \text{cells.length} \le 9$ com coordenadas `[lat, lon]`;
-       - `cells_b?`: array opcional de $1 \le \text{cells.length} \le 9$ com coordenadas `[lat, lon]`;
-       - `start_year`, `end_year`: recorte temporal delimitado pelo intervalo histórico comum.
+     - Validation rules:
+       - `variable_x`: required variable for Area A;
+       - `variable_y?`: optional variable for Area B (present in bivariate comparisons);
+       - `grid_resolution: { dlat, dlon }`: native resolution corresponding to the selected variable ($0.5^\circ \times 0.625^\circ$ for MERRA-2 or $1.0^\circ \times 1.0^\circ$ for CERES);
+       - `cells_a`: array of $1 \le \text{cells.length} \le 9$ with `[lat, lon]` coordinates;
+       - `cells_b?`: optional array of $1 \le \text{cells.length} \le 9$ with `[lat, lon]` coordinates;
+       - `start_year`, `end_year`: temporal slice bounded by the common historical interval.
 
 ---
 
-### 2.3 Catálogo das 12 Variáveis Ambientais Integradas
+### 2.3 Catalog of the 12 Integrated Environmental Variables
 
-O catálogo abrange os domínios essenciais das Ciências do Sistema Terra, alimentado por **MERRA-2** e **CERES SYN1deg**:
+The catalog spans essential Earth System Science domains, powered by **MERRA-2** and **CERES SYN1deg**:
 
-| # | Código da API | Domínio Científico | Nome da Variável Física | Modelo / Fonte | Resolução Nativa ($1\times 1$) | Unidade Oficial | Marco Inicial |
+| # | API Code | Scientific Domain | Physical Variable Name | Model / Source | Native Resolution ($1\times 1$) | Official Unit | Start Year |
 | :-: | :--- | :--- | :--- | :--- | :---: | :---: | :---: |
-| **1** | `T2M` | Atmosfera | Temperatura Média do Ar a 2m | MERRA-2 | $0{,}5^\circ \times 0{,}625^\circ$ | $^\circ\text{C}$ | 1981 |
-| **2** | `T2M_MAX` | Climatologia / Extremos | Temperatura Máxima Diária a 2m | MERRA-2 | $0{,}5^\circ \times 0{,}625^\circ$ | $^\circ\text{C}$ | 1981 |
-| **3** | `T2M_MIN` | Climatologia / Extremos | Temperatura Mínima Diária a 2m | MERRA-2 | $0{,}5^\circ \times 0{,}625^\circ$ | $^\circ\text{C}$ | 1981 |
-| **4** | `PRECTOTCORR` | Hidrologia / Chuva | Precipitação Total Corrigida | MERRA-2 | $0{,}5^\circ \times 0{,}625^\circ$ | $\text{mm/mês}$ *(API: `mm/day` $\times$ dias do mês)* | 1981 |
-| **5** | `GWETTOP` | Hidrologia / Agronomia | Umidade do Solo Superficial ($0\text{--}5\text{ cm}$) | MERRA-2 | $0{,}5^\circ \times 0{,}625^\circ$ | $0\text{ a }1$ (fração; oceano = `-999`) | 1981 |
-| **6** | `GWETROOT` | Hidrologia / Geologia | Umidade do Solo Radicular ($0\text{--}100\text{ cm}$) | MERRA-2 | $0{,}5^\circ \times 0{,}625^\circ$ | $0\text{ a }1$ (fração; oceano = `-999`) | 1981 |
-| **7** | `RH2M` | Meteorologia | Umidade Relativa do Ar a 2m | MERRA-2 | $0{,}5^\circ \times 0{,}625^\circ$ | $\%$ | 1981 |
-| **8** | `WS10M` | Dinâmica Atmosférica | Velocidade do Vento a 10m | MERRA-2 | $0{,}5^\circ \times 0{,}625^\circ$ | $\text{m/s}$ | 1981 |
-| **9** | `PS` | Dinâmica Atmosférica | Pressão de Superfície | MERRA-2 | $0{,}5^\circ \times 0{,}625^\circ$ | $\text{kPa}$ | 1981 |
-| **10** | `ALLSKY_SFC_SW_DWN` | Energia / Radiação Solar | Irradiância Solar de Onda Curta Descendente | CERES SYN1deg | $1{,}0^\circ \times 1{,}0^\circ$ | $\text{MJ/m}^2/\text{dia}$ | 1984 |
-| **11** | `CLDTOT` | Atmosfera / Nuvens | Cobertura Total de Nuvens | CERES SYN1deg | $1{,}0^\circ \times 1{,}0^\circ$ | $\%$ | 1984 |
-| **12** | `ALLSKY_SFC_LW_DWN` | Balanço Energético | Irradiância Térmica de Onda Longa Descendente | CERES SYN1deg | $1{,}0^\circ \times 1{,}0^\circ$ | $\text{MJ/m}^2/\text{dia}$ | 1984 |
+| **1** | `T2M` | Atmosphere | 2m Mean Air Temperature | MERRA-2 | $0.5^\circ \times 0.625^\circ$ | $^\circ\text{C}$ | 1981 |
+| **2** | `T2M_MAX` | Climatology / Extremes | 2m Daily Maximum Temperature | MERRA-2 | $0.5^\circ \times 0.625^\circ$ | $^\circ\text{C}$ | 1981 |
+| **3** | `T2M_MIN` | Climatology / Extremes | 2m Daily Minimum Temperature | MERRA-2 | $0.5^\circ \times 0.625^\circ$ | $^\circ\text{C}$ | 1981 |
+| **4** | `PRECTOTCORR` | Hydrology / Rain | Bias-Corrected Total Precipitation | MERRA-2 | $0.5^\circ \times 0.625^\circ$ | $\text{mm/month}$ *(API: `mm/day` $\times$ days in month)* | 1981 |
+| **5** | `GWETTOP` | Hydrology / Agronomy | Surface Soil Wetness ($0\text{--}5\text{ cm}$) | MERRA-2 | $0.5^\circ \times 0.625^\circ$ | $0\text{ to }1$ (fraction; ocean = `-999`) | 1981 |
+| **6** | `GWETROOT` | Hydrology / Geology | Root-Zone Soil Wetness ($0\text{--}100\text{ cm}$) | MERRA-2 | $0.5^\circ \times 0.625^\circ$ | $0\text{ to }1$ (fraction; ocean = `-999`) | 1981 |
+| **7** | `RH2M` | Meteorology | 2m Relative Humidity | MERRA-2 | $0.5^\circ \times 0.625^\circ$ | $\%$ | 1981 |
+| **8** | `WS10M` | Atmospheric Dynamics | 10m Wind Speed | MERRA-2 | $0.5^\circ \times 0.625^\circ$ | $\text{m/s}$ | 1981 |
+| **9** | `PS` | Atmospheric Dynamics | Surface Pressure | MERRA-2 | $0.5^\circ \times 0.625^\circ$ | $\text{kPa}$ | 1981 |
+| **10** | `ALLSKY_SFC_SW_DWN` | Energy / Solar Radiation | All-Sky Surface Shortwave Downward Irradiance | CERES SYN1deg | $1.0^\circ \times 1.0^\circ$ | $\text{MJ/m}^2/\text{day}$ | 1984 |
+| **11** | `CLDTOT` | Atmosphere / Clouds | Total Cloud Cover | CERES SYN1deg | $1.0^\circ \times 1.0^\circ$ | $\%$ | 1984 |
+| **12** | `ALLSKY_SFC_LW_DWN` | Energy Balance | All-Sky Surface Longwave Downward Irradiance | CERES SYN1deg | $1.0^\circ \times 1.0^\circ$ | $\text{MJ/m}^2/\text{day}$ | 1984 |
 
 ---
 
-### 2.4 Bancada Científica de Gráficos Super-Robusta e Tripla Normalização
+### 2.4 Ultra-Robust Scientific Charts Bench and Triple Normalization
 
-Para atender aos mais elevados padrões da pesquisa científica e permitir a comparação entre grandezas heterogêneas ($X \neq Y$), a bancada de gráficos incorpora:
+To meet the highest standards of scientific research and enable comparisons across heterogeneous quantities ($X \neq Y$), the charts bench incorporates:
 
 ```mermaid
 flowchart TD
-    InputData["Duas Séries Temporais: (Local A, Var X) e (Local B, Var Y)"] --> Norm{"Tripla Normalização Automática"}
+    InputData["Two Time Series: (Location A, Var X) and (Location B, Var Y)"] --> Norm{"Automatic Triple Normalization"}
     
-    Norm --> N1["1. Eixo Y Duplo (Grandezas Físicas Preservadas)"]
-    Norm --> N2["2. Padronização Universal Z-Score: Z = (Y - mu) / sigma"]
-    Norm --> N3["3. Interseção Automática de Datas: [max(t0_X, t0_Y), min(tf_X, tf_Y)]"]
+    Norm --> N1["1. Dual Y-Axis (Physical Quantities Preserved)"]
+    Norm --> N2["2. Universal Z-Score Standardization: Z = (Y - mu) / sigma"]
+    Norm --> N3["3. Automatic Date Intersection: [max(t0_X, t0_Y), min(tf_X, tf_Y)]"]
 
-    N1 & N2 & N3 --> Visual["Bancada Científica de Exibição"]
+    N1 & N2 & N3 --> Visual["Scientific Display Bench"]
     
-    Visual --> Opt1["Curvas Juntas no Mesmo Gráfico OU Gráficos Separados"]
-    Visual --> Opt2["Alternador: Dado Bruto vs. Anomalia Climatológica Mensal"]
-    Visual --> Opt3["Alternador: Escala Linear vs. Logarítmica / Symlog"]
-    Visual --> Layers["Camadas Analíticas Toggle (On/Off)"]
+    Visual --> Opt1["Overlaid Curves on Same Chart OR Separate Charts"]
+    Visual --> Opt2["Toggle: Raw Data vs. Monthly Climatological Anomaly"]
+    Visual --> Opt3["Toggle: Linear vs. Logarithmic / Symlog Scale"]
+    Visual --> Layers["Toggleable Analytical Layers (On/Off)"]
 
-    Layers --> L1["Regressão Dupla: OLS + Theil-Sen (por década)"]
-    Layers --> L2["Curva Não-Linear GAM / Splines (Inflexão e Aceleração)"]
-    Layers --> L3["Outliers de Mahalanobis (D_M > 2.5)"]
-    Layers --> L4["Painel de Dispersão e Correlação Cruzada (X vs. Y)"]
+    Layers --> L1["Dual Regression: OLS + Theil-Sen (per decade)"]
+    Layers --> L2["Nonlinear GAM / Splines Curve (Inflection & Acceleration)"]
+    Layers --> L3["Mahalanobis Outliers (D_M > 2.5)"]
+    Layers --> L4["Scatter & Cross-Correlation Panel (X vs. Y)"]
 ```
 
-#### A Tripla Normalização Universal ($X \neq Y$)
-1. **Eixo Y Duplo Coordenado:** O gráfico renderiza a escala física de $X$ à esquerda e a de $Y$ à direita, com códigos de cores idênticos às curvas das séries para evitar confusão de leitura.
-2. **Padronização Universal em $Z\text{-Score}$ ($\sigma$):** O usuário pode converter instantaneamente ambas as curvas para desvios adimensionais:
+#### Universal Triple Normalization ($X \neq Y$)
+1. **Coordinated Dual Y-Axis:** The chart renders $X$'s physical scale on the left and $Y$'s on the right, using identical color codes to the series curves to prevent reading confusion.
+2. **Universal $Z\text{-Score}$ Standardization ($\sigma$):** The user can instantaneously convert both curves into dimensionless standard deviations:
    $$Z(t) = \frac{Y(t) - \mu_Y}{\sigma_Y}$$
-   Isso permite avaliar se um pulso de $+2{,}5\sigma$ na temperatura corresponde a uma queda de $-2{,}8\sigma$ na umidade do solo, tornando variáveis com grandezas físicas distintas diretamente comparáveis na mesma amplitude geométrica.
-3. **Interseção Automática de Datas:** Quando se comparam variáveis com datas iniciais distintas (ex.: `T2M` do MERRA-2 a partir de 1981 vs. `ALLSKY_SFC_SW_DWN` do CERES a partir de 1984), o motor trunca automaticamente a janela temporal para a intersecção comum $[1984, t_f]$, impedindo distorções no cálculo de correlações e regressões.
+   This allows assessing whether a $+2.5\sigma$ temperature pulse corresponds to a $-2.8\sigma$ drop in soil moisture, making variables with distinct physical quantities directly comparable on the same geometric amplitude.
+3. **Automatic Date Intersection:** When comparing variables with different start dates (e.g., MERRA-2 `T2M` starting in 1981 vs. CERES `ALLSKY_SFC_SW_DWN` starting in 1984), the engine automatically truncates the time window to the common intersection $[1984, t_f]$, preventing distortions in correlation and regression calculations.
 
-#### Camadas Analíticas Ativáveis
-- **Dado Bruto vs. Anomalia Climatológica Mensal:** Alternador de 1 clique que subtrai o ciclo anual médio ($Y'_{a,m} = Y_{a,m} - \bar{Y}_m$), eliminando a contaminação sazonal verão/inverno (Princípio Henrietta Leavitt).
-- **Escala Linear vs. Symlog:** Permite visualizar variáveis com comportamento exponencial ou de múltiplos regimes (ex.: precipitação em eventos extremos) sem colapsar os valores basais.
-- **Regressão Linear Dupla (OLS + Theil-Sen):** Exibe a reta de Mínimos Quadrados ($B_{\text{OLS}}$) e a reta mediana robusta de Theil-Sen ($B_{\text{Sen}}$), com valores expressos rigorosamente em variação por década ($10 \times B$).
-- **Curva Suave GAM (Generalized Additive Model):** Modelação não-linear por *splines* penalizadas para classificar se a tendência é estritamente linear, se está acelerando ou se atingiu platô de saturação física.
-- **Elipse de Mahalanobis ($D_M > 2{,}5$):** Destaca graficamente os pontos anômalos bivariados que violam a covariância histórica do sistema, preservando-os na visualização como eventos climáticos extremos reais (ex.: super El Niño de 1997/98 ou 2015/16).
-- **Painel de Dispersão e Correlação Cruzada ($X \text{ vs. } Y$):** Quando $A = B$ e $X \neq Y$, o painel exibe o gráfico de dispersão com reta de regressão bivariada, coeficientes de Pearson ($r$), $\tau$ de Kendall e a decomposição em correlação secular ($r_{\text{global}}$) versus correlação de curto prazo dessazonalizada ($r_{\text{detrended}}$).
-
----
-
-### 2.5 Chatbot Co-Piloto Estatístico Integrado
-
-A bancada integra um **Co-Piloto Estatístico** projetado para apoiar o raciocínio investigativo do cientista:
-- **Alimentação por Contexto JSON:** Em cada interação ou alteração de parâmetros na bancada, o chatbot recebe o payload estruturado contendo as coordenadas, as variáveis, os coeficientes $B_{\text{Sen}}$, $B_{\text{OLS}}$, $r$, $\tau$, os $p\text{-valores}$ com correção $\text{AR}(1)$, o status FDR e os pontos de Mahalanobis detectados.
-- **Guardião dos 7 Invariantes Estatísticos:** O assistente atua ativamente para impedir erros clássicos de interpretação:
-  - Alerta se o usuário tentar interpretar variações percentuais em variáveis de escala intervalar (como $^\circ\text{C}$);
-  - Adverte contra a ilusão de calcular tendência por $Y_{\text{fim}} - Y_{\text{início}}$;
-  - Auxilia a diferenciar correlação espúria de acoplamento físico real;
-  - Explica as implicações físicas das derivadas e inflexões reveladas pela curva GAM.
-- **Implementação do Módulo:** A escolha do provedor de LLM, endpoints e engenharia de prompts é de responsabilidade técnica de `DADOS-2` (Rhyan, Fred), respeitando a integração via JSON padronizado.
+#### Toggleable Analytical Layers
+- **Raw Data vs. Monthly Climatological Anomaly:** One-click toggle that subtracts the mean annual cycle ($Y'_{y,m} = Y_{y,m} - \bar{Y}_m$), eliminating summer/winter seasonal contamination (Henrietta Leavitt Principle).
+- **Linear vs. Symlog Scale:** Enables visualizing variables with exponential or multi-regime behavior (e.g., precipitation during extreme events) without collapsing baseline values.
+- **Dual Linear Regression (OLS + Theil–Sen):** Displays the Ordinary Least Squares line ($B_{\text{OLS}}$) and the robust Theil–Sen median line ($B_{\text{Sen}}$), with values strictly expressed as change per decade ($10 \times B$).
+- **Smooth GAM Curve (Generalized Additive Model):** Nonlinear modeling via penalized *splines* to classify whether the trend is strictly linear, accelerating, or has reached a physical saturation plateau.
+- **Mahalanobis Ellipse ($D_M > 2.5$):** Graphically highlights bivariate anomalous points that violate the system's historical covariance, preserving them in the view as real extreme climate events (e.g., 1997/98 or 2015/16 super El Niño).
+- **Scatter & Cross-Correlation Panel ($X \text{ vs. } Y$):** When $A = B$ and $X \neq Y$, the panel displays the scatter plot with bivariate regression line, Pearson ($r$) and Kendall ($\tau$) coefficients, and decomposition into secular correlation ($r_{\text{global}}$) versus detrended short-term correlation ($r_{\text{detrended}}$).
 
 ---
 
-## 3. Divisão de Força e Governança Multi-Cargo (5 Membros em 6 Frentes)
+### 2.5 Integrated Statistical Co-Pilot Chatbot
 
-### 3.1 Governança Real de 5 Integrantes com Múltiplas Funções
+The bench integrates a **Statistical Co-Pilot** designed to support the scientist's investigative reasoning:
+- **JSON Context Feed:** On every interaction or parameter change on the bench, the chatbot receives the structured payload containing coordinates, variables, $B_{\text{Sen}}$, $B_{\text{OLS}}$, $r$, $\tau$, $\text{AR}(1)$-corrected $p\text{-values}$, FDR status, and detected Mahalanobis points.
+- **Guardian of the 7 Statistical Invariants:** The assistant actively prevents classic interpretation errors:
+  - Alerts if the user tries to interpret percentage changes on interval-scale variables (such as $^\circ\text{C}$);
+  - Warns against the illusion of computing trends via $Y_{\text{end}} - Y_{\text{start}}$;
+  - Helps distinguish spurious correlation from real physical coupling;
+  - Explains the physical implications of derivatives and inflections revealed by the GAM curve.
+- **Module Implementation:** Choice of LLM provider, endpoints, and prompt engineering are the technical responsibility of `DADOS-2` (Rhyan, Fred), adhering to standardized JSON integration.
 
-Para maximizar a eficiência em uma maratona de 39 horas sem gerar sobrecargas isoladas ou pontos únicos de falha (*Single Points of Failure — SPOF*), a distribuição oficial da equipe é organizada em **duas visões complementares**:
+---
 
-#### Tabela 3.1.A — Visão por Integrante (5 Membros Multi-Cargo)
+## 3. Workforce Split and Multi-Role Governance (5 Members Across 6 Tracks)
 
-| Integrante | Cargos e Frentes Acumuladas | Foco Principal de Atuação | Responsabilidades no Hackathon |
+### 3.1 Real Governance of 5 Multi-Role Members
+
+To maximize efficiency across a 39-hour marathon without creating isolated bottlenecks or *Single Points of Failure (SPOF)*, the official team distribution is organized into **two complementary views**:
+
+#### Table 3.1.A — Per-Member View (5 Multi-Role Members)
+
+| Member | Accumulated Roles & Tracks | Primary Focus | Hackathon Responsibilities |
 | :--- | :--- | :--- | :--- |
-| **Rhyan** | `COORD`, `DADOS-2`, `NARR` | Coordenação Geral, Estatística & Storytelling | Repositório Git, CI/CD, Contrato JSON unificado, `stats_engine.py`, validação dos 7 Invariantes, Co-Piloto Estatístico, ML de Descoberta e roteiro/direção do pitch. |
-| **Kaio** | `DADOS-1`, `PROD-2` | Engenharia de Dados & Bancada de Gráficos | Cliente em tempo real da NASA POWER API, Agregador Espacial ($1\times 1 \to 3\times 3$), Cache Local (IndexedDB) e Bancada Científica de Gráficos (Tripla Normalização, alternadores e camadas analíticas). |
-| **Renan** | `DADOS-1`, `PROD-1` | Engenharia de Dados & Frontend Geoespacial | Ingestão e validação da API, Mapa 2D interativo com grade física adaptativa da NASA, fluxo `1º Variável -> 2º Onde -> 3º Tempo` e responsividade visual. |
-| **Felipe** | `COORD`, `DADOS-1`, `NARR` | Governança, Dados & Narrativa do Pitch | Co-coordenação técnica, deploy contínuo, apoio na ingestão de dados e cache, pesquisa profunda no Gemini Deep Research + Google Scholar, edição e legendagem do pitch (240s). |
-| **Fred** | `DADOS-2`, `PROD-1` | Estatística, Machine Learning & Frontend | Implementação matemática de `stats_engine.py`, modelo de ML do Sistema de Descoberta Científica, prompts da LLM do Co-Piloto, e apoio no mapa 2D e interface de seleção. |
+| **Rhyan** | `COORD`, `DADOS-2`, `NARR` | General Coordination, Statistics & Storytelling | Git repository, CI/CD, unified JSON Contract, `stats_engine.py`, validation of the 7 Invariants, Statistical Co-Pilot, Discovery ML, and pitch script/direction. |
+| **Kaio** | `DADOS-1`, `PROD-2` | Data Engineering & Charts Bench | Real-time NASA POWER API client, Spatial Aggregator ($1\times 1 \to 3\times 3$), Local Cache (IndexedDB), and Scientific Charts Bench (Triple Normalization, toggles, and analytical layers). |
+| **Renan** | `DADOS-1`, `PROD-1` | Data Engineering & Geospatial Frontend | API ingestion and validation, interactive 2D Map with NASA adaptive physical grid, `1st Variable -> 2nd Where -> 3rd Time` flow, and visual responsiveness. |
+| **Felipe** | `COORD`, `DADOS-1`, `NARR` | Governance, Data & Pitch Narrative | Technical co-coordination, continuous deployment, data ingestion and cache support, deep research in Gemini Deep Research + Google Scholar, pitch editing and subtitling (240s). |
+| **Fred** | `DADOS-2`, `PROD-1` | Statistics, Machine Learning & Frontend | Mathematical implementation of `stats_engine.py`, Scientific Discovery System ML model, Co-Pilot LLM prompts, and support on the 2D map and selection UI. |
 
 ---
 
-#### Tabela 3.1.B — Visão por Frente Funcional (6 Cargos e Responsabilidades Exclusivas)
+#### Table 3.1.B — Per-Track View (6 Roles and Exclusive Responsibilities)
 
-| Frente Funcional | Integrantes Responsáveis | Escopo Técnico e Responsabilidades Exclusivas | Entregáveis Críticos |
+| Functional Track | Responsible Members | Technical Scope and Exclusive Responsibilities | Critical Deliverables |
 | :--- | :--- | :--- | :--- |
-| **`COORD`** | **Rhyan, Felipe** | Coordenação geral de equipe, governança do repositório Git (branches, PRs, merge), congelamento e versionamento do Contrato JSON unificado, aplicação estrita dos portões de qualidade, sincronia na rede local e preenchimento/submissão oficial no portal da NASA. | Repositório estruturado, CI/CD, `DECISOES.md`, aprovação de PRs e submissão final às 22:30. |
-| **`DADOS-1`** | **Kaio, Renan, Felipe** | Desenvolvimento do cliente em tempo real da NASA POWER API (`/api/temporal/monthly/point`), agregador espacial de quadrados $1\times 1$ (1 dado nativo), $2\times 2$ (média de 4 dados) e $3\times 3$ (média de 9 dados), alinhamento temporal e implementação do Cache Local resiliente (IndexedDB / memória / disco). | Módulo de ingestão, funções de agregação regional e camada de cache offline com resposta $< 50\text{ ms}$. |
-| **`DADOS-2`** | **Rhyan, Fred** | Desenvolvimento do Motor Estatístico (`stats_engine.py`: anomalias mensais dessazonalizadas, OLS e Theil-Sen por década, curva não-linear GAM, distância de Mahalanobis $D_M > 2{,}5$, correção serial $\text{AR}(1)$ com $N_{\text{efetivo}}$, $p_{\text{adj}}$ por FDR, correlações e regressões $X \text{ vs. } Y$), Chatbot Co-Piloto Estatístico (definição de LLM + prompt) e modelo de Machine Learning do *Sistema de Descoberta Científica*. | `stats_engine.py` testado, agente conversacional do Co-Piloto e algoritmo de mineração do Módulo 2. |
-| **`PROD-1`** | **Renan, Fred** | Construção do Mapa 2D interativo (Leaflet Canvas + React + TypeScript + Vite), renderização da grade adaptativa no clique ($0{,}5^\circ \times 0{,}625^\circ$ vs. $1{,}0^\circ \times 1{,}0^\circ$), controle de seleção Local A / Local B e implementação da ordem oficial de interação: `1º Variável -> 2º Onde (Local A/B + quadrados 1x1, 2x2, 3x3 adaptados à resolução da variável) -> 3º Tempo`. | Componente de mapa interativo, renderizador de malha física da NASA e painel de seleção geoespacial. |
-| **`PROD-2`** | **Kaio** *(com apoio de PROD-1)* | Construção da Bancada Científica de Gráficos (curvas juntas ou separadas, Tripla Normalização com Eixo Y Duplo e $Z\text{-Score}$, Dado Bruto vs. Anomalia, escala Linear vs. Logarítmica/Symlog, camadas OLS/Sen/GAM/Mahalanobis, dispersão $X \text{ vs. } Y$ e interface visual do Chatbot Co-Piloto). | Bancada de séries temporais reativa, componentes de alternância (toggles) e painel bivariado. |
-| **`NARR`** | **Rhyan, Felipe** | Condução da pesquisa no *Gemini Deep Research* e *Google Scholar* para guiar o *Sistema de Descoberta Científica*, mapeamento de lacunas da literatura, curadoria dos achados minerados pelo pipeline de ML para demonstração, redação do roteiro, captação de áudio, gravação de tela, edição e legendagem do vídeo de pitch (240s). | Dossiê de literatura, roteiro cronometrado, vídeo MP4 1080p final e textos de submissão. |
+| **`COORD`** | **Rhyan, Felipe** | Overall team coordination, Git repository governance (branches, PRs, merges), freezing and versioning of the unified JSON Contract, strict enforcement of quality gates, local network sync, and official submission on the NASA portal. | Structured repository, CI/CD, `DECISOES.md`, PR approvals, and final submission by 22:30. |
+| **`DADOS-1`** | **Kaio, Renan, Felipe** | Development of the real-time NASA POWER API client (`/api/temporal/monthly/point`), spatial aggregator for $1\times 1$ (1 native cell), $2\times 2$ (mean of 4), and $3\times 3$ (mean of 9) squares, temporal alignment, and resilient Local Cache (IndexedDB / memory / disk). | Ingestion module, regional aggregation functions, and offline cache layer with $< 50\text{ ms}$ response. |
+| **`DADOS-2`** | **Rhyan, Fred** | Development of the Statistical Engine (`stats_engine.py`: deseasonalized monthly anomalies, decadal OLS and Theil–Sen, nonlinear GAM curve, Mahalanobis distance $D_M > 2.5$, $\text{AR}(1)$ serial correction with $N_{\text{effective}}$, FDR $p_{\text{adj}}$, $X \text{ vs. } Y$ correlations and regressions), Statistical Co-Pilot Chatbot (LLM + prompt design), and *Scientific Discovery System* ML model. | Tested `stats_engine.py`, Co-Pilot conversational agent, and Module 2 mining algorithm. |
+| **`PROD-1`** | **Renan, Fred** | Building the interactive 2D Map (Leaflet Canvas + React + TypeScript + Vite), click-time adaptive grid rendering ($0.5^\circ \times 0.625^\circ$ vs. $1.0^\circ \times 1.0^\circ$), Location A / Location B selection controls, and official interaction order: `1st Variable -> 2nd Where (Loc A/B + 1x1, 2x2, 3x3 grids adapted to variable resolution) -> 3rd Time`. | Interactive map component, NASA physical mesh renderer, and geospatial selection panel. |
+| **`PROD-2`** | **Kaio** *(with PROD-1 support)* | Building the Scientific Charts Bench (overlaid or separated curves, Triple Normalization with Dual Y-Axis and $Z\text{-Score}$, Raw vs. Anomaly Data, Linear vs. Logarithmic/Symlog scale, OLS/Sen/GAM/Mahalanobis layers, $X \text{ vs. } Y$ scatter, and Statistical Co-Pilot Chatbot UI). | Reactive time-series bench, toggle components, and bivariate panel. |
+| **`NARR`** | **Rhyan, Felipe** | Conducting research in *Gemini Deep Research* and *Google Scholar* to guide the *Scientific Discovery System*, mapping literature gaps, curating findings mined by the ML pipeline for demo, script writing, voiceover, screen recording, editing, and subtitling of the pitch video (240s). | Literature dossier, timed script, final 1080p MP4 video, and submission copy. |
 
 ---
 
-### 3.2 Fluxo de Paralelismo e Convergência (Caminho Crítico das 39 Horas)
+### 3.2 Parallelism and Convergence Flow (39-Hour Critical Path)
 
 ```mermaid
 flowchart TD
-    subgraph F1["Fase 1: Alinhamento de Contrato & Setup Base (Sáb 09:00 - 10:30)"]
+    subgraph F1["Phase 1: Contract Alignment & Base Setup (Sat 09:00 - 10:30)"]
         direction TB
-        K1["09:00-09:30 (Plenária - Todos os 5):\nKickoff, Regras Oficiais NASA, Validação do Fluxo\n(1º Variável -> 2º Onde/Grade -> 3º Tempo) e 12 Variáveis"]
-        K2["09:30-10:30 (Fechamento do Contrato JSON, Mock e Setup):\n• COORD (Rhyan, Felipe): Git, CI/CD, DECISOES.md\n• DADOS-1 (Kaio, Renan, Felipe): Teste da API POWER + Resoluções\n• DADOS-2 (Rhyan, Fred): Especificação dos Campos Estatísticos\n• PROD-1 (Renan, Fred): Parâmetros do Fluxo + Boilerplate UI\n• PROD-2 (Kaio): Estrutura de Séries + Geração de mock_analysis.json\n• NARR (Rhyan, Felipe): Disparo Deep Research + Requisitos NASA"]
+        K1["09:00-09:30 (Plenary - All 5):\nKickoff, Official NASA Rules, Flow Validation\n(1st Variable -> 2nd Where/Grid -> 3rd Time) & 12 Variables"]
+        K2["09:30-10:30 (JSON Contract Lock, Mock & Setup):\n• COORD (Rhyan, Felipe): Git, CI/CD, DECISOES.md\n• DADOS-1 (Kaio, Renan, Felipe): POWER API Test + Resolutions\n• DADOS-2 (Rhyan, Fred): Statistical Fields Spec\n• PROD-1 (Renan, Fred): Flow Params + UI Boilerplate\n• PROD-2 (Kaio): Series Structure + mock_analysis.json\n• NARR (Rhyan, Felipe): Trigger Deep Research + NASA Reqs"]
         K1 --> K2
     end
 
-    K2 --> M0{"Marco 0 (10:30): Contrato JSON Congelado + mock_analysis.json Disponível"}
+    K2 --> M0{"Milestone 0 (10:30): JSON Contract Frozen + mock_analysis.json Available"}
 
-    subgraph F2["Fase 2: Execução Desacoplada sobre o Mock (Sáb 10:30 - 12:30)"]
+    subgraph F2["Phase 2: Decoupled Execution on Mock (Sat 10:30 - 12:30)"]
         direction TB
-        D1["DADOS-1 (Kaio, Renan, Felipe):\nCliente NASA POWER + Agregador 1x1/2x2/3x3 + Cache"]
-        D2["DADOS-2 (Rhyan, Fred):\nstats_engine.py (Anomalias, OLS/Sen, GAM, Mahalanobis, AR1+FDR)"]
-        P1["PROD-1 (Renan, Fred):\nMapa 2D c/ Grade Adaptativa + Fluxo Variável->Onde->Tempo"]
-        P2["PROD-2 (Kaio c/ apoio de PROD-1):\nBancada de Gráficos (Tripla Normalização, Camadas, Toggle)"]
-        NARR0["NARR (Rhyan, Felipe):\nSíntese Preliminar Deep Research + Coordenadas Casos Pitch"]
-        COORD0["COORD (Rhyan, Felipe):\n1º Deploy Público c/ Mock + Infraestrutura"]
+        D1["DADOS-1 (Kaio, Renan, Felipe):\nNASA POWER Client + 1x1/2x2/3x3 Aggregator + Cache"]
+        D2["DADOS-2 (Rhyan, Fred):\nstats_engine.py (Anomalies, OLS/Sen, GAM, Mahalanobis, AR1+FDR)"]
+        P1["PROD-1 (Renan, Fred):\n2D Map w/ Adaptive Grid + Variable->Where->Time Flow"]
+        P2["PROD-2 (Kaio w/ PROD-1 support):\nCharts Bench (Triple Normalization, Layers, Toggles)"]
+        NARR0["NARR (Rhyan, Felipe):\nPreliminary Deep Research Synthesis + Pitch Case Coords"]
+        COORD0["COORD (Rhyan, Felipe):\n1st Public Deploy w/ Mock + Infrastructure"]
     end
 
     M0 --> D1 & D2 & P1 & P2 & NARR0 & COORD0
 
-    D1 & D2 & P1 & P2 & NARR0 & COORD0 --> G1{"Portão 1 (12:30): API NASA Funcional + stats_engine OK + UI Mock Ativa + 1º Deploy no Ar"}
+    D1 & D2 & P1 & P2 & NARR0 & COORD0 --> G1{"Gate 1 (12:30): NASA API Functional + stats_engine OK + Mock UI Live + 1st Deploy Up"}
 
-    subgraph F3["Fase 3: Walking Skeleton Ponta a Ponta (Sáb 12:30 - 16:00)"]
-        WS["Fusão Real: Clique no Mapa -> NASA POWER API ao Vivo -> stats_engine -> Gráficos com Tripla Normalização no Ar"]
+    subgraph F3["Phase 3: End-to-End Walking Skeleton (Sat 12:30 - 16:00)"]
+        WS["Real Fusion: Map Click -> Live NASA POWER API -> stats_engine -> Charts with Triple Normalization Live"]
     end
 
     G1 --> WS
-    WS --> G2{"Portão 2 (16:00): Walking Skeleton do Módulo 1 Rodando na Web"}
+    WS --> G2{"Gate 2 (16:00): Module 1 Walking Skeleton Running on Web"}
 
-    subgraph F4["Fase 4: Bancada Completa + Pesquisa de Literatura (Sáb 16:00 - 21:30)"]
+    subgraph F4["Phase 4: Full Bench + Literature Research (Sat 16:00 - 21:30)"]
         direction TB
-        M1_Full["DADOS-1 + PROD-1 + PROD-2 (Kaio, Renan, Fred, Felipe):\nMatriz 2x2 Completa + Grid 1x1/2x2/3x3 + Painel X vs Y + Mapa Interativo"]
-        M2_Res["DADOS-2 + NARR (Rhyan, Fred, Felipe):\nAnálise Deep Research + ML de Mineração + Co-Piloto"]
+        M1_Full["DADOS-1 + PROD-1 + PROD-2 (Kaio, Renan, Fred, Felipe):\nFull 2x2 Matrix + 1x1/2x2/3x3 Grid + X vs Y Panel + Interactive Map"]
+        M2_Res["DADOS-2 + NARR (Rhyan, Fred, Felipe):\nDeep Research Analysis + Mining ML + Co-Pilot"]
     end
 
     G2 --> M1_Full & M2_Res
 
-    subgraph F5["Fase 5: Portão Módulo 2 & Colheita Científica (Sáb 21:30 - 23:30)"]
-        G_M2{"Portão Módulo 2 (21:30)\nGeneralista vs Especializado?"}
-        Colheita["Mineração ML + Co-Piloto Ativo + Validação das Descobertas com 7 Invariantes"]
+    subgraph F5["Phase 5: Module 2 Gate & Scientific Harvest (Sat 21:30 - 23:30)"]
+        G_M2{"Module 2 Gate (21:30)\nGeneralist vs Specialized?"}
+        Colheita["ML Mining + Active Co-Pilot + Validation of Findings Against 7 Invariants"]
         G_M2 --> Colheita
     end
 
     M1_Full & M2_Res --> G_M2
-    Colheita --> Sono["Sono Obrigatório Sincronizado (Sáb 23:30 - Dom 06:30)"]
+    Colheita --> Sono["Mandatory Synchronized Sleep (Sat 23:30 - Sun 06:30)"]
 
-    subgraph Domingo["Domingo: Finalização ML, Pitch & Submissão Blindada (Dom 06:30 - 22:30)"]
-        Sono --> F6["Fase 6 (06:30 - 13:00): Integração ML, Polimento UI, Cache Offline, Auditoria"]
-        F6 --> G3{"Portão 3 (13:00): Feature Freeze Absoluto"}
-        G3 --> F7["Fase 7 (13:30 - 19:00): Gravação, Narração, Edição e Legendagem do Pitch"]
-        F7 --> G4{"Portão 4 (19:00): Vídeo Final Exportado e Auditado"}
-        G4 --> F8["Fase 8 (19:00 - 22:30): Submissão Quatro Olhos + Testes Cegos 4G"]
-        F8 --> G5{"Portão 5 (22:30): Submissão Concluída (Buffer 90 min)"]
+    subgraph Domingo["Sunday: ML Finalization, Pitch & Hardened Submission (Sun 06:30 - 22:30)"]
+        Sono --> F6["Phase 6 (06:30 - 13:00): ML Integration, UI Polish, Offline Cache, Audit"]
+        F6 --> G3{"Gate 3 (13:00): Absolute Feature Freeze"}
+        G3 --> F7["Phase 7 (13:30 - 19:00): Pitch Recording, Voiceover, Editing & Subtitling"]
+        F7 --> G4{"Gate 4 (19:00): Final Video Exported & Audited"}
+        G4 --> F8["Phase 8 (19:00 - 22:30): Four-Eyes Submission + 4G Blind Tests"]
+        F8 --> G5{"Gate 5 (22:30): Submission Complete (90 min Buffer)"}
     end
 ```
 
 ---
 
-## 4. Cronograma Operacional Detalhado (Fases 1 a 8)
+## 4. Detailed Operational Schedule (Phases 1 to 8)
 
-### Fase 1 — Alinhamento de Contrato, Regras NASA, Mock e Setup Base
-**Sábado 09:00 – 10:30 (1h30)**
+### Phase 1 — Contract Alignment, NASA Rules, Mock, and Base Setup
+**Saturday 09:00 – 10:30 (1h30)**
 
-- **09:00 – 09:30 (Plenária com Todos os 5 Membros):**
-  - Leitura detalhada das regras oficiais do desafio *Be An Earth System Trend Detective!*;
-  - Validação coletiva da ordem oficial de interação na interface: `1º Variável -> 2º Onde (Local A/B + Grade 1x1/2x2/3x3) -> 3º Período de Tempo`;
-  - Confirmação do catálogo das 12 variáveis da NASA POWER (MERRA-2 e CERES SYN1deg) e das regras de resolução espacial ($0{,}5^\circ \times 0{,}625^\circ$ vs. $1{,}0^\circ \times 1{,}0^\circ$).
-- **09:30 – 10:30 (Fechamento do Contrato JSON, Mock e Setup Base por Frente):**
-  - `COORD` (Rhyan, Felipe): Estruturar o repositório Git, branches protegidas, pastas `/backend` e `/frontend`, esteira de CI/CD (Vercel / GitHub Actions) e inicializar o arquivo de decisões arquiteturais (`DECISOES.md`).
-  - `DADOS-1` (Kaio, Renan, Felipe): Testar chamada real ao endpoint `/api/temporal/monthly/point` da NASA POWER API via script/curl, mapear a estrutura exata do JSON retornado e formalizar os metadados de resolução ($0{,}5^\circ\times 0{,}625^\circ$ vs. $1{,}0^\circ\times 1{,}0^\circ$) e limites históricos para o Contrato.
-  - `DADOS-2` (Rhyan, Fred): Definir no Contrato JSON a especificação exata de todos os campos estatísticos (vetores de anomalias mensais, OLS e Theil-Sen por década, curva GAM/Splines, outliers de Mahalanobis $D_M > 2{,}5$, testes $\text{AR}(1)$ com $N_{\text{efetivo}}$, $p_{\text{adj}}$ por FDR e correlação bivariada).
-  - `PROD-1` (Renan, Fred): Fechar formalmente a stack oficial de Frontend (**Leaflet com renderer Canvas + React + TypeScript + Vite**, client-side puro, sem SSR, build 100% offline), definir no Contrato JSON os parâmetros de estado do fluxo `1º Variável -> 2º Onde/Grade -> 3º Tempo` e o **Payload de Saída do Mapa**: `{ variable_x, variable_y?, grid_resolution: { dlat, dlon }, cells_a, cells_b?, start_year, end_year }` ($1 \le \text{cells.length} \le 9$, coordenadas `[lat, lon]`), e inicializar o boilerplate do Frontend preparando os componentes vazios.
-  - `PROD-2` (Kaio): Definir no Contrato JSON a estrutura das séries para a Bancada de Gráficos (séries brutas, anomalias, eixos duplos e arrays $Z\text{-Score}$) e gerar o arquivo `mock_analysis.json` completo e validado para destravar a Fase 2.
-  - `NARR` (Rhyan, Felipe): Disparar os primeiros prompts estruturados de pesquisa profunda no **Gemini Deep Research** e **Google Scholar** para mapear temas de vanguarda na literatura e extrair os requisitos obrigatórios do formulário da NASA.
-- **Marco 0 (Sábado 10:30):** Contrato JSON congelado e arquivo `mock_analysis.json` disponível no repositório. Nenhuma linha de UI final é codificada antes deste marco!
-
----
-
-### Fase 2 — Ingestão NASA POWER, Motor Estatístico e UI sobre Mock
-**Sábado 10:30 – 12:30 (2h00)**
-
-- **`DADOS-1` (Kaio, Renan, Felipe — Ingestão NASA POWER & Agregador $K \le 9$):**
-  - Implementar o cliente de consulta ao endpoint `/api/temporal/monthly/point` (suporta até 20 variáveis por chamada; malha fina MERRA-2 $0{,}5^\circ \times 0{,}625^\circ$ como padrão) com as 3 regras obrigatórias de limpeza: (1) converter `-999` para `np.nan` e usar `np.nanmean()` (máscara oceânica de `GWETTOP`/`GWETROOT`), (2) descartar a chave anual `YYYY13`, e (3) converter `PRECTOTCORR` de `mm/day` para `mm/mês` (`calendar.monthrange`);
-  - Desenvolver o agregador espacial para **composição livre de $1 \le K \le 9$ células adjacentes** (`cells: [{lat, lon}, ...]`) controlando concorrência com **`asyncio.Semaphore(3)`** + *backoff* exponencial (respeitando o limite de 30 req/min, sem `Promise.all` de 9 chamadas) e **Cache Local em JSON/SQLite** indexado por célula individual `(lat, lon, var)` e por região (Parquet descartado no Módulo 1);
-  - Implementar o alinhamento temporal no backend (`1981` MERRA-2 vs. `1984` CERES) e fallback para contingência de rede *(nota: no frontend, `idbCache.ts` e `getCommonStartYear` já foram entregues na branch `frontend`)*.
-- **`DADOS-2` (Rhyan, Fred — Motor Estatístico `stats_engine.py`):**
-  - Implementar a biblioteca matemática completa aderente ao `CONTRATO_DE_DADOS.md`:
-    1. Anomalia Climatológica Mensal dessazonalizada ($Y'_{a,m} = Y_{a,m} - \bar{Y}_m$);
-    2. Regressão linear OLS e Declive Robusto de Theil-Sen com taxa expressa por década ($10 \times B_{\text{ano}}$ ou $120 \times B_{\text{mês}}$);
-    3. Ajuste não-linear via GAM / Splines com classificação de regime (*linear, acelerado, saturando*);
-    4. Detecção bivariada de outliers via Distância de Mahalanobis ($D_M > 2{,}5$);
-    5. Teste de significância com correção para autocorrelação $\text{AR}(1)$ ($N_{\text{efetivo}}$) e $p_{\text{adj}}$ (FDR);
-    6. Módulo bivariado de correlação de Pearson ($r$), $\tau$ de Kendall e separação multiescala ($r_{\text{global}}$ vs. $r_{\text{detrended}}$).
-- **`PROD-1` (Renan, Fred — Mapa 2D Leaflet Canvas & Fluxo Adaptativo sobre Mock):**
-  - Renderizar o componente visual `<MapView />` em **Leaflet (renderer Canvas)** consumindo `gridGeometry.ts` (snap nativo + conectividade de 8-vizinhos para composição livre de $1 \le K \le 9$ células adjacentes, ex.: $1\times 1, 1\times 3, 2\times 1, 2\times 2, 3\times 3$, já implementado e testado na branch `frontend`);
-  - Implementar os seletores da ordem oficial de interação no escopo MVP (**1 variável por área**: `variable_a` para Região A e `variable_b` para Região B): `1º Variável -> 2º Onde (Local A/B + composição livre K <= 9) -> 3º Tempo`.
-- **`PROD-2` (Kaio, com apoio de PROD-1 — Bancada de Gráficos sobre Mock):**
-  - Construir a bancada gráfica conectada ao `mock_analysis.json`: Eixo Y Duplo, padronização em $Z\text{-Score}$ universal ($\sigma$), alternador Série Bruta vs. Anomalia e Linear vs. Symlog;
-  - Integrar camadas analíticas (toggles): retas OLS e Theil-Sen por década, curva GAM e elipse de Mahalanobis.
-- **`NARR` (Rhyan, Felipe — Literatura e Descoberta Científica):**
-  - Sintetizar os primeiros achados do *Gemini Deep Research* e *Google Scholar*, levantando hipóteses climáticas e regiões candidatas para validar o pipeline de descoberta científica (ML) e a exploração livre no mapa interativo.
-- **`COORD` (Rhyan, Felipe — Governança e 1º Deploy):**
-  - Publicar o 1º deploy público da aplicação exibindo a casca visual funcional conectada ao Mock em URL acessível via internet (Vercel/GitHub Pages).
-- **Portão 1 (Sábado 12:30 — Hard Gate):**
-  - *Critérios:* (1) Chamada real à NASA POWER API retornando JSON limpo (`-999`/`YYYY13` tratados); (2) `stats_engine.py` executando sem erros com testes unitários; (3) Mapa e Bancada operando integrados ao Mock; (4) 1º Deploy público no ar.
+- **09:00 – 09:30 (Plenary with All 5 Members):**
+  - Detailed reading of the official rules for *Be An Earth System Trend Detective!*;
+  - Collective validation of the official UI interaction order: `1st Variable -> 2nd Where (Loc A/B + 1x1/2x2/3x3 Grid) -> 3rd Time Period`;
+  - Confirmation of the 12-variable NASA POWER catalog (MERRA-2 and CERES SYN1deg) and spatial resolution rules ($0.5^\circ \times 0.625^\circ$ vs. $1.0^\circ \times 1.0^\circ$).
+- **09:30 – 10:30 (JSON Contract Lock, Mock, and Per-Track Base Setup):**
+  - `COORD` (Rhyan, Felipe): Structure the Git repository, protected branches, `/backend` and `/frontend` folders, CI/CD pipeline (Vercel / GitHub Actions), and initialize the architectural decisions log (`DECISOES.md`).
+  - `DADOS-1` (Kaio, Renan, Felipe): Test a real call to NASA POWER API's `/api/temporal/monthly/point` endpoint via script/curl, map the exact returned JSON structure, and formalize resolution metadata ($0.5^\circ\times 0.625^\circ$ vs. $1.0^\circ\times 1.0^\circ$) and historical bounds for the Contract.
+  - `DADOS-2` (Rhyan, Fred): Define in the JSON Contract the exact specification of all statistical fields (monthly anomaly vectors, decadal OLS and Theil–Sen, GAM/Splines curve, Mahalanobis outliers $D_M > 2.5$, $\text{AR}(1)$ tests with $N_{\text{effective}}$, FDR $p_{\text{adj}}$, and bivariate correlation).
+  - `PROD-1` (Renan, Fred): Formally lock the official Frontend stack (**Leaflet with Canvas renderer + React + TypeScript + Vite**, pure client-side, no SSR, 100% offline build), define in the JSON Contract the state parameters of the `1st Variable -> 2nd Where/Grid -> 3rd Time` flow and the **Map Output Payload**: `{ variable_x, variable_y?, grid_resolution: { dlat, dlon }, cells_a, cells_b?, start_year, end_year }` ($1 \le \text{cells.length} \le 9$, `[lat, lon]` coordinates), and initialize Frontend boilerplate preparing empty components.
+  - `PROD-2` (Kaio): Define in the JSON Contract the series structure for the Charts Bench (raw series, anomalies, dual axes, and $Z\text{-Score}$ arrays) and generate the complete, validated `mock_analysis.json` file to unblock Phase 2.
+  - `NARR` (Rhyan, Felipe): Launch the first structured deep-research prompts in **Gemini Deep Research** and **Google Scholar** to map cutting-edge literature topics and extract mandatory NASA submission form requirements.
+- **Milestone 0 (Saturday 10:30):** JSON Contract frozen and `mock_analysis.json` available in the repository. No final UI line is coded before this milestone!
 
 ---
 
-### Fase 3 — Walking Skeleton Ponta a Ponta (Módulo 1 Base)
-**Sábado 12:30 – 16:00 (3h30)**
+### Phase 2 — NASA POWER Ingestion, Statistical Engine, and UI on Mock
+**Saturday 10:30 – 12:30 (2h00)**
 
-- **Integração Ponta a Ponta:**
-  - O usuário seleciona a variável $\to$ Clica no mapa $\to$ O sistema resolve a célula na grade nativa da NASA $\to$ Dispara chamada à NASA POWER API (com Cache Local) $\to$ Alimenta o `stats_engine.py` $\to$ Plota a série temporal real com regressão decadal, anomalias e significância $\text{AR}(1)$ no navegador.
-- **Validação de Performance:** Garantir que o ciclo completo de clique, consulta à API, cálculo estatístico e renderização ocorra em menos de 2 segundos.
-- **Portão 2 (Sábado 16:00 — Hard Gate):**
-  - *Critério Inegociável:* O protótipo online permite clicar em qualquer ponto do mapa, buscar dados reais da NASA em tempo real e visualizar a série temporal com anomalia e regressão decadal calculadas.
-
----
-
-### Fase 4 — Bancada Completa, Matriz $(A, X) \times (B, Y)$ e Pesquisa Deep Research
-**Sábado 16:00 – 21:30 (5h30)**
-
-- **Frente Módulo 1 (Kaio, Renan, Fred, Felipe):**
-  - Finalizar a **Matriz Combinatória Completa $(A, X) \times (B, Y)$**: permitir selecionar Local A (com Variável X) e Local B (com Variável Y) cobrindo os 4 modos combinatórios;
-  - Implementar a **Tripla Normalização** (Eixo Y Duplo, $Z\text{-Score}$ e corte automático de datas coincidentes);
-  - Garantir exploração livre fluida no mapa interativo integrada ao painel de descoberta científica (ML);
-  - Conectar a interface do **Chatbot Co-Piloto Estatístico** na bancada de gráficos.
-- **Frente Módulo 2 & Chatbot (Rhyan, Fred, Felipe):**
-  - Conduzir o levantamento com *Gemini Deep Research* e *Google Scholar* sobre os campos e debates mais em voga na literatura climática recente;
-  - Estruturar o modelo de Machine Learning / Mineração para varredura de quebras estruturais, anomalias multivariadas e correlações nas séries da NASA POWER;
-  - Configurar a engenharia de prompts e a conexão da LLM do Chatbot Co-Piloto com os 7 Invariantes Estatísticos.
-
----
-
-### Fase 5 — Portão de Decisão do Módulo 2 e Colheita Científica
-**Sábado 21:30 – 23:30 (2h00)**
-
-- **21:30 – 22:00 (Reunião de Alinhamento e Portão de Decisão do Módulo 2):**
-  - Avaliar o status do Módulo 1 (se estiver 100% estável, o Módulo 2 é liberado com força total);
-  - **Decisão Arquitetural do Módulo 2:** Optar entre:
-    - *Opção A (Generalista):* O minerador de ML permite a qualquer cientista rodar a varredura automática em qualquer região;
-    - *Opção B (Especializado):* O minerador foca verticalmente no tema de maior impacto selecionado pelo *Gemini Deep Research*, gerando aprofundamento máximo para o pitch e um esboço de artigo científico.
-- **22:00 – 23:30 (Colheita e Auditoria com os 7 Invariantes):**
-  - Rodar o sistema para extrair as 2 a 3 descobertas reais definitivas do vídeo de pitch;
-  - Aplicar a auditoria estatística rigorosa: conferir se nenhuma taxa está usando início-fim, se não há porcentagem em $^\circ\text{C}$, se o teste $\text{AR}(1)$ foi aplicado e se os extremos foram checados por Mahalanobis.
+- **`DADOS-1` (Kaio, Renan, Felipe — NASA POWER Ingestion & $K \le 9$ Aggregator):**
+  - Implement the `/api/temporal/monthly/point` query client (supports up to 20 variables per call; fine MERRA-2 $0.5^\circ \times 0.625^\circ$ mesh as default) with the 3 mandatory cleaning rules: (1) convert `-999` to `np.nan` and use `np.nanmean()` (ocean mask for `GWETTOP`/`GWETROOT`), (2) discard the annual `YYYY13` key, and (3) convert `PRECTOTCORR` from `mm/day` to `mm/month` (`calendar.monthrange`);
+  - Build the spatial aggregator for **free composition of $1 \le K \le 9$ adjacent cells** (`cells: [{lat, lon}, ...]`) controlling concurrency with **`asyncio.Semaphore(3)`** + exponential *backoff* (respecting the 30 req/min limit, no `Promise.all` of 9 calls) and **Local Cache in JSON/SQLite** indexed per individual cell `(lat, lon, var)` and per region (Parquet discarded in Module 1);
+  - Implement backend temporal alignment (`1981` MERRA-2 vs. `1984` CERES) and network-contingency fallback *(note: on the frontend, `idbCache.ts` and `getCommonStartYear` were already delivered on branch `frontend`)*.
+- **`DADOS-2` (Rhyan, Fred — Statistical Engine `stats_engine.py`):**
+  - Implement the full mathematical library adhering to `CONTRATO_DE_DADOS.md`:
+    1. Deseasonalized Monthly Climatological Anomaly ($Y'_{y,m} = Y_{y,m} - \bar{Y}_m$);
+    2. OLS linear regression and Theil–Sen Robust Slope expressed per decade ($10 \times B_{\text{year}}$ or $120 \times B_{\text{month}}$);
+    3. Nonlinear fit via GAM / Splines with regime classification (*linear, accelerating, saturating*);
+    4. Bivariate outlier detection via Mahalanobis Distance ($D_M > 2.5$);
+    5. Significance test corrected for $\text{AR}(1)$ autocorrelation ($N_{\text{effective}}$) and $p_{\text{adj}}$ (FDR);
+    6. Bivariate Pearson correlation ($r$), Kendall $\tau$, and multiscale separation ($r_{\text{global}}$ vs. $r_{\text{detrended}}$).
+- **`PROD-1` (Renan, Fred — 2D Leaflet Canvas Map & Adaptive Flow on Mock):**
+  - Render the `<MapView />` visual component in **Leaflet (Canvas renderer)** consuming `gridGeometry.ts` (native snap + 8-neighbor connectivity for free composition of $1 \le K \le 9$ adjacent cells, e.g., $1\times 1, 1\times 3, 2\times 1, 2\times 2, 3\times 3$, already implemented and tested on branch `frontend`);
+  - Implement the official interaction-order selectors within MVP scope (**1 variable per area**: `variable_a` for Region A and `variable_b` for Region B): `1st Variable -> 2nd Where (Loc A/B + free composition K <= 9) -> 3rd Time`.
+- **`PROD-2` (Kaio, with PROD-1 support — Charts Bench on Mock):**
+  - Build the charts bench connected to `mock_analysis.json`: Dual Y-Axis, universal $Z\text{-Score}$ ($\sigma$) standardization, Raw vs. Anomaly Series toggle, and Linear vs. Symlog toggle;
+  - Integrate analytical layers (toggles): decadal OLS and Theil–Sen lines, GAM curve, and Mahalanobis ellipse.
+- **`NARR` (Rhyan, Felipe — Literature and Scientific Discovery):**
+  - Synthesize initial findings from *Gemini Deep Research* and *Google Scholar*, raising climate hypotheses and candidate regions to validate the scientific discovery (ML) pipeline and free exploration on the interactive map.
+- **`COORD` (Rhyan, Felipe — Governance and 1st Deploy):**
+  - Publish the 1st public deployment showing the functional visual shell connected to the Mock at an internet-accessible URL (Vercel/GitHub Pages).
+- **Gate 1 (Saturday 12:30 — Hard Gate):**
+  - *Criteria:* (1) Real NASA POWER API call returning clean JSON (`-999`/`YYYY13` handled); (2) `stats_engine.py` running error-free with unit tests; (3) Map and Bench operating integrated with Mock; (4) 1st public Deploy live.
 
 ---
 
-### Pausa Obrigatória — Sono Sincronizado e Handoff Escrito
-**Sábado 23:30 – Domingo 06:30 (7h00 de janela / ~6h30 de sono real)**
+### Phase 3 — End-to-End Walking Skeleton (Base Module 1)
+**Saturday 12:30 – 16:00 (3h30)**
 
-- **Protocolo de Passagem de Bastão (23:15 – 23:30):** Cada integrante publica no canal de comunicação da equipe: *(1) Último commit integrado na `main`; (2) Pendências exatas; (3) Primeira ação programada para as 06:30*.
-- **Regra Anticolapso:** Todos dormem no mesmo horário. Fica proibido codificar de madrugada para evitar fadiga cognitiva e erros conceituais no domingo.
-
----
-
-### Fase 6 — Finalização do ML, Chatbot, Refino e Feature Freeze
-**Domingo 06:30 – 13:00 (6h30)**
-
-- **06:30 – 07:00:** Café e alinhamento ágil das prioridades da manhã conduzido por `COORD`.
-- **07:00 – 13:00 (Execução Focada):**
-  - `DADOS-2` (Rhyan, Fred) + `PROD-2` (Kaio): Finalizar a integração visual do Módulo 2 (Descoberta Científica via ML) e calibrar as respostas do Chatbot Co-Piloto;
-  - `PROD-1` (Renan, Fred) + `PROD-2` (Kaio): Polimento de interface, contraste visual para captura de vídeo em 1080p, inclusão de tooltips e refinamento da exploração livre no mapa;
-  - `DADOS-1` (Kaio, Renan, Felipe): Assegurar que os dados pré-consultados estejam gravados no Cache Local (IndexedDB) para navegação offline sem qualquer latência;
-  - `COORD` + `NARR` (Rhyan, Felipe): Redação final do roteiro de 240 segundos do vídeo de pitch e elaboração dos textos de submissão da NASA.
-- **Portão 3 (Domingo 13:00 — Feature Freeze Absoluto):**
-  - **Código totalmente congelado.** A partir das 13:00, nenhuma linha de código nova entra na `main` — apenas correções emergenciais autorizadas por `COORD`.
+- **End-to-End Integration:**
+  - User selects variable $\to$ Clicks map $\to$ System resolves cell on NASA's native grid $\to$ Fires NASA POWER API call (with Local Cache) $\to$ Feeds `stats_engine.py` $\to$ Plots real time series with decadal regression, anomalies, and $\text{AR}(1)$ significance in the browser.
+- **Performance Validation:** Ensure the full cycle of click, API query, statistical calculation, and rendering completes in under 2 seconds.
+- **Gate 2 (Saturday 16:00 — Hard Gate):**
+  - *Non-Negotiable Criterion:* The online prototype allows clicking any point on the map, fetching real NASA data in real time, and viewing the time series with computed anomaly and decadal regression.
 
 ---
 
-### Fase 7 — Produção Focada do Vídeo de Pitch
-**Domingo 13:30 – 19:00 (5h30)**
+### Phase 4 — Full Bench, $(A, X) \times (B, Y)$ Matrix, and Deep Research
+**Saturday 16:00 – 21:30 (5h30)**
 
-- **Isolamento de Foco (*Deep Work*):** Reuniões e interrupções são suspensas para permitir gravação de áudio em ambiente silencioso e edição contínua conduzida por `NARR` (Rhyan, Felipe).
-- **Roteiro Estruturado do Pitch (240 segundos):**
-  1. **00:00 – 00:30 | Gancho de Alto Impacto:** A complexidade do sistema Terra e o perigo de decisões baseadas em médias globais ou cálculos ingênuos de tendência.
-  2. **00:30 – 01:45 | Demonstração ao Vivo do Módulo 1 (Sistema de Análise de Dados):**
-     - O cientista escolhe variáveis, clica no mapa com grade NASA ($1\times 1 \to 3\times 3$) e define o período;
-     - Apresentação da comparação de Umidade de Solo (`GWETTOP`) em ecossistemas opostos e do cruzamento com Temperatura Máxima (`T2M_MAX`);
-     - Uso da Tripla Normalização, do alternador de Anomalias e da validação pelo Chatbot Co-Piloto.
-  3. **01:45 – 02:45 | Demonstração do Módulo 2 (Sistema de Descoberta Científica):**
-     - Apresentação da descoberta minerada por Machine Learning a partir do levantamento no *Gemini Deep Research*;
-     - Exibição de pontos de inflexão não-lineares (GAM) e anomalias de Mahalanobis comprovadas com significância $\text{AR}(1)$ + FDR.
-  4. **02:45 – 03:30 | Rigor Estatístico (Os 7 Invariantes):** O diferencial metodológico do Trend Detective contra falsos alarmes e ruído climático.
-  5. **03:30 – 04:00 | Impacto, Uso de Dados da NASA e Conclusão:** Citação dos modelos MERRA-2 e CERES da NASA POWER, código aberto e link para os jurados testarem online.
-- **Portão 4 (Domingo 19:00 — Hard Gate):** Vídeo exportado em MP4 1080p com legendas embutidas (*burned-in*), hospedado no YouTube (não-listado/público) e revisado a frio por dois integrantes da equipe.
+- **Module 1 Track (Kaio, Renan, Fred, Felipe):**
+  - Complete the **Full Combinatorial Matrix $(A, X) \times (B, Y)$**: allow selecting Location A (with Variable X) and Location B (with Variable Y) covering all 4 combinatorial modes;
+  - Implement **Triple Normalization** (Dual Y-Axis, $Z\text{-Score}$, and automatic common-date slicing);
+  - Ensure smooth free exploration on the interactive map integrated with the scientific discovery (ML) panel;
+  - Connect the **Statistical Co-Pilot Chatbot** UI to the charts bench.
+- **Module 2 & Chatbot Track (Rhyan, Fred, Felipe):**
+  - Conduct the *Gemini Deep Research* and *Google Scholar* survey on the hottest fields and debates in recent climate literature;
+  - Structure the Machine Learning / Mining model to sweep structural breaks, multivariate anomalies, and correlations across NASA POWER series;
+  - Configure prompt engineering and LLM connection for the Co-Pilot Chatbot anchored to the 7 Statistical Invariants.
 
 ---
 
-### Fase 8 — Submissão "Quatro Olhos" e Bancada de Testes Cegos 4G
-**Domingo 19:00 – 22:30 (Margem de Segurança: 22:30 – 24:00)**
+### Phase 5 — Module 2 Decision Gate and Scientific Harvest
+**Saturday 21:30 – 23:30 (2h00)**
 
-- **19:00 – 21:00 (Preenchimento Quatro Olhos):** `COORD` e `NARR` (Rhyan, Felipe) preenchem e revisam todos os campos obrigatórios na plataforma oficial da NASA Space Apps (resumo, descrição técnica, links de vídeo, demo e repositório GitHub público).
-- **21:00 – 22:30 (Testes Cegos Externos):**
-  - Toda a equipe acessa a aplicação e o vídeo a partir de **smartphones e redes móveis 4G/5G em abas anônimas** (fora da rede local);
-  - Verificação: A aplicação carrega em $< 2\text{ s}$? As 12 variáveis respondem? O vídeo roda sem solicitar login? O GitHub está como repositório público com `README.md` completo?
-- **Portão 5 (Domingo 22:30):** Submissão final enviada e confirmada com **90 minutos de folga** antes do encerramento oficial dos servidores da NASA às 24:00.
+- **21:30 – 22:00 (Alignment Meeting and Module 2 Decision Gate):**
+  - Evaluate Module 1's status (if 100% stable, Module 2 is unleashed at full strength);
+  - **Module 2 Architectural Decision:** Choose between:
+    - *Option A (Generalist):* The ML miner lets any scientist run the automatic sweep on any region;
+    - *Option B (Specialized):* The miner focuses vertically on the highest-impact topic selected by *Gemini Deep Research*, generating maximum depth for the pitch and a draft scientific paper.
+- **22:00 – 23:30 (Harvest and Audit Against the 7 Invariants):**
+  - Run the system to extract the 2 to 3 definitive real discoveries for the pitch video;
+  - Apply rigorous statistical auditing: verify no rate uses start-to-end difference, no percentage appears on $^\circ\text{C}$, the $\text{AR}(1)$ test was applied, and extremes were checked via Mahalanobis.
 
 ---
 
-## 5. Matriz Consolidada de Fases, Portões e Regras de Corte (`IF/THEN`)
+### Mandatory Break — Synchronized Sleep and Written Handoff
+**Saturday 23:30 – Sunday 06:30 (7h00 window / ~6h30 real sleep)**
 
-| Horário Previsto | Fase Operacional | Portão / Marco Crítico | Regra Determinística de Contingência (`IF/THEN`) |
+- **Baton-Pass Protocol (23:15 – 23:30):** Each member posts in the team communication channel: *(1) Latest commit integrated into `main`; (2) Exact pending items; (3) First action scheduled for 06:30*.
+- **Anti-Collapse Rule:** Everyone sleeps at the same time. Coding overnight is forbidden to prevent cognitive fatigue and conceptual errors on Sunday.
+
+---
+
+### Phase 6 — ML Finalization, Chatbot, Polish, and Feature Freeze
+**Sunday 06:30 – 13:00 (6h30)**
+
+- **06:30 – 07:00:** Coffee and agile alignment of morning priorities led by `COORD`.
+- **07:00 – 13:00 (Focused Execution):**
+  - `DADOS-2` (Rhyan, Fred) + `PROD-2` (Kaio): Finalize visual integration of Module 2 (ML Scientific Discovery) and calibrate Co-Pilot Chatbot responses;
+  - `PROD-1` (Renan, Fred) + `PROD-2` (Kaio): UI polish, visual contrast for 1080p video capture, tooltip additions, and refinement of free map exploration;
+  - `DADOS-1` (Kaio, Renan, Felipe): Ensure pre-queried data are stored in Local Cache (IndexedDB) for zero-latency offline navigation;
+  - `COORD` + `NARR` (Rhyan, Felipe): Finalize the 240-second pitch video script and draft the NASA submission texts.
+- **Gate 3 (Sunday 13:00 — Absolute Feature Freeze):**
+  - **Code completely frozen.** After 13:00, no new feature lines enter `main` — only emergency fixes authorized by `COORD`.
+
+---
+
+### Phase 7 — Focused Pitch Video Production
+**Sunday 13:30 – 19:00 (5h30)**
+
+- **Focus Isolation (*Deep Work*):** Meetings and interruptions are suspended to allow quiet audio recording and continuous editing led by `NARR` (Rhyan, Felipe).
+- **Structured Pitch Script (240 seconds):**
+  1. **00:00 – 00:30 | High-Impact Hook:** The complexity of the Earth system and the danger of decisions based on global averages or naive trend calculations.
+  2. **00:30 – 01:45 | Live Demo of Module 1 (Data Analysis System):**
+     - The scientist picks variables, clicks the map with the NASA grid ($1\times 1 \to 3\times 3$), and sets the period;
+     - Presentation of Soil Moisture (`GWETTOP`) comparison across opposing ecosystems and cross-analysis with Maximum Temperature (`T2M_MAX`);
+     - Use of Triple Normalization, Anomaly toggle, and Co-Pilot Chatbot validation.
+  3. **01:45 – 02:45 | Demo of Module 2 (Scientific Discovery System):**
+     - Presentation of the ML-mined discovery grounded in the *Gemini Deep Research* survey;
+     - Display of nonlinear inflection points (GAM) and Mahalanobis anomalies proven with $\text{AR}(1)$ + FDR significance.
+  4. **02:45 – 03:30 | Statistical Rigor (The 7 Invariants):** Trend Detective's methodological edge against false alarms and climate noise.
+  5. **03:30 – 04:00 | Impact, Use of NASA Data & Conclusion:** Citation of NASA POWER's MERRA-2 and CERES models, open-source code, and live link for judges to test online.
+- **Gate 4 (Sunday 19:00 — Hard Gate):** Video exported in 1080p MP4 with burned-in subtitles, hosted on YouTube (unlisted/public), and cold-reviewed by two team members.
+
+---
+
+### Phase 8 — "Four-Eyes" Submission and 4G Blind Test Bench
+**Sunday 19:00 – 22:30 (Safety Margin: 22:30 – 24:00)**
+
+- **19:00 – 21:00 (Four-Eyes Completion):** `COORD` and `NARR` (Rhyan, Felipe) fill out and review all mandatory fields on the official NASA Space Apps platform (abstract, technical description, video links, live demo, and public GitHub repository).
+- **21:00 – 22:30 (External Blind Tests):**
+  - The entire team accesses the application and video from **smartphones and 4G/5G mobile networks in incognito tabs** (outside the local network);
+  - Checklist: Does the app load in $< 2\text{ s}$? Do all 12 variables respond? Does the video play without requiring login? Is GitHub a public repository with a complete `README.md`?
+- **Gate 5 (Sunday 22:30):** Final submission sent and confirmed with **90 minutes to spare** before NASA's official server cutoff at 24:00.
+
+---
+
+## 5. Consolidated Matrix of Phases, Gates, and Cut Rules (`IF/THEN`)
+
+| Planned Time | Operational Phase | Gate / Critical Milestone | Deterministic Contingency Rule (`IF/THEN`) |
 | :--- | :--- | :--- | :--- |
-| **Sáb 09:00–10:30** | 1. Contrato, Mock & Setup Base | **Marco 0 (10:30):** Contrato JSON congelado + `mock_analysis.json` no repo | **IF** houver discordância no schema até 10:15 $\to$ **THEN** `COORD` congela o contrato padrão e inicia a codificação imediatamente. |
-| **Sáb 10:30–12:30** | 2. Ingestão, Motor & UI s/ Mock | **Portão 1 (12:30):** API POWER respondendo + `stats_engine` OK + 1º Deploy | **IF** endpoint da API demorar $> 3\text{ s}$ $\to$ **THEN** limitar requisições simultâneas e ativar Cache Local agressivo desde a primeira chamada. |
-| **Sáb 12:30–16:00** | 3. Walking Skeleton | **Portão 2 (16:00):** Fluxo real integrado e publicado na web | **IF** integração atrasar além das 16:00 $\to$ **THEN** focar 100% da equipe no fechamento do Walking Skeleton até no máximo 17:00. |
-| **Sáb 16:00–21:30** | 4. Bancada & Deep Research | — | **IF** levantamento do Deep Research não convergir até 20:30 $\to$ **THEN** fixar o tema no clássico "Desidratação do Solo por Estresse Térmico no Cerrado/Amazônia". |
-| **Sáb 21:30–23:30** | 5. Portão Módulo 2 & Colheita | **Portão Módulo 2 (21:30):** Decisão Generalista vs Especializado | **IF** Módulo 1 apresentar qualquer instabilidade $\to$ **THEN** implementar Módulo 2 estritamente como Especializado no caso de maior impacto. |
-| **Sáb 23:30–06:30** | Pausa Obrigatória | Sono Sincronizado (~6h30) | **IF** membro insistir em varar a madrugada $\to$ **THEN** `COORD` bloqueia commits na `main` para preservar a lucidez da equipe no domingo. |
-| **Dom 06:30–13:00** | 6. Finalização & Feature Freeze | **Portão 3 (13:00):** *Feature Freeze* Absoluto | **IF** funcionalidade secundária estiver incompleta às 13:00 $\to$ **THEN** ocultar imediatamente da interface (`git stash`/flag) e congelar o código. |
-| **Dom 13:30–19:00** | 7. Vídeo de Pitch | **Portão 4 (19:00):** Vídeo exportado e legendado | **IF** gravação passar das 17:00 $\to$ **THEN** gravar a exploração direta no mapa interativo e os achados do pipeline de ML em tomadas contínuas sem erro de clique. |
-| **Dom 19:00–22:30** | 8. Submissão & Testes Cegos | **Portão 5 (22:30):** Submissão salva e auditada em 4G | **IF** portal da NASA apresentar lentidão após as 21:00 $\to$ **THEN** submeter dados básicos de imediato e refinar apenas links até 22:30. |
+| **Sat 09:00–10:30** | 1. Contract, Mock & Base Setup | **Milestone 0 (10:30):** JSON Contract frozen + `mock_analysis.json` in repo | **IF** schema disagreement persists by 10:15 $\to$ **THEN** `COORD` freezes the default contract and starts coding immediately. |
+| **Sat 10:30–12:30** | 2. Ingestion, Engine & UI on Mock | **Gate 1 (12:30):** POWER API responding + `stats_engine` OK + 1st Deploy | **IF** API endpoint takes $> 3\text{ s}$ $\to$ **THEN** limit concurrent requests and enable aggressive Local Cache from the very first call. |
+| **Sat 12:30–16:00** | 3. Walking Skeleton | **Gate 2 (16:00):** Real flow integrated and published on web | **IF** integration slips past 16:00 $\to$ **THEN** focus 100% of the team on closing the Walking Skeleton by 17:00 at latest. |
+| **Sat 16:00–21:30** | 4. Bench & Deep Research | — | **IF** Deep Research survey fails to converge by 20:30 $\to$ **THEN** lock the topic onto the classic "Soil Desiccation by Thermal Stress in Cerrado/Amazon." |
+| **Sat 21:30–23:30** | 5. Module 2 Gate & Harvest | **Module 2 Gate (21:30):** Generalist vs Specialized Decision | **IF** Module 1 shows any instability $\to$ **THEN** implement Module 2 strictly as Specialized on the highest-impact case. |
+| **Sat 23:30–06:30** | Mandatory Break | Synchronized Sleep (~6h30) | **IF** a member insists on pulling an all-nighter $\to$ **THEN** `COORD` blocks commits to `main` to preserve team lucidity on Sunday. |
+| **Sun 06:30–13:00** | 6. Finalization & Feature Freeze | **Gate 3 (13:00):** Absolute *Feature Freeze* | **IF** a secondary feature is incomplete at 13:00 $\to$ **THEN** hide it from the UI immediately (`git stash`/flag) and freeze the code. |
+| **Sun 13:30–19:00** | 7. Pitch Video | **Gate 4 (19:00):** Video exported and subtitled | **IF** recording slips past 17:00 $\to$ **THEN** record the bench demo directly over free exploration on the interactive map and the ML discovery pipeline in continuous takes with zero click errors. |
+| **Sun 19:00–22:30** | 8. Submission & Blind Tests | **Gate 5 (22:30):** Submission saved and audited on 4G | **IF** NASA portal slows down after 21:00 $\to$ **THEN** submit baseline data immediately and refine links only until 22:30. |
 
 ---
 
-## 6. Escopo Blindado (MoSCoW Alinhado à Nova Arquitetura)
+## 6. Hardened Scope (MoSCoW Aligned with the New Architecture)
 
-### MUST (Inviolável — Requisitos Centrais do Produto Vencedor)
-- **Módulo 1 — Sistema de Análise de Dados Completo:** Funcional para qualquer cientista em qualquer coordenada do globo.
-- **Ordem de Interação Oficial:** `1º Variável -> 2º Onde (Local A/B + Grade 1x1/2x2/3x3) -> 3º Período de Tempo`.
-- **Consumo em Tempo Real da NASA POWER API (`/api/temporal/monthly/point`):** Integração dinâmica com cabeçalho `User-Agent` válido e **Cache Local Resiliente** (IndexedDB / memória / disco).
-- **Lógica de Grade Espacial da NASA:** Desenho da menor área física ($1\times 1$: $0{,}5^\circ \times 0{,}625^\circ$ para MERRA-2 e $1{,}0^\circ \times 1{,}0^\circ$ para CERES) e expansão para $2\times 2$ e $3\times 3$ com média espacial.
-- **Catálogo Unificado de 12 Variáveis:** Cobrindo atmosfera, temperatura, precipitação, umidade de solo (superficial e radicular), ventos, pressão e radiação solar.
-- **Matriz Combinatória Completa $(A, X) \times (B, Y)$:** Suporte pleno a todas as 4 combinações ($A \neq B, X = Y$; $A = B, X \neq Y$; $A \neq B, X \neq Y$; $A = B, X = Y$).
-- **Validação Estatística Transversal com os 7 Invariantes:** Regressão decadal ($B_{\text{Sen}}$ e $B_{\text{OLS}}$), GAM, Mahalanobis ($D_M > 2{,}5$), correção $\text{AR}(1)$ ($N_{\text{efetivo}}$) e controle FDR ($p_{\text{adj}} < 0{,}05$).
-- **Bancada Científica de Gráficos Super-Robusta:** Curvas juntas ou separadas, **Tripla Normalização** (Eixo Y Duplo, $Z\text{-Score}$ universal $\sigma$, interseção de datas), alternador Série Bruta vs. Anomalia e Linear vs. Symlog.
-- **Chatbot Co-Piloto Estatístico Integrado:** Contextualizado com o JSON de métricas em tempo real e os 7 Invariantes.
-- **Deploy Público Ativo + Pacote com Cache Offline + Vídeo de Pitch Legendado (240s) + Submissão Quatro Olhos até 22:30.**
+### MUST (Inviolable — Core Requirements of a Winning Product)
+- **Module 1 — Complete Data Analysis System:** Functional for any scientist at any coordinate on the globe.
+- **Official Interaction Order:** `1st Variable -> 2nd Where (Loc A/B + 1x1/2x2/3x3 Grid) -> 3rd Time Period`.
+- **Real-Time Consumption of NASA POWER API (`/api/temporal/monthly/point`):** Dynamic integration with a valid `User-Agent` header and **Resilient Local Cache** (IndexedDB / memory / disk).
+- **NASA Spatial Grid Logic:** Drawing the smallest physical area ($1\times 1$: $0.5^\circ \times 0.625^\circ$ for MERRA-2 and $1.0^\circ \times 1.0^\circ$ for CERES) and expanding to $2\times 2$ and $3\times 3$ with spatial mean.
+- **Unified 12-Variable Catalog:** Covering atmosphere, temperature, precipitation, soil moisture (surface and root-zone), winds, pressure, and solar radiation.
+- **Full Combinatorial Matrix $(A, X) \times (B, Y)$:** Full support for all 4 combinations ($A \neq B, X = Y$; $A = B, X \neq Y$; $A \neq B, X \neq Y$; $A = B, X = Y$).
+- **Cross-Cutting Statistical Validation with the 7 Invariants:** Decadal regression ($B_{\text{Sen}}$ and $B_{\text{OLS}}$), GAM, Mahalanobis ($D_M > 2.5$), $\text{AR}(1)$ correction ($N_{\text{effective}}$), and FDR control ($p_{\text{adj}} < 0.05$).
+- **Ultra-Robust Scientific Charts Bench:** Overlaid or separated curves, **Triple Normalization** (Dual Y-Axis, universal $Z\text{-Score}$ $\sigma$, date intersection), Raw vs. Anomaly toggle, and Linear vs. Symlog toggle.
+- **Integrated Statistical Co-Pilot Chatbot:** Contextualized with the real-time metrics JSON and the 7 Invariants.
+- **Live Public Deploy + Offline-Cached Bundle + Subtitled Pitch Video (240s) + Four-Eyes Submission by 22:30.**
 
-### SHOULD (Desejável se os Portões 1 e 2 passarem com folga)
-- **Módulo 2 — Sistema de Descoberta Científica via ML:** Mineração automática de pontos de inflexão e correlações excepcionais a partir do mapeamento no *Gemini Deep Research*.
-- **Exploração Livre no Mapa + Painel de Descoberta Científica (ML):** Seleção direta de regiões no mapa interativo integrada aos achados minerados pelo pipeline de ML.
-- **Exportação Direta de Dados:** Download da análise em CSV e captura do gráfico em PNG de alta resolução para relatórios.
+### SHOULD (Desirable if Gates 1 and 2 Pass Comfortably)
+- **Module 2 — ML Scientific Discovery System:** Automatic mining of inflection points and exceptional correlations grounded in the *Gemini Deep Research* survey.
+- **Free Map Exploration + Scientific Discovery (ML) Panel:** Direct region selection on the interactive map integrated with findings mined by the ML pipeline.
+- **Direct Data Export:** Analysis download in CSV and high-resolution PNG chart capture for reports.
 
-### COULD (Apenas se sobrar tempo no domingo de manhã)
-- Projeção de cenários de curto prazo com base na continuidade da taxa decadal de Theil-Sen;
-- Ajuste manual interativo do parâmetro de suavização (*penalty factor*) do GAM.
+### COULD (Only if Time Remains on Sunday Morning)
+- Short-term scenario projection based on continuation of the Theil–Sen decadal rate;
+- Interactive manual adjustment of the GAM smoothing parameter (*penalty factor*).
 
-### WON'T (Terminantemente Proibido — Armadilhas de Tempo)
-- Baixar ou processar arquivos brutos gigantes NetCDF4/HDF5 offline durante o hackathon.
-- Utilizar regiões fixas arbitrárias sem base na grade física real da NASA.
-- Impor perguntas engessadas que limitem o cientista a modos pré-moldados.
-- Tratar comparação entre variáveis diferentes ($X \neq Y$) ou teleconexões como opcionais.
-- Calcular tendências por diferença simples inicial-final ($Y_{\text{fim}} - Y_{\text{início}}$) ou exibir porcentagens ($\%$) em escalas intervalares ($^\circ\text{C}$).
-- Construir sistemas complexos de autenticação, login de usuários ou bancos de dados relacionais pesados.
+### WON'T (Strictly Forbidden — Time Traps)
+- Downloading or processing giant raw NetCDF4/HDF5 files offline during the hackathon.
+- Using arbitrary fixed regions not grounded in NASA's actual physical grid.
+- Imposing rigid questions that restrict the scientist to pre-baked modes.
+- Treating cross-variable comparison ($X \neq Y$) or teleconnections as optional.
+- Computing trends via simple start-to-end difference ($Y_{\text{end}} - Y_{\text{start}}$) or displaying percentages ($\%$) on interval scales ($^\circ\text{C}$).
+- Building complex authentication systems, user logins, or heavy relational databases.
 
 ---
 
-## 7. Matriz de Riscos Operacionais R1–R7 Atualizada
+## 7. Updated Operational Risk Matrix R1–R7
 
-| # | Risco Crítico | Sinal de Alerta / Gatilho | Resposta Operacional Imediata |
+| # | Critical Risk | Warning Sign / Trigger | Immediate Operational Response |
 | :--- | :--- | :--- | :--- |
-| **R1** | **Instabilidade ou Lentidão na NASA POWER API** | Chamada pontual demorando $> 3\text{ s}$ ou timeout | O **Cache Local** assume instantaneamente; requisições repetidas retornam em $< 50\text{ ms}$; manter pré-carregados os dados dos casos do pitch. |
-| **R2** | **Rate Limit (`429`) na Composição de Múltiplas Células ($K \le 9$)** | Mais de 3–5 chamadas `/point` simultâneas ou $> 30\text{ req/min}$ | Usar `asyncio.Semaphore(3)` com *backoff* exponencial, cachear cada célula `(lat, lon, var)` individualmente e usar `/regional` quando a caixa for $\ge 2^\circ \times 2^\circ$ (1 variável). |
-| **R3** | **Distorção Visual ao Comparar Variáveis com Unidades Distintas ($X \neq Y$)** | Curva de temperatura ($^\circ\text{C}$) achatando a curva de umidade de solo ($0\text{--}1$) | Aplicar imediatamente a **Tripla Normalização**: Eixo Y Duplo independente e alternador para $Z\text{-Score}$ universal ($\sigma$). |
-| **R4** | **Incompatibilidade Temporal de Datas Iniciais (ex.: 1981 vs. 1984)** | Regressão falhando por tamanhos de vetores divergentes | A rotina de **Interseção Automática de Datas** trunca as duas séries para a janela temporal comum antes de alimentar o motor estatístico. |
-| **R5** | **Erro Conceitual Estatístico no Código ou no Pitch** | Código gerando taxa por $Y_{\text{fim}} - Y_{\text{início}}$ ou porcentagem em $^\circ\text{C}$ | `DADOS-2` mantém travas estritas no código (`allow_percentage: false`) e o Chatbot Co-Piloto emite alerta explícito se detectar violação dos 7 Invariantes. |
-| **R6** | **Complexidade Excessiva no Módulo 2 de Descoberta Científica** | Modelo de ML não convergindo até as 22:30 de sábado | Aplicar a regra do **Portão de Sábado 21:30**: fixar o Módulo 2 como **Especializado**, focando na descoberta de maior impacto do levantamento da literatura. |
-| **R7** | **Atraso na Gravação e Edição do Vídeo no Domingo** | Captura de tela não concluída até as 16:30 de domingo | Gravar a demonstração da bancada diretamente sobre a exploração livre no **mapa interativo** e o **pipeline de descoberta científica (ML)**, capturando tomadas contínuas de 30 segundos. |
+| **R1** | **NASA POWER API Instability or Slowness** | Point call taking $> 3\text{ s}$ or timing out | **Local Cache** takes over instantaneously; repeated queries return in $< 50\text{ ms}$; keep pitch-case data preloaded. |
+| **R2** | **Rate Limit (`429`) on Multi-Cell Composition ($K \le 9$)** | More than 3–5 concurrent `/point` calls or $> 30\text{ req/min}$ | Use `asyncio.Semaphore(3)` with exponential *backoff*, cache each `(lat, lon, var)` cell individually, and use `/regional` when box is $\ge 2^\circ \times 2^\circ$ (1 variable). |
+| **R3** | **Visual Distortion When Comparing Variables with Distinct Units ($X \neq Y$)** | Temperature curve ($^\circ\text{C}$) flattening soil moisture curve ($0\text{--}1$) | Immediately apply **Triple Normalization**: independent Dual Y-Axis and toggle to universal $Z\text{-Score}$ ($\sigma$). |
+| **R4** | **Temporal Mismatch of Start Dates (e.g., 1981 vs. 1984)** | Regression failing due to mismatched vector lengths | The **Automatic Date Intersection** routine truncates both series to the common temporal window before feeding the statistical engine. |
+| **R5** | **Statistical Conceptual Error in Code or Pitch** | Code outputting $Y_{\text{end}} - Y_{\text{start}}$ rate or percentage on $^\circ\text{C}$ | `DADOS-2` keeps strict guards in code (`allow_percentage: false`) and the Co-Pilot Chatbot emits an explicit alert if it detects a violation of the 7 Invariants. |
+| **R6** | **Excessive Complexity in Module 2 Scientific Discovery** | ML model failing to converge by Saturday 22:30 | Apply the **Saturday 21:30 Gate** rule: lock Module 2 as **Specialized**, focusing on the highest-impact discovery from the literature survey. |
+| **R7** | **Delay in Sunday Video Recording and Editing** | Screen capture incomplete by Sunday 16:30 | Record the bench demo directly over free exploration on the **interactive map** and the **scientific discovery (ML) pipeline**, capturing continuous 30-second takes. |
 
 ---
 
-## 8. Rituais de Coordenação e Comando (`COORD`)
+## 8. Coordination and Command Rituals (`COORD`)
 
-1. **Sincronizações Ágeis de Equipe (Sábado às 10:30, 12:30, 16:00 e 21:30 — Duração Máxima: 7 minutos):**
-   - Cada um dos 5 membros responde estritamente a três perguntas em 45 segundos:  
-     *(1) O que foi concluído no último bloco?*  
-     *(2) Qual é a meta exata até o próximo marco?*  
-     *(3) Há algum bloqueio impedindo o avanço?*
-2. **Domingo sem Reuniões de Grupo (Foco Pleno na Fase 7):**
-   - Durante a gravação e edição do vídeo (13:30 – 19:00), sincronizações coletivas ficam suspensas. `COORD` faz acompanhamento individual silencioso para preservar o foco de quem está gravando e narrando.
-3. **Regra de Decisão Rápida em 5 Minutos:**
-   - Qualquer debate técnico ou arquitetural que permaneça sem consenso por mais de **5 minutos** é arbitrado de forma definitiva por `COORD`, ouvindo o líder da respectiva frente e priorizando a entrega do MVP.
-4. **Disciplina de Branch e Deploy Contínuo:**
-   - A branch `main` é sagrada e deve permanecer 100% executável a cada merge. Todo pull request é revisado rapidamente pelo par de backup correspondente antes de ser integrado.
+1. **Agile Team Syncs (Saturday at 10:30, 12:30, 16:00, and 21:30 — Max Duration: 7 minutes):**
+   - Each of the 5 members strictly answers three questions in 45 seconds:
+     *(1) What was completed in the last block?*
+     *(2) What is the exact goal until the next milestone?*
+     *(3) Is any blocker preventing progress?*
+2. **Sunday with Zero Group Meetings (Full Focus on Phase 7):**
+   - During video recording and editing (13:30 – 19:00), group syncs are suspended. `COORD` does silent 1-on-1 check-ins to preserve focus for those recording and narrating.
+3. **5-Minute Rapid Decision Rule:**
+   - Any technical or architectural debate remaining without consensus for over **5 minutes** is definitively arbitrated by `COORD`, listening to the respective track lead and prioritizing MVP delivery.
+4. **Branch Discipline and Continuous Deploy:**
+   - The `main` branch is sacred and must stay 100% runnable on every merge. Every pull request is quickly reviewed by the corresponding backup pair before integration.
 
 ---
 
-## 9. Checklist Final de Auditoria Pré-Submissão (Domingo 21:00)
+## 9. Final Pre-Submission Audit Checklist (Sunday 21:00)
 
-- [ ] **Módulo 1 Operacional:** A aplicação permite selecionar livremente qualquer variável do catálogo, clicar em qualquer ponto do mapa 2D, escolher Local A e Local B em grade $1\times 1$, $2\times 2$ ou $3\times 3$ e visualizar as 5 Respostas do Detetive?
-- [ ] **Ordem Oficial de Interação:** O fluxo `1º Variável -> 2º Onde -> 3º Período de Tempo` opera de forma suave, delimitando a grade física e a janela temporal sem erros?
-- [ ] **Matriz $2\times 2$ Completa:** O sistema suporta as 4 combinações ($A \neq B, X = Y$; $A = B, X \neq Y$; $A \neq B, X \neq Y$; $A = B, X = Y$)?
-- [ ] **Lógica de Grade NASA:** Os retângulos de grade mínima ($0{,}5^\circ \times 0{,}625^\circ$ do MERRA-2 e $1{,}0^\circ \times 1{,}0^\circ$ do CERES) e as opções $2\times 2$ e $3\times 3$ com média espacial funcionam perfeitamente?
-- [ ] **NASA POWER API e Cache:** As requisições ocorrem dinamicamente via `/api/temporal/monthly/point` com `User-Agent` adequado e o Cache Local garante resposta instantânea para consultas já realizadas?
-- [ ] **Bancada e Tripla Normalização:** O Eixo Y Duplo, o alternador de $Z\text{-Score}$ universal e a intersecção automática de datas equalizam perfeitamente a comparação de grandezas físicas heterogêneas?
-- [ ] **Blindagem dos 7 Invariantes Estatísticos:**
-  - Zero uso de $Y_{\text{fim}} - Y_{\text{início}}$;
-  - Zero porcentagem ($\%$) em escalas intervalares ($^\circ\text{C}$);
-  - Regressões calculadas sobre anomalias climatológicas dessazonalizadas;
-  - Reta OLS, Theil-Sen decadal e curva GAM visíveis;
-  - Outliers bivariados identificados por Mahalanobis ($D_M > 2{,}5$);
-  - Significância corrigida para persistência $\text{AR}(1)$ ($N_{\text{efetivo}}$) e FDR ($p_{\text{adj}} < 0{,}05$).
-- [ ] **Chatbot Co-Piloto Integrado:** O assistente consome o JSON estatístico em tempo real e responde às perguntas do cientista com clareza e rigor metodológico?
-- [ ] **Módulo 2 de Descoberta Científica:** A descoberta minerada pelo modelo com embasamento no *Gemini Deep Research* está claramente demonstrada e contextualizada?
-- [ ] **Exploração Livre & Descoberta ML:** A seleção livre no mapa interativo e os resultados do pipeline de descoberta científica (ML) carregam e respondem imediatamente na bancada?
-- [ ] **Atribuição Formal à NASA:** Os modelos e missões (MERRA-2, CERES SYN1deg, NASA POWER) estão formalmente creditados na interface e na documentação do projeto?
-- [ ] **Testes Cegos 4G:** A página web pública abre em menos de 2 segundos no celular/rede móvel e o vídeo de pitch roda em 1080p com legendas claras e áudio limpo?
-- [ ] **Submissão Enviada até 22:30:** Formulário oficial da NASA Space Apps submetido e validado com 90 minutos de antecedência em relação ao prazo final das 24:00.
+- [ ] **Module 1 Operational:** Does the app allow freely selecting any catalog variable, clicking any point on the 2D map, choosing Location A and Location B in $1\times 1$, $2\times 2$, or $3\times 3$ grids, and viewing the 5 Detective Answers?
+- [ ] **Official Interaction Order:** Does the `1st Variable -> 2nd Where -> 3rd Time Period` flow run smoothly, bounding the physical grid and time window without errors?
+- [ ] **Complete $2\times 2$ Matrix:** Does the system support all 4 combinations ($A \neq B, X = Y$; $A = B, X \neq Y$; $A \neq B, X \neq Y$; $A = B, X = Y$)?
+- [ ] **NASA Grid Logic:** Do the minimum grid rectangles (MERRA-2's $0.5^\circ \times 0.625^\circ$ and CERES's $1.0^\circ \times 1.0^\circ$) and the $2\times 2$ and $3\times 3$ options with spatial mean work seamlessly?
+- [ ] **NASA POWER API & Cache:** Do requests run dynamically via `/api/temporal/monthly/point` with a proper `User-Agent`, and does Local Cache ensure instant responses for repeated queries?
+- [ ] **Bench & Triple Normalization:** Do the Dual Y-Axis, universal $Z\text{-Score}$ toggle, and automatic date intersection cleanly equalize comparisons across heterogeneous physical quantities?
+- [ ] **Hardening of the 7 Statistical Invariants:**
+  - Zero use of $Y_{\text{end}} - Y_{\text{start}}$;
+  - Zero percentage ($\%$) on interval scales ($^\circ\text{C}$);
+  - Regressions computed on deseasonalized climatological anomalies;
+  - OLS line, decadal Theil–Sen, and GAM curve visible;
+  - Bivariate outliers identified via Mahalanobis ($D_M > 2.5$);
+  - Significance corrected for $\text{AR}(1)$ persistence ($N_{\text{effective}}$) and FDR ($p_{\text{adj}} < 0.05$).
+- [ ] **Integrated Co-Pilot Chatbot:** Does the assistant consume the real-time statistical JSON and answer the scientist's questions with clarity and methodological rigor?
+- [ ] **Module 2 Scientific Discovery:** Is the model-mined discovery grounded in *Gemini Deep Research* clearly demonstrated and contextualized?
+- [ ] **Free Exploration & ML Discovery:** Do free selection on the interactive map and ML discovery pipeline results load and respond immediately on the bench?
+- [ ] **Formal NASA Attribution:** Are the models and missions (MERRA-2, CERES SYN1deg, NASA POWER) formally credited in the UI and project documentation?
+- [ ] **4G Blind Tests:** Does the public web page open in under 2 seconds on mobile/cellular networks, and does the pitch video play in 1080p with clear subtitles and clean audio?
+- [ ] **Submission Sent by 22:30:** Official NASA Space Apps form submitted and validated 90 minutes ahead of the 24:00 final deadline.

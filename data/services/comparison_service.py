@@ -1,14 +1,14 @@
-"""Serviço estatístico e comparador Local A vs. Local B.
+"""Statistical service and Location A vs. Location B comparator.
 
-Delega integralmente a computação matemática e os 7 Invariantes Estatísticos para o
-motor estado da arte em `backend/stats_engine.py`:
-- Anomalias climatológicas mensais dessazonalizadas com média aparada (Princípio Henrietta Leavitt).
-- Regressão sobre toda a nuvem: OLS + declive robusto de Theil-Sen por década com IC 95%.
-- Curva suave não-linear (Cubic Smoothing Spline com GCV + fallback LOWESS) + aceleração B2.
-- Respeito estrito a escalas (proibição de % em variáveis intervalares).
-- Significância corrigida AR(1) (Santer et al.) + Hamed-Rao Mann-Kendall + Benjamini-Hochberg FDR.
-- Detecção bivariada robusta de outliers por Distância de Mahalanobis (MinCovDet, D_M > 2.5).
-- Decomposição multiescala entre A e B: r_global vs. r_detrended com detecção de paradoxo.
+Delegates mathematical computation and the 7 Statistical Invariants to the
+state-of-the-art engine in `backend/stats_engine.py`:
+- Deseasonalized monthly climatological anomalies with trimmed mean (Henrietta Leavitt principle).
+- Full-cloud regression: OLS + robust Theil-Sen slope per decade with 95% CI.
+- Smooth nonlinear curve (Cubic Smoothing Spline with GCV + LOWESS fallback) + B2 acceleration.
+- Strict scale compliance (% change forbidden on interval variables).
+- AR(1)-corrected significance (Santer et al.) + Hamed-Rao Mann-Kendall + Benjamini-Hochberg FDR.
+- Robust bivariate outlier detection via Mahalanobis Distance (MinCovDet, D_M > 2.5).
+- Multiscale decomposition between A and B: r_global vs. r_detrended with paradox detection.
 """
 
 from __future__ import annotations
@@ -19,7 +19,7 @@ import sys
 from pathlib import Path
 from typing import Any
 
-# Garante que `backend` na raiz do repositório esteja importável mesmo quando executado fora da raiz.
+# Ensure `backend` at the repo root is importable even when executed from outside the root.
 _REPO_ROOT = str(Path(__file__).resolve().parents[2])
 if _REPO_ROOT not in sys.path:
     sys.path.insert(0, _REPO_ROOT)
@@ -43,60 +43,60 @@ from .ingestion_service import (
 
 _YM_PATTERN = re.compile(r"^(\d{4})-(\d{2})$")
 
-# Aliases entre os IDs do CONTRATO_DE_DADOS.md (frontend) e códigos do catálogo/APIs
+# Aliases between CONTRATO_DE_DADOS.md (frontend) IDs and catalog/API codes
 _FRONTEND_VAR_TO_BACKEND: dict[str, str] = {
     "CLDTOT": "CLOUD_AMT",
 }
 
-# Regras normativas de escala do CONTRATO_DE_DADOS.md / frontend/src/contracts/catalog.ts
+# Normative scale rules from CONTRATO_DE_DADOS.md / frontend/src/contracts/catalog.ts
 _CONTRACT_METADATA_OVERRIDES: dict[str, dict[str, Any]] = {
     "CLDTOT": {
-        "variable_name": "Cobertura Total de Nuvens",
+        "variable_name": "Total Cloud Cover",
         "scale_type": "ratio",
         "unit": "%",
-        "trend_unit": "p.p./década",
+        "trend_unit": "p.p./decade",
         "allow_percentage_change": False,
         "min_year": 1984,
     },
     "PS": {
         "scale_type": "interval",
         "unit": "kPa",
-        "trend_unit": "kPa/década",
+        "trend_unit": "kPa/decade",
         "allow_percentage_change": False,
         "min_year": 1981,
     },
     "RH2M": {
         "scale_type": "ratio",
         "unit": "%",
-        "trend_unit": "p.p./década",
+        "trend_unit": "p.p./decade",
         "allow_percentage_change": False,
         "min_year": 1981,
     },
     "GWETTOP": {
         "scale_type": "ratio",
-        "unit": "fração (0–1)",
-        "trend_unit": "fração/década",
+        "unit": "fraction (0–1)",
+        "trend_unit": "fraction/decade",
         "allow_percentage_change": False,
         "min_year": 1981,
     },
     "GWETROOT": {
         "scale_type": "ratio",
-        "unit": "fração (0–1)",
-        "trend_unit": "fração/década",
+        "unit": "fraction (0–1)",
+        "trend_unit": "fraction/decade",
         "allow_percentage_change": False,
         "min_year": 1981,
     },
     "GWETPROF": {
         "scale_type": "ratio",
-        "unit": "fração (0–1)",
-        "trend_unit": "fração/década",
+        "unit": "fraction (0–1)",
+        "trend_unit": "fraction/decade",
         "allow_percentage_change": False,
         "min_year": 1981,
     },
     "ALLSKY_SRF_ALB": {
         "scale_type": "ratio",
-        "unit": "fração (0–1)",
-        "trend_unit": "fração/década",
+        "unit": "fraction (0–1)",
+        "trend_unit": "fraction/decade",
         "allow_percentage_change": False,
         "min_year": 1984,
     },
@@ -106,7 +106,7 @@ _CONTRACT_METADATA_OVERRIDES: dict[str, dict[str, Any]] = {
 
 
 class ContractSemanticError(ValueError):
-    """Erro semântico padronizado conforme Seção 5 do CONTRATO_DE_DADOS.md."""
+    """Standardized semantic error per Section 5 of CONTRATO_DE_DADOS.md."""
 
     def __init__(self, code: str, message: str, status_code: int = 422) -> None:
         super().__init__(message)
@@ -116,14 +116,14 @@ class ContractSemanticError(ValueError):
 
 def _trend_unit_from_unit(unit: str) -> str:
     if unit == "%":
-        return "p.p./década"
-    if unit.lower().startswith("fração"):
-        return "fração/década"
-    return f"{unit}/década" if unit else "unidade/década"
+        return "p.p./decade"
+    if unit.lower().startswith("fraction") or unit.lower().startswith("fração"):
+        return "fraction/decade"
+    return f"{unit}/decade" if unit else "unit/decade"
 
 
 def _build_variable_meta(fetched: dict[str, Any], requested_var_id: str | None = None) -> dict[str, Any]:
-    """Constrói metadados compatíveis com `backend.stats_engine` preservando as 42 variáveis e invariantes."""
+    """Builds metadata compatible with `backend.stats_engine` preserving all 42 variables and invariants."""
     var_id = requested_var_id or str(fetched["variable"])
     unit = str(fetched.get("unit") or "")
     scale_type = str(fetched.get("scale_type") or "ratio")
@@ -157,7 +157,7 @@ def _build_variable_meta(fetched: dict[str, Any], requested_var_id: str | None =
 
 
 def _apply_joint_fdr(blocks: list[dict[str, Any]]) -> None:
-    """Aplica controle Benjamini-Hochberg FDR conjunto sobre múltiplos blocos analisados."""
+    """Applies joint Benjamini-Hochberg FDR control across multiple analyzed blocks."""
     if not blocks:
         return
     p_vals = [float(b["significance"]["p_value_ar1_corrected"]) for b in blocks]
@@ -175,8 +175,8 @@ def build_variable_statistics(
     requested_var_id: str | None = None,
     fdr_q_override: float | None = None,
 ) -> tuple[dict[str, Any], list[float], list[float]]:
-    """Gera o bloco completo do Contrato de Dados delegando ao motor `backend/stats_engine.py`."""
-    del xs_years  # O motor calcula tempo fracionário exato diretamente de common_months
+    """Generates the complete Data Contract block by delegating to `backend/stats_engine.py`."""
+    del xs_years  # The engine computes exact fractional time directly from common_months
     var_meta = _build_variable_meta(fetched, requested_var_id=requested_var_id)
     series_map = fetched["series"]
     raw_values = [series_map.get(ym) for ym in common_months]
@@ -224,7 +224,7 @@ def _compute_pair_comparison(
     region_a_id: str | None = None,
     region_b_id: str | None = None,
 ) -> dict[str, Any]:
-    """Delega a comparação multiescala e detecção de paradoxo ao `backend/stats_engine.py`."""
+    """Delegates multiscale comparison and paradox detection to `backend/stats_engine.py`."""
     del anomalies_a, residuals_a, anomalies_b, residuals_b
     eff_a = region_a_id or name_a
     eff_b = region_b_id or name_b
@@ -263,13 +263,13 @@ def compare_locations_single_variable(
     *,
     cache: CellCacheStore | None = None,
 ) -> dict[str, Any]:
-    """Fluxo principal (MVP): 1 variável no Local A vs. 1 variável no Local B."""
+    """Main flow (MVP): 1 variable at Location A vs. 1 variable at Location B."""
     cache_store = cache or CellCacheStore()
     fetched_a = fetch_location_single_variable(
-        location_a, start_year, end_year, cache=cache_store, label="Local A"
+        location_a, start_year, end_year, cache=cache_store, label="Location A"
     )
     fetched_b = fetch_location_single_variable(
-        location_b, start_year, end_year, cache=cache_store, label="Local B"
+        location_b, start_year, end_year, cache=cache_store, label="Location B"
     )
 
     if fetched_a["status"] != "OK" or fetched_b["status"] != "OK":
@@ -317,13 +317,13 @@ def compare_locations_multi_variable(
     *,
     cache: CellCacheStore | None = None,
 ) -> dict[str, Any]:
-    """Extensão futura: N variáveis no Local A vs. M variáveis no Local B (matriz cruzada)."""
+    """Future extension: N variables at Location A vs. M variables at Location B (cross-matrix)."""
     cache_store = cache or CellCacheStore()
     batch_a = fetch_location_multiple_variables(
-        location_a, start_year, end_year, cache=cache_store, label="Local A Multi"
+        location_a, start_year, end_year, cache=cache_store, label="Location A Multi"
     )
     batch_b = fetch_location_multiple_variables(
-        location_b, start_year, end_year, cache=cache_store, label="Local B Multi"
+        location_b, start_year, end_year, cache=cache_store, label="Location B Multi"
     )
 
     ok_a = {code: data for code, data in batch_a["variables"].items() if data.get("status") == "OK"}
@@ -381,25 +381,25 @@ def compare_locations_multi_variable(
 
 
 def _parse_year_month(raw: Any, field_name: str) -> tuple[str, int]:
-    """Valida string YYYY-MM do CONTRATO_DE_DADOS.md e devolve (YYYY-MM, ano)."""
+    """Validates a YYYY-MM string per CONTRATO_DE_DADOS.md and returns (YYYY-MM, year)."""
     text = str(raw or "").strip()
     match = _YM_PATTERN.match(text)
     if not match:
         raise ContractSemanticError(
             "INVALID_DATE_INTERSECTION",
-            f"Campo '{field_name}' inválido (esperado YYYY-MM): {raw!r}",
+            f"Invalid field '{field_name}' (expected YYYY-MM): {raw!r}",
         )
     year, month = int(match.group(1)), int(match.group(2))
     if not (1 <= month <= 12):
         raise ContractSemanticError(
             "INVALID_DATE_INTERSECTION",
-            f"Mês fora do intervalo 01..12 em '{field_name}': {text}",
+            f"Month out of range 01..12 in '{field_name}': {text}",
         )
     return text, year
 
 
 def _slot_human_label(slot_label: str) -> str:
-    return "Local A" if slot_label == "region_a" else "Local B"
+    return "Location A" if slot_label == "region_a" else "Location B"
 
 
 def _parse_contract_region(
@@ -407,33 +407,33 @@ def _parse_contract_region(
     slot_label: str,
     backend_var_code: str,
 ) -> tuple[str, int, LocationQuery]:
-    """Converte `region_a` ou `region_b` de `RegionAnalysisRequest` para `LocationQuery`."""
+    """Converts `region_a` or `region_b` from `RegionAnalysisRequest` into `LocationQuery`."""
     slot_name = _slot_human_label(slot_label)
     if not isinstance(raw_region, dict):
         raise ContractSemanticError(
             "CONTRACT_VIOLATION",
-            f"Os dados enviados para o {slot_name} estão em formato inválido.",
+            f"Data submitted for {slot_name} has an invalid format.",
             400,
         )
     region_id = str(raw_region.get("region_id") or "").strip()
     if not region_id:
         raise ContractSemanticError(
             "CONTRACT_VIOLATION",
-            f"Identificador ausente para o {slot_name} (region_id obrigatório).",
+            f"Missing identifier for {slot_name} (region_id is required).",
             400,
         )
     raw_cells = raw_region.get("cells")
     if not isinstance(raw_cells, list) or len(raw_cells) == 0:
         raise ContractSemanticError(
             "CONTRACT_VIOLATION",
-            f"Selecione pelo menos 1 retângulo no mapa para o {slot_name}.",
+            f"Select at least 1 grid cell on the map for {slot_name}.",
             400,
         )
     max_cells = get_max_cells_per_region()
     if len(raw_cells) > max_cells:
         raise ContractSemanticError(
             "MAX_CELLS_EXCEEDED",
-            f"O {slot_name} possui {len(raw_cells)} retângulos selecionados, mas o limite máximo é de {max_cells} retângulos adjacentes por região.",
+            f"{slot_name} has {len(raw_cells)} selected cells, but the maximum limit is {max_cells} adjacent cells per region.",
         )
     spec = get_variable_spec(backend_var_code)
     grid_contracts = {
@@ -447,7 +447,7 @@ def _parse_contract_region(
         if raw_region.get("source_model") != expected_model:
             raise ContractSemanticError(
                 "CONTRACT_VIOLATION",
-                f"'{slot_label}.source_model' incompatível com {backend_var_code}: esperado {expected_model}.",
+                f"'{slot_label}.source_model' incompatible with {backend_var_code}: expected {expected_model}.",
                 400,
             )
         resolution = raw_region.get("grid_resolution")
@@ -457,13 +457,13 @@ def _parse_contract_region(
         except (TypeError, ValueError) as exc:
             raise ContractSemanticError(
                 "CONTRACT_VIOLATION",
-                f"'{slot_label}.grid_resolution' incompatível com {backend_var_code}.",
+                f"'{slot_label}.grid_resolution' incompatible with {backend_var_code}.",
                 400,
             ) from exc
         if not math.isclose(dlat, expected_dlat) or not math.isclose(dlon, expected_dlon):
             raise ContractSemanticError(
                 "CONTRACT_VIOLATION",
-                f"'{slot_label}.grid_resolution' incompatível com {backend_var_code}.",
+                f"'{slot_label}.grid_resolution' incompatible with {backend_var_code}.",
                 400,
             )
 
@@ -473,26 +473,26 @@ def _parse_contract_region(
     for index, item in enumerate(raw_cells):
         if not isinstance(item, dict):
             raise ContractSemanticError(
-                "CONTRACT_VIOLATION", f"'{slot_label}.cells[{index}]' inválida ({slot_name}).", 400
+                "CONTRACT_VIOLATION", f"Invalid '{slot_label}.cells[{index}]' ({slot_name}).", 400
             )
         try:
             lat, lon = float(item["lat"]), float(item["lon"])
         except (KeyError, TypeError, ValueError) as exc:
             raise ContractSemanticError(
                 "CONTRACT_VIOLATION",
-                f"As coordenadas selecionadas para o {slot_name} estão incompletas ou inválidas.",
+                f"Selected coordinates for {slot_name} are incomplete or invalid.",
                 400,
             ) from exc
         if not math.isfinite(lat) or not math.isfinite(lon) or not (-90 <= lat <= 90) or not (-180 <= lon <= 180):
             raise ContractSemanticError(
                 "CONTRACT_VIOLATION",
-                f"Coordenadas fora do domínio em '{slot_label}.cells[{index}]'.",
+                f"Coordinates out of domain in '{slot_label}.cells[{index}]'.",
                 400,
             )
         coord = (round(lat, 4), round(lon, 4))
         if coord in seen_coords:
             raise ContractSemanticError(
-                "CONTRACT_VIOLATION", f"Célula duplicada em '{slot_label}': {coord}.", 400
+                "CONTRACT_VIOLATION", f"Duplicate cell in '{slot_label}': {coord}.", 400
             )
         seen_coords.add(coord)
 
@@ -502,7 +502,7 @@ def _parse_contract_region(
             if coord != snapped:
                 raise ContractSemanticError(
                     "CONTRACT_VIOLATION",
-                    f"Célula {coord} não está no centro da grade nativa de {backend_var_code}.",
+                    f"Cell {coord} is not on the native grid center of {backend_var_code}.",
                     400,
                 )
             if spec.grid_type == "ceres":
@@ -512,14 +512,14 @@ def _parse_contract_region(
             if item.get("row") != expected_row or item.get("col") != expected_col:
                 raise ContractSemanticError(
                     "CONTRACT_VIOLATION",
-                    f"Índices de grade inválidos em '{slot_label}.cells[{index}]'.",
+                    f"Invalid grid indices in '{slot_label}.cells[{index}]'.",
                     400,
                 )
             expected_cell_id = f"r{expected_row}_c{expected_col}"
             if item.get("cell_id") != expected_cell_id:
                 raise ContractSemanticError(
                     "CONTRACT_VIOLATION",
-                    f"cell_id inválido em '{slot_label}.cells[{index}]': esperado {expected_cell_id}.",
+                    f"Invalid cell_id in '{slot_label}.cells[{index}]': expected {expected_cell_id}.",
                     400,
                 )
             grid_indices.append((expected_row, expected_col))
@@ -537,7 +537,7 @@ def _parse_contract_region(
         if len(visited) != len(grid_indices):
             raise ContractSemanticError(
                 "NOT_ADJACENT",
-                f"As células de '{slot_label}' ({slot_name}) precisam formar uma região conexa em 8 vizinhos.",
+                f"The cells of '{slot_label}' ({slot_name}) must form an 8-connected region.",
             )
     station_id = raw_region.get("station_id")
     query = LocationQuery(
@@ -560,31 +560,31 @@ def _fetch_contract_series(
     cache: CellCacheStore,
     label: str,
 ) -> dict[str, Any]:
-    """Busca e filtra a série mensal no intervalo [start_date, end_date] tratando erros semânticos."""
+    """Fetches and filters the monthly series in [start_date, end_date], handling semantic errors."""
     fetched = fetch_location_single_variable(
         query, start_year, end_year, cache=cache, label=label
     )
     if fetched.get("status") == "OCEANO_SEM_DADOS_TERRESTRES":
         raise ContractSemanticError(
             "OCEAN_MASK_NO_DATA",
-            f"Células sobre oceano sem dados terrestres para '{requested_var_id}'.",
+            f"Ocean cells have no land data for '{requested_var_id}'.",
         )
     if fetched.get("status") != "OK":
         raise ContractSemanticError(
             "BACKEND_UNAVAILABLE",
-            str(fetched.get("error") or f"Falha ao obter '{requested_var_id}' ({fetched.get('status')})."),
+            str(fetched.get("error") or f"Failed to fetch '{requested_var_id}' ({fetched.get('status')})."),
             502,
         )
     filtered_series = {
         ym: val for ym, val in fetched.get("series", {}).items() if start_date <= ym <= end_date
     }
-    # No endpoint /point da NASA POWER (MERRA-2 Land), células oceânicas retornam -999 ou 1.0 constante
+    # On the NASA POWER /point endpoint (MERRA-2 Land), ocean cells return -999 or constant 1.0
     if requested_var_id in {"GWETTOP", "GWETROOT", "GWETPROF"} and (
         not filtered_series or set(filtered_series.values()) <= {1.0}
     ):
         raise ContractSemanticError(
             "OCEAN_MASK_NO_DATA",
-            f"Células sobre oceano sem variação terrestre para '{requested_var_id}'.",
+            f"Ocean cells have no land variation for '{requested_var_id}'.",
         )
     return {**fetched, "series": filtered_series}
 
@@ -594,13 +594,13 @@ def analyze_regions_contract(
     *,
     cache: CellCacheStore | None = None,
 ) -> dict[str, Any]:
-    """Executa análise compatível 100% com `RegionAnalysisRequest -> RegionAnalysisResponse` (POST /api/analyze)."""
+    """Runs analysis 100% compatible with `RegionAnalysisRequest -> RegionAnalysisResponse` (POST /api/analyze)."""
     if not isinstance(request_body, dict):
-        raise ContractSemanticError("CONTRACT_VIOLATION", "Payload JSON inválido.", 400)
+        raise ContractSemanticError("CONTRACT_VIOLATION", "Invalid JSON payload.", 400)
 
     var_a = str(request_body.get("variable_a") or "").strip()
     if not var_a:
-        raise ContractSemanticError("CONTRACT_VIOLATION", "Campo 'variable_a' obrigatório.", 400)
+        raise ContractSemanticError("CONTRACT_VIOLATION", "Field 'variable_a' is required.", 400)
     raw_var_b = request_body.get("variable_b")
     var_b = str(raw_var_b).strip() if raw_var_b else None
 
@@ -609,7 +609,7 @@ def analyze_regions_contract(
     if start_date > end_date:
         raise ContractSemanticError(
             "INVALID_DATE_INTERSECTION",
-            f"Janela temporal inválida: {start_date} > {end_date}.",
+            f"Invalid time window: {start_date} > {end_date}.",
         )
 
     backend_var_a = _FRONTEND_VAR_TO_BACKEND.get(var_a, var_a)
@@ -631,7 +631,7 @@ def analyze_regions_contract(
         if len(common_months) < 12:
             raise ContractSemanticError(
                 "INVALID_DATE_INTERSECTION",
-                f"Menos de 12 meses válidos para '{var_a}' em [{start_date}, {end_date}].",
+                f"Fewer than 12 valid months for '{var_a}' in [{start_date}, {end_date}].",
             )
         block_a, _, _ = build_variable_statistics(
             region_a_id, fetched_a, common_months, xs_years, requested_var_id=var_a
@@ -661,7 +661,7 @@ def analyze_regions_contract(
         )
         pair_region_b_id = region_b_id
     else:
-        # Mesma Região A com 2 variáveis distintas (var_a vs var_b)
+        # Same Region A with 2 distinct variables (var_a vs var_b)
         region_b_id = None
         cells_count_b = 0
         pair_region_b_id = region_a_id
@@ -681,7 +681,7 @@ def analyze_regions_contract(
     if len(common_months) < 12:
         raise ContractSemanticError(
             "INVALID_DATE_INTERSECTION",
-            f"Interseção comum insuficiente ({len(common_months)} meses) entre '{var_a}' e '{second_req_var}'.",
+            f"Insufficient common intersection ({len(common_months)} months) between '{var_a}' and '{second_req_var}'.",
         )
 
     block_a, anom_a, res_a = build_variable_statistics(

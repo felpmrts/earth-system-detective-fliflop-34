@@ -1,11 +1,11 @@
 """Earth System Trend Detective — Scientific Discovery & ML Pipeline (2001–2025).
 
 Implements state-of-the-art discovery grounded in the team's 7 Statistical Invariants
-and post-audit mathematical corrections (Passo 0 + Camada 1):
+and post-audit mathematical corrections (Step 0 + Layer 1):
   1. Multi-point GloFAS 0.05° main-channel river snapping + true monthly physical
      extremes (`fmean` -> `river_discharge`, `min` -> `river_discharge_min`,
      `max` -> `river_discharge_max`) with automatic eviction of stale `fmean` caches.
-  2. Strict physical units & scale typing (`MJ/m²/dia` solar radiation, convex FAO-56
+  2. Strict physical units & scale typing (`MJ/m²/day` solar radiation, convex FAO-56
      `VPD_t2m_kpa` from `T2M_MAX` + reconstructed `T2M_MIN = 2*T2M - T2M_MAX` + `T2MDEW`,
      `sw_cloud_radiative_effect = CLRSKY - ALLSKY`, and smoke-vs-cloud radiative
      decoupling diagnostics).
@@ -122,7 +122,7 @@ TARGETS_TELECONNECTION = ("river_discharge_min", "GWETROOT")
 WATERSHED_SPECS: list[dict[str, Any]] = [
     {
         "id": "amazonia_madeira",
-        "name": "Bacia do Madeira — Porto Velho (Amazônia SW)",
+        "name": "Madeira Basin — Porto Velho (SW Amazonia)",
         "glofas_scout_center": (-8.76, -63.91),
         "basin_cells": [
             (-8.75, -63.90),
@@ -134,7 +134,7 @@ WATERSHED_SPECS: list[dict[str, Any]] = [
     },
     {
         "id": "amazonia_tapajos",
-        "name": "Bacia do Tapajós — Itaituba (Amazônia Central-Sul)",
+        "name": "Tapajós Basin — Itaituba (Central-South Amazonia)",
         "glofas_scout_center": (-4.28, -55.98),
         "basin_cells": [
             (-4.25, -56.00),
@@ -146,7 +146,7 @@ WATERSHED_SPECS: list[dict[str, Any]] = [
     },
     {
         "id": "parana_foz_iguacu",
-        "name": "Bacia do Paraná — Foz / Itaipu",
+        "name": "Paraná Basin — Foz / Itaipu",
         "glofas_scout_center": (-25.50, -54.60),
         "basin_cells": [
             (-25.25, -54.375),
@@ -158,7 +158,7 @@ WATERSHED_SPECS: list[dict[str, Any]] = [
     },
     {
         "id": "sul_guaiba",
-        "name": "Bacia Jacuí–Guaíba — Porto Alegre / Triunfo (RS)",
+        "name": "Jacuí–Guaíba Basin — Porto Alegre / Triunfo (RS)",
         "glofas_scout_center": (-29.925, -51.725),
         "basin_cells": [
             (-30.00, -51.25),
@@ -170,7 +170,7 @@ WATERSHED_SPECS: list[dict[str, Any]] = [
     },
     {
         "id": "sao_francisco_sobradinho",
-        "name": "Bacia do São Francisco — Sobradinho / Juazeiro",
+        "name": "São Francisco Basin — Sobradinho / Juazeiro",
         "glofas_scout_center": (-9.42, -40.60),
         "basin_cells": [
             (-9.50, -40.625),
@@ -182,7 +182,7 @@ WATERSHED_SPECS: list[dict[str, Any]] = [
     },
     {
         "id": "murray_darling",
-        "name": "Murray-Darling Basin — Wentworth (SE Austrália)",
+        "name": "Murray-Darling Basin — Wentworth (SE Australia)",
         "glofas_scout_center": (-34.12, 141.92),
         "basin_cells": [
             (-34.25, 141.875),
@@ -197,7 +197,7 @@ WATERSHED_SPECS: list[dict[str, Any]] = [
 OCEAN_BOX_SPECS: list[dict[str, Any]] = [
     {
         "id": "atl_ne",
-        "name": "Atlântico Sul-Equatorial Nordeste (Box NE)",
+        "name": "Northeast South-Equatorial Atlantic (NE Box)",
         "box_cells": [
             (-5.5, -33.125),
             (-5.5, -30.625),
@@ -207,7 +207,7 @@ OCEAN_BOX_SPECS: list[dict[str, Any]] = [
     },
     {
         "id": "atl_tn",
-        "name": "Atlântico Tropical Norte (Dipolo Norte / NAWH-S)",
+        "name": "Tropical North Atlantic (North Dipole / NAWH-S)",
         "box_cells": [
             (11.5, -43.75),
             (11.5, -38.75),
@@ -217,7 +217,7 @@ OCEAN_BOX_SPECS: list[dict[str, Any]] = [
     },
     {
         "id": "atl_s",
-        "name": "Atlântico Subtropical Sul (SW Atlântico Offshore)",
+        "name": "Subtropical South Atlantic (SW Atlantic Offshore)",
         "box_cells": [
             (-29.5, -43.75),
             (-29.5, -40.00),
@@ -227,7 +227,7 @@ OCEAN_BOX_SPECS: list[dict[str, Any]] = [
     },
     {
         "id": "pac_nino34",
-        "name": "Pacífico Equatorial Niño 3.4",
+        "name": "Equatorial Pacific Niño 3.4",
         "box_cells": [
             (-3.0, -160.0),
             (-3.0, -135.0),
@@ -245,9 +245,9 @@ def build_variable_meta(code: str) -> dict[str, Any]:
     """Builds physically consistent VariableMeta enforcing Invariant 3 & MJ/m²/day units."""
     if code in {"river_discharge", "river_discharge_min", "river_discharge_max"}:
         names = {
-            "river_discharge": "Vazão Média Mensal do Rio (GloFAS)",
-            "river_discharge_min": "Vazão Mínima Diária no Mês (GloFAS)",
-            "river_discharge_max": "Vazão Máxima Diária no Mês (GloFAS)",
+            "river_discharge": "Monthly Mean River Discharge (GloFAS)",
+            "river_discharge_min": "Monthly Minimum Daily River Discharge (GloFAS)",
+            "river_discharge_max": "Monthly Maximum Daily River Discharge (GloFAS)",
         }
         return {
             "variable_id": code,
@@ -257,7 +257,7 @@ def build_variable_meta(code: str) -> dict[str, Any]:
             "min_year": 1984,
             "scale_type": "ratio",
             "unit": "m³/s",
-            "trend_unit": "m³/s/década",
+            "trend_unit": "m³/s/decade",
             "allow_percentage_change": True,
             "land_only_mask": True,
         }
@@ -265,13 +265,13 @@ def build_variable_meta(code: str) -> dict[str, Any]:
     if code == "sw_cloud_radiative_effect":
         return {
             "variable_id": code,
-            "variable_name": "Atenuação Radiativa Onda Curta por Nuvens/Aerossóis (CLRSKY - ALLSKY)",
+            "variable_name": "Shortwave Cloud/Aerosol Radiative Attenuation (CLRSKY - ALLSKY)",
             "source_model": "CERES_SYN1deg",
             "resolution": {"dLat": 1.0, "dLon": 1.0},
             "min_year": 2001,
             "scale_type": "interval",
-            "unit": "MJ/m²/dia",
-            "trend_unit": "MJ/m²/dia/década",
+            "unit": "MJ/m²/day",
+            "trend_unit": "MJ/m²/day/decade",
             "allow_percentage_change": False,
             "land_only_mask": False,
         }
@@ -279,13 +279,13 @@ def build_variable_meta(code: str) -> dict[str, Any]:
     if code == "VPD_t2m_kpa":
         return {
             "variable_id": code,
-            "variable_name": "Déficit de Pressão de Vapor FAO-56 (VPD a 2m, T2M_MAX/T2M_MIN/T2MDEW)",
+            "variable_name": "FAO-56 Vapor Pressure Deficit (2m VPD, T2M_MAX/T2M_MIN/T2MDEW)",
             "source_model": "MERRA-2",
             "resolution": {"dLat": 0.5, "dLon": 0.625},
             "min_year": 1981,
             "scale_type": "ratio",
             "unit": "kPa",
-            "trend_unit": "kPa/década",
+            "trend_unit": "kPa/decade",
             "allow_percentage_change": True,
             "land_only_mask": False,
         }
@@ -307,8 +307,8 @@ def build_variable_meta(code: str) -> dict[str, Any]:
             "resolution": grid,
             "min_year": min_year,
             "scale_type": "ratio",
-            "unit": "MJ/m²/dia",
-            "trend_unit": "MJ/m²/dia/década",
+            "unit": "MJ/m²/day",
+            "trend_unit": "MJ/m²/day/decade",
             "allow_percentage_change": True,
             "land_only_mask": land_only,
         }
@@ -322,7 +322,7 @@ def build_variable_meta(code: str) -> dict[str, Any]:
             "min_year": min_year,
             "scale_type": "ratio",
             "unit": "%",
-            "trend_unit": "p.p./década",
+            "trend_unit": "p.p./decade",
             "allow_percentage_change": False,
             "land_only_mask": land_only,
         }
@@ -335,14 +335,14 @@ def build_variable_meta(code: str) -> dict[str, Any]:
             "resolution": grid,
             "min_year": min_year,
             "scale_type": "ratio",
-            "unit": "fração (0–1)",
-            "trend_unit": "fração/década",
+            "unit": "fraction (0–1)",
+            "trend_unit": "fraction/decade",
             "allow_percentage_change": False,
             "land_only_mask": land_only,
         }
 
     unit = spec.unit
-    trend_unit = f"{unit}/década"
+    trend_unit = f"{unit}/decade"
     return {
         "variable_id": spec.code,
         "variable_name": spec.ui_name,
@@ -2390,8 +2390,8 @@ def _assert_self_test_invariants(payload: Mapping[str, Any]) -> None:
     """Verifies Invariant 3 units, FAO-56 VPD, non-tautological GAM r, CUSUM breaks, and orthogonal FDR."""
     ws0 = payload["valid_watersheds_evaluated"][0]
     ws_stats = payload["statistical_diagnostics"]["watersheds"][ws0]
-    assert ws_stats["ALLSKY_SFC_SW_DWN"]["unit"] == "MJ/m²/dia"
-    assert ws_stats["CLRSKY_SFC_SW_DWN"]["unit"] == "MJ/m²/dia"
+    assert ws_stats["ALLSKY_SFC_SW_DWN"]["unit"] == "MJ/m²/day"
+    assert ws_stats["CLRSKY_SFC_SW_DWN"]["unit"] == "MJ/m²/day"
     assert ws_stats["CLOUD_AMT"]["allow_percentage_change"] is False
     assert ws_stats["ALLSKY_SRF_ALB"]["allow_percentage_change"] is False
     assert ws_stats["VPD_t2m_kpa"]["unit"] == "kPa"

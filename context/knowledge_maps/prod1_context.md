@@ -1,14 +1,14 @@
-# 🗺️ PROD-1_CONTEXT.md — Engenharia de Mapas & Geo
+# 🗺️ PROD-1_CONTEXT.md — Maps & Geo Engineering
 
-**Projeto:** NASA Space Apps Challenge — *Be An Earth System Trend Detective!*  
+**Project:** NASA Space Apps Challenge — *Be An Earth System Trend Detective!*
 
-**Hierarquia:** Contexto operacional específico da **PROD-1**. Complementa (e não substitui) a janela de contexto principal do projeto.
+**Hierarchy:** Operational context specific to **PROD-1**. Complements (and does not replace) the project's main context window.
 
   
 
-> **🎯 Norte de Decisão (Ordem de Prioridade):**  
+> **🎯 Decision North Star (Priority Order):**
 
-> `MVP Funcional` > `Dados Cientificamente Defensáveis` > `Integração Confiável` > `Performance Suficiente` > `Polimento` > `Sofisticação`
+> `Functional MVP` > `Scientifically Defensible Data` > `Reliable Integration` > `Sufficient Performance` > `Polish` > `Sophistication`
 
   
 
@@ -16,31 +16,32 @@
 
   
 
-## 1. Escopo, Fronteiras e Stack
+## 1. Scope, Boundaries, and Stack
 
   
 
-A PROD-1 responde visualmente: **Onde está mudando?**, **Em qual direção/intensidade?** e **É estatisticamente significativo?**, além de permitir a seleção de regiões.
+PROD-1 visually answers: **Where is it changing?**, **In what direction/intensity?**, and **Is it statistically significant?**, while also enabling region selection.
 
   
 
-| ✅ O que a PROD-1 FAZ                                   | ❌ O que a PROD-1 NÃO FAZ                                     |
+| ✅ What PROD-1 DOES                                     | ❌ What PROD-1 DOES NOT DO                                    |
 | ------------------------------------------------------ | ------------------------------------------------------------ |
-| Renderizar mapa global (`Leaflet`) e legenda           | Calcular Sen slope, FDR ou testes estatísticos               |
-| Distinguir direção, magnitude e significância          | Processar arquivos NetCDF pesados no browser                 |
-| Permitir seleção e destaque de até 2 regiões (A/B)     | Construir gráficos temporais ou textos analíticos (`PROD-2`) |
-| Comunicar IDs/geometrias selecionadas ao estado global | Chamar APIs da NASA diretamente do componente de mapa        |
-| Garantir performance (Canvas) e fallback local         | Fazer redesign completo do frontend                          |
+| Render global map (`Leaflet`) and legend               | Compute Sen slope, FDR, or statistical tests                 |
+| Distinguish direction, magnitude, and significance     | Process heavy NetCDF files in the browser                    |
+| Allow selection and highlighting of up to 2 regions (A/B) | Build time-series charts or analytical prose (`PROD-2`)    |
+| Communicate selected IDs/geometries to global state    | Call NASA APIs directly from the map component               |
+| Guarantee performance (Canvas) and local fallback      | Perform a full frontend redesign                             |
+
   
 
-### Stack & Regras de Implementação
+### Stack & Implementation Rules
 
-* **Stack Oficial:** `Leaflet (Canvas) + React + TypeScript + Vite` (com deploy estático na Vercel e TypeScript em modo estrito).
-* **Biblioteca de Mapas:** `Leaflet` (`L.map`, `L.tileLayer`, `L.circleMarker`, `L.geoJSON`, `L.layerGroup`, `L.polyline`, eventos de clique, controle de camadas) com renderer `Canvas` mandatório para manter alta performance com milhares de pontos/células da grade global.
-* **Proibido adicionar:** Deck.gl, Mapbox, mapas 3D, animações complexas, interpolação espacial no browser ou bibliotecas sem problema real no MVP.
-* **⚠️ Regra Crítica de Coordenadas:**
-  * **Leaflet & Payload do Mapa (`cells_a`, `cells_b`):** `[latitude, longitude]` *(ordem obrigatória)*
-  * **GeoJSON:** `[longitude, latitude]` *(Nunca inverter caso haja conversão para GeoJSON!)*
+* **Official Stack:** `Leaflet (Canvas) + React + TypeScript + Vite` (with static deployment on Vercel and strict TypeScript).
+* **Map Library:** `Leaflet` (`L.map`, `L.tileLayer`, `L.circleMarker`, `L.geoJSON`, `L.layerGroup`, `L.polyline`, click events, layer control) with mandatory `Canvas` renderer to maintain high performance with thousands of global grid points/cells.
+* **Forbidden to add:** Deck.gl, Mapbox, 3D maps, complex animations, in-browser spatial interpolation, or libraries without a real MVP problem.
+* **⚠️ Critical Coordinate Rule:**
+  * **Leaflet & Map Payload (`cells_a`, `cells_b`):** `[latitude, longitude]` *(mandatory order)*
+  * **GeoJSON:** `[longitude, latitude]` *(Never invert if converting to GeoJSON!)*
 
   
 
@@ -48,50 +49,50 @@ A PROD-1 responde visualmente: **Onde está mudando?**, **Em qual direção/inte
 
   
 
-## 2. Arquitetura de Dados (2 Fluxos Distintos)
+## 2. Data Architecture (2 Distinct Flows)
 
   
 
-### Fluxo A: Mapa Global (Estático / Pré-processado)
+### Flow A: Global Map (Static / Precomputed)
 
-Carregamento rápido a partir de arquivos pré-computados no formato `{var_id}_grid.json`. **O mapa nunca recalcula esses valores.**
+Fast loading from precomputed files in `{var_id}_grid.json` format. **The map never recalculates these values.**
 
-* **Schema esperado:** `lat`, `lon`, `slope_sen_decade` (tendência/década), `q_value_fdr` (significância corrigida por FDR) e `is_sig` (booleano/indicador).
+* **Expected schema:** `lat`, `lon`, `slope_sen_decade` (trend/decade), `q_value_fdr` (FDR-corrected significance), and `is_sig` (boolean/indicator).
 
   
 
-### Fluxo B: Regiões Selecionadas (Dinâmico sob demanda)
+### Flow B: Selected Regions (Dynamic On-Demand)
 
-> **🔄 Atualização Arquitetural:** A abordagem antiga de 20–30 "regiões sentinelas" fixas (`regions.json`) foi substituída por consultas dinâmicas via API/serviço para qualquer região escolhida pelo usuário com composição flexível de células adjacentes.
+> **🔄 Architectural Update:** The old approach of 20–30 fixed "sentinel regions" (`regions.json`) was replaced by dynamic API/service queries for any user-chosen region with flexible adjacent-cell composition.
 
 ```text
-[Usuário seleciona Área A/B no MapView] ──▶ [MapView emite MapSelectionPayload] ──▶ [Frontend: getRegionData(payload)]
-                                                                                             │
-[PROD-2 recebe séries e estatísticas] ◀── [Camada Científica / Backend API] ◀── [NASA POWER / Subsetting]
+[User selects Area A/B in MapView] ──▶ [MapView emits MapSelectionPayload] ──▶ [Frontend: getRegionData(payload)]
+                                                                                           │
+[PROD-2 receives series and stats] ◀── [Scientific Layer / Backend API] ◀── [NASA POWER / Subsetting]
 ```
 
-### Especificação do Payload de Saída do Mapa (`MapSelectionPayload`)
+### Map Output Payload Specification (`MapSelectionPayload`)
 
-Ao interagir com o mapa, o usuário seleciona e compõe as áreas A e B clicando em células da grade nativa. O mapa opera com **composição flexível de células adjacentes** (que compartilhem pelo menos um vértice ou aresta na grade discreta, ex.: $1\times 1$, $1\times 3$, $2\times 1$, $2\times 2$, até o teto de 9 células por área).
+When interacting with the map, the user selects and composes areas A and B by clicking native grid cells. The map operates with **flexible adjacent-cell composition** (sharing at least one vertex or edge on the discrete grid, e.g., $1\times 1$, $1\times 3$, $2\times 1$, $2\times 2$, up to the cap of 9 cells per area).
 
-O componente `MapView` emite para o estado global da aplicação o seguinte payload padronizado em TypeScript:
+The `MapView` component emits the following standardized TypeScript payload to the application's global state:
 
 ```typescript
 export interface MapSelectionPayload {
-  variable_x: string;               // Variável primária (Área A)
-  variable_y?: string;              // Variável secundária (Área B) - opcional para comparação univariada ou bivariada
+  variable_x: string;               // Primary variable (Area A)
+  variable_y?: string;              // Secondary variable (Area B) - optional for univariate or bivariate comparison
   grid_resolution: {
-    dlat: number;                   // Passo de latitude da grade nativa (ex: 0.5)
-    dlon: number;                   // Passo de longitude da grade nativa (ex: 0.625)
+    dlat: number;                   // Native grid latitude step (e.g., 0.5)
+    dlon: number;                   // Native grid longitude step (e.g., 0.625)
   };
-  cells_a: [number, number][];      // Células da Área A: 1 <= cells_a.length <= 9, coordenadas em [lat, lon]
-  cells_b?: [number, number][];     // Células da Área B: 1 <= cells_b.length <= 9, coordenadas em [lat, lon] (opcional)
-  start_year: number;               // Ano inicial comum da série temporal (ex: 1981)
-  end_year: number;                 // Ano final comum da série temporal (ex: 2023)
+  cells_a: [number, number][];      // Area A cells: 1 <= cells_a.length <= 9, coordinates in [lat, lon]
+  cells_b?: [number, number][];     // Area B cells: 1 <= cells_b.length <= 9, coordinates in [lat, lon] (optional)
+  start_year: number;               // Common start year of the time series (e.g., 1981)
+  end_year: number;                 // Common end year of the time series (e.g., 2023)
 }
 ```
 
-Exemplo real de JSON emitido pelo mapa:
+Real JSON example emitted by the map:
 
 ```json
 {
@@ -115,21 +116,21 @@ Exemplo real de JSON emitido pelo mapa:
 }
 ```
 
-#### Regras Inegociáveis do Payload:
-1. **Coordenadas `[lat, lon]`:** Toda célula é um par `[latitude, longitude]`, exatamente como exigido pela API Leaflet. Proibido inverter para `[lon, lat]` no payload.
-2. **Restrição de Células ($1 \le \text{cells.length} \le 9$):** Cada área (`cells_a` e `cells_b`) suporta de 1 até 9 células adjacentes. Células isoladas ou desconectadas dentro da mesma área são inválidas.
-3. **Escopo MVP de Variáveis:** O MVP inicia com 1 variável por área (`variable_x` para Área A e `variable_y` opcional para Área B, viabilizando comparação da mesma variável entre duas regiões ou correlação bivariada entre variáveis distintas), preparando o terreno para futuras famílias ambientais com múltiplas variáveis simultâneas.
-4. **Resolução de Grade Explícita:** `grid_resolution: { dlat, dlon }` vincula a seleção à geometria nativa da fonte (ex.: MERRA-2 $0{,}5^\circ \times 0{,}625^\circ$), permitindo ao backend compor a requisição via `/point` ou `/regional`.
+#### Non-Negotiable Payload Rules:
+1. **Coordinates `[lat, lon]`:** Every cell is a `[latitude, longitude]` pair, exactly as required by the Leaflet API. Inverting to `[lon, lat]` in the payload is forbidden.
+2. **Cell Constraint ($1 \le \text{cells.length} \le 9$):** Each area (`cells_a` and `cells_b`) supports 1 to 9 adjacent cells. Isolated or disconnected cells within the same area are invalid.
+3. **MVP Variable Scope:** The MVP starts with 1 variable per area (`variable_x` for Area A and optional `variable_y` for Area B, enabling same-variable comparison across two regions or bivariate correlation between distinct variables), paving the way for future environmental families with multiple simultaneous variables.
+4. **Explicit Grid Resolution:** `grid_resolution: { dlat, dlon }` binds the selection to the source's native geometry (e.g., MERRA-2 $0.5^\circ \times 0.625^\circ$), allowing the backend to compose the request via `/point` or `/regional`.
 
-### ⚠️ Regra de Ouro sobre a NASA Earthdata
+### ⚠️ Golden Rule About NASA Earthdata
 
-**API da NASA ≠ Estatísticas Prontas.** A NASA fornece dados brutos/recortados, não `slope_sen_decade` ou `q_value_fdr`.
+**NASA API ≠ Ready-Made Statistics.** NASA provides raw/subsetted data, not `slope_sen_decade` or `q_value_fdr`.
 
-1. **Camada de Aquisição:** Obtém variável, valores temporais e subconjunto espacial/temporal da NASA a partir do `MapSelectionPayload`.
+1. **Acquisition Layer:** Obtains variable, temporal values, and spatial/temporal subset from NASA using `MapSelectionPayload`.
 
-2. **Camada Científica (Backend/Dados):** Agrega as células selecionadas (média espacial ponderada), calcula série temporal, anomalias, tendência ($B_{\text{Sen}}, B_{\text{OLS}}$), significância ($\text{AR}(1)$ + FDR) e correlação multiescala ($r_{\text{global}}, r_{\text{local}}$).
+2. **Scientific Layer (Backend/Data):** Aggregates the selected cells (weighted spatial mean), computes time series, anomalies, trend ($B_{\text{Sen}}, B_{\text{OLS}}$), significance ($\text{AR}(1)$ + FDR), and multiscale correlation ($r_{\text{global}}, r_{\text{local}}$).
 
-3. **Abstração no Frontend:** O componente `MapView` apenas emite a seleção através do `MapSelectionPayload`. A busca usa uma interface desacoplada tipada:
+3. **Frontend Abstraction:** The `MapView` component only emits the selection via `MapSelectionPayload`. Fetching uses a decoupled typed interface:
 
    ```typescript
    getRegionData(payload: MapSelectionPayload): Promise<AnalysisResponse>;
@@ -141,23 +142,23 @@ Exemplo real de JSON emitido pelo mapa:
 
   
 
-## 3. Regras Visuais, Científicas e de Performance
+## 3. Visual, Scientific, and Performance Rules
 
   
 
-* **Visualização em 3 Dimensões:**
+* **3-Dimensional Visualization:**
 
-  1. **Direção:** Positiva vs. Negativa.
+  1. **Direction:** Positive vs. Negative.
 
-  2. **Magnitude:** Proporcional a `abs(slope)`, respeitando a unidade da variável.
+  2. **Magnitude:** Proportional to `abs(slope)`, respecting the variable's unit.
 
-  3. **Significância:** Baseada em `is_sig` / `q_value_fdr`. **Nunca misturar com magnitude** ("mais forte ≠ mais significativo").
+  3. **Significance:** Based on `is_sig` / `q_value_fdr`. **Never conflate with magnitude** ("stronger ≠ more significant").
 
-* **Rigor Científico:** Diferenciar `TREND` de `STATISTICAL SIGNIFICANCE`. Nunca sugerir causalidade a partir de correlação, nem tratar tendência histórica como previsão futura.
+* **Scientific Rigor:** Differentiate `TREND` from `STATISTICAL SIGNIFICANCE`. Never imply causality from correlation, nor treat a historical trend as a future forecast.
 
-* **Integridade da Seleção:** Não inventar `region_id` no frontend. Se usar geometria, definir claramente *bounding box*, polígono, centro, resolução e método de agregação.
+* **Selection Integrity:** Do not invent `region_id` on the frontend. If using geometry, clearly define *bounding box*, polygon, center, resolution, and aggregation method.
 
-* **Contrato `PROD-1` ↔ `PROD-2` (Componente React + TypeScript):**
+* **`PROD-1` ↔ `PROD-2` Contract (React + TypeScript Component):**
 
   ```tsx
   export interface MapViewProps {
@@ -173,67 +174,15 @@ Exemplo real de JSON emitido pelo mapa:
     onSelectionChange,
     activeTarget = 'A'
   }) => {
-    // Renderiza Leaflet com renderer Canvas
-    // Gerencia clique na grade nativa [lat, lon] e composição de até 9 células adjacentes (1 <= cells.length <= 9)
-    // Emite MapSelectionPayload estruturado para o estado global
+    // Renders Leaflet with Canvas renderer
+    // Handles native grid click [lat, lon] and composition of up to 9 adjacent cells (1 <= cells.length <= 9)
+    // Emits structured MapSelectionPayload to global state
   };
   ```
 
-* **Performance & Cache:** Usar `Canvas` para muitos pontos. Disparar requisições apenas após seleção explícita (com debounce/confirmação) e cachear pela chave: `variable + region_id + startDate + endDate`.
+* **Performance & Caching:** Use `Canvas` for many points. Trigger requests only after explicit selection (with debounce/confirmation) and cache by key: `variable + region_id + startDate + endDate`.
 
-* **Fallback Obrigatório:** Não assumir que a API da NASA funcionará perfeitamente antes de testar (CORS, auth, latência, limites de recorte). Manter fallback local/pré-processado pronto para demonstração.
-
-  
-
----
-
-  
-
-## 4. Plano de Execução e Divisão de Equipe
-
-  
-
-### Divisão de Tarefas (Sem Duplicação)
-
-* **Dev Núcleo do Mapa:** `MapView`, setup `Leaflet`, renderização do grid, camadas, eventos de clique/seleção e comunicação com estado principal.
-
-* **Dev Parceiro(a):** Validação do contrato de dados e coordenadas, helpers de estilo, legenda, associação `região ↔ dados`, adapter de API (`getRegionData`), fallback/mock e testes de performance/edge cases.
-
-  
-
-### Roteiro de Implementação (Ordem Estrita)
-
-1. **Mapa Mínimo:** Stack `Leaflet (Canvas) + React + TypeScript + Vite` com `tileLayer` e pontos mockados renderizando no frontend.
-
-2. **Dados Globais Reais:** Substituir mock por `{var_id}_grid.json` + estilização de tendência e significância via Canvas.
-
-3. **Seleção A/B com Composição:** Clique destaca Área A e Área B com composição de até 9 células adjacentes ($1 \le \text{cells.length} \le 9$, coordenadas `[lat, lon]`) e emite o payload `{ variable_x, variable_y?, grid_resolution: { dlat, dlon }, cells_a, cells_b?, start_year, end_year }` para o estado global.
-
-4. **Dados Dinâmicos:** Conectar `getRegionData(payload)` à API científica/backend com fallback local em IndexedDB *(apenas após validar viabilidade da API)*.
-
-5. **Performance & Fallback:** Testar volume de pontos, cache de requisições e comportamento offline/erro.
-
-6. **Polimento:** Legenda final, estados de loading, mensagens de erro e acessibilidade.
-
-  
-
-### Checklist Pré-Implementação da API NASA (Investigar antes de codar)
-
-Antes de gastar tempo integrando um dataset, responda:
-
-1. Qual é o dataset e a variável exatos?
-
-2. Qual API/serviço permite acessá-la?
-
-3. É possível recortar espacialmente e temporalmente?
-
-4. É necessária autenticação ou há bloqueio de CORS?
-
-5. Formato, volume e tempo de resposta são viáveis para demo web?
-
-6. Os dados retornados bastam para calcular série/tendência/significância no backend?
-
-7. Existe um fallback simples?
+* **Mandatory Fallback:** Do not assume the NASA API will work flawlessly before testing (CORS, auth, latency, subsetting limits). Keep a local/precomputed fallback ready for demonstration.
 
   
 
@@ -241,27 +190,79 @@ Antes de gastar tempo integrando um dataset, responda:
 
   
 
-## 5. Prompts Prontos para IA (Economia de Tokens)
+## 4. Execution Plan and Team Split
 
   
 
-Use a IA como **implementadora/revisora** enviando este arquivo + um dos prompts abaixo:
+### Task Split (Zero Duplication)
+
+* **Core Map Dev:** `MapView`, `Leaflet` setup, grid rendering, layers, click/selection events, and communication with main state.
+
+* **Partner Dev:** Data contract and coordinate validation, style helpers, legend, `region ↔ data` association, API adapter (`getRegionData`), fallback/mock, and performance/edge-case tests.
+
+  
+
+### Implementation Roadmap (Strict Order)
+
+1. **Minimal Map:** `Leaflet (Canvas) + React + TypeScript + Vite` stack with `tileLayer` and mocked points rendering on the frontend.
+
+2. **Real Global Data:** Replace mock with `{var_id}_grid.json` + Canvas trend and significance styling.
+
+3. **A/B Selection with Composition:** Clicking highlights Area A and Area B with up to 9 adjacent cells ($1 \le \text{cells.length} \le 9$, `[lat, lon]` coordinates) and emits `{ variable_x, variable_y?, grid_resolution: { dlat, dlon }, cells_a, cells_b?, start_year, end_year }` to global state.
+
+4. **Dynamic Data:** Connect `getRegionData(payload)` to the scientific/backend API with local IndexedDB fallback *(only after validating API feasibility)*.
+
+5. **Performance & Fallback:** Test point volume, request caching, and offline/error behavior.
+
+6. **Polish:** Final legend, loading states, error messages, and accessibility.
+
+  
+
+### Pre-Implementation NASA API Checklist (Investigate Before Coding)
+
+Before spending time integrating a dataset, answer:
+
+1. What are the exact dataset and variable?
+
+2. Which API/service provides access to it?
+
+3. Can it be subsetted spatially and temporally?
+
+4. Is authentication required or is there a CORS block?
+
+5. Are format, volume, and response time viable for a web demo?
+
+6. Is the returned data sufficient to compute series/trend/significance on the backend?
+
+7. Is there a simple fallback?
+
+  
+
+---
+
+  
+
+## 5. Ready-to-Use AI Prompts (Token Savings)
+
+  
+
+Use AI as an **implementer/reviewer** by sending this file + one of the prompts below:
 
   
 
 <details>
 
-<summary><b>🔍 1. Prompt de Inspeção Inicial (Antes de codar)</b></summary>
+<summary><b>🔍 1. Initial Inspection Prompt (Before Coding)</b></summary>
 
   
 
 ```text
 
-Leia o PROD1_CONTEXT.md e inspecione o repositório. Não implemente nada.
+Read PROD1_CONTEXT.md and inspect the repository. Do not implement anything.
 
-Identifique apenas: (1) estrutura atual do frontend; (2) onde o MapView deve ficar; (3) como os dados são carregados; (4) formato real dos dados geográficos; (5) dependências existentes; (6) como o estado de seleção chega ao restante da aplicação; (7) arquivos que precisam ser alterados.
+Identify only: (1) current frontend structure; (2) where MapView should live; (3) how data is loaded; (4) actual format of geographic data; (5) existing dependencies; (6) how selection state reaches the rest of the app; (7) files that need to be modified.
 
-Não crie arquivos, não instale dependências e não proponha arquitetura nova.
+Do not create files, do not install dependencies, and do not propose a new architecture.
 
 ```
 
@@ -271,17 +272,17 @@ Não crie arquivos, não instale dependências e não proponha arquitetura nova.
 
 <details>
 
-<summary><b>🗺️ 2. Prompt de Implementação do Mapa</b></summary>
+<summary><b>🗺️ 2. Map Implementation Prompt</b></summary>
 
   
 
 ```text
 
-Use o PROD1_CONTEXT.md como regra. Implemente apenas o mapa Leaflet mínimo no frontend existente.
+Use PROD1_CONTEXT.md as the rulebook. Implement only the minimal Leaflet map in the existing frontend.
 
-Objetivo: renderizar o grid, distinguir tendência positiva/negativa, representar significância e manter a interface compatível com o projeto.
+Goal: render the grid, distinguish positive/negative trends, represent significance, and keep the interface compatible with the project.
 
-Não implemente estatística, processamento NASA ou alterações na PROD-2. Não crie nova aplicação nem adicione dependências sem justificar.
+Do not implement statistics, NASA processing, or PROD-2 changes. Do not create a new app or add dependencies without justification.
 
 ```
 
@@ -291,17 +292,17 @@ Não implemente estatística, processamento NASA ou alterações na PROD-2. Não
 
 <details>
 
-<summary><b>📍 3. Prompt de Seleção de Regiões</b></summary>
+<summary><b>📍 3. Region Selection Prompt</b></summary>
 
   
 
 ```text
 
-Use o PROD1_CONTEXT.md. Implemente apenas a seleção de até duas regiões no MapView.
+Use PROD1_CONTEXT.md. Implement only the selection of up to two regions in MapView.
 
-A seleção deve: destacar Região A/B, preservar os dados geográficos existentes e emitir os identificadores/geometrias para o estado principal.
+The selection must: highlight Region A/B, preserve existing geographic data, and emit identifiers/geometries to main state.
 
-Não invente associação entre região e série temporal. Não implemente gráficos nem chamadas NASA ainda.
+Do not invent region-to-time-series associations. Do not implement charts or NASA calls yet.
 
 ```
 
@@ -311,17 +312,17 @@ Não invente associação entre região e série temporal. Não implemente gráf
 
 <details>
 
-<summary><b>🛡️ 4. Prompt de Auditoria de Código</b></summary>
+<summary><b>🛡️ 4. Code Audit Prompt</b></summary>
 
   
 
 ```text
 
-Audite a implementação da PROD-1 contra o PROD1_CONTEXT.md. Não faça alterações.
+Audit the PROD-1 implementation against PROD1_CONTEXT.md. Make no changes.
 
-Liste somente: (1) bugs; (2) violações de arquitetura; (3) problemas de coordenadas; (4) problemas de performance; (5) problemas de integração; (6) riscos científicos; (7) complexidade desnecessária.
+List only: (1) bugs; (2) architecture violations; (3) coordinate issues; (4) performance issues; (5) integration issues; (6) scientific risks; (7) unnecessary complexity.
 
-Para cada problema, indique arquivo e trecho/causa.
+For each issue, specify the file and snippet/cause.
 
 ```
 
@@ -333,36 +334,36 @@ Para cada problema, indique arquivo e trecho/causa.
 
   
 
-## 6. Validação & Definição de Pronto (DoD)
+## 6. Validation & Definition of Done (DoD)
 
   
 
-### Testes Mínimos Obrigatórios
+### Minimum Mandatory Tests
 
-* **Geográfico:** Pontos e polígonos das células caem nas coordenadas exatas em `[lat, lon]` (ordem do Leaflet, sem inversão).
+* **Geographic:** Cell points and polygons land on exact `[lat, lon]` coordinates (Leaflet order, no inversion).
 
-* **Payload:** O payload emitido pelo mapa valida a interface `MapSelectionPayload` com $1 \le \text{cells.length} \le 9$, `{ dlat, dlon }` e anos inicial/final.
+* **Payload:** The payload emitted by the map validates `MapSelectionPayload` with $1 \le \text{cells.length} \le 9$, `{ dlat, dlon }`, and start/end years.
 
-* **Visual:** Direção, magnitude e significância são claramente distintas e batem com a legenda sobre Canvas.
+* **Visual:** Direction, magnitude, and significance are clearly distinct and match the Canvas legend.
 
-* **Seleção & Integração:** Selecionar/trocar/remover células de A e B atualiza o `MapSelectionPayload` no estado global e alimenta a `PROD-2`.
+* **Selection & Integration:** Selecting/swapping/removing A and B cells updates `MapSelectionPayload` in global state and feeds `PROD-2`.
 
-* **Falha:** Simular API fora do ar, lentidão, erro de rede e região sem dados (deve acionar fallback/aviso limpo via cache IndexedDB).
+* **Failure:** Simulate API down, slowness, network error, and no-data region (must trigger fallback/clean notice via IndexedDB cache).
 
   
 
-### Checklist Final (MVP Pronto)
+### Final Checklist (MVP Ready)
 
-- [ ] **Stack Validada:** `Leaflet (Canvas) + React + TypeScript + Vite` rodando com build limpo e tipagem estrita.
+- [ ] **Validated Stack:** `Leaflet (Canvas) + React + TypeScript + Vite` running with clean build and strict typing.
 
-- [ ] **Mapa & Dados:** Leaflet integrado com renderer Canvas, carrega `{var_id}_grid.json` real e coordenadas validadas em `[lat, lon]`.
+- [ ] **Map & Data:** Leaflet integrated with Canvas renderer, loads real `{var_id}_grid.json`, and coordinates validated in `[lat, lon]`.
 
-- [ ] **Payload de Seleção:** Emissão funcional de `{ variable_x, variable_y?, grid_resolution: { dlat, dlon }, cells_a, cells_b?, start_year, end_year }` respeitando $1 \le \text{cells.length} \le 9$.
+- [ ] **Selection Payload:** Functional emission of `{ variable_x, variable_y?, grid_resolution: { dlat, dlon }, cells_a, cells_b?, start_year, end_year }` respecting $1 \le \text{cells.length} \le 9$.
 
-- [ ] **Visualização:** Direção, magnitude (`abs(slope)`) e significância (`is_sig`/`q_value_fdr`) distinguíveis + legenda coerente.
+- [ ] **Visualization:** Direction, magnitude (`abs(slope)`), and significance (`is_sig`/`q_value_fdr`) distinguishable + coherent legend.
 
-- [ ] **Interação:** Seleção flexível de até 2 áreas (A/B) com até 9 células adjacentes alimentando o comparador da `PROD-2`.
+- [ ] **Interaction:** Flexible selection of up to 2 areas (A/B) with up to 9 adjacent cells feeding the `PROD-2` comparator.
 
-- [ ] **Arquitetura:** Zero cálculo estatístico no mapa; API desacoplada recebendo `MapSelectionPayload`.
+- [ ] **Architecture:** Zero statistical calculation in the map; decoupled API receiving `MapSelectionPayload`.
 
-- [ ] **Resiliência:** Controle de chamadas (cache/debounce), fallback local funcional em IndexedDB e zero dependências desnecessárias.
+- [ ] **Resilience:** Request control (cache/debounce), functional local IndexedDB fallback, and zero unnecessary dependencies.

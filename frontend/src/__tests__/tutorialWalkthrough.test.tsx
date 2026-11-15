@@ -145,22 +145,22 @@ describe('Tutorial Interativo — Estado, Roteiro e Integração com App', () =>
     );
 
     expect(screen.queryByRole('dialog')).toBeNull();
-    expect(screen.queryByRole('button', { name: /Tutorial interativo/i })).toBeNull();
-    fireEvent.click(screen.getByRole('button', { name: 'Mapa' }));
-    expect(screen.getByRole('button', { name: /Tutorial interativo/i })).toBeTruthy();
+    expect(screen.queryByRole('button', { name: /Interactive tutorial/i })).toBeNull();
+    fireEvent.click(screen.getByRole('button', { name: 'Map' }));
+    expect(screen.getByRole('button', { name: /Interactive tutorial/i })).toBeTruthy();
     const dialog = await screen.findByRole('dialog');
     expect(dialog).toBeTruthy();
-    expect(screen.getByText('Bem-vindo ao Earth System Trend Detective')).toBeTruthy();
+    expect(screen.getByText('Welcome to Earth System Trend Detective')).toBeTruthy();
     expect(screen.getByText(`1 / ${TUTORIAL_STEPS.length}`)).toBeTruthy();
 
     for (let step = 0; step < TUTORIAL_STEPS.length - 1; step += 1) {
-      fireEvent.click(screen.getByRole('button', { name: 'Próximo' }));
+      fireEvent.click(screen.getByRole('button', { name: 'Next' }));
     }
 
-    expect(screen.getByText('Explore a Bancada Científica e Exporte Provas')).toBeTruthy();
-    expect(screen.getByLabelText('Prévia do que desbloqueia na Bancada científica')).toBeTruthy();
+    expect(screen.getByText('Explore the Scientific Workbench and Export Evidence')).toBeTruthy();
+    expect(screen.getByLabelText('Preview of what unlocks in the Scientific Workbench')).toBeTruthy();
 
-    fireEvent.click(screen.getByRole('button', { name: 'Concluir treinamento' }));
+    fireEvent.click(screen.getByRole('button', { name: 'Finish training' }));
     expect(screen.queryByRole('dialog')).toBeNull();
     expect(shouldAutoOpenTutorial()).toBe(false);
     expect(loadTutorialState()?.status).toBe('completed');
@@ -174,9 +174,9 @@ describe('Tutorial Interativo — Estado, Roteiro e Integração com App', () =>
     );
     expect(screen.queryByRole('dialog')).toBeNull();
 
-    fireEvent.click(screen.getByRole('button', { name: /Tutorial interativo/i }));
+    fireEvent.click(screen.getByRole('button', { name: /Interactive tutorial/i }));
     expect(await screen.findByRole('dialog')).toBeTruthy();
-    expect(screen.getByText('Bem-vindo ao Earth System Trend Detective')).toBeTruthy();
+    expect(screen.getByText('Welcome to Earth System Trend Detective')).toBeTruthy();
   });
 
   it('permite pular via botão e teclado (ArrowRight / ArrowLeft / Escape) e destaca spotlight quando alvo tem dimensões', () => {
@@ -240,9 +240,9 @@ describe('Tutorial Interativo — Estado, Roteiro e Integração com App', () =>
     expect(onStepChange).not.toHaveBeenCalled();
 
     // Minimizar e expandir libera visualização máxima
-    fireEvent.click(screen.getByRole('button', { name: 'Minimizar card do tutorial' }));
+    fireEvent.click(screen.getByRole('button', { name: 'Minimize tutorial card' }));
     expect(container.querySelector('.tutorial-hud-card.is-minimized')).not.toBeNull();
-    fireEvent.click(screen.getByRole('button', { name: 'Expandir' }));
+    fireEvent.click(screen.getByRole('button', { name: 'Expand' }));
     expect(container.querySelector('.tutorial-hud-card.is-minimized')).toBeNull();
 
     fireEvent.keyDown(window, { key: 'ArrowRight' });
@@ -304,26 +304,26 @@ describe('Tutorial Interativo — Estado, Roteiro e Integração com App', () =>
       </MantineProvider>,
     );
 
-    fireEvent.click(screen.getByRole('button', { name: 'Mapa' }));
+    fireEvent.click(screen.getByRole('button', { name: 'Map' }));
 
     // Fecha o tutorial inicial para recolher a barra lateral manualmente primeiro
-    fireEvent.click(screen.getByRole('button', { name: 'Pular tutorial' }));
+    fireEvent.click(screen.getByRole('button', { name: 'Skip tutorial' }));
     await waitFor(() => expect(screen.queryByRole('dialog')).toBeNull());
 
-    const collapseBtn = screen.getByRole('button', { name: /Recolher painel/i });
+    const collapseBtn = screen.getByRole('button', { name: /Collapse panel/i });
     fireEvent.click(collapseBtn);
     expect(document.querySelector('.workspace.sidebar-collapsed')).not.toBeNull();
 
     // Reabre via botão '?' e avança para a etapa de Variáveis/Período
-    fireEvent.click(screen.getByRole('button', { name: /Tutorial interativo/i }));
-    fireEvent.click(screen.getByRole('button', { name: 'Próximo' }));
+    fireEvent.click(screen.getByRole('button', { name: /Interactive tutorial/i }));
+    fireEvent.click(screen.getByRole('button', { name: 'Next' }));
 
     await waitFor(() => {
       expect(document.querySelector('.workspace.sidebar-collapsed')).toBeNull();
     });
 
     // Avança para o Passo 3 (mapa) -> sidebar recolhida volta ao estado anterior do usuário
-    fireEvent.click(screen.getByRole('button', { name: 'Próximo' }));
+    fireEvent.click(screen.getByRole('button', { name: 'Next' }));
     await waitFor(() => {
       expect(document.querySelector('.workspace.sidebar-collapsed')).not.toBeNull();
     });

@@ -1,8 +1,8 @@
-"""Serviço de ingestão guiado pelo catálogo das 7 Famílias Ambientais.
+"""Ingestion service guided by the 7 Environmental Families catalog.
 
-Resolve automaticamente qual conector de API chamar a partir do código da variável
-no catálogo oficial e expõe tanto o fluxo atual (1 variável por local) quanto o
-fluxo futuro (múltiplas variáveis por local com agrupamento em lote).
+Automatically resolves which API connector to call from the variable code in the
+official catalog and exposes both the current flow (1 variable per location) and
+the extensible flow (multiple variables per location with batch grouping).
 """
 
 from __future__ import annotations
@@ -17,7 +17,7 @@ from data.models.contracts import LocationQuery
 
 
 def _enrich_with_catalog(spec: VariableSpec, payload: dict[str, Any]) -> dict[str, Any]:
-    """Anexa metadados do catálogo ambiental ao resultado retornado pelo conector."""
+    """Attaches environmental catalog metadata to the result returned by the connector."""
     return {
         **payload,
         "family_id": spec.family_id,
@@ -65,7 +65,7 @@ def _call_single_connector(
             spec.code, location.cells, start_year, end_year, cache=cache, label=label
         )
     else:
-        raise ValueError(f"Conector desconhecido no catálogo: {spec.connector_id}")
+        raise ValueError(f"Unknown connector in catalog: {spec.connector_id}")
     return _enrich_with_catalog(spec, raw)
 
 
@@ -82,13 +82,13 @@ def fetch_location_single_variable(
     end_year: int,
     *,
     cache: CellCacheStore | None = None,
-    label: str = "Local",
+    label: str = "Location",
 ) -> dict[str, Any]:
-    """Fluxo atual (MVP): busca exatamente 1 variável para o local informado."""
+    """Current flow (MVP): fetches exactly 1 variable for the given location."""
     vars_requested = location.get_variables()
     if len(vars_requested) != 1:
         raise ValueError(
-            f"fetch_location_single_variable exige exatamente 1 variável; recebidas {len(vars_requested)}."
+            f"fetch_location_single_variable requires exactly 1 variable; received {len(vars_requested)}."
         )
     spec = get_variable_spec(vars_requested[0])
     cache_store = cache or CellCacheStore()
@@ -101,12 +101,12 @@ def fetch_location_multiple_variables(
     end_year: int,
     *,
     cache: CellCacheStore | None = None,
-    label: str = "Local",
+    label: str = "Location",
 ) -> dict[str, Any]:
-    """Fluxo modular extensível: busca 1 ou N variáveis para o mesmo local.
+    """Extensible modular flow: fetches 1 or N variables for the same location.
 
-    Agrupa automaticamente variáveis do mesmo conector em lote (ex.: até 20 variáveis
-    por chamada no endpoint /point da NASA POWER) para reduzir latência e rate limit.
+    Automatically batches variables from the same connector (e.g. up to 20 variables
+    per call on the NASA POWER /point endpoint) to reduce latency and rate limits.
     """
     vars_requested = location.get_variables()
     cache_store = cache or CellCacheStore()

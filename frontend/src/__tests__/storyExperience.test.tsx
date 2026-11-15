@@ -119,71 +119,71 @@ describe('StoryHub & fluxo narrativo em App', () => {
 
     expect(
       screen.getByRole('heading', {
-        name: /O planeta inteiro é o seu laboratório/i,
+        name: /The entire planet is your laboratory/i,
       }),
     ).toBeTruthy();
 
     // Globo 3D interativo montado na tela inicial sem exibir o conteúdo técnico inferior
     expect(
-      screen.getByRole('img', { name: /Globo terrestre 3D interativo destacando Dipolo Espacial/i }),
+      screen.getByRole('img', { name: /Interactive 3D Earth globe highlighting Spatial Dipole/i }),
     ).toBeTruthy();
-    expect(screen.queryByText(/Cobertura Espacial 100% do Globo/i)).toBeNull();
+    expect(screen.queryByText(/100% Global Spatial Coverage/i)).toBeNull();
 
     // Troca de seleção diretamente no globo 3D aponta para regiões globais distintas
-    const asiaChip = screen.getByRole('button', { name: /Índia ↔ Japão/i });
+    const asiaChip = screen.getByRole('button', { name: /India ↔ Japan/i });
     fireEvent.click(asiaChip);
     expect(
-      screen.getByRole('img', { name: /Globo terrestre 3D interativo destacando Teleconexão Cruzada/i }),
+      screen.getByRole('img', { name: /Interactive 3D Earth globe highlighting Cross-Teleconnection/i }),
     ).toBeTruthy();
 
-    const arcticChip = screen.getByRole('button', { name: /Ártico \(Svalbard\)/i });
+    const arcticChip = screen.getByRole('button', { name: /Arctic \(Svalbard\)/i });
     fireEvent.click(arcticChip);
     expect(
-      screen.getByRole('img', { name: /Globo terrestre 3D interativo destacando Raio-X Interno/i }),
+      screen.getByRole('img', { name: /Interactive 3D Earth globe highlighting Internal X-Ray/i }),
     ).toBeTruthy();
 
     // Botão Tutorial não aparece fora da aba Mapa
-    expect(screen.queryByRole('button', { name: /Tutorial interativo/i })).toBeNull();
+    expect(screen.queryByRole('button', { name: /Interactive tutorial/i })).toBeNull();
 
     // Navega pelo botão "Informações Gerais" no HUD superior: exibe todas as categorias de uma vez
-    const moreInfoTab = screen.getByRole('button', { name: /Informações Gerais/i });
+    const moreInfoTab = screen.getByRole('button', { name: /Overview/i });
     fireEvent.click(moreInfoTab);
-    expect(screen.queryByRole('button', { name: /Tutorial interativo/i })).toBeNull();
+    expect(screen.queryByRole('button', { name: /Interactive tutorial/i })).toBeNull();
 
     // Visão Geral + todas as demais categorias já estão visíveis sem barreira de "Entendi"
-    expect(screen.getByText(/Cobertura Espacial 100% do Globo/i)).toBeTruthy();
-    expect(screen.getByText(new RegExp(`${VARIABLE_LIST.length} variáveis ambientais reais`, 'i'))).toBeTruthy();
-    expect(screen.getByRole('heading', { name: /Tendência real sem falsos alarmes/i })).toBeTruthy();
-    expect(screen.getByText(/Compare lugares e variáveis/i)).toBeTruthy();
-    expect(screen.getByText(/Três armadilhas estatísticas que o sistema bloqueia para você/i)).toBeTruthy();
-    expect(screen.queryByRole('button', { name: /Entendi/i })).toBeNull();
-    expect(screen.queryByText(/Etapa 1 de 6/i)).toBeNull();
+    expect(screen.getByText(/100% Global Spatial Coverage/i)).toBeTruthy();
+    expect(screen.getByText(new RegExp(`${VARIABLE_LIST.length} Real Environmental Variables`, 'i'))).toBeTruthy();
+    expect(screen.getByRole('heading', { name: /True Trends Without False Alarms/i })).toBeTruthy();
+    expect(screen.getByText(/Compare Places and Variables/i)).toBeTruthy();
+    expect(screen.getByText(/Three statistical traps the system blocks for you/i)).toBeTruthy();
+    expect(screen.queryByRole('button', { name: /Got it/i })).toBeNull();
+    expect(screen.queryByText(/Step 1 of 6/i)).toBeNull();
 
     // Vitrine interativa de Engenharia Cartográfica já disponível na página completa
-    const shiftDragTab = screen.getByRole('tab', { name: /Caixa Shift \+ Arrastar/i });
+    const shiftDragTab = screen.getByRole('tab', { name: /Shift \+ Drag Box/i });
     fireEvent.click(shiftDragTab);
-    expect(screen.getByText(/Shift \+ Arrastar · Local A: 6\/25 células/i)).toBeTruthy();
+    expect(screen.getByText(/Shift \+ Drag · Location A: 6\/25 cells/i)).toBeTruthy();
 
-    const srtmButton = screen.getByRole('button', { name: /Relevo Topográfico \(SRTM\)/i });
+    const srtmButton = screen.getByRole('button', { name: /Topographic Relief \(SRTM\)/i });
     fireEvent.click(srtmButton);
-    expect(screen.getByText(/Curvas de nível e sombreamento altimétrico OpenTopoMap/i)).toBeTruthy();
+    expect(screen.getByText(/Contour lines and OpenTopoMap elevation shading/i)).toBeTruthy();
 
     // Vitrine interativa da Bancada Estatística
-    expect(screen.getByText(/1\. O QUE muda & Regime Físico \(GAM\)/i)).toBeTruthy();
-    expect(screen.getByText(/Invariante #3: variação em % bloqueada automaticamente/i)).toBeTruthy();
-    const mahalanobisTab = screen.getByRole('tab', { name: /Dispersão & Elipse Mahalanobis/i });
+    expect(screen.getByText(/1\. WHAT changes & Physical Regime \(GAM\)/i)).toBeTruthy();
+    expect(screen.getByText(/Invariant #3: % change automatically disabled/i)).toBeTruthy();
+    const mahalanobisTab = screen.getByRole('tab', { name: /Scatter & Mahalanobis Ellipse/i });
     fireEvent.click(mahalanobisTab);
-    expect(screen.getByText(/Fronteira Bivariada \(D_M = 2,5\)/i)).toBeTruthy();
+    expect(screen.getByText(/Bivariate Boundary \(D_M = 2\.5\)/i)).toBeTruthy();
 
     // Seção do Motor Estatístico: alterna etapas do pipeline e exibe especialidades da Bancada
-    expect(screen.getByText(/Como funciona o motor estatístico da Bancada Científica/i)).toBeTruthy();
-    expect(screen.getByText(/Invariante #3 \+ Exportação CSV \/ JSON/i)).toBeTruthy();
-    const auditStageTab = screen.getByRole('tab', { name: /Auditoria contra Memória e Falsos Alarmes/i });
+    expect(screen.getByText(/How the Scientific Workbench statistical engine works/i)).toBeTruthy();
+    expect(screen.getByText(/Invariant #3 \+ CSV \/ JSON Export/i)).toBeTruthy();
+    const auditStageTab = screen.getByRole('tab', { name: /Memory & False-Alarm Audit/i });
     fireEvent.click(auditStageTab);
-    expect(screen.getByText(/Meses consecutivos de seca ou calor guardam memória climática/i)).toBeTruthy();
+    expect(screen.getByText(/Consecutive months of drought or heat retain climatic memory/i)).toBeTruthy();
 
     // Lança o primeiro Story Preset para o Mapa e confirma que abre sempre em modo livre (sem barra nem card de dipolo)
-    const openMapButtons = screen.getAllByRole('button', { name: /Abrir no Mapa →/i });
+    const openMapButtons = screen.getAllByRole('button', { name: /Open on Map →/i });
     fireEvent.click(openMapButtons[0]!);
 
     expect(fakeMapInstance.fitBounds).toHaveBeenCalled();
@@ -203,29 +203,29 @@ describe('StoryHub & fluxo narrativo em App', () => {
     );
 
     // Pelo Hero, "Iniciar Tour" mostra "Iniciando..." e após 2s abre "Mais informações" na Etapa 1
-    fireEvent.click(screen.getByRole('button', { name: /Iniciar Tour/i }));
-    expect(screen.getByText(/Iniciando\.\.\./i)).toBeTruthy();
-    expect(screen.queryByRole('button', { name: /Abrir Mapa e Investigar Livremente/i })).toBeNull();
+    fireEvent.click(screen.getByRole('button', { name: /Start Tour/i }));
+    expect(screen.getByText(/Starting\.\.\./i)).toBeTruthy();
+    expect(screen.queryByRole('button', { name: /Open Map and Explore Freely/i })).toBeNull();
     await waitFor(() => {
-      expect(screen.getByText(/Etapa 1 de 6/i)).toBeTruthy();
+      expect(screen.getByText(/Step 1 of 6/i)).toBeTruthy();
     }, { timeout: 3500 });
 
     // Percorre as categorias clicando "Entendi" até chegar aos Casos Prontos (Etapa 5)
     for (let step = 0; step < 4; step += 1) {
-      fireEvent.click(screen.getByRole('button', { name: /Entendi/i }));
+      fireEvent.click(screen.getByRole('button', { name: /Got it/i }));
     }
-    expect(screen.getByText(/Etapa 5 de 6/i)).toBeTruthy();
+    expect(screen.getByText(/Step 5 of 6/i)).toBeTruthy();
 
     // Caso 2 usa GWETTOP x T2M_MAX (compatível com mock_analysis.json)
-    const analyzeNowButtons = screen.getAllByRole('button', { name: /Analisar agora/i });
+    const analyzeNowButtons = screen.getAllByRole('button', { name: /Analyze now/i });
     fireEvent.click(analyzeNowButtons[1]!);
 
     await waitFor(() => {
-      expect(screen.getByRole('heading', { name: /Resumo da descoberta/i })).toBeTruthy();
+      expect(screen.getByRole('heading', { name: /Discovery Summary/i })).toBeTruthy();
     });
 
     expect(vi.mocked(getRegionData)).toHaveBeenCalledTimes(1);
-    expect(screen.getByRole('button', { name: /Exportar CSV/i })).toBeTruthy();
+    expect(screen.getByRole('button', { name: /Export CSV/i })).toBeTruthy();
   });
 
   it('persiste o progresso do tour no cache e abre Mais informações completo ao retornar do Mapa', async () => {
@@ -235,14 +235,14 @@ describe('StoryHub & fluxo narrativo em App', () => {
       </MantineProvider>,
     );
 
-    fireEvent.click(screen.getByRole('button', { name: /Iniciar Tour/i }));
+    fireEvent.click(screen.getByRole('button', { name: /Start Tour/i }));
     await waitFor(() => {
-      expect(screen.getByText(/Etapa 1 de 6/i)).toBeTruthy();
+      expect(screen.getByText(/Step 1 of 6/i)).toBeTruthy();
     }, { timeout: 3500 });
 
-    fireEvent.click(screen.getByRole('button', { name: /Entendi/i }));
-    fireEvent.click(screen.getByRole('button', { name: /Entendi/i }));
-    expect(screen.getByText(/Etapa 3 de 6/i)).toBeTruthy();
+    fireEvent.click(screen.getByRole('button', { name: /Got it/i }));
+    fireEvent.click(screen.getByRole('button', { name: /Got it/i }));
+    expect(screen.getByText(/Step 3 of 6/i)).toBeTruthy();
 
     // Simula recarregamento preservando o progresso em andamento no localStorage
     view.unmount();
@@ -251,30 +251,30 @@ describe('StoryHub & fluxo narrativo em App', () => {
         <App />
       </MantineProvider>,
     );
-    expect(screen.getByText(/Etapa 3 de 6/i)).toBeTruthy();
+    expect(screen.getByText(/Step 3 of 6/i)).toBeTruthy();
 
     // Conclui o restante do tutorial e entra no Mapa
     for (let step = 0; step < 3; step += 1) {
-      fireEvent.click(screen.getByRole('button', { name: /Entendi/i }));
+      fireEvent.click(screen.getByRole('button', { name: /Got it/i }));
     }
-    expect(screen.getByText(/Etapa 6 de 6/i)).toBeTruthy();
-    fireEvent.click(screen.getByRole('button', { name: /Abrir o Mapa Interativo Agora/i }));
-    expect(screen.getByRole('heading', { name: /Variáveis/i })).toBeTruthy();
+    expect(screen.getByText(/Step 6 of 6/i)).toBeTruthy();
+    fireEvent.click(screen.getByRole('button', { name: /Open Interactive Map Now/i }));
+    expect(screen.getByRole('heading', { name: /Variables/i })).toBeTruthy();
 
     // Na primeira visita ao Mapa, o tutorial já abre na 1ª página e o botão Tutorial aparece à esquerda do seletor
     expect(screen.getByRole('dialog')).toBeTruthy();
-    expect(screen.getByRole('button', { name: /Tutorial interativo/i })).toBeTruthy();
+    expect(screen.getByRole('button', { name: /Interactive tutorial/i })).toBeTruthy();
     const headerActions = document.querySelector('.header-actions');
     expect(headerActions?.firstElementChild?.classList.contains('tutorial-trigger')).toBe(true);
     expect(headerActions?.lastElementChild?.classList.contains('primary-nav')).toBe(true);
 
     // Voltando para "Informações Gerais", o conteúdo inteiro aparece direto e o botão Tutorial some
-    fireEvent.click(screen.getByRole('button', { name: /Informações Gerais/i }));
-    expect(screen.queryByRole('button', { name: /Tutorial interativo/i })).toBeNull();
+    fireEvent.click(screen.getByRole('button', { name: /Overview/i }));
+    expect(screen.queryByRole('button', { name: /Interactive tutorial/i })).toBeNull();
     expect(screen.queryByRole('dialog')).toBeNull();
-    expect(screen.getByText(/Cobertura Espacial 100% do Globo/i)).toBeTruthy();
-    expect(screen.getByText(/Três armadilhas estatísticas que o sistema bloqueia para você/i)).toBeTruthy();
-    expect(screen.queryByRole('button', { name: /Entendi/i })).toBeNull();
+    expect(screen.getByText(/100% Global Spatial Coverage/i)).toBeTruthy();
+    expect(screen.getByText(/Three statistical traps the system blocks for you/i)).toBeTruthy();
+    expect(screen.queryByRole('button', { name: /Got it/i })).toBeNull();
   });
 
   it('alinha grades da Amazônia, Cerrado e Equador às coordenadas geográficas reais na prévia Blue Marble', () => {
@@ -304,12 +304,12 @@ describe('StoryHub & fluxo narrativo em App', () => {
     expect(amzCx).toBeLessThan(cerCx);
     expect(amzCy).toBeLessThan(cerCy);
 
-    fireEvent.click(screen.getByRole('tab', { name: /Shift \+ Arrastar/i }));
+    fireEvent.click(screen.getByRole('tab', { name: /Shift \+ Drag/i }));
     const shiftRect = screen.getByTestId('showcase-grid-shift-drag');
     expect(Number(shiftRect.getAttribute('x'))).toBeGreaterThan(242);
     expect(Number(shiftRect.getAttribute('x')) + Number(shiftRect.getAttribute('width'))).toBeLessThan(500);
 
-    fireEvent.click(screen.getByRole('tab', { name: /Mesmo Local/i }));
+    fireEvent.click(screen.getByRole('tab', { name: /Same Location/i }));
     const sameRect = screen.getByTestId('showcase-grid-same-location');
     expect(Number(sameRect.getAttribute('x'))).toBeGreaterThan(242);
     expect(Number(sameRect.getAttribute('x')) + Number(sameRect.getAttribute('width'))).toBeLessThan(500);

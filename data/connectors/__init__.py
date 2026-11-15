@@ -1,4 +1,4 @@
-"""Conectores individuais para as 5 APIs do Earth System Trend Detective."""
+"""Individual connectors for the 5 Earth System Trend Detective APIs."""
 
 from . import nasa_appeears, nasa_giovanni, nasa_power, noaa_cdo, open_meteo_flood
 

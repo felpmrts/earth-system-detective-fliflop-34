@@ -390,10 +390,10 @@ describe('dataExporter — exportação científica CSV e JSON', () => {
     >;
 
     expect(csv.content).not.toContain('%');
-    expect(csv.content).toContain('unit=°C | trend_unit=°C/década');
+    expect(csv.content).toContain('unit=°C | trend_unit=°C/decade');
     expect(csv.content).toContain('unit=kPa | trend_unit=kPa/década');
     expect(json.variables.region_a.unit).toBe('°C');
-    expect(json.variables.region_a.trend_unit).toBe('°C/década');
+    expect(json.variables.region_a.trend_unit).toBe('°C/decade');
     expect(json.variables.region_a.allow_percentage_change).toBe(false);
     expect(json.variables.region_a.relative_percentage_allowed).toBe(false);
     expect(json.variables.region_b?.allow_percentage_change).toBe(false);
