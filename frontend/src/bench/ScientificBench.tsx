@@ -552,8 +552,8 @@ export function ScientificBench({
   const secondaryUnitLabel = transformedByRegion[1]?.transformed.unitLabel ?? '';
 
   return (
-    <section className="bench-panel" aria-label="Séries temporais e diagnóstico">
-      <header className="discovery-header">
+    <section className="bench-panel" data-tour="bench-panel" aria-label="Séries temporais e diagnóstico">
+      <header className="discovery-header" data-tour="bench-discovery">
         <div className="discovery-title-row">
           <div>
             <h2>Resumo da descoberta</h2>
@@ -639,7 +639,7 @@ export function ScientificBench({
         </aside>
       )}
 
-      <div className="controls-bar" aria-label="Controles do gráfico">
+      <div className="controls-bar" data-tour="bench-controls" aria-label="Controles do gráfico">
         <div className="segmented-group" role="group" aria-label="Normalização da série">
           <button
             type="button"
@@ -887,7 +887,7 @@ export function ScientificBench({
       )}
 
       {showDiagnostics && (
-        <section className="diagnostic-drawer" aria-label="As 4 Respostas do Detetive e Diagnóstico Multiescala">
+        <section className="diagnostic-drawer" data-tour="bench-answers" aria-label="As 4 Respostas do Detetive e Diagnóstico Multiescala">
           <div className="diag-grid">
             <article className="diag-card">
               <h4>1. O QUE muda &amp; Regime Físico (GAM)</h4>

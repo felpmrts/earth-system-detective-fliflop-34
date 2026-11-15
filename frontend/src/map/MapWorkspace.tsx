@@ -947,85 +947,87 @@ export function MapWorkspace({
   }
 
   return (
-    <section className="map-workspace" aria-label="Seleção espacial">
+    <section className="map-workspace" data-tour="map-workspace" aria-label="Seleção espacial">
       <div className="map-toolbar">
         <div className="map-toolbar-group">
-          <div className="slot-switch" aria-label="Região ativa">
+          <div className="map-selection-group" data-tour="map-selection-tools">
+            <div className="slot-switch" aria-label="Região ativa">
+              <button
+                type="button"
+                className={activeSlot === 'A' ? 'active' : ''}
+                disabled={!variableA}
+                onClick={() => setActiveSlot('A')}
+              >
+                Selecionar A <span>{regionA?.cells.length ?? 0}/{MAX_CELLS_PER_REGION}</span>
+              </button>
+              <button
+                type="button"
+                className={activeSlot === 'B' ? 'active' : ''}
+                disabled={!variableB || sameLocation}
+                onClick={() => setActiveSlot('B')}
+              >
+                Selecionar B <span>{regionB?.cells.length ?? 0}/{MAX_CELLS_PER_REGION}</span>
+              </button>
+            </div>
             <button
               type="button"
-              className={activeSlot === 'A' ? 'active' : ''}
-              disabled={!variableA}
-              onClick={() => setActiveSlot('A')}
+              className={`same-location-toggle${sameLocation ? ' active' : ''}`}
+              aria-pressed={sameLocation}
+              disabled={!sameLocation && (!variableA || !variableB)}
+              onClick={handleToggleSameLocation}
             >
-              Selecionar A <span>{regionA?.cells.length ?? 0}/{MAX_CELLS_PER_REGION}</span>
+              Mesmo Local (A=B)
             </button>
             <button
               type="button"
-              className={activeSlot === 'B' ? 'active' : ''}
-              disabled={!variableB || sameLocation}
-              onClick={() => setActiveSlot('B')}
+              className={`drag-select-toggle${dragSelectMode ? ' active' : ''}`}
+              aria-pressed={dragSelectMode}
+              disabled={!variableA && !variableB}
+              title={`Arraste para selecionar até ${MAX_CELLS_PER_REGION} células (atalho: Shift + Arrastar)`}
+              onClick={() => {
+                previewLayerRef.current?.clearLayers();
+                previewCellIdRef.current = '';
+                setDragSelectMode(prev => {
+                  const next = !prev;
+                  if (next) setBlockSelectMode(false);
+                  setNotice(
+                    next
+                      ? 'Modo Arrastar Seleção ativo: arraste para selecionar células (clique simples continua ativo).'
+                      : 'Modo de navegação ativo: use Shift + Arrastar para selecionar em caixa a qualquer momento.',
+                  );
+                  setNoticeKind('info');
+                  return next;
+                });
+              }}
             >
-              Selecionar B <span>{regionB?.cells.length ?? 0}/{MAX_CELLS_PER_REGION}</span>
+              Arrastar Seleção
+            </button>
+            <button
+              type="button"
+              className={`block-select-toggle${blockSelectMode ? ' active' : ''}`}
+              aria-pressed={blockSelectMode}
+              disabled={!variableA && !variableB}
+              title="Clique no mapa ou marcador para selecionar bloco conexo 3×3 (atalho: Alt + Clique)"
+              onClick={() => {
+                previewLayerRef.current?.clearLayers();
+                previewCellIdRef.current = '';
+                setBlockSelectMode(prev => {
+                  const next = !prev;
+                  if (next) setDragSelectMode(false);
+                  setNotice(
+                    next
+                      ? 'Modo Bloco 3×3 ativo: clique para selecionar bloco conexo de até 9 células (atalho: Alt + Clique).'
+                      : 'Modo Bloco 3×3 desativado: use Alt + Clique para selecionar blocos 3×3 a qualquer momento.',
+                  );
+                  setNoticeKind('info');
+                  return next;
+                });
+              }}
+            >
+              Bloco 3×3
             </button>
           </div>
-          <button
-            type="button"
-            className={`same-location-toggle${sameLocation ? ' active' : ''}`}
-            aria-pressed={sameLocation}
-            disabled={!sameLocation && (!variableA || !variableB)}
-            onClick={handleToggleSameLocation}
-          >
-            Mesmo Local (A=B)
-          </button>
-          <button
-            type="button"
-            className={`drag-select-toggle${dragSelectMode ? ' active' : ''}`}
-            aria-pressed={dragSelectMode}
-            disabled={!variableA && !variableB}
-            title={`Arraste para selecionar até ${MAX_CELLS_PER_REGION} células (atalho: Shift + Arrastar)`}
-            onClick={() => {
-              previewLayerRef.current?.clearLayers();
-              previewCellIdRef.current = '';
-              setDragSelectMode(prev => {
-                const next = !prev;
-                if (next) setBlockSelectMode(false);
-                setNotice(
-                  next
-                    ? 'Modo Arrastar Seleção ativo: arraste para selecionar células (clique simples continua ativo).'
-                    : 'Modo de navegação ativo: use Shift + Arrastar para selecionar em caixa a qualquer momento.',
-                );
-                setNoticeKind('info');
-                return next;
-              });
-            }}
-          >
-            Arrastar Seleção
-          </button>
-          <button
-            type="button"
-            className={`block-select-toggle${blockSelectMode ? ' active' : ''}`}
-            aria-pressed={blockSelectMode}
-            disabled={!variableA && !variableB}
-            title="Clique no mapa ou marcador para selecionar bloco conexo 3×3 (atalho: Alt + Clique)"
-            onClick={() => {
-              previewLayerRef.current?.clearLayers();
-              previewCellIdRef.current = '';
-              setBlockSelectMode(prev => {
-                const next = !prev;
-                if (next) setDragSelectMode(false);
-                setNotice(
-                  next
-                    ? 'Modo Bloco 3×3 ativo: clique para selecionar bloco conexo de até 9 células (atalho: Alt + Clique).'
-                    : 'Modo Bloco 3×3 desativado: use Alt + Clique para selecionar blocos 3×3 a qualquer momento.',
-                );
-                setNoticeKind('info');
-                return next;
-              });
-            }}
-          >
-            Bloco 3×3
-          </button>
-          <div className="hotspot-actions" aria-label="Extremos globais">
+          <div className="hotspot-actions" data-tour="hotspot-actions" aria-label="Extremos globais">
             <button
               type="button"
               className="hotspot-button hotspot-positive"
@@ -1054,14 +1056,14 @@ export function MapWorkspace({
             </button>
           </div>
         </div>
-        <div className="map-actions">
+        <div className="map-actions" data-tour="map-actions">
           {isAnalyzing && <button type="button" className="cancel-button" onClick={onCancel}>Cancelar</button>}
-          <button type="button" className="analyze-button" disabled={!readyToAnalyze || isAnalyzing} onClick={onAnalyze}>
+          <button type="button" className="analyze-button" data-tour="analyze-button" disabled={!readyToAnalyze || isAnalyzing} onClick={onAnalyze}>
             {isAnalyzing ? `Consultando ${shortSourcesLabel}…` : 'Analisar seleção'}
           </button>
         </div>
       </div>
-      <div className="query-summary" aria-label="Resumo da consulta preparada">
+      <div className="query-summary" data-tour="query-summary" aria-label="Resumo da consulta preparada">
         <div className="summary-region summary-a"><b>A</b><span><strong>{metadataA?.variable_name ?? 'Variável pendente'}</strong><small>{regionA?.cells.length ?? 0} célula(s) · {metadataA?.source_model ?? '—'}</small></span></div>
         <div className="summary-region summary-b"><b>B</b><span><strong>{metadataB?.variable_name ?? 'Variável pendente'}</strong><small>{regionB?.cells.length ?? 0} célula(s) · {metadataB?.source_model ?? '—'}</small></span></div>
         <div className="summary-period"><span>Período</span><strong>{formatMonth(startMonth)} — {formatMonth(endMonth)}</strong></div>
@@ -1071,7 +1073,7 @@ export function MapWorkspace({
         <div className="progress-track"><span /></div>
         <small>A primeira consulta pode levar mais tempo enquanto o cache é preenchido.</small>
       </div>}
-      <div className="map-stage">
+      <div className="map-stage" data-tour="map-stage">
         <div ref={containerRef} className={`map-container${dragSelectMode ? ' drag-select-mode' : blockSelectMode ? ' block-select-mode' : ''}`} />
         {dragPreview && (
           <div className={`box-select-badge slot-${dragPreview.slot.toLowerCase()}`} aria-live="polite">
@@ -1080,7 +1082,7 @@ export function MapWorkspace({
             {dragPreview.wasClamped && <small> (máx. {MAX_CELLS_PER_REGION})</small>}
           </div>
         )}
-        <aside className="map-legend" aria-label="Legenda do mapa">
+        <aside className="map-legend" data-tour="map-legend" aria-label="Legenda do mapa">
           <strong>Seleção espacial</strong>
           <div className="legend-pair">
             <span><i className="legend-swatch legend-a" aria-hidden="true">A</i> Região A (sólido)</span>
@@ -1129,34 +1131,38 @@ export function MapWorkspace({
           {!analysisError && gridNotice && <span className="map-grid-note"> · {gridNotice}</span>}
           {!analysisError && offlineTileNotice && <span className="map-grid-note"> · {offlineTileNotice}</span>}
         </span>
-        <div className="map-tools">
-          <button
-            type="button"
-            className={showGlobalGrid ? 'active' : ''}
-            aria-pressed={showGlobalGrid}
-            disabled={!loadedGrid}
-            onClick={() => setShowGlobalGrid(prev => !prev)}
-            title="Mostrar ou ocultar pontos de tendência global pré-calculada"
-          >
-            {showGlobalGrid ? 'Ocultar tendências' : 'Mostrar tendências'}
-          </button>
-          <button
-            type="button"
-            className={significantOnly ? 'active' : ''}
-            aria-pressed={significantOnly}
-            disabled={!loadedGrid || !showGlobalGrid}
-            onClick={() => setSignificantOnly(prev => !prev)}
-            title="Filtrar apenas pontos com significância estatística (AR(1) + FDR q < 0,05)"
-          >
-            Só q &lt; 0,05
-          </button>
-          <button type="button" disabled={!regionA} onClick={() => focusRegions([regionA])}>Ir para A</button>
-          <button type="button" disabled={!regionB} onClick={() => focusRegions([regionB])}>Ir para B</button>
-          <button type="button" disabled={!regionA && !regionB} onClick={() => focusRegions([regionA, regionB])} title="Enquadrar regiões A e B no mapa">Enquadrar A + B</button>
-          <button type="button" disabled={!historyDepth} onClick={undoLastSelection}>Desfazer</button>
-          <button type="button" disabled={!regionA && !regionB} onClick={clearAll}>Limpar tudo</button>
-          {regionA && <button type="button" className="compact-clear" aria-label="Limpar região A" onClick={() => clearRegion('A')}>× A</button>}
-          {regionB && <button type="button" className="compact-clear" aria-label="Limpar região B" onClick={() => { if (sameLocation) setSameLocation(false); clearRegion('B'); }}>× B</button>}
+        <div className="map-tools" data-tour="map-tools">
+          <div className="map-tools-group" data-tour="map-trend-tools">
+            <button
+              type="button"
+              className={showGlobalGrid ? 'active' : ''}
+              aria-pressed={showGlobalGrid}
+              disabled={!loadedGrid}
+              onClick={() => setShowGlobalGrid(prev => !prev)}
+              title="Mostrar ou ocultar pontos de tendência global pré-calculada"
+            >
+              {showGlobalGrid ? 'Ocultar tendências' : 'Mostrar tendências'}
+            </button>
+            <button
+              type="button"
+              className={significantOnly ? 'active' : ''}
+              aria-pressed={significantOnly}
+              disabled={!loadedGrid || !showGlobalGrid}
+              onClick={() => setSignificantOnly(prev => !prev)}
+              title="Filtrar apenas pontos com significância estatística (AR(1) + FDR q < 0,05)"
+            >
+              Só q &lt; 0,05
+            </button>
+          </div>
+          <div className="map-tools-group" data-tour="map-nav-tools">
+            <button type="button" disabled={!regionA} onClick={() => focusRegions([regionA])}>Ir para A</button>
+            <button type="button" disabled={!regionB} onClick={() => focusRegions([regionB])}>Ir para B</button>
+            <button type="button" disabled={!regionA && !regionB} onClick={() => focusRegions([regionA, regionB])} title="Enquadrar regiões A e B no mapa">Enquadrar A + B</button>
+            <button type="button" disabled={!historyDepth} onClick={undoLastSelection}>Desfazer</button>
+            <button type="button" disabled={!regionA && !regionB} onClick={clearAll}>Limpar tudo</button>
+            {regionA && <button type="button" className="compact-clear" aria-label="Limpar região A" onClick={() => clearRegion('A')}>× A</button>}
+            {regionB && <button type="button" className="compact-clear" aria-label="Limpar região B" onClick={() => { if (sameLocation) setSameLocation(false); clearRegion('B'); }}>× B</button>}
+          </div>
         </div>
       </div>
     </section>
