@@ -223,7 +223,9 @@ test.describe('Earth System Trend Detective — Suite E2E (vite preview)', () =>
     const parsedJson = JSON.parse(fs.readFileSync(jsonPath!, 'utf-8')) as { schema_version?: string };
     expect(parsedJson.schema_version).toBe('1.0.0');
 
-    // AUD-11 / AUD-13: cards de diagnóstico sem estouro horizontal e exibindo unidades
+    // AUD-11 / AUD-13: expande as 4 Respostas via barra de seções e verifica cards sem estouro horizontal e exibindo unidades
+    await page.getByTestId('bench-section-pill-diagnostic').click();
+    await expect(page.locator('.diagnostic-drawer .diag-grid')).toBeVisible();
     const diagOverflow = await page.evaluate(() => {
       const cards = Array.from(document.querySelectorAll<HTMLElement>('.diag-card'));
       return cards.some(card => card.scrollWidth > card.clientWidth + 1);
