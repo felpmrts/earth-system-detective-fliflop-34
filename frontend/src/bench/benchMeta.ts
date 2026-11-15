@@ -71,12 +71,16 @@ export const SCIENTIFIC_GLOSSARY: readonly GlossaryEntry[] = [
 ];
 
 export function formatSignedNumber(value: number, decimals = 3): string {
-  const formatted = value.toFixed(decimals);
-  return value > 0 ? `+${formatted}` : formatted;
+  if (!Number.isFinite(value)) return '—';
+  const threshold = 0.5 * 10 ** -decimals;
+  const normalized = Math.abs(value) < threshold ? 0 : value;
+  const formatted = normalized.toFixed(decimals);
+  return normalized > 0 ? `+${formatted}` : formatted;
 }
 
 export function formatPValue(value: number): string {
-  if (value < 0.0001) return value.toExponential(1);
+  if (!Number.isFinite(value) || value < 0) return '—';
+  if (value > 0 && value < 0.0001) return value.toExponential(1);
   return value.toFixed(4);
 }
 

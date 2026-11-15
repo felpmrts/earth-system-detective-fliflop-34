@@ -1,24 +1,33 @@
-# Handoff Técnico QA — Itens Exclusivos da Frente `PROD-2` (Branch `frontend`)
+# Handoff Técnico QA — Itens da Frente `PROD-2` (Concluído na Branch `mapa`)
 
-- **Escopo:** Documentação cirúrgica dos **10 achados restantes** da auditoria somente-leitura (`AUD-01`, `AUD-02`, `AUD-03`, `AUD-05`, `AUD-10`, `AUD-11`, `AUD-12`, `AUD-13`, `AUD-14`, `AUD-15`), aplicáveis diretamente nos arquivos de responsabilidade da **`PROD-2`** na branch `frontend` (base alinhada a `223d3b9` / `origin/mapa` `8530d8a`).
-- **Isolamento de conflitos:** Os 5 achados exclusivos da **`PROD-1`** (`AUD-04`, `AUD-06`, `AUD-07`, `AUD-08`, `AUD-09`) já foram tratados separadamente na branch `mapa` (`MapWorkspace.tsx` e `gridGeometry.ts`). **Nenhuma correção abaixo precisa editar `MapWorkspace.tsx` ou `gridGeometry.ts`**, garantindo merge limpo entre `frontend` e `mapa`.
+- **Status:** **Concluído e verificado na branch `mapa` (Trilha A)** — todos os itens **`AUD-01` a `AUD-15`** estão encerrados na branch `mapa` (os 5 itens `AUD-04`, `AUD-06`, `AUD-07`, `AUD-08` e `AUD-09` da frente `PROD-1` já haviam sido resolvidos anteriormente em `mapa`, e os 10 itens `AUD-01`, `AUD-02`, `AUD-03`, `AUD-05`, `AUD-10`, `AUD-11`, `AUD-12`, `AUD-13`, `AUD-14` e `AUD-15` da frente `PROD-2` foram implementados e verificados nesta etapa, junto do guardião de `Escape` em popups Mantine na gaveta mobile em `App.tsx` / `TutorialOverlay.tsx`).
+- **Escopo original:** Documentação cirúrgica dos **10 achados restantes** da auditoria somente-leitura (`AUD-01`, `AUD-02`, `AUD-03`, `AUD-05`, `AUD-10`, `AUD-11`, `AUD-12`, `AUD-13`, `AUD-14`, `AUD-15`), originalmente planejados sobre a base `223d3b9` / `origin/mapa` `8530d8a`. **Observação pendente externa à branch `mapa`:** o alinhamento espelho de `CLOUD_AMT.allow_percentage_change = false` no backend permanece para conferência na branch `data` (`data/services/comparison_service.py`).
+- **Verificação final executada em `frontend/` na branch `mapa`:**
+  - `npm run typecheck`: OK (`tsc --noEmit`)
+  - `npm run validate:grids`: OK (`12/12` grades presentes + alias `CLOUD_AMT -> CLDTOT_grid.json`)
+  - `npm run build`: OK
+  - `npm run test` (`vitest run`): **11 arquivos / 59 testes passando** (incluindo `frontend/src/__tests__/qaProd2Hardening.test.tsx`, `benchMeta.test.ts` e `contractValidator.test.ts`)
+  - `npm run verify:offline`: OK (`dist/` 100% offline sem CDNs externas)
+  - `npm run test:e2e` (`playwright test` em `vite preview`): **7/7 testes E2E passando** (`frontend/e2e/trendDetective.spec.ts`)
 
 ---
 
-## 1. Sumário Executivo por Severidade
+## 1. Sumário Executivo por Severidade e Status (`AUD-01` a `AUD-15`)
 
-| ID | Severidade | Arquivo(s) | Risco Principal |
-| :--- | :---: | :--- | :--- |
-| `AUD-01` | **Crítico** | `frontend/src/App.tsx`, `frontend/src/bench.css` | **Bloqueio Mobile 4G:** dropdowns e datepickers abrem atrás do drawer (`zIndex: 1100` < `1200`). |
-| `AUD-02` | **Crítico** | `frontend/src/App.tsx` | **Race condition:** troca de seleção durante requisição em andamento não aborta nem descarta resposta antiga. |
-| `AUD-03` | **Crítico** | `frontend/src/services/sessionState.ts`, `frontend/src/bench/ScientificBench.tsx` | **Crash no boot/render:** `localStorage` com `cells` corrompido ou mês inválido (`"2020-99"`) derruba o React. |
-| `AUD-05` | **Médio** | `frontend/src/App.tsx` | Troca de aba (`Mapa` ↔ `Bancada`) desmonta `MapWorkspace` e destrói modo `Mesmo Local (A=B)`. |
-| `AUD-10` | **Médio** | `frontend/src/contracts/contractValidator.ts`, `frontend/src/bench/ScientificBench.tsx` | Campos numéricos/enums não validados no contrato podem gerar `TypeError` em badges e `.toFixed()`. |
-| `AUD-11` | **Médio** | `frontend/src/bench.css` | IDs longos (`region_a_id`/`region_b_id` com até 25 células) estouram o Card 4 no desktop e `375px`. |
-| `AUD-12` | **Médio** | `frontend/src/bench.css` | Em `375px`, `.map-status` não quebra linha e `.map-legend` colide com atribuição/camadas Leaflet. |
-| `AUD-13` | **Médio** | `frontend/src/bench/benchMeta.ts`, `frontend/src/bench/ScientificBench.tsx` | Valores próximos de zero exibem `"-0.000"`/`"-0.00"`, e `OLS`/`A₀`/`Δ Declive` omitem unidades. |
-| `AUD-14` | **Polimento** | `frontend/src/contracts/catalog.ts` | `CLOUD_AMT` (`unit: '%'`, alias de `CLDTOT`) permite `%` (`allow_percentage_change: true`). |
-| `AUD-15` | **Polimento** | `frontend/src/bench/ScientificBench.tsx` | Margens fixas `l: 75, r: 75` reduzem demais a área útil dos gráficos Plotly em `375px`. |
+- **Itens `PROD-1` pré-resolvidos na branch `mapa`:** `AUD-04`, `AUD-06`, `AUD-07`, `AUD-08`, `AUD-09` — **[x] Concluídos e verificados na branch `mapa`**.
+
+| ID | Severidade | Status na branch `mapa` | Arquivo(s) | Risco Principal |
+| :--- | :---: | :---: | :--- | :--- |
+| `AUD-01` | **Crítico** | **[x] Concluído e verificado** | `frontend/src/App.tsx`, `frontend/src/tutorial/TutorialOverlay.tsx`, `frontend/src/bench.css` | **Bloqueio Mobile 4G:** dropdowns e datepickers abrem atrás do drawer (`zIndex: 1100` < `1200`) e `Escape` fechava a gaveta com popup aberto. |
+| `AUD-02` | **Crítico** | **[x] Concluído e verificado** | `frontend/src/App.tsx` | **Race condition:** troca de seleção durante requisição em andamento não aborta nem descarta resposta antiga. |
+| `AUD-03` | **Crítico** | **[x] Concluído e verificado** | `frontend/src/services/sessionState.ts`, `frontend/src/bench/ScientificBench.tsx` | **Crash no boot/render:** `localStorage` com `cells` corrompido ou mês inválido (`"2020-99"`) derruba o React. |
+| `AUD-05` | **Médio** | **[x] Concluído e verificado** | `frontend/src/App.tsx`, `frontend/src/bench.css` | Troca de aba (`Mapa` ↔ `Bancada`) desmonta `MapWorkspace` e destrói modo `Mesmo Local (A=B)`. |
+| `AUD-10` | **Médio** | **[x] Concluído e verificado** | `frontend/src/contracts/contractValidator.ts`, `frontend/src/bench/ScientificBench.tsx` | Campos numéricos/enums não validados no contrato podem gerar `TypeError` em badges e `.toFixed()`. |
+| `AUD-11` | **Médio** | **[x] Concluído e verificado** | `frontend/src/bench.css` | IDs longos (`region_a_id`/`region_b_id` com até 25 células) estouram o Card 4 no desktop e `375px`. |
+| `AUD-12` | **Médio** | **[x] Concluído e verificado** | `frontend/src/bench.css` | Em `375px`, `.map-status` não quebra linha e `.map-legend` colide com atribuição/camadas Leaflet. |
+| `AUD-13` | **Médio** | **[x] Concluído e verificado** | `frontend/src/bench/benchMeta.ts`, `frontend/src/bench/ScientificBench.tsx` | Valores próximos de zero exibem `"-0.000"`/`"-0.00"`, e `OLS`/`A₀`/`Δ Declive` omitem unidades. |
+| `AUD-14` | **Polimento** | **[x] Concluído e verificado** | `frontend/src/contracts/catalog.ts` | `CLOUD_AMT` (`unit: '%'`, alias de `CLDTOT`) permite `%` (`allow_percentage_change: true`). |
+| `AUD-15` | **Polimento** | **[x] Concluído e verificado** | `frontend/src/bench/ScientificBench.tsx` | Margens fixas `l: 75, r: 75` reduzem demais a área útil dos gráficos Plotly em `375px`. |
 
 ---
 
@@ -26,6 +35,7 @@
 
 ### `AUD-01` — Portals do Mantine (`Select` / `MonthPickerInput`) ocultos atrás do Drawer Mobile
 
+- **Status:** **[x] Concluído e verificado na branch `mapa`** (`App.tsx` + `hasOpenMantinePopup` em `TutorialOverlay.tsx` + E2E mobile `375x812`).
 - **Severidade:** **Crítico (Bloqueador para teste cego Mobile 4G — Portão 5)**
 - **Arquivo e linhas:**
   - `frontend/src/App.tsx`: linhas **219**, **226** e **231**
@@ -79,6 +89,7 @@
 
 ### `AUD-02` — Race Condition em `analyzeSelection()` ao Alterar Parâmetros com Requisição Ativa
 
+- **Status:** **[x] Concluído e verificado na branch `mapa`** (`App.tsx` + `qaProd2Hardening.test.tsx`).
 - **Severidade:** **Crítico**
 - **Arquivo e linhas:** `frontend/src/App.tsx`: linhas **85–89** e **130–152**
 - **Bug e impacto:** Enquanto `isAnalyzing === true`, o painel lateral e o mapa permanecem clicáveis. Se o usuário mudar variável, período ou célula no mapa durante a consulta em 4G/rede lenta, o `useEffect` (`L85-89`) limpa `analysis`, mas **não aborta** `analysisControllerRef.current`. Além disso, em `L140-142`, `setAnalysis(result)`, `setAnalyzedAt(...)` e `setTab('bench')` executam sem checar `controller.signal.aborted`. Quando a requisição antiga resolve depois, ela grava resultados obsoletos e força mudança para a aba da bancada em desacordo com os controles atuais.
@@ -143,6 +154,7 @@
 
 ### `AUD-03` — Crash por Sessão Parcialmente Corrompida no `localStorage` (`cells` / `startMonth`)
 
+- **Status:** **[x] Concluído e verificado na branch `mapa`** (`sessionState.ts` + `ScientificBench.tsx` + `qaProd2Hardening.test.tsx`).
 - **Severidade:** **Crítico**
 - **Arquivo e linhas:**
   - `frontend/src/services/sessionState.ts`: linhas **38–49** e **74–75**
@@ -252,6 +264,7 @@ function isValidRegion(value: unknown, expectedSlot: 'A' | 'B'): value is Region
 
 ### `AUD-05` — Troca de Aba Desmonta `MapWorkspace` e Destrói o Estado `Mesmo Local (A=B)`
 
+- **Status:** **[x] Concluído e verificado na branch `mapa`** (`App.tsx` + `bench.css` + `qaProd2Hardening.test.tsx` + E2E `trendDetective.spec.ts`).
 - **Severidade:** **Médio**
 - **Arquivo e linhas:** `frontend/src/App.tsx`: linhas **259–296**
 - **Bug e impacto:** `<MapWorkspace>` só existe na árvore quando `tab === 'map'`. Ao finalizar uma análise (`setTab('bench')` em `L142`) ou navegar entre abas, `<MapWorkspace>` desmonta, perdendo `sameLocation` (`A=B`), histórico de desfazer e zoom do mapa. Além disso, se o usuário trocar `Variável B` (ex.: `MERRA-2` → `CERES`) na sidebar enquanto está na aba `Bancada científica`, `handleVariableBChange` limpa `regionB`, e o espelhamento `A=B` nunca re-snapa `regionB` porque `MapWorkspace` está desmontado.
@@ -346,6 +359,7 @@ function isValidRegion(value: unknown, expectedSlot: 'A' | 'B'): value is Region
 
 ### `AUD-10` — Validação Incompleta de Estatísticas no Contrato e Acessos sem Guarda na UI
 
+- **Status:** **[x] Concluído e verificado na branch `mapa`** (`contractValidator.ts` + `ScientificBench.tsx` + `contractValidator.test.ts` + `qaProd2Hardening.test.tsx`).
 - **Severidade:** **Médio**
 - **Arquivos e linhas:**
   - `frontend/src/contracts/contractValidator.ts`: linhas **152–185**
@@ -469,6 +483,7 @@ function isValidRegion(value: unknown, expectedSlot: 'A' | 'B'): value is Region
 
 ### `AUD-11` — Overflow Horizontal de `region_a_id` / `region_b_id` no Card 4 de Diagnósticos
 
+- **Status:** **[x] Concluído e verificado na branch `mapa`** (`bench.css` + E2E `trendDetective.spec.ts`).
 - **Severidade:** **Médio**
 - **Arquivos e linhas:**
   - `frontend/src/bench.css`: linhas **220** e **225**
@@ -499,6 +514,7 @@ function isValidRegion(value: unknown, expectedSlot: 'A' | 'B'): value is Region
 
 ### `AUD-12` — Colisões de Layout Mobile (`375px`) em `.map-status`, `.map-legend` e Controle de Camadas
 
+- **Status:** **[x] Concluído e verificado na branch `mapa`** (`bench.css` + E2E mobile `375x812`).
 - **Severidade:** **Médio**
 - **Arquivo e linhas:** `frontend/src/bench.css`: linhas **73–75** e **192–196**
 - **Bug e impacto:**
@@ -543,6 +559,7 @@ function isValidRegion(value: unknown, expectedSlot: 'A' | 'B'): value is Region
 
 ### `AUD-13` — Formatação `-0.000` / `-0.00`, Falta de Guarda `Number.isFinite` e Unidades Ausentes
 
+- **Status:** **[x] Concluído e verificado na branch `mapa`** (`benchMeta.ts` + `ScientificBench.tsx` + `benchMeta.test.ts` + `qaProd2Hardening.test.tsx` + E2E).
 - **Severidade:** **Médio**
 - **Arquivos e linhas:**
   - `frontend/src/bench/benchMeta.ts`: linhas **73–81**
@@ -620,6 +637,7 @@ export function formatPValue(value: number): string {
 
 ### `AUD-14` — Consistência de `CLOUD_AMT` (`unit: '%'` com `allow_percentage_change: false`)
 
+- **Status:** **[x] Concluído e verificado na branch `mapa`** (`catalog.ts` + `contractValidator.test.ts`).
 - **Severidade:** **Polimento**
 - **Arquivo e linhas:** `frontend/src/contracts/catalog.ts`: linhas **302–307** (espelho no backend em `data/services/comparison_service.py:48-54` na branch `data`)
 - **Bug e impacto:** Embora `CLDTOT` (`L290-301`) e `RH2M` (`unit: '%'`, `trend_unit: 'p.p./década'`) tenham `allow_percentage_change: false` por serem razões já expressas em porcentagem, `CLOUD_AMT` (`is_alias_of: 'CLDTOT'`) está marcado com `allow_percentage_change: true`.
@@ -640,6 +658,7 @@ export function formatPValue(value: number): string {
 
 ### `AUD-15` — Margens Horizontais Fixas do Plotly em Telas Estreitas (`375px`)
 
+- **Status:** **[x] Concluído e verificado na branch `mapa`** (`ScientificBench.tsx` + `qaProd2Hardening.test.tsx`).
 - **Severidade:** **Polimento**
 - **Arquivo e linhas:** `frontend/src/bench/ScientificBench.tsx`: linhas **746** e **783**
 - **Bug e impacto:** Os dois gráficos usam `margin: { l: 75, t: 28, r: 75, b: 95 }` (`L746`) e `{ l: 75, t: 42, r: 28, b: 85 }` (`L783`), consumindo `150px` horizontais fixos mesmo dentro de `.chart-box` estreito (~`320px` no mobile `375px`), comprimindo a plotagem embora os eixos já tenham `automargin: true`.

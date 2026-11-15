@@ -498,13 +498,23 @@ function isEditingControlOrPopup(target: EventTarget | null): boolean {
   );
 }
 
-function hasOpenMantinePopup(): boolean {
+const OPEN_MANTINE_TRIGGER_SELECTOR =
+  '[role="combobox"][aria-expanded="true"], [aria-expanded="true"][aria-haspopup="dialog"], [data-dates-input][aria-expanded="true"]';
+
+/** Verifica se há algum menu/calendário Mantine aberto para priorizar o fechamento do popup antes de painéis/modais. */
+export function hasOpenMantinePopup(target?: EventTarget | null): boolean {
+  if (
+    (target instanceof HTMLElement && target.closest(OPEN_MANTINE_TRIGGER_SELECTOR)) ||
+    document.querySelector(OPEN_MANTINE_TRIGGER_SELECTOR)
+  ) {
+    return true;
+  }
   const candidates = document.querySelectorAll('.mantine-Combobox-dropdown, .mantine-Popover-dropdown');
   for (const el of candidates) {
     if (!(el instanceof HTMLElement)) continue;
     if (el.getAttribute('aria-hidden') === 'true') continue;
     const style = window.getComputedStyle(el);
-    if (style.display === 'none' || style.visibility === 'hidden' || style.opacity === '0') continue;
+    if (style.display === 'none' || style.visibility === 'hidden') continue;
     const rect = el.getBoundingClientRect();
     if (rect.width > 0 && rect.height > 0) return true;
   }
@@ -687,10 +697,7 @@ export function TutorialOverlay({
       const editingOrPopup = isEditingControlOrPopup(event.target);
 
       if (event.key === 'Escape') {
-        if (
-          hasOpenMantinePopup() ||
-          (event.target instanceof HTMLElement && event.target.closest('[role="combobox"][aria-expanded="true"]'))
-        ) {
+        if (hasOpenMantinePopup(event.target)) {
           return;
         }
         event.preventDefault();

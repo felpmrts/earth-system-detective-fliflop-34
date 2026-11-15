@@ -302,7 +302,7 @@ export const VARIABLE_CATALOG: Readonly<Record<VariableId, VariableMetadata>> = 
   CLOUD_AMT: {
     variable_id: 'CLOUD_AMT', variable_name: 'Cobertura de Nuvens', domain: 'Radiação e Nuvens',
     source_model: 'CERES_SYN1deg', resolution: CERES_RESOLUTION, grid_origin: CERES_ORIGIN, min_year: 1984,
-    scale_type: 'ratio', unit: '%', trend_unit: 'p.p./década', allow_percentage_change: true, land_only_mask: false,
+    scale_type: 'ratio', unit: '%', trend_unit: 'p.p./década', allow_percentage_change: false, land_only_mask: false,
     is_alias_of: 'CLDTOT',
   },
   ALLSKY_SFC_LW_DWN: {
