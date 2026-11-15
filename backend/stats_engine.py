@@ -1118,16 +1118,21 @@ def compute_significance_ar1(
          N_eff = N * (1 - rho_1) / (1 + rho_1)   (for rho_1 > 0)
          SE_corrected = SE_OLS * sqrt((N - 2) / (N_eff - 2))
     2. Hamed & Rao (1998) Modified Mann-Kendall test (`pymannkendall.hamed_rao_modification_test`)
-       for non-parametric multi-lag serial correlation protection.
+       using the formal conservative envelope max(p_naive, p_santer, hr_p) for N >= 60.
     Also classifies `confidence_tier` according to Doc 05 & CONTRATO_DE_DADOS.md.
     """
+    p_santer: float
+    hr_p_out: Optional[float] = None
+
     if n_obs < 4 or se_slope_decade <= 1e-15:
         if abs(slope_per_decade_ols) <= 1e-12:
             p_naive = 1.0
+            p_santer = 1.0
             p_ar1 = 1.0
             n_eff = float(n_obs)
         else:
             p_naive = 0.0
+            p_santer = 0.0
             p_ar1 = 0.0
             n_eff = float(n_obs)
     else:
@@ -1164,7 +1169,7 @@ def compute_significance_ar1(
         else:
             p_santer = _student_t_two_tailed_pvalue(t_ar1, df_eff)
 
-        p_ar1 = p_santer
+        p_ar1 = max(p_naive, p_santer)
         if _HAS_PYMANNKENDALL and y_anomalies is not None and len(y_anomalies) >= 10:
             try:
                 with warnings.catch_warnings():
@@ -1172,12 +1177,16 @@ def compute_significance_ar1(
                     hr_res = mk.hamed_rao_modification_test(np.asarray(y_anomalies, dtype=np.float64))
                 hr_p = float(hr_res.p)
                 if math.isfinite(hr_p):
-                    # Blend Santer AR(1) t-test p-value with Hamed-Rao multi-lag Mann-Kendall p-value
-                    p_ar1 = max(p_naive, 0.5 * p_santer + 0.5 * hr_p)
+                    hr_p_out = max(0.0, min(1.0, hr_p))
+                    if len(y_anomalies) >= 60:
+                        p_ar1 = max(p_naive, p_santer, hr_p_out)
+                    else:
+                        p_ar1 = max(p_naive, p_santer)
             except Exception:
-                p_ar1 = p_santer
+                p_ar1 = max(p_naive, p_santer)
 
     p_naive = max(0.0, min(1.0, float(p_naive)))
+    p_santer = max(0.0, min(1.0, float(p_santer)))
     p_ar1 = max(0.0, min(1.0, float(p_ar1)))
     q_val = p_ar1 if fdr_q_value is None else max(0.0, min(1.0, float(fdr_q_value)))
     same_sign = (slope_per_decade_ols * slope_per_decade_sen) >= 0.0
@@ -1187,6 +1196,8 @@ def compute_significance_ar1(
     return {
         "n_effective_ar1": round(n_eff, 2),
         "p_value_naive": round(float(p_naive), 8),
+        "p_value_santer_ar1": round(float(p_santer), 8),
+        "p_value_hamed_rao": round(float(hr_p_out), 8) if hr_p_out is not None else None,
         "p_value_ar1_corrected": round(float(p_ar1), 8),
         "fdr_q_value": round(float(q_val), 8),
         "is_significant_fdr05": bool(is_sig_fdr05),
@@ -1404,6 +1415,8 @@ def analyze_single_series(
         "correlation_and_coupling": coupling,
         "significance": {
             "p_value_naive": sig["p_value_naive"],
+            "p_value_santer_ar1": sig["p_value_santer_ar1"],
+            "p_value_hamed_rao": sig["p_value_hamed_rao"],
             "p_value_ar1_corrected": sig["p_value_ar1_corrected"],
             "fdr_q_value": sig["fdr_q_value"],
             "is_significant_fdr05": sig["is_significant_fdr05"],

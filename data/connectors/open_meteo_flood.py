@@ -4,10 +4,12 @@ from __future__ import annotations
 
 import datetime as _dt
 import json
+import math
 import os
 import statistics
 import urllib.parse
 from collections import defaultdict
+from collections.abc import Sequence
 from typing import Any
 
 from data.cache.store import CellCacheStore
@@ -17,19 +19,40 @@ from data.models.contracts import CellCoord
 from .base import http_request, log_api_pull, synthesize_monthly_series
 
 API_NAME = "Open-Meteo Flood API (GloFAS)"
+GLOFAS_AGGREGATION_VERSION = 2
 
 
-def _aggregate_daily_to_monthly(dates: list[str], values: list[Any]) -> dict[str, float]:
+def _aggregate_daily_to_monthly(
+    dates: Sequence[str],
+    values: Sequence[Any],
+    variable_code: str = "river_discharge",
+) -> dict[str, float]:
+    """Agrega séries diárias do GloFAS em séries mensais respeitando o operador físico."""
     buckets: dict[str, list[float]] = defaultdict(list)
     for date_str, raw_val in zip(dates, values):
         if raw_val is None:
             continue
-        buckets[date_str[:7]].append(float(raw_val))
-    return {
-        ym: round(statistics.fmean(vals), 4)
-        for ym, vals in sorted(buckets.items())
-        if vals
-    }
+        try:
+            fval = float(raw_val)
+        except (TypeError, ValueError):
+            continue
+        if not math.isfinite(fval) or fval < 0.0:
+            continue
+        buckets[str(date_str)[:7]].append(fval)
+
+    monthly: dict[str, float] = {}
+    for ym in sorted(buckets.keys()):
+        vals = buckets[ym]
+        if not vals:
+            continue
+        if variable_code == "river_discharge_min":
+            agg_val = min(vals)
+        elif variable_code == "river_discharge_max":
+            agg_val = max(vals)
+        else:
+            agg_val = statistics.fmean(vals)
+        monthly[ym] = round(float(agg_val), 4)
+    return monthly
 
 
 def fetch_multi_variables_batch(
@@ -68,7 +91,14 @@ def fetch_multi_variables_batch(
         missing_vars: list[str] = []
         for var in variables:
             cached = cache_store.get("open_meteo_flood", var, cell.lat, cell.lon, effective_start_year, end_year)
-            if cached is not None and cached.get("series"):
+            requires_v2 = var in {"river_discharge_min", "river_discharge_max"}
+            is_fresh = (
+                cached is not None
+                and bool(cached.get("series"))
+                and cached.get("origin") != "glofas_calibrated_fallback"
+                and (not requires_v2 or cached.get("agg_v") == GLOFAS_AGGREGATION_VERSION)
+            )
+            if is_fresh and cached is not None:
                 cache_hits += 1
                 for ym, val in cached["series"].items():
                     per_var_buckets[var][ym].append(val)
@@ -102,7 +132,11 @@ def fetch_multi_variables_batch(
                     dates = []
 
         for var in missing_vars:
-            cell_series = _aggregate_daily_to_monthly(dates, payload_daily.get(var, [])) if dates else {}
+            cell_series = (
+                _aggregate_daily_to_monthly(dates, payload_daily.get(var, []), variable_code=var)
+                if dates
+                else {}
+            )
             if len(cell_series) >= 12 or (end_year == effective_start_year and cell_series):
                 used_live_api = True
                 origin = "open_meteo_flood_live"
@@ -112,15 +146,16 @@ def fetch_multi_variables_batch(
                 origin = "glofas_calibrated_fallback"
 
             if cell_series:
-                cache_store.set(
-                    "open_meteo_flood",
-                    var,
-                    cell.lat,
-                    cell.lon,
-                    effective_start_year,
-                    end_year,
-                    {"series": cell_series, "origin": origin},
-                )
+                if origin != "glofas_calibrated_fallback":
+                    cache_store.set(
+                        "open_meteo_flood",
+                        var,
+                        cell.lat,
+                        cell.lon,
+                        effective_start_year,
+                        end_year,
+                        {"series": cell_series, "origin": origin, "agg_v": GLOFAS_AGGREGATION_VERSION},
+                    )
                 for ym, val in cell_series.items():
                     per_var_buckets[var][ym].append(val)
 
@@ -143,6 +178,7 @@ def fetch_multi_variables_batch(
             "endpoint_consultado": base_url,
             "status": "OK" if series else "SEM_DADOS",
             "data_origin": data_origin,
+            "agg_v": GLOFAS_AGGREGATION_VERSION,
             "variable": var,
             "unit": spec.unit,
             "raw_api_unit": spec.raw_unit,

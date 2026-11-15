@@ -5,6 +5,7 @@ Endpoints:
 - GET  /api/catalog
 - POST /api/analyze        (Contrato oficial `RegionAnalysisRequest -> RegionAnalysisResponse`)
 - POST /api/copilot        (Co-Piloto Estatístico Agêntico — Prompt + 7 Invariantes + Tools)
+- POST /api/discover       (Motor de Descoberta Dinâmica Camada 2 — Teleconexões/CUSUM/GCV <50ms)
 - POST /api/location/fetch
 - POST /api/compare
 
@@ -31,6 +32,8 @@ if _REPO_ROOT not in sys.path:
     sys.path.insert(0, _REPO_ROOT)
 
 from backend.copilot_engine import generate_copilot_response
+from backend.discovery_engine import handle_discover_request
+from backend.stats_engine import SemanticContractError
 from data.cache.store import CellCacheStore
 from data.catalog.environmental_catalog import get_catalog_tree
 from data.models.contracts import LocationQuery
@@ -140,6 +143,38 @@ class BackendRouter:
                     response["analysis_key"] = analysis_key
                 return HTTPStatus.OK, response
 
+            if path == "/api/discover":
+                discover_payload: dict[str, Any] = dict(body)
+                analysis_key = str(body.get("analysis_key") or "").strip() or None
+                if (
+                    "region_a_analysis" not in discover_payload
+                    and "analysis" not in discover_payload
+                    and "variable_id" not in discover_payload
+                    and analysis_key
+                ):
+                    if analysis_key in self._analysis_cache:
+                        cached_analysis = self._analysis_cache[analysis_key]
+                        self._analysis_cache.move_to_end(analysis_key)
+                        discover_payload["analysis"] = cached_analysis
+                    else:
+                        return HTTPStatus.NOT_FOUND, {
+                            "code": "ANALYSIS_CACHE_MISS",
+                            "error": "Nenhuma análise encontrada para 'analysis_key'.",
+                        }
+                elif isinstance(body.get("region_a_analysis"), dict):
+                    analysis_key = self._remember_analysis(body, explicit_key=analysis_key)
+                elif isinstance(body.get("analysis"), dict) and isinstance(
+                    body["analysis"].get("region_a_analysis"), dict
+                ):
+                    analysis_key = self._remember_analysis(body["analysis"], explicit_key=analysis_key)
+
+                result = handle_discover_request(
+                    discover_payload, cache_dir=self.cache.cache_dir
+                )
+                if analysis_key:
+                    result["analysis_key"] = analysis_key
+                return HTTPStatus.OK, result
+
             start_year = int(body.get("start_year", 2001))
             end_year = int(body.get("end_year", 2023))
 
@@ -170,6 +205,9 @@ class BackendRouter:
                 )
 
             return HTTPStatus.NOT_FOUND, {"error": f"Rota POST desconhecida: {path}"}
+        except SemanticContractError as exc:
+            print(f"[AVISO 400 - {exc.code}] {exc.message}", flush=True)
+            return HTTPStatus.BAD_REQUEST, {"code": exc.code, "error": exc.message}
         except ContractSemanticError as exc:
             print(f"[AVISO {int(exc.status_code)} - {exc.code}] {exc}", flush=True)
             return exc.status_code, {"code": exc.code, "error": str(exc)}

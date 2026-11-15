@@ -1,28 +1,32 @@
 """Earth System Trend Detective — Scientific Discovery & ML Pipeline (2001–2025).
 
 Implements state-of-the-art discovery grounded in the team's 7 Statistical Invariants
-and Gemini Deep Research hypotheses (`Tendências Globais do Sistema Terrestre.md`):
-  1. Multi-point GloFAS 0.05° main-channel river snapping + multi-cell watershed/ocean
-     spatial aggregation on native MERRA-2 (0.5°×0.625°) and CERES (1.0°×1.0°) grids.
-  2. Strict physical units & scale typing (`MJ/m²/dia` solar radiation, `VPD_t2m_kpa`
-     from `T2M` + `T2MDEW`, `sw_cloud_radiative_effect = CLRSKY - ALLSKY`, bounded
-     ratios `CLOUD_AMT` / `ALLSKY_SRF_ALB` / `GWET*` with `allow_percentage_change=False`).
-  3. Full statistical diagnostics (`stats_engine.analyze_single_series` with AR(1)+BH-FDR),
-     cross-basin same-variable `compare_regions` spatial dipoles, and neutral local
-     multiscale correlation (without spurious cross-variable divergence flags).
+and post-audit mathematical corrections (Passo 0 + Camada 1):
+  1. Multi-point GloFAS 0.05° main-channel river snapping + true monthly physical
+     extremes (`fmean` -> `river_discharge`, `min` -> `river_discharge_min`,
+     `max` -> `river_discharge_max`) with automatic eviction of stale `fmean` caches.
+  2. Strict physical units & scale typing (`MJ/m²/dia` solar radiation, convex FAO-56
+     `VPD_t2m_kpa` from `T2M_MAX` + reconstructed `T2M_MIN = 2*T2M - T2M_MAX` + `T2MDEW`,
+     `sw_cloud_radiative_effect = CLRSKY - ALLSKY`, and smoke-vs-cloud radiative
+     decoupling diagnostics).
+  3. Full statistical diagnostics (`stats_engine.analyze_single_series` with conservative
+     AR(1)+Hamed-Rao+BH-FDR), cross-basin same-variable `compare_regions` spatial dipoles,
+     and non-tautological local multiscale coupling (`secular_gam_r` on GAM trajectories).
   4. Purged 5-block chronological CV (`purge_gap=6`) with strictly **in-fold**
-     climatological deseasonalization (zero validation leakage) separated into:
-       - **Mode A (True Sub-Seasonal Forecast, lag >= 1 only):** `ar1_persistence`,
-         `lagged_hydro_met`, `lagged_radiative`, `lagged_ocean_only`,
-         `lagged_full_teleconnection`, scored primarily by `fold_mean_r2` & `skill_vs_ar1`.
-       - **Mode B (Contemporaneous Physical Attribution & Non-Linearity Test):** compares
-         `RidgeCV` (linear) vs `SplineGAM_Ridge` (smooth additive non-linear) vs
-         `HistGradientBoostingRegressor` vs `RandomForestRegressor`, plus block-bootstrap
-         threshold stability and leakage-free pre/post-2020 residual diagnostics (no
-         short-window post-2020 decadal slope extrapolation).
-  5. Lagged ocean-to-watershed teleconnection scan with Bretherton AR(1) effective N and
-     Benjamini–Hochberg FDR (`q < 0.05`) verified on BOTH raw anomalies and linear-
-     detrended anomalies (`r_detrended`).
+     climatological deseasonalization, **in-fold** linear detrending (for Mode B
+     interannual dynamics), and strictly **in-fold** top-K ocean feature selection:
+       - **Mode A (Sub-Seasonal Predictive Precedence, lag >= 1 only):** scored by
+         scale-invariant `skill_rmse_vs_ar1` (1 - RMSE_M / RMSE_AR1), `cv_oof_mae`,
+         `fold_mean_r2`, and `cv_oof_r2`.
+       - **Mode B (Contemporaneous Physical Attribution — Level & Detrended):** compares
+         `RidgeCV` vs `SplineGAM_Ridge` vs `HistGradientBoostingRegressor` vs
+         `RandomForestRegressor`, OOF block-bootstrap threshold stability, and parameter-free
+         CUSUM structural break detection (`detect_temporal_regime_break` &
+         `detect_physical_coupling_break`).
+  5. Lagged ocean-to-watershed teleconnection scan over an a-priori orthogonal target
+     family (`river_discharge_min`, `GWETROOT`) using partial correlation conditioned on
+     Z_total(tau, k) = {t, Y_{t-tau}, Nino3.4_{t-tau}} with Bretherton AR(1) effective
+     degrees of freedom (df_eff = N_eff(e_X, e_Y) - 2 - |Z|) and Benjamini–Hochberg FDR.
 """
 
 from __future__ import annotations
@@ -41,9 +45,9 @@ from typing import Any, Mapping, Sequence
 import numpy as np
 from scipy import stats as sps
 from sklearn.ensemble import HistGradientBoostingRegressor, RandomForestRegressor
+from sklearn.inspection import permutation_importance
 from sklearn.linear_model import RidgeCV
 from sklearn.metrics import mean_absolute_error, mean_squared_error, r2_score
-from sklearn.inspection import permutation_importance
 from sklearn.pipeline import make_pipeline
 from sklearn.preprocessing import SplineTransformer, StandardScaler
 from sklearn.tree import DecisionTreeRegressor
@@ -56,7 +60,6 @@ from backend.stats_engine import (
     analyze_single_series,
     apply_spatial_fdr_bh,
     compare_regions,
-    compute_theil_sen_regression,
     update_fdr_significance,
 )
 from data.cache.store import CellCacheStore
@@ -69,6 +72,7 @@ START_YEAR = 2001
 END_YEAR = 2025
 PURGE_GAP = 6
 N_CV_BLOCKS = 5
+IN_FOLD_TOP_K_OCEAN = 6
 
 GLOFAS_VARIABLES = [
     "river_discharge",
@@ -107,6 +111,8 @@ OCEAN_VARIABLES = OCEAN_MERRA2_VARIABLES + OCEAN_CERES_VARIABLES
 
 OCEAN_LAGS = (1, 2, 3, 4, 6)
 TARGETS = ("river_discharge_min", "river_discharge", "GWETROOT")
+# Canonical orthogonal target family for teleconnection FDR (eliminates collinear duplicate tests)
+TARGETS_TELECONNECTION = ("river_discharge_min", "GWETROOT")
 
 WATERSHED_SPECS: list[dict[str, Any]] = [
     {
@@ -226,19 +232,6 @@ OCEAN_BOX_SPECS: list[dict[str, Any]] = [
     },
 ]
 
-# Compact physically curated lagged ocean basis (prevents p ~ n/3 overfitting)
-CURATED_OCEAN_FEATURES: list[tuple[str, str, int]] = [
-    ("pac_nino34", "TS", 2),
-    ("pac_nino34", "TS", 4),
-    ("pac_nino34", "TS", 6),
-    ("atl_tn", "TS", 2),
-    ("atl_s", "TS", 2),
-    ("atl_meridional_grad", "TS", 2),
-    ("atl_meridional_grad", "TS", 4),
-    ("atl_ne", "TS", 2),
-    ("atl_ne", "CLOUD_AMT", 2),
-]
-
 BOUNDED_FRACTION_VARS = {"GWETROOT", "GWETTOP", "ALLSKY_SRF_ALB"}
 BOUNDED_PERCENT_VARS = {"CLOUD_AMT"}
 
@@ -247,9 +240,9 @@ def build_variable_meta(code: str) -> dict[str, Any]:
     """Builds physically consistent VariableMeta enforcing Invariant 3 & MJ/m²/day units."""
     if code in {"river_discharge", "river_discharge_min", "river_discharge_max"}:
         names = {
-            "river_discharge": "Vazão Média do Rio (GloFAS)",
-            "river_discharge_min": "Vazão Mínima Mensal do Rio (GloFAS)",
-            "river_discharge_max": "Vazão Máxima Mensal do Rio (GloFAS)",
+            "river_discharge": "Vazão Média Mensal do Rio (GloFAS)",
+            "river_discharge_min": "Vazão Mínima Diária no Mês (GloFAS)",
+            "river_discharge_max": "Vazão Máxima Diária no Mês (GloFAS)",
         }
         return {
             "variable_id": code,
@@ -281,7 +274,7 @@ def build_variable_meta(code: str) -> dict[str, Any]:
     if code == "VPD_t2m_kpa":
         return {
             "variable_id": code,
-            "variable_name": "Déficit de Pressão de Vapor (VPD a 2m, T2M - T2MDEW)",
+            "variable_name": "Déficit de Pressão de Vapor FAO-56 (VPD a 2m, T2M_MAX/T2M_MIN/T2MDEW)",
             "source_model": "MERRA-2",
             "resolution": {"dLat": 0.5, "dLon": 0.625},
             "min_year": 1981,
@@ -364,23 +357,43 @@ def _saturation_vapor_pressure_kpa(temp_c: float) -> float:
     return 0.6108 * math.exp((17.27 * temp_c) / (temp_c + 237.3))
 
 
-def compute_vpd_t2m_series(
+def compute_vpd_fao56_series(
     t2m: Sequence[float | None],
     t2m_dew: Sequence[float | None],
+    t2m_max: Sequence[float | None] | None = None,
+    t2m_min: Sequence[float | None] | None = None,
 ) -> list[float | None]:
-    """Computes physically consistent VPD (kPa) from monthly mean T2M and T2MDEW."""
+    """Computes convex FAO-56 VPD (kPa) correcting Jensen's Inequality via T2M_MAX and T2M_MIN.
+
+    If `t2m_min` is not cached, reconstructs diurnal minimum via T_min = 2 * T2M - T2M_MAX.
+    """
+    n = len(t2m)
     out: list[float | None] = []
-    for temp_mean, tdew in zip(t2m, t2m_dew):
-        if temp_mean is None or tdew is None:
+    for i in range(n):
+        t_mean = t2m[i]
+        t_dew = t2m_dew[i]
+        if t_mean is None or t_dew is None:
             out.append(None)
             continue
-        vpd = max(
-            0.0,
-            _saturation_vapor_pressure_kpa(float(temp_mean))
-            - _saturation_vapor_pressure_kpa(float(tdew)),
-        )
-        out.append(round(vpd, 5))
+        tm = float(t_mean)
+        td = float(t_dew)
+        tmax_val = t2m_max[i] if (t2m_max is not None and i < len(t2m_max)) else None
+        tmin_val = t2m_min[i] if (t2m_min is not None and i < len(t2m_min)) else None
+
+        if tmax_val is not None:
+            tx = max(tm, float(tmax_val))
+            tn = float(tmin_val) if tmin_val is not None else min(tm, 2.0 * tm - tx)
+            es = 0.5 * (_saturation_vapor_pressure_kpa(tx) + _saturation_vapor_pressure_kpa(tn))
+        else:
+            es = _saturation_vapor_pressure_kpa(tm)
+
+        ea = _saturation_vapor_pressure_kpa(td)
+        out.append(round(max(0.0, es - ea), 5))
     return out
+
+
+# Backward-compatible alias
+compute_vpd_t2m_series = compute_vpd_fao56_series
 
 
 def compute_sw_cloud_radiative_effect_series(
@@ -397,6 +410,71 @@ def compute_sw_cloud_radiative_effect_series(
     return out
 
 
+def diagnose_smoke_cloud_decoupling(
+    common_dates: Sequence[str],
+    ws_analyses: Mapping[str, Any],
+) -> dict[str, Any]:
+    """Separates secular cloud-retreat brightening from episodic biomass-burning smoke shocks.
+
+    Identifies months where clear-sky irradiance collapses (Z(CLRSKY') < -2.0) without
+    positive cloud anomaly (Z(CLOUD_AMT') <= 0.5), quantifying aerosol radiative masking
+    where CLRSKY drops more sharply than ALLSKY.
+    """
+    clr_z = ws_analyses["CLRSKY_SFC_SW_DWN"]["series"]["z_scores"]
+    all_z = ws_analyses["ALLSKY_SFC_SW_DWN"]["series"]["z_scores"]
+    cld_z = ws_analyses["CLOUD_AMT"]["series"]["z_scores"]
+    alb_z = ws_analyses["ALLSKY_SRF_ALB"]["series"]["z_scores"]
+
+    clr_anom = ws_analyses["CLRSKY_SFC_SW_DWN"]["series"]["anomaly_values"]
+    all_anom = ws_analyses["ALLSKY_SFC_SW_DWN"]["series"]["anomaly_values"]
+    cre_anom = ws_analyses["sw_cloud_radiative_effect"]["series"]["anomaly_values"]
+
+    smoke_events: list[dict[str, Any]] = []
+    for idx, d_str in enumerate(common_dates):
+        cz = clr_z[idx]
+        clz = cld_z[idx]
+        if cz is None or clz is None:
+            continue
+        if float(cz) < -2.0 and float(clz) <= 0.5:
+            ca = float(clr_anom[idx] or 0.0)
+            aa = float(all_anom[idx] or 0.0)
+            cre_a = float(cre_anom[idx] or 0.0)
+            smoke_events.append(
+                {
+                    "date": d_str,
+                    "clrsky_z": round(float(cz), 3),
+                    "allsky_z": round(float(all_z[idx] or 0.0), 3),
+                    "cloud_amt_z": round(float(clz), 3),
+                    "albedo_z": round(float(alb_z[idx] or 0.0), 3),
+                    "clrsky_anom_mj": round(ca, 4),
+                    "allsky_anom_mj": round(aa, 4),
+                    "apparent_cre_shift_mj": round(cre_a, 4),
+                    "aerosol_masking_detected": bool(ca < aa),
+                }
+            )
+
+    smoke_events.sort(key=lambda item: item["clrsky_z"])
+    allsky_sen = float(ws_analyses["ALLSKY_SFC_SW_DWN"]["regression"]["slope_per_decade_sen"])
+    clrsky_sen = float(ws_analyses["CLRSKY_SFC_SW_DWN"]["regression"]["slope_per_decade_sen"])
+    cloud_sen = float(ws_analyses["CLOUD_AMT"]["regression"]["slope_per_decade_sen"])
+    allsky_sig = bool(ws_analyses["ALLSKY_SFC_SW_DWN"]["significance"]["is_significant_fdr05"])
+    cloud_sig = bool(ws_analyses["CLOUD_AMT"]["significance"]["is_significant_fdr05"])
+    clrsky_sig = bool(ws_analyses["CLRSKY_SFC_SW_DWN"]["significance"]["is_significant_fdr05"])
+
+    return {
+        "secular_cloud_driven_brightening": bool(
+            allsky_sen > 0.0 and cloud_sen < 0.0 and allsky_sig and cloud_sig and not clrsky_sig
+        ),
+        "slopes_per_decade_sen": {
+            "ALLSKY_SFC_SW_DWN": allsky_sen,
+            "CLRSKY_SFC_SW_DWN": clrsky_sen,
+            "CLOUD_AMT": cloud_sen,
+        },
+        "n_smoke_aerosol_shock_months": len(smoke_events),
+        "top_smoke_aerosol_shocks": smoke_events[:5],
+    }
+
+
 def _align_common_dates(series_map: Mapping[str, Mapping[str, float]]) -> list[str]:
     date_sets = [set(s.keys()) for s in series_map.values() if s]
     if not date_sets:
@@ -405,13 +483,118 @@ def _align_common_dates(series_map: Mapping[str, Mapping[str, float]]) -> list[s
     return [d for d in common if f"{START_YEAR:04d}-01" <= d <= f"{END_YEAR:04d}-12"]
 
 
+def _purge_stale_glofas_cache(cache_dir: Path) -> int:
+    """Scans CellCacheStore directory and removes legacy or synthetic-fallback GloFAS cache files."""
+    if not cache_dir.exists():
+        return 0
+    removed = 0
+    for path in cache_dir.rglob("*.json"):
+        if path.name == "glofas_snapping_v2.json":
+            continue
+        if "open_meteo_flood" not in path.name and "river_discharge" not in path.name:
+            continue
+        try:
+            payload = json.loads(path.read_text(encoding="utf-8"))
+            if not isinstance(payload, dict):
+                continue
+            is_fallback = payload.get("origin") == "glofas_calibrated_fallback"
+            needs_v2 = ("river_discharge_min" in path.name or "river_discharge_max" in path.name) and payload.get("agg_v") != 2
+            if is_fallback or needs_v2:
+                path.unlink(missing_ok=True)
+                removed += 1
+        except Exception:
+            continue
+    return removed
+
+
+def _fetch_true_glofas_monthly_extremes_direct(
+    lat: float,
+    lon: float,
+    start_year: int,
+    end_year: int,
+    cache_dir: Path,
+) -> dict[str, dict[str, Any]] | None:
+    """Fetches daily `river_discharge` from Open-Meteo Flood API and computes true monthly mean, min, and max.
+
+    Used automatically whenever the underlying connector cache still returns collapsed ensemble means
+    (where monthly min == monthly mean == monthly max).
+    """
+    cache_file = cache_dir / f"glofas_monthly_extremes_v2_{lat:.4f}_{lon:.4f}_{start_year}_{end_year}.json"
+    if cache_file.exists():
+        try:
+            cached = json.loads(cache_file.read_text(encoding="utf-8"))
+            if isinstance(cached, dict) and cached.get("agg_v") == 2:
+                return cached["variables"]
+        except Exception:
+            pass
+
+    params = urllib.parse.urlencode(
+        {
+            "latitude": f"{lat:.4f}",
+            "longitude": f"{lon:.4f}",
+            "daily": "river_discharge",
+            "start_date": f"{start_year:04d}-01-01",
+            "end_date": f"{end_year:04d}-12-31",
+        }
+    )
+    url = f"https://flood-api.open-meteo.com/v1/flood?{params}"
+    resp = http_request(url, timeout=45)
+    for backoff_s in (2.0, 5.0, 10.0):
+        if resp["ok"]:
+            break
+        time.sleep(backoff_s)
+        resp = http_request(url, timeout=45)
+
+    if not resp["ok"]:
+        return None
+
+    payload = json.loads(resp["body"])
+    item = payload[0] if isinstance(payload, list) else payload
+    daily = (item or {}).get("daily", {})
+    times = daily.get("time", [])
+    vals = daily.get("river_discharge", [])
+    if not times or not vals:
+        return None
+
+    buckets: dict[str, list[float]] = {}
+    for d_str, v in zip(times, vals):
+        if v is None:
+            continue
+        fv = float(v)
+        if math.isfinite(fv) and fv >= 0.0:
+            buckets.setdefault(str(d_str)[:7], []).append(fv)
+
+    mean_ser: dict[str, float] = {}
+    min_ser: dict[str, float] = {}
+    max_ser: dict[str, float] = {}
+    for ym in sorted(buckets.keys()):
+        b = buckets[ym]
+        if not b:
+            continue
+        mean_ser[ym] = round(float(statistics.fmean(b)), 4)
+        min_ser[ym] = round(float(min(b)), 4)
+        max_ser[ym] = round(float(max(b)), 4)
+
+    out_vars = {
+        "river_discharge": {"status": "OK", "agg_v": 2, "series": mean_ser},
+        "river_discharge_min": {"status": "OK", "agg_v": 2, "series": min_ser},
+        "river_discharge_max": {"status": "OK", "agg_v": 2, "series": max_ser},
+    }
+    cache_dir.mkdir(parents=True, exist_ok=True)
+    cache_file.write_text(
+        json.dumps({"agg_v": 2, "variables": out_vars}, ensure_ascii=False, indent=2),
+        encoding="utf-8",
+    )
+    return out_vars
+
+
 def validate_glofas_discharge(
     watershed_name: str,
     var_payloads: Mapping[str, Mapping[str, Any]],
     *,
     snapped_meta: Mapping[str, Any] | None = None,
 ) -> dict[str, Any]:
-    """Validates non-zero main-stem GloFAS river discharge series."""
+    """Validates non-zero main-stem GloFAS river discharge series and verifies min < mean < max spread."""
     summary: dict[str, Any] = {}
     all_valid = True
     for var in GLOFAS_VARIABLES:
@@ -423,6 +606,7 @@ def validate_glofas_discharge(
         mean_val = statistics.fmean(vals) if vals else 0.0
         is_valid = (
             payload.get("status") == "OK"
+            and payload.get("data_origin") != "glofas_calibrated_fallback"
             and len(vals) >= 120
             and nonzero_frac >= 0.70
             and (var != "river_discharge" or mean_val >= 20.0)
@@ -431,6 +615,7 @@ def validate_glofas_discharge(
             all_valid = False
         summary[var] = {
             "status": payload.get("status"),
+            "data_origin": payload.get("data_origin"),
             "months": len(vals),
             "nonzero_count": nonzero_count,
             "nonzero_fraction": round(nonzero_frac, 4),
@@ -439,9 +624,16 @@ def validate_glofas_discharge(
             "max": round(max(vals), 4) if vals else None,
             "is_valid_nonzero": is_valid,
         }
+
+    mean_m = summary.get("river_discharge", {}).get("mean") or 0.0
+    min_m = summary.get("river_discharge_min", {}).get("mean") or 0.0
+    max_m = summary.get("river_discharge_max", {}).get("mean") or 0.0
+    has_intra_month_spread = bool(max_m - min_m > 0.02 * max(1.0, mean_m))
+
     return {
         "watershed": watershed_name,
         "valid": all_valid,
+        "has_intra_month_extremes_spread": has_intra_month_spread,
         "snapped_main_channel": dict(snapped_meta) if snapped_meta else None,
         "variables": summary,
     }
@@ -565,6 +757,7 @@ def fetch_all_regions(
     sleep_between_requests_s: float = 0.4,
 ) -> dict[str, Any]:
     """Fetches snapped GloFAS main-stem discharge + multi-cell MERRA-2/CERES basin/ocean data."""
+    _purge_stale_glofas_cache(cache_dir)
     watersheds_raw: dict[str, dict[str, Any]] = {}
     glofas_checks: dict[str, dict[str, Any]] = {}
 
@@ -573,9 +766,9 @@ def fetch_all_regions(
             time.sleep(sleep_between_requests_s)
 
         snapped_meta = snap_glofas_main_channel(ws, cache_dir)
-        glofas_cell = [
-            CellCoord(lat=float(snapped_meta["snapped_lat"]), lon=float(snapped_meta["snapped_lon"]))
-        ]
+        s_lat = float(snapped_meta["snapped_lat"])
+        s_lon = float(snapped_meta["snapped_lon"])
+        glofas_cell = [CellCoord(lat=s_lat, lon=s_lon)]
         basin_cells = [CellCoord(lat=float(lat), lon=float(lon)) for lat, lon in ws["basin_cells"]]
 
         q_glofas = LocationQuery(
@@ -612,6 +805,18 @@ def fetch_all_regions(
         check = validate_glofas_discharge(
             ws["name"], combined_vars, snapped_meta=snapped_meta
         )
+        # Self-healing guard: if cache/connector hit synthetic fallback or returned collapsed
+        # ensemble means, compute true monthly min/mean/max from live daily GloFAS series
+        if not check["valid"] or not check["has_intra_month_extremes_spread"]:
+            direct_glofas = _fetch_true_glofas_monthly_extremes_direct(
+                s_lat, s_lon, START_YEAR, END_YEAR, cache_dir
+            )
+            if direct_glofas is not None:
+                combined_vars.update(direct_glofas)
+                check = validate_glofas_discharge(
+                    ws["name"], combined_vars, snapped_meta=snapped_meta
+                )
+
         glofas_checks[ws["id"]] = check
         watersheds_raw[ws["id"]] = {
             "spec": ws,
@@ -670,38 +875,88 @@ def _detrend_linear(y: np.ndarray) -> np.ndarray:
     return y - (slope * t + intercept)
 
 
-def _ar1_pearson_test(x: np.ndarray, y: np.ndarray) -> dict[str, float]:
-    """Pearson correlation with Bretherton et al. (1999) AR(1) effective N and t-test p-value."""
+def _ar1_pearson_test(x: np.ndarray, y: np.ndarray, n_cond_vars: int = 0) -> dict[str, float]:
+    """Pearson correlation with Bretherton et al. (1999) AR(1) effective N and df_eff = N_eff - 2 - |Z|."""
     n = len(x)
-    if n < 6 or np.std(x) < 1e-12 or np.std(y) < 1e-12:
-        return {"r": 0.0, "n_pairs": float(n), "n_eff": float(n), "p_value_ar1": 1.0}
+    if n < 6 + n_cond_vars or np.std(x) < 1e-12 or np.std(y) < 1e-12:
+        return {
+            "r": 0.0,
+            "n_pairs": float(n),
+            "n_eff": float(n),
+            "df_eff": max(1.0, float(n - 2 - n_cond_vars)),
+            "p_value_ar1": 1.0,
+        }
     r = float(np.corrcoef(x, y)[0, 1])
     if not math.isfinite(r):
-        return {"r": 0.0, "n_pairs": float(n), "n_eff": float(n), "p_value_ar1": 1.0}
+        return {
+            "r": 0.0,
+            "n_pairs": float(n),
+            "n_eff": float(n),
+            "df_eff": max(1.0, float(n - 2 - n_cond_vars)),
+            "p_value_ar1": 1.0,
+        }
     rho_x = _lag1_autocorr(x)
     rho_y = _lag1_autocorr(y)
     prod = rho_x * rho_y
     n_eff = n * (1.0 - prod) / (1.0 + prod) if prod > 0.0 else float(n)
-    n_eff = max(3.0, min(float(n), n_eff))
-    df_eff = max(1.0, n_eff - 2.0)
-    t_stat = r * math.sqrt(df_eff / max(1e-12, 1.0 - r * r))
+    n_eff = max(float(3 + n_cond_vars), min(float(n), n_eff))
+    df_eff = max(1.0, n_eff - 2.0 - float(n_cond_vars))
+    r_clamped = max(-0.999999, min(0.999999, r))
+    t_stat = r_clamped * math.sqrt(df_eff / max(1e-12, 1.0 - r_clamped * r_clamped))
     p_val = float(sps.t.sf(abs(t_stat), df=df_eff) * 2.0)
-    return {"r": r, "n_pairs": float(n), "n_eff": n_eff, "p_value_ar1": min(1.0, max(0.0, p_val))}
+    return {
+        "r": r,
+        "n_pairs": float(n),
+        "n_eff": n_eff,
+        "df_eff": df_eff,
+        "p_value_ar1": min(1.0, max(0.0, p_val)),
+    }
+
+
+def _ar1_partial_correlation_test(
+    x: np.ndarray,
+    y: np.ndarray,
+    z_cols: Sequence[np.ndarray],
+) -> dict[str, float]:
+    """Computes partial correlation r(X, Y | Z) via OLS orthogonal projection and AR(1) df_eff."""
+    n = len(x)
+    k_cond = len(z_cols)
+    if n < 8 + k_cond or np.std(x) < 1e-12 or np.std(y) < 1e-12:
+        return {
+            "r": 0.0,
+            "n_pairs": float(n),
+            "n_eff": float(n),
+            "df_eff": 1.0,
+            "p_value_ar1": 1.0,
+        }
+    Z = np.column_stack([np.ones(n, dtype=np.float64)] + [np.asarray(col, dtype=np.float64) for col in z_cols])
+    beta_x, _, _, _ = np.linalg.lstsq(Z, x, rcond=None)
+    beta_y, _, _, _ = np.linalg.lstsq(Z, y, rcond=None)
+    e_x = x - Z @ beta_x
+    e_y = y - Z @ beta_y
+    return _ar1_pearson_test(e_x, e_y, n_cond_vars=k_cond)
 
 
 def _compute_local_multiscale_coupling(
     analysis_a: Mapping[str, Any],
     analysis_b: Mapping[str, Any],
 ) -> dict[str, Any]:
-    """Neutral same-basin multiscale coupling without spurious cross-variable divergence flags."""
+    """Same-basin multiscale coupling using non-tautological GAM trajectories + detrended residuals."""
     ser_a = analysis_a["series"]
     ser_b = analysis_b["series"]
     idx = [
         i
-        for i, (aa, ab, la, lb) in enumerate(
-            zip(ser_a["anomaly_values"], ser_b["anomaly_values"], ser_a["linear_fit"], ser_b["linear_fit"])
+        for i, (aa, ab, la, lb, ga, gb) in enumerate(
+            zip(
+                ser_a["anomaly_values"],
+                ser_b["anomaly_values"],
+                ser_a["linear_fit"],
+                ser_b["linear_fit"],
+                ser_a["gam_smooth_fit"],
+                ser_b["gam_smooth_fit"],
+            )
         )
-        if aa is not None and ab is not None and la is not None and lb is not None
+        if aa is not None and ab is not None and la is not None and lb is not None and ga is not None and gb is not None
     ]
     if len(idx) < 12:
         return {"status": "INSUFFICIENT_DATA", "n_pairs": len(idx)}
@@ -710,13 +965,15 @@ def _compute_local_multiscale_coupling(
     anom_b = np.asarray([float(ser_b["anomaly_values"][i]) for i in idx], dtype=np.float64)
     lin_a = np.asarray([float(ser_a["linear_fit"][i]) for i in idx], dtype=np.float64)
     lin_b = np.asarray([float(ser_b["linear_fit"][i]) for i in idx], dtype=np.float64)
+    gam_a = np.asarray([float(ser_a["gam_smooth_fit"][i]) for i in idx], dtype=np.float64)
+    gam_b = np.asarray([float(ser_b["gam_smooth_fit"][i]) for i in idx], dtype=np.float64)
 
     det_a = anom_a - lin_a
     det_b = anom_b - lin_b
 
     anom_stats = _ar1_pearson_test(anom_a, anom_b)
     det_stats = _ar1_pearson_test(det_a, det_b)
-    secular_r = float(np.corrcoef(lin_a, lin_b)[0, 1]) if np.std(lin_a) > 1e-12 and np.std(lin_b) > 1e-12 else 0.0
+    gam_stats = _ar1_pearson_test(gam_a, gam_b)
 
     slope_a = float(analysis_a["regression"]["slope_per_decade_sen"])
     slope_b = float(analysis_b["regression"]["slope_per_decade_sen"])
@@ -728,12 +985,105 @@ def _compute_local_multiscale_coupling(
         "detrended_r": round(det_stats["r"], 4),
         "detrended_n_eff_ar1": round(det_stats["n_eff"], 2),
         "detrended_p_ar1": round(det_stats["p_value_ar1"], 6),
-        "secular_ols_r": round(secular_r, 4),
+        "secular_gam_r": round(gam_stats["r"], 4),
+        "secular_gam_n_eff_ar1": round(gam_stats["n_eff"], 2),
+        "secular_gam_p_ar1": round(gam_stats["p_value_ar1"], 6),
         "opposite_secular_slopes": bool(slope_a * slope_b < 0.0),
     }
 
 
-def _extract_stats_summary(analysis: Mapping[str, Any]) -> dict[str, Any]:
+def detect_temporal_regime_break(
+    dates: Sequence[str],
+    y_anom: Sequence[float | None],
+    sen_fit: Sequence[float | None],
+    *,
+    min_segment_months: int = 24,
+) -> dict[str, Any]:
+    """Detects structural regime break date t*_regime via standardized CUSUM on (Y'_t - Y_hat_Sen(t))."""
+    valid = [
+        (d, float(a) - float(s), float(a))
+        for d, a, s in zip(dates, y_anom, sen_fit)
+        if a is not None and s is not None
+    ]
+    n = len(valid)
+    if n <= 2 * min_segment_months:
+        return {"detected": False, "break_date": None}
+
+    v_dates = [item[0] for item in valid]
+    resid = np.asarray([item[1] for item in valid], dtype=np.float64)
+    anom = np.asarray([item[2] for item in valid], dtype=np.float64)
+
+    sigma = max(1e-9, float(np.std(resid)))
+    rho1 = _lag1_autocorr(resid)
+    ar1_inflation = math.sqrt((1.0 + max(0.0, rho1)) / max(1e-6, 1.0 - max(0.0, rho1)))
+    eff_sigma = sigma * ar1_inflation
+
+    centered = resid - float(np.mean(resid))
+    cusum = np.cumsum(centered) / (eff_sigma * math.sqrt(float(n)))
+    interior = np.abs(cusum[min_segment_months : n - min_segment_months])
+    rel_idx = int(np.argmax(interior)) + min_segment_months
+    peak_stat = float(abs(cusum[rel_idx]))
+    # Asymptotic Kolmogorov-Smirnov / Brownian bridge two-sided p-value approximation
+    p_val = min(1.0, max(0.0, 2.0 * math.exp(-2.0 * peak_stat * peak_stat)))
+
+    pre_anom = anom[:rel_idx]
+    post_anom = anom[rel_idx:]
+    t_pre = np.arange(len(pre_anom), dtype=np.float64) / 120.0
+    t_post = np.arange(len(post_anom), dtype=np.float64) / 120.0
+    slope_pre = float(sps.theilslopes(pre_anom, t_pre).slope) if len(pre_anom) >= 12 else 0.0
+    slope_post = float(sps.theilslopes(post_anom, t_post).slope) if len(post_anom) >= 12 else 0.0
+
+    return {
+        "detected": bool(peak_stat >= 1.358),  # alpha = 0.05 Brownian bridge critical threshold
+        "break_date": v_dates[rel_idx],
+        "cusum_max_stat": round(peak_stat, 4),
+        "p_value_ar1_bridge": round(p_val, 6),
+        "pre_break_mean_anom": round(float(np.mean(pre_anom)), 4),
+        "post_break_mean_anom": round(float(np.mean(post_anom)), 4),
+        "pre_break_sen_slope_decade": round(slope_pre, 4),
+        "post_break_sen_slope_decade": round(slope_post, 4),
+    }
+
+
+def detect_physical_coupling_break(
+    dates: Sequence[str],
+    y_true: np.ndarray,
+    y_pred: np.ndarray,
+    *,
+    min_segment_months: int = 24,
+) -> dict[str, Any]:
+    """Detects physical attribution decoupling date t*_coupling on Mode B out-of-fold residuals."""
+    n = len(dates)
+    if n <= 2 * min_segment_months:
+        return {"detected": False, "break_date": None}
+
+    resid = y_true - y_pred
+    sigma = max(1e-9, float(np.std(resid)))
+    rho1 = _lag1_autocorr(resid)
+    eff_sigma = sigma * math.sqrt((1.0 + max(0.0, rho1)) / max(1e-6, 1.0 - max(0.0, rho1)))
+
+    centered = resid - float(np.mean(resid))
+    cusum = np.cumsum(centered) / (eff_sigma * math.sqrt(float(n)))
+    interior = np.abs(cusum[min_segment_months : n - min_segment_months])
+    rel_idx = int(np.argmax(interior)) + min_segment_months
+    peak_stat = float(abs(cusum[rel_idx]))
+    p_val = min(1.0, max(0.0, 2.0 * math.exp(-2.0 * peak_stat * peak_stat)))
+    break_date = dates[rel_idx]
+
+    diag = _regime_shift_error_diagnostics(dates, y_true, y_pred, break_date)
+    return {
+        "detected": bool(peak_stat >= 1.358),
+        "break_date": break_date,
+        "cusum_max_stat": round(peak_stat, 4),
+        "p_value_ar1_bridge": round(p_val, 6),
+        "pre_post_diagnostics": diag,
+    }
+
+
+def _extract_stats_summary(
+    analysis: Mapping[str, Any],
+    dates: Sequence[str],
+) -> dict[str, Any]:
     return {
         "variable_id": analysis["variable_id"],
         "unit": analysis["unit"],
@@ -743,6 +1093,11 @@ def _extract_stats_summary(analysis: Mapping[str, Any]) -> dict[str, Any]:
         "regression": analysis["regression"],
         "correlation_and_coupling": analysis["correlation_and_coupling"],
         "significance": analysis["significance"],
+        "temporal_regime_break_cusum": detect_temporal_regime_break(
+            dates,
+            analysis["series"]["anomaly_values"],
+            analysis["series"]["sen_fit"],
+        ),
         "n_outliers_mahalanobis": len(analysis["outliers_mahalanobis"]),
         "top_outliers": analysis["outliers_mahalanobis"][:5],
     }
@@ -780,14 +1135,15 @@ def run_statistical_diagnostics(
             ws_analyses[ws_id][var] = ana
             fdr_targets.append(ana)
 
-        # Derived physical watershed diagnostics (SW CRE & T2M-based VPD)
+        # Derived physical watershed diagnostics (SW CRE & FAO-56 convex VPD)
         clr_raw = [vars_map["CLRSKY_SFC_SW_DWN"]["series"].get(d) for d in common_dates]
         all_raw = [vars_map["ALLSKY_SFC_SW_DWN"]["series"].get(d) for d in common_dates]
         t2m_raw = [vars_map["T2M"]["series"].get(d) for d in common_dates]
+        tmax_raw = [vars_map["T2M_MAX"]["series"].get(d) for d in common_dates]
         tdew_raw = [vars_map["T2MDEW"]["series"].get(d) for d in common_dates]
 
         sw_cre_raw = compute_sw_cloud_radiative_effect_series(clr_raw, all_raw)
-        vpd_raw = compute_vpd_t2m_series(t2m_raw, tdew_raw)
+        vpd_raw = compute_vpd_fao56_series(t2m_raw, tdew_raw, t2m_max=tmax_raw)
 
         for dvar, dvals in (("sw_cloud_radiative_effect", sw_cre_raw), ("VPD_t2m_kpa", vpd_raw)):
             ana = analyze_single_series(dvar, common_dates, dvals, variable_meta=build_variable_meta(dvar))
@@ -808,7 +1164,12 @@ def run_statistical_diagnostics(
     for item, q_val in zip(fdr_targets, q_values):
         update_fdr_significance(item, q_val, alpha=0.05)
 
-    # Neutral within-watershed multiscale couplings + BH-FDR on detrended & anomaly p_ar1
+    smoke_cloud_diagnostics = {
+        ws_id: diagnose_smoke_cloud_decoupling(common_dates, ws_analyses[ws_id])
+        for ws_id in valid_watersheds
+    }
+
+    # Within-watershed multiscale couplings + BH-FDR on detrended & anomaly p_ar1
     local_couplings: dict[str, dict[str, Any]] = {}
     local_pairs = [
         ("PRECTOTCORR", "river_discharge_min"),
@@ -859,6 +1220,7 @@ def run_statistical_diagnostics(
         "common_dates": common_dates,
         "watershed_analyses": ws_analyses,
         "ocean_analyses": oc_analyses,
+        "smoke_cloud_diagnostics": smoke_cloud_diagnostics,
         "local_couplings": local_couplings,
         "spatial_dipoles": spatial_dipoles,
     }
@@ -947,6 +1309,20 @@ def _deseasonalize_in_fold(
     ]
 
 
+def _detrend_in_fold_array(
+    arr: np.ndarray,
+    train_pos_indices: Sequence[int],
+) -> np.ndarray:
+    """Removes linear trend estimated strictly on `train_pos_indices` from a 1D feature/target array."""
+    t_all = np.arange(len(arr), dtype=np.float64)
+    t_tr = t_all[train_pos_indices]
+    y_tr = arr[train_pos_indices]
+    if len(t_tr) < 6 or np.std(y_tr) < 1e-12:
+        return arr.copy()
+    slope, intercept = np.polyfit(t_tr, y_tr, 1)
+    return arr - (slope * t_all + intercept)
+
+
 def _assemble_watershed_raw_grid(
     ws_id: str,
     common_dates: Sequence[str],
@@ -966,13 +1342,12 @@ def _assemble_watershed_raw_grid(
             for var in OCEAN_VARIABLES
         }
 
-    # Precompute valid indices where ALL raw inputs exist over the max lag window (lag=6)
     max_lag = 6
     valid_grid_idx: list[int] = []
     for g_idx in range(max_lag, len(grid)):
         window_ok = True
         for k in range(g_idx - max_lag, g_idx + 1):
-            for var, ser in ws_raws.items():
+            for ser in ws_raws.values():
                 if ser[k] is None:
                     window_ok = False
                     break
@@ -999,12 +1374,60 @@ def _assemble_watershed_raw_grid(
     }
 
 
+def _all_ocean_candidate_specs() -> list[tuple[str, str, int]]:
+    specs: list[tuple[str, str, int]] = []
+    for oc_id in ("pac_nino34", "atl_ne", "atl_tn", "atl_s"):
+        for oc_var in OCEAN_VARIABLES:
+            for lag in OCEAN_LAGS:
+                specs.append((oc_id, oc_var, lag))
+    for lag in OCEAN_LAGS:
+        specs.append(("atl_meridional_grad", "TS", lag))
+    return specs
+
+
+def _select_in_fold_ocean_features(
+    features_np: Mapping[str, np.ndarray],
+    y_np: np.ndarray,
+    target_name: str,
+    train_pos_indices: Sequence[int],
+    top_k: int = IN_FOLD_TOP_K_OCEAN,
+) -> list[str]:
+    """Selects top-K lagged ocean features strictly inside `train_pos_indices` (zero selection leakage)."""
+    tr_idx = np.asarray(train_pos_indices, dtype=np.int64)
+    y_tr = y_np[tr_idx]
+    t_tr = tr_idx.astype(np.float64)
+
+    scored: list[tuple[float, str, str]] = []
+    for oc_id, oc_var, lag in _all_ocean_candidate_specs():
+        fname = f"ocean_{oc_id}__{oc_var}_lag{lag}"
+        x_tr = features_np[fname][tr_idx]
+        y_lag_tr = features_np[f"{target_name}_lag{lag}"][tr_idx]
+        z_cond: list[np.ndarray] = [t_tr, y_lag_tr]
+        if oc_id != "pac_nino34":
+            nino_tr = features_np[f"ocean_pac_nino34__TS_lag{lag}"][tr_idx]
+            z_cond.append(nino_tr)
+        part_res = _ar1_partial_correlation_test(x_tr, y_tr, z_cond)
+        scored.append((abs(part_res["r"]), fname, f"{oc_id}__{oc_var}"))
+
+    scored.sort(key=lambda item: item[0], reverse=True)
+    selected: list[str] = []
+    pair_counts: dict[str, int] = {}
+    for _, fname, pair_key in scored:
+        if pair_counts.get(pair_key, 0) >= 2:
+            continue
+        selected.append(fname)
+        pair_counts[pair_key] = pair_counts.get(pair_key, 0) + 1
+        if len(selected) >= top_k:
+            break
+    return selected
+
+
 def _build_fold_feature_arrays(
     raw_bundle: Mapping[str, Any],
     train_pos_indices: Sequence[int],
     target_name: str,
-) -> tuple[dict[str, np.ndarray], np.ndarray]:
-    """Builds strictly leakage-free in-fold deseasonalized features and target arrays."""
+) -> tuple[dict[str, np.ndarray], np.ndarray, list[str]]:
+    """Builds strictly leakage-free in-fold deseasonalized features, target arrays, and in-fold ocean picks."""
     grid: Sequence[str] = raw_bundle["grid"]
     valid_grid_idx: Sequence[int] = raw_bundle["valid_grid_idx"]
     train_grid_idx = [valid_grid_idx[p] for p in train_pos_indices]
@@ -1020,7 +1443,6 @@ def _build_fold_feature_arrays(
         }
         for oc_id, var_map in raw_bundle["oc_raws"].items()
     }
-    # Atlantic meridional dipole gradient anomaly (TN - South Atlantic)
     tn_ts = oc_anom["atl_tn"]["TS"]
     s_ts = oc_anom["atl_s"]["TS"]
     oc_anom["atl_meridional_grad"] = {
@@ -1032,9 +1454,12 @@ def _build_fold_feature_arrays(
 
     t_series = ws_anom[target_name]
     feature_series: dict[str, list[float | None]] = {
-        # Target AR(1..3) persistence (Mode A baseline)
+        # Target AR(1..6) persistence & conditioning lags
         f"{target_name}_lag1": _lag_series(t_series, 1),
         f"{target_name}_lag2": _lag_series(t_series, 2),
+        f"{target_name}_lag3": _lag_series(t_series, 3),
+        f"{target_name}_lag4": _lag_series(t_series, 4),
+        f"{target_name}_lag6": _lag_series(t_series, 6),
         f"{target_name}_roll3_lag1": _rolling_mean_causal(t_series, 3),
         # Mode A strictly causal lagged hydro-met & soil memory (lag >= 1)
         "PRECTOTCORR_lag1": _lag_series(ws_anom["PRECTOTCORR"], 1),
@@ -1062,7 +1487,7 @@ def _build_fold_feature_arrays(
         "ALLSKY_SRF_ALB_t": ws_anom["ALLSKY_SRF_ALB"],
     }
 
-    for oc_id, oc_var, lag in CURATED_OCEAN_FEATURES:
+    for oc_id, oc_var, lag in _all_ocean_candidate_specs():
         fname = f"ocean_{oc_id}__{oc_var}_lag{lag}"
         feature_series[fname] = _lag_series(oc_anom[oc_id][oc_var], lag)
 
@@ -1071,11 +1496,18 @@ def _build_fold_feature_arrays(
         for name, ser in feature_series.items()
     }
     y_np = np.asarray([float(t_series[g_idx]) for g_idx in valid_grid_idx], dtype=np.float64)
-    return features_np, y_np
+
+    in_fold_ocean_cols = _select_in_fold_ocean_features(
+        features_np, y_np, target_name, train_pos_indices, top_k=IN_FOLD_TOP_K_OCEAN
+    )
+    return features_np, y_np, in_fold_ocean_cols
 
 
-def _feature_regimes_for_target(target_name: str) -> dict[str, dict[str, Any]]:
-    """Defines separated Mode A (lagged forecast) and Mode B (contemporaneous attribution) regimes."""
+def _feature_regimes_for_target(
+    target_name: str,
+    ocean_cols: Sequence[str],
+) -> dict[str, dict[str, Any]]:
+    """Defines Mode A (lagged forecast) and dual Mode B (level vs. in-fold detrended attribution) regimes."""
     ar1_cols = [
         f"{target_name}_lag1",
         f"{target_name}_lag2",
@@ -1100,9 +1532,9 @@ def _feature_regimes_for_target(target_name: str) -> dict[str, dict[str, Any]]:
         "CLOUD_AMT_lag1",
         "ALLSKY_SRF_ALB_lag1",
     ]
-    ocean_cols = [f"ocean_{oc_id}__{oc_var}_lag{lag}" for oc_id, oc_var, lag in CURATED_OCEAN_FEATURES]
-    lagged_ocean_only = ar1_cols + ocean_cols
-    lagged_full_teleconnection = lagged_radiative + ocean_cols
+    oc_list = list(ocean_cols)
+    lagged_ocean_only = ar1_cols + oc_list
+    lagged_full_teleconnection = lagged_radiative + oc_list
 
     contemp_met_soil = [
         "PRECTOTCORR_t",
@@ -1120,13 +1552,35 @@ def _feature_regimes_for_target(target_name: str) -> dict[str, dict[str, Any]]:
     ]
 
     return {
-        "ar1_persistence": {"mode": "forecast_lagged", "cols": ar1_cols},
-        "lagged_hydro_met": {"mode": "forecast_lagged", "cols": lagged_hydro_met},
-        "lagged_radiative": {"mode": "forecast_lagged", "cols": lagged_radiative},
-        "lagged_ocean_only": {"mode": "forecast_lagged", "cols": lagged_ocean_only},
-        "lagged_full_teleconnection": {"mode": "forecast_lagged", "cols": lagged_full_teleconnection},
-        "contemp_met_soil": {"mode": "attribution_contemporaneous", "cols": contemp_met_soil},
-        "contemp_met_soil_radiative": {"mode": "attribution_contemporaneous", "cols": contemp_met_soil_radiative},
+        "ar1_persistence": {"mode": "forecast_lagged", "detrend_in_fold": False, "cols": ar1_cols},
+        "lagged_hydro_met": {"mode": "forecast_lagged", "detrend_in_fold": False, "cols": lagged_hydro_met},
+        "lagged_radiative": {"mode": "forecast_lagged", "detrend_in_fold": False, "cols": lagged_radiative},
+        "lagged_ocean_only": {"mode": "forecast_lagged", "detrend_in_fold": False, "cols": lagged_ocean_only},
+        "lagged_full_teleconnection": {
+            "mode": "forecast_lagged",
+            "detrend_in_fold": False,
+            "cols": lagged_full_teleconnection,
+        },
+        "contemp_met_soil": {
+            "mode": "attribution_contemporaneous_level",
+            "detrend_in_fold": False,
+            "cols": contemp_met_soil,
+        },
+        "contemp_met_soil_radiative": {
+            "mode": "attribution_contemporaneous_level",
+            "detrend_in_fold": False,
+            "cols": contemp_met_soil_radiative,
+        },
+        "contemp_detrended_met_soil": {
+            "mode": "attribution_contemporaneous_detrended",
+            "detrend_in_fold": True,
+            "cols": contemp_met_soil,
+        },
+        "contemp_detrended_met_soil_radiative": {
+            "mode": "attribution_contemporaneous_detrended",
+            "detrend_in_fold": True,
+            "cols": contemp_met_soil_radiative,
+        },
     }
 
 
@@ -1232,7 +1686,7 @@ def _bootstrap_regime_thresholds(
     n_boot: int = 40,
     block_len: int = 12,
 ) -> list[dict[str, Any]]:
-    """Quantifies threshold stability via contiguous 12-month block bootstrap (no bare in-sample single fit)."""
+    """Quantifies threshold stability via contiguous 12-month block bootstrap on OOF-deseasonalized arrays."""
     n = len(y_vals)
     if n < 60:
         return []
@@ -1249,8 +1703,6 @@ def _bootstrap_regime_thresholds(
         t_obj = tree.tree_
         if int(t_obj.node_count) <= 1 or int(t_obj.feature[0]) < 0:
             continue
-        # Record at most one split per feature per bootstrap tree (shallowest node first)
-        # so bootstrap_selection_freq stays a proper probability in [0.0, 1.0].
         seen_in_tree: set[str] = set()
         for node_id in range(t_obj.node_count):
             feat_idx = int(t_obj.feature[node_id])
@@ -1314,7 +1766,7 @@ def evaluate_models_for_watershed(
     ws_id: str,
     raw_bundle: Mapping[str, Any],
 ) -> dict[str, Any]:
-    """Runs purged 5-block CV with strict in-fold climatology across Forecast (Mode A) & Attribution (Mode B)."""
+    """Runs purged 5-block CV with strict in-fold climatology, in-fold detrending, and in-fold ocean selection."""
     valid_dates: Sequence[str] = raw_bundle["valid_dates"]
     n_samples = len(valid_dates)
     folds = blocked_timeseries_cv_indices(n_samples, n_blocks=N_CV_BLOCKS, purge_gap=PURGE_GAP)
@@ -1334,44 +1786,71 @@ def evaluate_models_for_watershed(
     }
 
     for target_name in TARGETS:
-        regimes = _feature_regimes_for_target(target_name)
-        # Precompute in-fold deseasonalized arrays once per fold for zero leakage and high speed
         fold_arrays = [
             _build_fold_feature_arrays(raw_bundle, train_idx, target_name)
             for train_idx, _ in folds
         ]
-        # Full-period anomaly matrix solely for descriptive quartile / block-bootstrap summaries
-        full_feat_map, full_y = _build_fold_feature_arrays(raw_bundle, list(range(n_samples)), target_name)
+        in_fold_ocean_selections = [oc_cols for _, _, oc_cols in fold_arrays]
 
-        target_out: dict[str, Any] = {"feature_regimes": {}}
+        # Build strictly out-of-fold deseasonalized feature & target matrix for threshold/quartile diagnostics
+        oof_feat_map: dict[str, np.ndarray] = {}
+        oof_y_deseas = np.zeros(n_samples, dtype=np.float64)
+        for (_, val_idx), (feat_map, y_fold, _) in zip(folds, fold_arrays):
+            oof_y_deseas[val_idx] = y_fold[val_idx]
+            for fname, farr in feat_map.items():
+                if fname not in oof_feat_map:
+                    oof_feat_map[fname] = np.zeros(n_samples, dtype=np.float64)
+                oof_feat_map[fname][val_idx] = farr[val_idx]
 
-        for regime_name, rmeta in regimes.items():
-            col_names: list[str] = rmeta["cols"]
+        # Reference regime definitions (using fold 0 ocean cols as structural template; actual ocean cols vary per fold)
+        regimes_template = _feature_regimes_for_target(target_name, in_fold_ocean_selections[0])
+        target_out: dict[str, Any] = {
+            "in_fold_selected_ocean_features": {
+                f"fold_{i + 1}": cols for i, cols in enumerate(in_fold_ocean_selections)
+            },
+            "feature_regimes": {},
+        }
+
+        for regime_name, rmeta in regimes_template.items():
+            detrend_flag = bool(rmeta["detrend_in_fold"])
             regime_out: dict[str, Any] = {
                 "scientific_mode": rmeta["mode"],
-                "n_features": len(col_names),
+                "detrended_in_fold": detrend_flag,
+                "n_features": len(rmeta["cols"]),
                 "models": {},
             }
 
             for model_name in model_names:
-                # Reconstruct held-out predictions against each fold's own deseasonalized y[val_idx]
                 oof_y_true = np.zeros(n_samples, dtype=np.float64)
                 oof_y_pred = np.zeros(n_samples, dtype=np.float64)
                 fold_metrics: list[dict[str, Any]] = []
-                perm_means_folds: list[np.ndarray] = []
+                perm_by_feature: dict[str, list[float]] = {}
 
-                for fold_idx, ((train_idx, val_idx), (feat_map, y_fold)) in enumerate(zip(folds, fold_arrays)):
-                    X_fold = np.column_stack([feat_map[c] for c in col_names])
+                for fold_idx, ((train_idx, val_idx), (feat_map, y_fold, fold_oc_cols)) in enumerate(
+                    zip(folds, fold_arrays)
+                ):
+                    fold_regimes = _feature_regimes_for_target(target_name, fold_oc_cols)
+                    col_names = fold_regimes[regime_name]["cols"]
+
+                    if detrend_flag:
+                        X_fold = np.column_stack(
+                            [_detrend_in_fold_array(feat_map[c], train_idx) for c in col_names]
+                        )
+                        y_work = _detrend_in_fold_array(y_fold, train_idx)
+                    else:
+                        X_fold = np.column_stack([feat_map[c] for c in col_names])
+                        y_work = y_fold
+
                     est = _make_estimator(model_name)
-                    est.fit(X_fold[train_idx], y_fold[train_idx])
+                    est.fit(X_fold[train_idx], y_work[train_idx])
                     preds = est.predict(X_fold[val_idx])
 
-                    oof_y_true[val_idx] = y_fold[val_idx]
+                    oof_y_true[val_idx] = y_work[val_idx]
                     oof_y_pred[val_idx] = preds
 
-                    fold_r2 = float(r2_score(y_fold[val_idx], preds))
-                    fold_mae = float(mean_absolute_error(y_fold[val_idx], preds))
-                    fold_rmse = float(math.sqrt(mean_squared_error(y_fold[val_idx], preds)))
+                    fold_r2 = float(r2_score(y_work[val_idx], preds))
+                    fold_mae = float(mean_absolute_error(y_work[val_idx], preds))
+                    fold_rmse = float(math.sqrt(mean_squared_error(y_work[val_idx], preds)))
                     fold_metrics.append(
                         {
                             "fold": fold_idx + 1,
@@ -1387,12 +1866,13 @@ def evaluate_models_for_watershed(
                     perm = permutation_importance(
                         est,
                         X_fold[val_idx],
-                        y_fold[val_idx],
+                        y_work[val_idx],
                         n_repeats=5,
                         random_state=42 + fold_idx,
                         scoring="r2",
                     )
-                    perm_means_folds.append(perm.importances_mean)
+                    for cname, imp_val in zip(col_names, perm.importances_mean):
+                        perm_by_feature.setdefault(cname, []).append(float(imp_val))
 
                 fold_r2_vals = [f["r2"] for f in fold_metrics]
                 fold_mean_r2 = float(np.mean(fold_r2_vals))
@@ -1402,18 +1882,27 @@ def evaluate_models_for_watershed(
                 oof_mae = float(mean_absolute_error(oof_y_true, oof_y_pred))
                 oof_rmse = float(math.sqrt(mean_squared_error(oof_y_true, oof_y_pred)))
 
-                perm_stack = np.vstack(perm_means_folds)
-                mean_imp = np.mean(perm_stack, axis=0)
-                std_imp = np.std(perm_stack, axis=0)
-                ranked_idx = np.argsort(mean_imp)[::-1]
                 top_importances = [
                     {
-                        "feature": col_names[idx],
-                        "importance_r2_drop_mean": round(float(mean_imp[idx]), 5),
-                        "importance_r2_drop_std": round(float(std_imp[idx]), 5),
+                        "feature": cname,
+                        "importance_r2_drop_mean": round(float(np.mean(vals)), 5),
+                        "importance_r2_drop_std": round(float(np.std(vals)), 5),
+                        "folds_selected_count": len(vals),
                     }
-                    for idx in ranked_idx[:10]
+                    for cname, vals in perm_by_feature.items()
                 ]
+                top_importances.sort(key=lambda item: item["importance_r2_drop_mean"], reverse=True)
+
+                # Remove Fold-0 unilateral future-to-past extrapolation bias before boundary-free CUSUM
+                y_pred_cusum = oof_y_pred
+                if len(folds) >= 3:
+                    f0_val = folds[0][1]
+                    interior_val = np.concatenate([f[1] for f in folds[1:-1]])
+                    if len(f0_val) > 0 and len(interior_val) > 0:
+                        raw_res = oof_y_true - oof_y_pred
+                        delta0 = float(np.mean(raw_res[f0_val]) - np.mean(raw_res[interior_val]))
+                        y_pred_cusum = oof_y_pred.copy()
+                        y_pred_cusum[f0_val] += delta0
 
                 regime_out["models"][model_name] = {
                     "fold_mean_r2": round(fold_mean_r2, 4),
@@ -1423,30 +1912,53 @@ def evaluate_models_for_watershed(
                     "cv_oof_mae": round(oof_mae, 4),
                     "cv_oof_rmse": round(oof_rmse, 4),
                     "folds": fold_metrics,
-                    "permutation_importance_top10": top_importances,
+                    "permutation_importance_top10": top_importances[:10],
                     "regime_diagnostics_2020": _regime_shift_error_diagnostics(
                         valid_dates, oof_y_true, oof_y_pred, "2020-01"
                     ),
+                    "cusum_coupling_break": detect_physical_coupling_break(
+                        valid_dates, oof_y_true, y_pred_cusum
+                    ),
                 }
 
-                # For physical attribution mode with best tree/spline drivers, compute quartile & bootstrap threshold stability
-                if regime_name in ("contemp_met_soil_radiative", "lagged_radiative") and model_name == "HistGradientBoostingRegressor":
-                    X_full = np.column_stack([full_feat_map[c] for c in col_names])
+                if (
+                    regime_name in ("contemp_met_soil_radiative", "contemp_detrended_met_soil_radiative", "lagged_radiative")
+                    and model_name == "HistGradientBoostingRegressor"
+                ):
+                    stable_cols = [c for c in rmeta["cols"] if c in oof_feat_map]
+                    X_oof_mat = np.column_stack([oof_feat_map[c] for c in stable_cols])
+                    y_oof_vec = _detrend_linear(oof_y_deseas) if detrend_flag else oof_y_deseas
                     regime_out["bootstrap_threshold_stability"] = _bootstrap_regime_thresholds(
-                        X_full, col_names, full_y
+                        X_oof_mat, stable_cols, y_oof_vec
                     )
+                    top3_cols = [
+                        item["feature"]
+                        for item in top_importances
+                        if item["feature"] in oof_feat_map
+                    ][:3]
                     regime_out["top_feature_quartile_profiles"] = [
-                        _quantile_regime_profile(X_full[:, int(idx)], full_y, col_names[int(idx)])
-                        for idx in ranked_idx[:3]
+                        _quantile_regime_profile(oof_feat_map[cname], y_oof_vec, cname)
+                        for cname in top3_cols
                     ]
 
             target_out["feature_regimes"][regime_name] = regime_out
 
-        # Honest summary comparing Mode A vs AR(1) baseline and Mode B non-linear vs RidgeCV
+        # Compute scale-invariant Out-of-Fold Skill Scores vs best AR(1) baseline
         fr = target_out["feature_regimes"]
-        ar1_best_fold_r2 = max(
-            fr["ar1_persistence"]["models"][m]["fold_mean_r2"] for m in model_names
-        )
+        ar1_models = fr["ar1_persistence"]["models"]
+        best_ar1_model_name = min(model_names, key=lambda m: ar1_models[m]["cv_oof_rmse"])
+        ar1_best_oof_rmse = max(1e-9, float(ar1_models[best_ar1_model_name]["cv_oof_rmse"]))
+        ar1_best_oof_mae = max(1e-9, float(ar1_models[best_ar1_model_name]["cv_oof_mae"]))
+        ar1_best_fold_r2 = max(ar1_models[m]["fold_mean_r2"] for m in model_names)
+
+        for rblock in fr.values():
+            for mblock in rblock["models"].values():
+                m_rmse = float(mblock["cv_oof_rmse"])
+                m_mae = float(mblock["cv_oof_mae"])
+                mblock["skill_rmse_vs_ar1"] = round(1.0 - (m_rmse / ar1_best_oof_rmse), 4)
+                mblock["skill_mse_vs_ar1"] = round(1.0 - ((m_rmse ** 2) / (ar1_best_oof_rmse ** 2)), 4)
+                mblock["skill_mae_vs_ar1"] = round(1.0 - (m_mae / ar1_best_oof_mae), 4)
+
         mode_a_summary: dict[str, Any] = {}
         for rname in (
             "ar1_persistence",
@@ -1455,42 +1967,56 @@ def evaluate_models_for_watershed(
             "lagged_ocean_only",
             "lagged_full_teleconnection",
         ):
-            best_m = max(model_names, key=lambda m: fr[rname]["models"][m]["fold_mean_r2"])
-            best_r2 = fr[rname]["models"][best_m]["fold_mean_r2"]
+            best_m = max(model_names, key=lambda m: fr[rname]["models"][m]["skill_rmse_vs_ar1"])
+            mb = fr[rname]["models"][best_m]
             mode_a_summary[rname] = {
                 "best_model": best_m,
-                "fold_mean_r2": best_r2,
-                "cv_oof_r2": fr[rname]["models"][best_m]["cv_oof_r2"],
-                "skill_vs_best_ar1_fold_r2": round(best_r2 - ar1_best_fold_r2, 4),
+                "skill_rmse_vs_ar1": mb["skill_rmse_vs_ar1"],
+                "skill_mse_vs_ar1": mb["skill_mse_vs_ar1"],
+                "cv_oof_rmse": mb["cv_oof_rmse"],
+                "cv_oof_mae": mb["cv_oof_mae"],
+                "fold_mean_r2": mb["fold_mean_r2"],
+                "cv_oof_r2": mb["cv_oof_r2"],
+                "skill_vs_best_ar1_fold_r2": round(mb["fold_mean_r2"] - ar1_best_fold_r2, 4),
             }
 
-        contemp_base = fr["contemp_met_soil"]["models"]
-        contemp_rad = fr["contemp_met_soil_radiative"]["models"]
-        ridge_rad_r2 = contemp_rad["RidgeCV"]["fold_mean_r2"]
-        gam_rad_r2 = contemp_rad["SplineGAM_Ridge"]["fold_mean_r2"]
-        hgbr_rad_r2 = contemp_rad["HistGradientBoostingRegressor"]["fold_mean_r2"]
-        rf_rad_r2 = contemp_rad["RandomForestRegressor"]["fold_mean_r2"]
+        def _summarize_mode_b(base_regime: str, rad_regime: str) -> dict[str, Any]:
+            c_base = fr[base_regime]["models"]
+            c_rad = fr[rad_regime]["models"]
+            ridge_r2 = c_rad["RidgeCV"]["fold_mean_r2"]
+            gam_r2 = c_rad["SplineGAM_Ridge"]["fold_mean_r2"]
+            hgbr_r2 = c_rad["HistGradientBoostingRegressor"]["fold_mean_r2"]
+            rf_r2 = c_rad["RandomForestRegressor"]["fold_mean_r2"]
+            best_met = max(c_base[m]["fold_mean_r2"] for m in model_names)
+            best_rad_m = max(model_names, key=lambda m: c_rad[m]["fold_mean_r2"])
+            best_rad = c_rad[best_rad_m]["fold_mean_r2"]
+            best_oof_r2 = c_rad[best_rad_m]["cv_oof_r2"]
+            return {
+                "best_met_soil_fold_mean_r2": best_met,
+                "best_met_soil_radiative_model": best_rad_m,
+                "best_met_soil_radiative_fold_mean_r2": best_rad,
+                "best_met_soil_radiative_oof_r2": best_oof_r2,
+                "delta_radiative_over_met_fold_r2": round(best_rad - best_met, 4),
+                "by_model_fold_mean_r2": {
+                    "RidgeCV": ridge_r2,
+                    "SplineGAM_Ridge": gam_r2,
+                    "HistGradientBoostingRegressor": hgbr_r2,
+                    "RandomForestRegressor": rf_r2,
+                },
+                "nonlinearity_gam_minus_ridge_r2": round(gam_r2 - ridge_r2, 4),
+                "nonlinearity_hgbr_minus_ridge_r2": round(hgbr_r2 - ridge_r2, 4),
+                "cusum_coupling_break": c_rad[best_rad_m]["cusum_coupling_break"],
+            }
 
-        best_contemp_met = max(contemp_base[m]["fold_mean_r2"] for m in model_names)
-        best_contemp_rad_m = max(model_names, key=lambda m: contemp_rad[m]["fold_mean_r2"])
-        best_contemp_rad = contemp_rad[best_contemp_rad_m]["fold_mean_r2"]
+        level_summary = _summarize_mode_b("contemp_met_soil", "contemp_met_soil_radiative")
+        detrended_summary = _summarize_mode_b(
+            "contemp_detrended_met_soil", "contemp_detrended_met_soil_radiative"
+        )
 
         target_out["scientific_summary"] = {
             "mode_a_forecast_lagged": mode_a_summary,
-            "mode_b_attribution_contemporaneous": {
-                "best_met_soil_fold_mean_r2": best_contemp_met,
-                "best_met_soil_radiative_model": best_contemp_rad_m,
-                "best_met_soil_radiative_fold_mean_r2": best_contemp_rad,
-                "delta_radiative_over_met_fold_r2": round(best_contemp_rad - best_contemp_met, 4),
-                "by_model_fold_mean_r2": {
-                    "RidgeCV": ridge_rad_r2,
-                    "SplineGAM_Ridge": gam_rad_r2,
-                    "HistGradientBoostingRegressor": hgbr_rad_r2,
-                    "RandomForestRegressor": rf_rad_r2,
-                },
-                "nonlinearity_gam_minus_ridge_r2": round(gam_rad_r2 - ridge_rad_r2, 4),
-                "nonlinearity_hgbr_minus_ridge_r2": round(hgbr_rad_r2 - ridge_rad_r2, 4),
-            },
+            "mode_b_attribution_contemporaneous": level_summary,
+            "mode_b_attribution_detrended_interannual": detrended_summary,
         }
         out["targets"][target_name] = target_out
 
@@ -1503,10 +2029,13 @@ def scan_ocean_teleconnections(
     ws_analyses: Mapping[str, Mapping[str, Any]],
     oc_analyses: Mapping[str, Mapping[str, Any]],
 ) -> dict[str, Any]:
-    """Tests lagged ocean->watershed teleconnections with AR(1) N_eff & BH-FDR on BOTH anomalies & detrended."""
+    """Tests lagged ocean->watershed teleconnections over the orthogonal target family (`TARGETS_TELECONNECTION`).
+
+    Computes raw anomaly r, linear-detrended r, and partial correlation r(X_{t-tau}, Y_t | Z_total)
+    conditioned on Z_total(tau, k) = {t, Y_{t-tau}, Nino3.4_{t-tau}} with df_eff = N_eff(e_X, e_Y) - 2 - |Z|.
+    """
     tests: list[dict[str, Any]] = []
 
-    # Build ocean predictor series including physical Atlantic Meridional Gradient (TN - S TS)
     ocean_predictors: dict[str, dict[str, np.ndarray]] = {}
     for oc_id, oc_vars in oc_analyses.items():
         ocean_predictors[oc_id] = {
@@ -1516,19 +2045,28 @@ def scan_ocean_teleconnections(
     ocean_predictors["atl_meridional_grad"] = {
         "TS": ocean_predictors["atl_tn"]["TS"] - ocean_predictors["atl_s"]["TS"]
     }
+    nino34_ts_full = ocean_predictors["pac_nino34"]["TS"]
 
     for ws_id in valid_watersheds:
-        for target_var in TARGETS:
+        for target_var in TARGETS_TELECONNECTION:
             y_full = np.asarray(ws_analyses[ws_id][target_var]["series"]["anomaly_values"], dtype=np.float64)
             for oc_id, oc_var_map in ocean_predictors.items():
                 for oc_var, x_full in oc_var_map.items():
                     for lag in OCEAN_LAGS:
                         x_lag = x_full[:-lag]
                         y_cur = y_full[lag:]
+                        y_lag = y_full[:-lag]
                         if len(x_lag) < 24:
                             continue
+                        t_vec = np.arange(len(x_lag), dtype=np.float64)
+                        z_cond: list[np.ndarray] = [t_vec, y_lag]
+                        if oc_id != "pac_nino34":
+                            z_cond.append(nino34_ts_full[:-lag])
+
                         anom_res = _ar1_pearson_test(x_lag, y_cur)
                         det_res = _ar1_pearson_test(_detrend_linear(x_lag), _detrend_linear(y_cur))
+                        part_res = _ar1_partial_correlation_test(x_lag, y_cur, z_cond)
+
                         tests.append(
                             {
                                 "watershed_id": ws_id,
@@ -1537,35 +2075,63 @@ def scan_ocean_teleconnections(
                                 "ocean_var": oc_var,
                                 "lag_months": lag,
                                 "n_pairs": int(anom_res["n_pairs"]),
+                                "conditioning_set": (
+                                    ["t", f"{target_var}_t-{lag}"]
+                                    if oc_id == "pac_nino34"
+                                    else ["t", f"{target_var}_t-{lag}", f"pac_nino34.TS_t-{lag}"]
+                                ),
                                 "anomaly_r": round(anom_res["r"], 4),
                                 "anomaly_n_eff_ar1": round(anom_res["n_eff"], 2),
                                 "anomaly_p_ar1": round(anom_res["p_value_ar1"], 8),
                                 "detrended_r": round(det_res["r"], 4),
                                 "detrended_n_eff_ar1": round(det_res["n_eff"], 2),
                                 "detrended_p_ar1": round(det_res["p_value_ar1"], 8),
+                                "partial_r": round(part_res["r"], 4),
+                                "partial_n_eff_ar1": round(part_res["n_eff"], 2),
+                                "partial_df_eff": round(part_res["df_eff"], 2),
+                                "partial_p_ar1": round(part_res["p_value_ar1"], 8),
                             }
                         )
 
     q_anom, sig_anom = apply_spatial_fdr_bh([t["anomaly_p_ar1"] for t in tests], alpha=0.05)
     q_det, sig_det = apply_spatial_fdr_bh([t["detrended_p_ar1"] for t in tests], alpha=0.05)
+    q_part, sig_part = apply_spatial_fdr_bh([t["partial_p_ar1"] for t in tests], alpha=0.05)
 
-    for test, qa, sa, qd, sd in zip(tests, q_anom, sig_anom, q_det, sig_det):
+    for test, qa, sa, qd, sd, qp, sp in zip(tests, q_anom, sig_anom, q_det, sig_det, q_part, sig_part):
         test["anomaly_fdr_q"] = round(float(qa), 8)
         test["is_anomaly_sig_fdr05"] = bool(sa)
         test["detrended_fdr_q"] = round(float(qd), 8)
         test["is_detrended_sig_fdr05"] = bool(sd)
+        test["partial_fdr_q"] = round(float(qp), 8)
+        test["is_partial_sig_fdr05"] = bool(sp)
         test["is_strictly_coupled_fdr05"] = bool(sa and sd)
+        test["is_strictly_partial_coupled_fdr05"] = bool(sd and sp)
+
+    # Also compute per-compartment partitioned FDR
+    for tvar in TARGETS_TELECONNECTION:
+        sub = [t for t in tests if t["target_var"] == tvar]
+        if not sub:
+            continue
+        qp_sub, sp_sub = apply_spatial_fdr_bh([t["partial_p_ar1"] for t in sub], alpha=0.05)
+        for t, qv, sv in zip(sub, qp_sub, sp_sub):
+            t["partial_fdr_q_by_target"] = round(float(qv), 8)
+            t["is_partial_sig_by_target_fdr05"] = bool(sv)
 
     by_detrended = sorted(tests, key=lambda item: abs(item["detrended_r"]), reverse=True)
+    by_partial = sorted(tests, key=lambda item: abs(item["partial_r"]), reverse=True)
     strict_sig = [t for t in by_detrended if t["is_strictly_coupled_fdr05"]]
+    partial_sig = [t for t in by_partial if t["is_partial_sig_fdr05"]]
     det_sig = [t for t in by_detrended if t["is_detrended_sig_fdr05"]]
     anom_sig = [t for t in by_detrended if t["is_anomaly_sig_fdr05"]]
 
     return {
+        "targets_evaluated_orthogonal": list(TARGETS_TELECONNECTION),
         "total_tests": len(tests),
         "significant_anomaly_fdr05_count": len(anom_sig),
         "significant_detrended_fdr05_count": len(det_sig),
+        "significant_partial_fdr05_count": len(partial_sig),
         "significant_strict_both_fdr05_count": len(strict_sig),
+        "top_partial_coupled_fdr05": partial_sig[:25],
         "top_strict_coupled_fdr05": strict_sig[:25],
         "top_detrended_fdr05": det_sig[:25],
         "top_by_abs_detrended_r": by_detrended[:25],
@@ -1613,13 +2179,15 @@ def run_pipeline(
     output_payload: dict[str, Any] = {
         "metadata": {
             "pipeline": "earth_system_ml_discovery_v2",
+            "schema_revision": "2.1_post_audit_passo0",
             "mode": "synthetic_self_test" if synthetic_self_test else "live_real_data",
             "window_requested": f"{START_YEAR:04d}-01..{END_YEAR:04d}-12",
             "window_intersecting": f"{common_dates[0]}..{common_dates[-1]}",
             "n_intersecting_months": len(common_dates),
             "cv_scheme": (
                 f"{N_CV_BLOCKS}-block purged chronological CV (purge_gap={PURGE_GAP} months) "
-                "with strictly in-fold climatological deseasonalization"
+                "with strictly in-fold climatological deseasonalization, in-fold linear detrending "
+                "(Mode B interannual), and strictly in-fold top-K ocean feature selection"
             ),
             "models_evaluated": [
                 "RidgeCV",
@@ -1632,13 +2200,14 @@ def run_pipeline(
         "valid_watersheds_evaluated": list(valid_watersheds.keys()),
         "statistical_diagnostics": {
             "watersheds": {
-                ws_id: {var: _extract_stats_summary(ana) for var, ana in vars_map.items()}
+                ws_id: {var: _extract_stats_summary(ana, common_dates) for var, ana in vars_map.items()}
                 for ws_id, vars_map in ws_analyses.items()
             },
             "oceans": {
-                oc_id: {var: _extract_stats_summary(ana) for var, ana in vars_map.items()}
+                oc_id: {var: _extract_stats_summary(ana, common_dates) for var, ana in vars_map.items()}
                 for oc_id, vars_map in oc_analyses.items()
             },
+            "smoke_cloud_radiative_decoupling": diagnostics["smoke_cloud_diagnostics"],
             "local_multiscale_couplings": diagnostics["local_couplings"],
             "spatial_dipoles": diagnostics["spatial_dipoles"],
         },
@@ -1684,10 +2253,12 @@ def _generate_synthetic_self_test_payload() -> dict[str, Any]:
     watersheds_raw: dict[str, Any] = {}
     pac_sig = ocean_signals["pac_nino34"]
     for idx, ws in enumerate(WATERSHED_SPECS[:2]):
-        sign = 1.0 if idx == 0 else -1.0  # Create a clear cross-basin spatial dipole
+        sign = 1.0 if idx == 0 else -1.0
         rain = np.maximum(15.0, 160.0 + 95.0 * season + sign * 25.0 * np.roll(pac_sig, 2) + rng.normal(0.0, 15.0, n))
         rad = np.maximum(8.0, 18.5 - 3.2 * season + 0.04 * (t_idx / 12.0) + rng.normal(0.0, 0.9, n))
         clr = rad + 5.2 + 0.8 * np.maximum(0.0, season)
+        # Inject synthetic smoke shock in 2024-09 (index 284)
+        clr[284] -= 6.5
         t2m = 25.5 + 2.2 * season + 0.03 * (t_idx / 12.0) + rng.normal(0.0, 0.4, n)
         tmax = t2m + 4.8 + 0.5 * (rad - 18.5)
         tdew = 21.0 + 1.4 * season + rng.normal(0.0, 0.4, n)
@@ -1696,12 +2267,16 @@ def _generate_synthetic_self_test_payload() -> dict[str, Any]:
         for k in range(1, n):
             gwet[k] = float(
                 np.clip(
-                    0.58 + 0.65 * (gwet[k - 1] - 0.58) + 0.0012 * (rain[k] - 160.0) - 0.008 * (rad[k] - 18.5) + rng.normal(0, 0.015),
+                    0.58
+                    + 0.65 * (gwet[k - 1] - 0.58)
+                    + 0.0012 * (rain[k] - 160.0)
+                    - 0.008 * (rad[k] - 18.5)
+                    + sign * 0.018 * pac_sig[max(0, k - 2)]
+                    + rng.normal(0, 0.015),
                     0.15,
                     0.92,
                 )
             )
-        # Non-linear runoff threshold + ocean teleconnection
         q_mean = np.maximum(
             100.0,
             4500.0
@@ -1729,7 +2304,7 @@ def _generate_synthetic_self_test_payload() -> dict[str, Any]:
             "ALLSKY_SRF_ALB": np.clip(0.14 + 0.004 * (rad - 18.5), 0.05, 0.40),
         }
         ingestion_vars = {
-            v: {"status": "OK", "series": {d: round(float(arr[i]), 4) for i, d in enumerate(dates)}}
+            v: {"status": "OK", "agg_v": 2, "series": {d: round(float(arr[i]), 4) for i, d in enumerate(dates)}}
             for v, arr in vars_map.items()
         }
         watersheds_raw[ws["id"]] = {
@@ -1750,7 +2325,7 @@ def _generate_synthetic_self_test_payload() -> dict[str, Any]:
 
 
 def _assert_self_test_invariants(payload: Mapping[str, Any]) -> None:
-    """Verifies Invariant 3 units, CV purge gap, zero cross-var dipoles, and FDR fields."""
+    """Verifies Invariant 3 units, FAO-56 VPD, non-tautological GAM r, CUSUM breaks, and orthogonal FDR."""
     ws0 = payload["valid_watersheds_evaluated"][0]
     ws_stats = payload["statistical_diagnostics"]["watersheds"][ws0]
     assert ws_stats["ALLSKY_SFC_SW_DWN"]["unit"] == "MJ/m²/dia"
@@ -1759,30 +2334,39 @@ def _assert_self_test_invariants(payload: Mapping[str, Any]) -> None:
     assert ws_stats["ALLSKY_SRF_ALB"]["allow_percentage_change"] is False
     assert ws_stats["VPD_t2m_kpa"]["unit"] == "kPa"
     assert ws_stats["sw_cloud_radiative_effect"]["allow_percentage_change"] is False
+    assert "temporal_regime_break_cusum" in ws_stats["river_discharge_min"]
+
+    # Verify Jensen's inequality: FAO-56 VPD > naive mean-temperature VPD when T2M_MAX > T2M
+    vpd_naive = compute_vpd_fao56_series([25.0], [20.0])
+    vpd_fao56 = compute_vpd_fao56_series([25.0], [20.0], t2m_max=[32.0])
+    assert vpd_fao56[0] is not None and vpd_naive[0] is not None
+    assert vpd_fao56[0] > vpd_naive[0], "FAO-56 convex VPD must exceed naive T2M VPD."
 
     local_couplings = payload["statistical_diagnostics"]["local_multiscale_couplings"][ws0]
     for c in local_couplings.values():
         assert "spatial_divergence_detected" not in c
         assert "detrended_fdr_q" in c
+        assert "secular_gam_r" in c
+        assert "secular_ols_r" not in c, "Tautological secular_ols_r must not be present."
 
     ml_eval = payload["ml_models"][ws0]["ml_evaluation"]
     assert ml_eval["purge_gap_months"] == 6
     qmin_res = ml_eval["targets"]["river_discharge_min"]
-    assert "SplineGAM_Ridge" in qmin_res["feature_regimes"]["contemp_met_soil_radiative"]["models"]
-    assert "RidgeCV" in qmin_res["feature_regimes"]["ar1_persistence"]["models"]
-    for t_res in ml_eval["targets"].values():
-        for b in t_res.get("bootstrap_regime_thresholds", []):
-            assert 0.0 <= float(b["bootstrap_selection_freq"]) <= 1.0, (
-                f"bootstrap_selection_freq out of [0, 1]: {b}"
-            )
+    assert "in_fold_selected_ocean_features" in qmin_res
+    assert "contemp_detrended_met_soil_radiative" in qmin_res["feature_regimes"]
+    for b in qmin_res["feature_regimes"]["contemp_met_soil_radiative"].get("bootstrap_threshold_stability", []):
+        assert 0.0 <= b["bootstrap_selection_freq"] <= 1.0
+    ridge_m = qmin_res["feature_regimes"]["lagged_radiative"]["models"]["RidgeCV"]
+    assert "skill_rmse_vs_ar1" in ridge_m
+    assert "cusum_coupling_break" in ridge_m
 
     scan = payload["ocean_teleconnection_fdr_scan"]
-    assert "significant_strict_both_fdr05_count" in scan
-    assert scan["significant_strict_both_fdr05_count"] >= 1, "Synthetic Pacific dipole did not pass strict FDR."
+    assert scan["targets_evaluated_orthogonal"] == ["river_discharge_min", "GWETROOT"]
+    assert scan["significant_partial_fdr05_count"] >= 1, "Synthetic Pacific dipole did not pass partial FDR."
 
 
 def main() -> None:
-    parser = argparse.ArgumentParser(description="Earth System ML Discovery Pipeline v2 (2001-2025).")
+    parser = argparse.ArgumentParser(description="Earth System ML Discovery Pipeline v2.1 (2001-2025).")
     parser.add_argument(
         "--cache-dir",
         type=Path,
@@ -1813,10 +2397,14 @@ def main() -> None:
         json.dumps(
             {
                 "pipeline": payload["metadata"]["pipeline"],
+                "schema_revision": payload["metadata"]["schema_revision"],
                 "mode": payload["metadata"]["mode"],
                 "window": payload["metadata"]["window_intersecting"],
                 "n_months": payload["metadata"]["n_intersecting_months"],
                 "valid_watersheds": payload["valid_watersheds_evaluated"],
+                "fdr_sig_partial_teleconnections": payload["ocean_teleconnection_fdr_scan"][
+                    "significant_partial_fdr05_count"
+                ],
                 "fdr_sig_strict_both_teleconnections": payload["ocean_teleconnection_fdr_scan"][
                     "significant_strict_both_fdr05_count"
                 ],
