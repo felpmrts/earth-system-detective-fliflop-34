@@ -4,7 +4,6 @@ Endpoints:
 - GET  /api/health
 - GET  /api/catalog
 - POST /api/analyze        (Contrato oficial `RegionAnalysisRequest -> RegionAnalysisResponse`)
-- POST /api/copilot        (Chatbot Co-Piloto Estatístico — síntese científica + Q&A)
 - POST /api/location/fetch
 - POST /api/compare
 
@@ -16,11 +15,18 @@ from __future__ import annotations
 
 import argparse
 import json
+import os
+import sys
 from http import HTTPStatus
 from http.server import BaseHTTPRequestHandler, ThreadingHTTPServer
+from pathlib import Path
 from typing import Any
 
-from backend.copilot_engine import generate_copilot_response
+# Permite iniciar com `python3 api/server.py` a partir de `data/` (ex.: Render Root Directory=data)
+_REPO_ROOT = str(Path(__file__).resolve().parents[2])
+if _REPO_ROOT not in sys.path:
+    sys.path.insert(0, _REPO_ROOT)
+
 from data.cache.store import CellCacheStore
 from data.catalog.environmental_catalog import get_catalog_tree
 from data.models.contracts import LocationQuery
@@ -49,25 +55,29 @@ class BackendRouter:
             return HTTPStatus.OK, get_catalog_tree()
         return HTTPStatus.NOT_FOUND, {"error": f"Rota GET desconhecida: {path}"}
 
+    @staticmethod
+    def _log_analyze_success(result: dict[str, Any]) -> None:
+        meta = result.get("request_meta", {})
+        reg_a = result.get("region_a_analysis") or {}
+        period = reg_a.get("period", {})
+        months = period.get("n_observations", 0)
+        var_a = meta.get("variable_a") or "?"
+        cells_a = meta.get("cells_count_a", 0)
+        var_b = meta.get("variable_b")
+        cells_b = meta.get("cells_count_b", 0)
+        summary_b = f" | Local B: {var_b or var_a} ({cells_b} cél.)" if (var_b or cells_b) else ""
+        print(
+            f"[OK 200] Análise concluída — Local A: {var_a} ({cells_a} cél.){summary_b} | "
+            f"Período efetivo: {period.get('start', '?')}..{period.get('end', '?')} ({months} meses)",
+            flush=True,
+        )
+
     def handle_post(self, path: str, body: dict[str, Any]) -> tuple[int, dict[str, Any]]:
         try:
             if path == "/api/analyze":
-                return HTTPStatus.OK, analyze_regions_contract(body, cache=self.cache)
-
-            if path == "/api/copilot":
-                analysis = body.get("analysis")
-                if not isinstance(analysis, dict) or not isinstance(
-                    analysis.get("region_a_analysis"), dict
-                ):
-                    return HTTPStatus.BAD_REQUEST, {
-                        "error": "Campo 'analysis' com 'region_a_analysis' válido é obrigatório."
-                    }
-                return HTTPStatus.OK, generate_copilot_response(
-                    analysis,
-                    question=body.get("question"),
-                    language=str(body.get("language") or "pt"),
-                    history=body.get("history"),
-                )
+                result = analyze_regions_contract(body, cache=self.cache)
+                self._log_analyze_success(result)
+                return HTTPStatus.OK, result
 
             start_year = int(body.get("start_year", 2001))
             end_year = int(body.get("end_year", 2023))
@@ -85,7 +95,9 @@ class BackendRouter:
 
             if path == "/api/compare":
                 if "region_a" in body:
-                    return HTTPStatus.OK, analyze_regions_contract(body, cache=self.cache)
+                    result = analyze_regions_contract(body, cache=self.cache)
+                    self._log_analyze_success(result)
+                    return HTTPStatus.OK, result
                 loc_a = LocationQuery.from_dict(body["location_a"], default_name="Local A")
                 loc_b = LocationQuery.from_dict(body["location_b"], default_name="Local B")
                 if len(loc_a.get_variables()) == 1 and len(loc_b.get_variables()) == 1:
@@ -98,20 +110,25 @@ class BackendRouter:
 
             return HTTPStatus.NOT_FOUND, {"error": f"Rota POST desconhecida: {path}"}
         except ContractSemanticError as exc:
+            print(f"[AVISO {int(exc.status_code)} - {exc.code}] {exc}", flush=True)
             return exc.status_code, {"code": exc.code, "error": str(exc)}
         except (KeyError, TypeError, ValueError) as exc:
-            return HTTPStatus.BAD_REQUEST, {"error": str(exc)}
+            msg = f"Dados da requisição em formato inválido ou incompleto ({exc})."
+            print(f"[AVISO 400 - REQUISICAO_INVALIDA] {msg}", flush=True)
+            return HTTPStatus.BAD_REQUEST, {"error": msg}
 
 
 class _RequestHandler(BaseHTTPRequestHandler):
     router = BackendRouter()
+    max_body_bytes = int(os.environ.get("DATA_API_MAX_BODY_BYTES", str(1024 * 1024)))
+    cors_allow_origin = os.environ.get("DATA_API_CORS_ORIGIN", "*").strip() or "*"
 
     def _send_json(self, status_code: int, payload: dict[str, Any]) -> None:
         encoded = json.dumps(payload, ensure_ascii=False).encode("utf-8")
         self.send_response(status_code)
         self.send_header("Content-Type", "application/json; charset=utf-8")
         self.send_header("Content-Length", str(len(encoded)))
-        self.send_header("Access-Control-Allow-Origin", "*")
+        self.send_header("Access-Control-Allow-Origin", self.cors_allow_origin)
         self.send_header("Access-Control-Allow-Methods", "GET, POST, OPTIONS")
         self.send_header("Access-Control-Allow-Headers", "Content-Type")
         self.end_headers()
@@ -125,7 +142,17 @@ class _RequestHandler(BaseHTTPRequestHandler):
         self._send_json(status_code, payload)
 
     def do_POST(self) -> None:  # noqa: N802
-        length = int(self.headers.get("Content-Length", "0"))
+        try:
+            length = int(self.headers.get("Content-Length", "0"))
+        except ValueError:
+            self._send_json(HTTPStatus.BAD_REQUEST, {"error": "Content-Length inválido."})
+            return
+        if length < 0 or length > self.max_body_bytes:
+            self._send_json(
+                HTTPStatus.REQUEST_ENTITY_TOO_LARGE,
+                {"error": f"Payload excede o limite de {self.max_body_bytes} bytes."},
+            )
+            return
         raw = self.rfile.read(length).decode("utf-8") if length > 0 else "{}"
         try:
             body = json.loads(raw)
@@ -144,8 +171,10 @@ def run_server(host: str = "127.0.0.1", port: int = 8000) -> None:
 
 
 if __name__ == "__main__":
+    default_host = os.environ.get("HOST", "0.0.0.0" if "PORT" in os.environ else "127.0.0.1")
+    default_port = int(os.environ.get("PORT", "8000"))
     parser = argparse.ArgumentParser(description="Servidor REST do Backend de Dados")
-    parser.add_argument("--host", default="127.0.0.1")
-    parser.add_argument("--port", type=int, default=8000)
+    parser.add_argument("--host", default=default_host)
+    parser.add_argument("--port", type=int, default=default_port)
     args = parser.parse_args()
     run_server(host=args.host, port=args.port)
