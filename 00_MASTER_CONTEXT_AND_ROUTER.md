@@ -89,6 +89,7 @@ Use a tabela abaixo para saltar diretamente para o documento (e seção) exato s
 | **"Preciso consultar Fontes de Dados, APIs (NASA POWER, AppEEARS, GloFAS, NOAA), Regras de Ingestão (`-999`, `YYYY13`, `mm/day`, `/point` vs `/regional`) ou o Catálogo das 7 Famílias Ambientais"** | 👉 [`context/knowledge_data/00_INDICE_E_ARQUITETURA_DADOS.md`](file:///home/felipe-martins/dev/repository/earth-system-detective-fliflop-34/context/knowledge_data/00_INDICE_E_ARQUITETURA_DADOS.md#L1-L92) *(Índice central de `context/knowledge_data/` com roteador por linha para APIs, variáveis e regras de ingestão)* |
 | **"Preciso configurar credenciais (`data/.env`), usar ou evoluir o Backend Modular de Dados em `data/` (Catálogo 7 Famílias / 42 vars, contrato frontend `POST /api/analyze`, fluxo `1 → N` variáveis e cache)"** | 👉 [`data/README.md`](file:///home/felipe-martins/dev/repository/earth-system-detective-fliflop-34/data/README.md) + [`data/.env.example`](file:///home/felipe-martins/dev/repository/earth-system-detective-fliflop-34/data/.env.example) + [`CONTRATO_DE_DADOS.md`](file:///home/felipe-martins/dev/repository/earth-system-detective-fliflop-34/CONTRATO_DE_DADOS.md) + [`data/api/server.py`](file:///home/felipe-martins/dev/repository/earth-system-detective-fliflop-34/data/api/server.py) |
 | **"Preciso alterar ou auditar cálculos estatísticos/matemáticos sem quebrar a arquitetura"** | 👉 [`backend/stats_engine.py`](file:///home/zrhyan/Principal/Computation/Space%20Apps/earth-system-detective-fliflop-34/backend/stats_engine.py) *(único módulo de modelos matemáticos/estatísticos; `data/api/server.py` faz apenas roteamento HTTP e `data/services/comparison_service.py` delega integralmente ao `stats_engine.py`)* |
+| **"Preciso trabalhar no mapa interativo, grades globais pré-processadas, bloco 3×3, hotspots, bundle offline ou E2E/CI"** | 👉 [`frontend/src/map/MapWorkspace.tsx`](frontend/src/map/MapWorkspace.tsx) + [`frontend/src/geo/gridGeometry.ts`](frontend/src/geo/gridGeometry.ts) + [`frontend/src/map/mapStyles.ts`](frontend/src/map/mapStyles.ts) + [`frontend/e2e/trendDetective.spec.ts`](frontend/e2e/trendDetective.spec.ts) + [`.github/workflows/ci.yml`](.github/workflows/ci.yml) |
 
 ---
 
@@ -98,9 +99,13 @@ Use a tabela abaixo para saltar diretamente para o documento (e seção) exato s
 
 Abaixo estão os documentos Markdown do projeto, organizados por módulo funcional, com tamanho aproximado e resumo cirúrgico de conteúdo:
 
-### 🏛️ Camada 0: Roteador Central (Raiz)
+### 🏛️ Camada 0: Roteador Central (Raiz) e Documentação Pública
 1. **[`00_MASTER_CONTEXT_AND_ROUTER.md`](file:///home/zrhyan/Principal/Computation/Space%20Apps/00_MASTER_CONTEXT_AND_ROUTER.md)** *(Este documento)*
    - **Papel:** Ponto de entrada único para IAs e humanos. Contém o resumo executivo denso do projeto, os 7 invariantes estatísticos, a árvore de decisão de leitura seletiva e o inventário vivo de todos os arquivos `.md`.
+2. **[`README.md`](README.md)** *(v1 — Documentação pública raiz)*
+   - **Papel:** Porta de entrada pública do repositório com visão geral, arquitetura em camadas, catálogo de variáveis, execução local, suite de testes (Vitest + Playwright E2E) e pacote offline.
+3. **[`DATA_SOURCES.md`](DATA_SOURCES.md)** *(v1 — Inventário oficial de fontes)*
+   - **Papel:** Catálogo inicial das fontes oficiais (NASA POWER / MERRA-2 / CERES_SYN1deg, AppEEARS, Open-Meteo, NOAA CDO, CMR/Earthdata), grades homologadas, resoluções, políticas de máscara oceânica e limitações conhecidas.
 
 ### 🧭 Camada 1: Estratégia Geral, Governança e Contexto NASA (`general_strategy/`)
 2. **[`general_strategy/ESTRATEGIA_TREND_DETECTIVE.md`](file:///home/zrhyan/Principal/Computation/Space%20Apps/general_strategy/ESTRATEGIA_TREND_DETECTIVE.md)** *(542 linhas | ~41 KB)*
@@ -143,6 +148,10 @@ Abaixo estão os documentos Markdown do projeto, organizados por módulo funcion
 ### 🗺️ Camada 4: Mapas e Visualização Geoespacial (`context/knowledge_maps/`)
 18. **[`context/knowledge_maps/prod1_context.md`](file:///home/zrhyan/Principal/Computation/Space%20Apps/earth-system-detective-fliflop-34/context/knowledge_maps/prod1_context.md)**
     - **Resumo:** Contexto técnico da frente de Mapas 2D (`PROD-1`).
+19. **[`context/knowledge_maps/MAPA_BLOCO3X3_E_HOTSPOTS_DEMO.md`](context/knowledge_maps/MAPA_BLOCO3X3_E_HOTSPOTS_DEMO.md)**
+    - **Resumo:** Guia técnico das evoluções para demonstração no mapa (`buildCellBlock3x3`, `Alt + Clique`/toggle `"Bloco 3×3"`, `findGlobalTrendHotspots` e navegação `Extremo +` / `Extremo −` com zoom `7` + anel focal).
+20. **[`context/knowledge_maps/TUTORIAL_INTERATIVO_HUD.md`](context/knowledge_maps/TUTORIAL_INTERATIVO_HUD.md)**
+    - **Resumo:** Documentação técnica do tutorial interativo passo a passo em 8 etapas (`tutorialState.ts`, `tutorialSteps.ts`, `TutorialOverlay.tsx`), recorte SVG `fillRule="evenodd"`, foco e edição estritos por etapa, algoritmo `computeCardLayout` anti-sobreposição, ancoragem da Bancada na etapa `8/8`, gatilho de nova análise `7/8 -> 8/8` (`prevAnalysisForTutorialRef`) e cobertura Vitest + Playwright.
 
 ---
 
@@ -170,3 +179,11 @@ Abaixo estão os documentos Markdown do projeto, organizados por módulo funcion
 | ⏳ *Fase 1 (Sáb 10:30)* | `DECISOES.md` | Log cronológico de decisões de escopo e arquitetura (2 linhas por decisão). | `COORD` |
 | ⏳ *Fase 4/6* | `DATA_SOURCES.md` | Citação oficial dos datasets da NASA, DOIs, resolução, período e limitações conhecidas. | `DADOS-1` + `NARR` |
 | ⏳ *Fase 6* | `README.md` | Documentação pública do repositório para os jurados da NASA (instruções de uso e reprodução). | `COORD` + `NARR` |
+
+| ✅ *Criado (v1)* | `DATA_SOURCES.md` | Citação oficial dos datasets da NASA, grades/resoluções, período, máscaras e limitações conhecidas (versão inicial v1). | `DADOS-1` + `NARR` |
+| ✅ *Criado (v1)* | `README.md` | Documentação pública raiz do repositório (arquitetura, execução local, testes unitários/E2E e pacote offline — versão inicial v1). | `COORD` + `NARR` |
+| ✅ *Criado* | `.github/workflows/ci.yml` + `frontend/playwright.config.ts` + `frontend/e2e/trendDetective.spec.ts` | Pipeline GitHub Actions (`backend-tests` + `frontend-e2e`) e suíte E2E Playwright contra `vite preview` (fluxo `A=B`, Leaflet Canvas, arraste até 25 células, offline 100% + exportação CSV/JSON, desktop `1366×768` e mobile `375×812`). | `PROD-1` + `COORD` |
+| ✅ *Integrado (Mapa & Offline)* | `frontend/public/data/*_grid.json` (12 grades, 144 pts), `frontend/scripts/{registerTs.mjs,validateGlobalGrids.ts,verifyOfflineBundle.ts}` e `frontend/src/{map/MapWorkspace.tsx,map/mapStyles.ts,map/legendConfig.ts,geo/gridGeometry.ts}` | 12 grades globais homologadas exigidas em `verify:offline`, loader TS Node via `registerTs.mjs`, calibração decadal de todas as 43 variáveis (`MAGNITUDE_REFERENCE_BY_VAR`), legenda estatística com proxy e FDR (`Só q < 0,05`), clique direto nos marcadores com tooltip DOM, seleção em bloco 3×3 (`buildCellBlock3x3` via `Alt + Clique` / toggle `"Bloco 3×3"`) e hotspots (`Extremo +` / `Extremo −` priorizando `q < 0,05` com `map.flyTo` zoom `7` + alvo visual). | `PROD-1` |
+| ✅ *Criado* | `context/knowledge_maps/MAPA_BLOCO3X3_E_HOTSPOTS_DEMO.md` | Documentação técnica da seleção em bloco 3×3 (`buildCellBlock3x3`), exclusividade com arraste, espelhamento `A=B` heterogêneo e atalhos `Extremo +` / `Extremo −` (`findGlobalTrendHotspots`). | `PROD-1` |
+| ✅ *Integrado (Onboarding 2D)* | `frontend/src/tutorial/{TutorialOverlay.tsx,tutorialSteps.ts}`, `frontend/src/services/tutorialState.ts`, `frontend/src/__tests__/tutorialWalkthrough.test.tsx`, `frontend/e2e/trendDetective.spec.ts` e `context/knowledge_maps/TUTORIAL_INTERATIVO_HUD.md` | Tutorial interativo passo a passo (HUD tático/científico em 8 etapas estilo jogo 2D): recepção automática única na 1ª visita (`flipflop34:tutorial:v1`), botão permanente **`?`** (`Tutorial interativo (?)`), recorte SVG multi-furo (`fillRule="evenodd"`) liberando edição apenas nos alvos explicados, `computeCardLayout` anti-sobreposição com rodapé fixo, sincronização de aba/sidebar/drawer mobile (`#variables-sidebar`), transição `7/8 -> 8/8` apenas em nova análise (`prevAnalysisForTutorialRef`), ancoragem no canto inferior direito na etapa `8/8` e suíte Vitest + Playwright E2E (`7` testes). | `PROD-1` + `PROD-2` |
+| ✅ *Criado* | `context/knowledge_maps/TUTORIAL_INTERATIVO_HUD.md` | Guia técnico completo do tutorial interativo (arquitetura, persistência `flipflop34:tutorial:v1`, matriz das 8 etapas, recorte SVG `evenodd`, `computeCardLayout` e cobertura E2E). | `PROD-1` + `PROD-2` |
