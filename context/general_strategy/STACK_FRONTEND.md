@@ -32,7 +32,7 @@ A decisão assume que a equipe de dados disponibilizará uma API científica ind
 
 ## Referências internas
 
-- [Estratégia do projeto](../context/general_strategy/ESTRATEGIA_TREND_DETECTIVE.md)
+- [Estratégia do projeto](./ESTRATEGIA_TREND_DETECTIVE.md)
 - [Recursos de dados NASA](../context/knowledge_data/nasa_final_resources.md)
 - [Especificação da NASA POWER API](../context/knowledge_data/NASA_POWER_API_SPECS.md)
 - [Contexto de mapas](../context/knowledge_maps/prod1_context.md)

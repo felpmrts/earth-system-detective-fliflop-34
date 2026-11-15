@@ -73,4 +73,4 @@ O backend espera meses no formato `YYYY-MM`. O front converte a seleção do Man
 - Confira o encaixe geográfico, as células A/B, o limite de nove células e a preservação do estado ao alternar abas.
 - Na integração da API, confirme payloads de sucesso, ausência de dados, timeout, erro explícito e modo offline deliberado.
 
-Desenvolvimento de interface ocorre em `frontend`, com integração em `develop` e produção em `main`. O mapa alimenta o estado espacial A/B e a chamada real ao backend já ocorre após `Analisar seleção`. O painel do copiloto ainda depende de integração. Veja também a [decisão de stack](../general_strategy/STACK_FRONTEND.md).
+Desenvolvimento de interface ocorre em `frontend`, com integração em `develop` e produção em `main`. O mapa alimenta o estado espacial A/B e a chamada real ao backend já ocorre após `Analisar seleção`. O painel do copiloto ainda depende de integração. Veja também a [decisão de stack](../context/general_strategy/STACK_FRONTEND.md).
