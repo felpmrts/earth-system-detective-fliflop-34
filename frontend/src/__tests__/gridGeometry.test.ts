@@ -5,6 +5,7 @@ import {
   isAdjacent8,
   isConnectedComponent,
   MAX_CELLS_PER_REGION,
+  mirrorRegionSelection,
   selectCellsInBoundingBox,
   snapCoordToCell,
   toggleCellInSelection,
@@ -168,6 +169,13 @@ describe('gridGeometry — snapping de grade NASA e composição K <= 9', () => 
 
   it('normaliza coordenadas fora de faixa durante arraste livre sem lançar erro', () => {
     expect(clampLatLon(98, -210)).toEqual({ lat: 90, lon: -180 });
+    expect(clampLatLon(12, 195)).toEqual({ lat: 12, lon: 180 });
+    expect(clampLatLon(-120, 540)).toEqual({ lat: -90, lon: 180 });
+    expect(clampLatLon(Number.NaN, Number.POSITIVE_INFINITY)).toEqual({ lat: 0, lon: 0 });
+
+    const extreme = clampLatLon(-10, -245);
+    expect(() => snapCoordToCell(extreme.lat, extreme.lon, 'T2M')).not.toThrow();
+
     const clampedBox = selectCellsInBoundingBox(
       { lat: -95, lon: -185 },
       { lat: -88, lon: -178 },
@@ -176,5 +184,51 @@ describe('gridGeometry — snapping de grade NASA e composição K <= 9', () => 
     expect(clampedBox.cells.length).toBeGreaterThanOrEqual(1);
     expect(clampedBox.cells.length).toBeLessThanOrEqual(MAX_CELLS_PER_REGION);
     expect(isConnectedComponent(clampedBox.cells)).toBe(true);
+  });
+
+  it('AUD-07: preserva conexidade e teto MAX_CELLS_PER_REGION no re-snap côncavo (U-shape) entre CERES e MERRA-2/MODIS', () => {
+    // Monta seleção em formato U no CERES_SYN1deg (1.0° × 1.0°), com 16 células conexas e miolo vazio
+    const ceresU: GridCell[] = [
+      // Braço esquerdo (6 células: lat -5.5 .. -10.5, lon -60.5)
+      snapCoordToCell(-5.5, -60.5, 'ALLSKY_SFC_SW_DWN'),
+      snapCoordToCell(-6.5, -60.5, 'ALLSKY_SFC_SW_DWN'),
+      snapCoordToCell(-7.5, -60.5, 'ALLSKY_SFC_SW_DWN'),
+      snapCoordToCell(-8.5, -60.5, 'ALLSKY_SFC_SW_DWN'),
+      snapCoordToCell(-9.5, -60.5, 'ALLSKY_SFC_SW_DWN'),
+      snapCoordToCell(-10.5, -60.5, 'ALLSKY_SFC_SW_DWN'),
+      // Base horizontal (4 células: lat -10.5, lon -59.5 .. -56.5)
+      snapCoordToCell(-10.5, -59.5, 'ALLSKY_SFC_SW_DWN'),
+      snapCoordToCell(-10.5, -58.5, 'ALLSKY_SFC_SW_DWN'),
+      snapCoordToCell(-10.5, -57.5, 'ALLSKY_SFC_SW_DWN'),
+      snapCoordToCell(-10.5, -56.5, 'ALLSKY_SFC_SW_DWN'),
+      // Braço direito (6 células até -5.5, lon -56.5)
+      snapCoordToCell(-9.5, -56.5, 'ALLSKY_SFC_SW_DWN'),
+      snapCoordToCell(-8.5, -56.5, 'ALLSKY_SFC_SW_DWN'),
+      snapCoordToCell(-7.5, -56.5, 'ALLSKY_SFC_SW_DWN'),
+      snapCoordToCell(-6.5, -56.5, 'ALLSKY_SFC_SW_DWN'),
+      snapCoordToCell(-5.5, -56.5, 'ALLSKY_SFC_SW_DWN'),
+    ];
+    expect(isConnectedComponent(ceresU)).toBe(true);
+
+    const sourceRegion = buildRegionSelection('A', 'ALLSKY_SFC_SW_DWN', ceresU);
+    const mirroredMerra = mirrorRegionSelection(sourceRegion, 'B', 'T2M');
+    const mirroredModis = mirrorRegionSelection(sourceRegion, 'B', 'LST_Day_CMG');
+
+    expect(MAX_CELLS_PER_REGION).toBe(25);
+    expect(mirroredMerra.source_model).toBe('MERRA-2');
+    expect(mirroredMerra.cells).toHaveLength(MAX_CELLS_PER_REGION);
+    expect(isConnectedComponent(mirroredMerra.cells)).toBe(true);
+
+    expect(mirroredModis.source_model).toBe('MODIS_AppEEARS');
+    expect(mirroredModis.cells).toHaveLength(MAX_CELLS_PER_REGION);
+    expect(isConnectedComponent(mirroredModis.cells)).toBe(true);
+
+    // O centroide geométrico do U cai no vazio central, fora do contorno re-snapped
+    const avgLat = ceresU.reduce((s, c) => s + c.lat, 0) / ceresU.length;
+    const avgLon = ceresU.reduce((s, c) => s + c.lon, 0) / ceresU.length;
+    const emptyHoleMerra = snapCoordToCell(avgLat, avgLon, 'T2M');
+    const emptyHoleModis = snapCoordToCell(avgLat, avgLon, 'LST_Day_CMG');
+    expect(mirroredMerra.cells.some(c => c.cell_id === emptyHoleMerra.cell_id)).toBe(false);
+    expect(mirroredModis.cells.some(c => c.cell_id === emptyHoleModis.cell_id)).toBe(false);
   });
 });
