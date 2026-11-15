@@ -1,50 +1,49 @@
-# Arquitetura de Dados & Análise — Earth System Trend Detective (NASA Space Apps)
+# Data & Analysis Architecture — Earth System Trend Detective (NASA Space Apps)
 
-> **Objetivo do MVP:** Permitir que o usuário atue como um "detetive de dados" — escolhendo um contexto ambiental, selecionando um **ponto** ou **retângulo (região)** no mapa, visualizando a série temporal histórica e recebendo um veredito estatístico claro sobre **o que mudou, quanto mudou e se a tendência é estatisticamente significativa**.
+> **MVP Objective:** Allow the user to act as a "data detective" — choosing an environmental context, selecting a **point** or **rectangle (region)** on the map, viewing the historical time series, and receiving a clear statistical verdict on **what changed, how much it changed, and whether the trend is statistically significant**.
 
 ---
 
-## 1. Matriz de Fontes e Integração (Backend)
+## 1. Source and Integration Matrix (Backend)
 
-Para equilibrar velocidade em tempo real durante a demonstração e rigor científico com dados oficiais da NASA, a ingestão divide-se em **consultas ao vivo**, **processamento em segundo plano** e **validação/demo**:
+To balance real-time speed during the demo with scientific rigor from official NASA data, ingestion is split into **live queries**, **background processing**, and **validation/demo**:
 
-| Fonte Oficial | O que selecionamos | O que retorna | Papel e Regra de Uso no App |
+| Official Source | What We Select | What It Returns | Role and Usage Rule in App |
 | :--- | :--- | :--- | :--- |
-| **NASA POWER API**<br>*(Modelos MERRA-2 e GPM)* | Variável, período (anos) e **ponto** (`lat/lon`) ou **retângulo** (`bbox`).<br>*(⚠️ A consulta regional aceita 1 parâmetro por requisição)*. | **JSON** ou CSV.<br>• **Ponto:** série pronta.<br>• **Retângulo:** grade de células (o backend calcula a média espacial). | **Motor principal ao vivo (~1–2s):** Temperatura do ar (`T2M`), Chuva (`PRECTOTCORR`), Umidade (`RH2M`), Radiação (`ALLSKY_SFC_SW_DWN`). Validar quantas células da grade entram no retângulo escolhido. |
-| **NASA AppEEARS API**<br>*(Satélite MODIS)* | Produto (ex: `MOD13A3` ou `MOD11C3`), camada (`NDVI` ou Temp. Superfície), datas e geometria. | **CSV** (ponto) ou GeoTIFF/NetCDF (área). A API retorna primeiro um `task_id`. | **Consultas de Vegetação e Superfície:** Disparar a requisição, salvar o `task_id` e acompanhar o processamento em segundo plano (*polling*), além de manter CSVs pré-processados para a demo. |
-| **Open-Meteo Flood API**<br>*(Modelo GloFAS)* | Coordenada de rio/bacia e intervalo de datas. | **JSON** instantâneo (~1s) com vazão do rio (`river_discharge` em $m^3/s$). | **Hidrologia ao vivo:** Cobre análise de secas, cheias e fluxo hídrico sem precisar baixar e recortar arquivos NetCDF/HDF pesados do GLDAS em tempo real. |
-| **NOAA CDO API v2**<br>*(Estações Terrestres)* | Dataset (`GSOM`/`GHCND`), estação/região e período. *(Exige token gratuito no header)*. | **JSON** (~1–3s) com medições físicas em solo (`PRCP`, `TAVG`, `SNOW`). | **Comparação Satélite vs. Solo:** Permite confrontar a tendência medida por satélite com pluviômetros e termômetros reais. |
-| **Giovanni & Hydrology Time Series** | Variável, período e área (Giovanni) ou ponto (Hydrology). | **CSV** da série temporal limpa. | **Validação e Benchmarks:** Usar para conferir se as médias regionais calculadas pelo nosso backend batem com os números oficiais da NASA e alimentar os casos de demonstração. |
+| **NASA POWER API**<br>*(MERRA-2 and GPM models)* | Variable, period (years), and **point** (`lat/lon`) or **rectangle** (`bbox`).<br>*(⚠️ Regional query accepts 1 parameter per request)*. | **JSON** or CSV.<br>• **Point:** ready series.<br>• **Rectangle:** cell grid (backend computes spatial mean). | **Primary live engine (~1–2s):** Air temperature (`T2M`), Rainfall (`PRECTOTCORR`), Humidity (`RH2M`), Radiation (`ALLSKY_SFC_SW_DWN`). Validate how many grid cells fall inside the chosen rectangle. |
+| **NASA AppEEARS API**<br>*(MODIS satellite)* | Product (e.g., `MOD13A3` or `MOD11C3`), layer (`NDVI` or Surface Temp.), dates, and geometry. | **CSV** (point) or GeoTIFF/NetCDF (area). API first returns a `task_id`. | **Vegetation and Surface queries:** Trigger the request, save `task_id`, and poll in background, while keeping precomputed CSVs for the demo. |
+| **Open-Meteo Flood API**<br>*(GloFAS model)* | River/basin coordinate and date range. | Instant **JSON** (~1s) with river discharge (`river_discharge` in $m^3/s$). | **Live hydrology:** Covers drought, flood, and water-flow analysis without downloading and subsetting heavy GLDAS NetCDF/HDF files in real time. |
+| **NOAA CDO API v2**<br>*(Ground Stations)* | Dataset (`GSOM`/`GHCND`), station/region, and period. *(Requires free token in header)*. | **JSON** (~1–3s) with physical ground measurements (`PRCP`, `TAVG`, `SNOW`). | **Satellite vs. Ground comparison:** Confronts satellite-estimated trends with real rain gauges and thermometers. |
+| **Giovanni & Hydrology Time Series** | Variable, period, and area (Giovanni) or point (Hydrology). | Clean time-series **CSV**. | **Validation & Benchmarks:** Used to verify that regional means computed by our backend match official NASA numbers and to feed demo cases. |
 
-> **⚠️ Decisão de Escopo (Performance):** Evitar o download e recorte dinâmico de arquivos brutos `.hdf` e `.nc4` (via `earthaccess` / Harmony) durante a navegação do usuário. Caso precisem de umidade do solo do **GLDAS**, rodem um script offline para extrair o CSV e deixem salvo no cache do projeto.
+> **⚠️ Scope Decision (Performance):** Avoid downloading and dynamically subsetting raw `.hdf` and `.nc4` files (via `earthaccess` / Harmony) during user navigation. If soil moisture from **GLDAS** is needed, run an offline script to extract the CSV and save it in the project cache.
 
 ---
 
-## 2. Camada de Descoberta Guiada ("Data Detective")
+## 2. Guided Discovery Layer ("Data Detective")
 
-Para atender ao público-alvo do desafio (estudantes e público geral), o app traduz variáveis científicas em perguntas investigativas por bioma/contexto:
+To serve the challenge's target audience (students and the general public), the app translates scientific variables into investigative questions by biome/context:
 
-| Contexto / Região | Variáveis Sugeridas | Pergunta Investigativa | Tradução Simples para o Usuário |
+| Context / Region | Suggested Variables | Investigative Question | Plain-Language Translation for User |
 | :--- | :--- | :--- | :--- |
-| **Área Urbana / Metrópole** | `T2M` (NASA POWER) + `LST` (AppEEARS) | *"O efeito de ilha de calor está intensificando o aquecimento nesta cidade?"* | Mede o aumento gradual da temperatura do ar e da superfície ao longo das décadas, descontando as estações do ano. |
-| **Floresta / Cerrado / Agro** | `NDVI` (AppEEARS) + `PRECTOTCORR` (POWER) | *"A vegetação está perdendo vigor ou sofrendo com mudanças no regime de chuvas?"* | O NDVI varia de -1 a +1; quedas contínuas indicam desmatamento, degradação ou estresse hídrico severo. |
-| **Bacia Hidrográfica / Rio** | `river_discharge` (GloFAS) + `PRECTOTCORR` (POWER) | *"O volume de água deste rio está caindo mesmo quando chove?"* | Mede o volume de água que passa por segundo ($m^3/s$), revelando impacto de represas, uso do solo ou secas prolongadas. |
-| **Região Árida / Semiárida** | `RH2M` (Umidade) + `ALLSKY_SFC_SW_DWN` (Radiação) | *"A região está ficando mais seca e exposta a maior radiação solar?"* | Indica tendências de aridificação através da perda contínua de umidade atmosférica histórica. |
+| **Urban Area / Metropolis** | `T2M` (NASA POWER) + `LST` (AppEEARS) | *"Is the urban heat island effect intensifying warming in this city?"* | Measures the gradual rise in air and surface temperature over decades, removing seasonal cycles. |
+| **Forest / Cerrado / Agri** | `NDVI` (AppEEARS) + `PRECTOTCORR` (POWER) | *"Is vegetation losing vigor or suffering from rainfall regime shifts?"* | NDVI ranges from -1 to +1; sustained declines indicate deforestation, degradation, or severe water stress. |
+| **Watershed / River** | `river_discharge` (GloFAS) + `PRECTOTCORR` (POWER) | *"Is this river's water volume falling even when it rains?"* | Measures water volume passing per second ($m^3/s$), revealing dam impacts, land use, or prolonged droughts. |
+| **Arid / Semi-Arid Region** | `RH2M` (Humidity) + `ALLSKY_SFC_SW_DWN` (Radiation) | *"Is the region becoming drier and exposed to stronger solar radiation?"* | Indicates aridification trends through continuous historical loss of atmospheric moisture. |
 
 ---
 
-## 3. Pipeline do Motor Estatístico (Backend Python)
+## 3. Statistical Engine Pipeline (Python Backend)
 
-Toda série extraída (seja de um ponto ou da média espacial de um retângulo) passa por 4 etapas padronizadas antes de ir para a tela:
+Every extracted series (whether from a point or the spatial mean of a rectangle) goes through 4 standardized stages before reaching the screen:
 
-1. **Limpeza e Agregação Temporal:**
-   * Padronizar para frequência **mensal** (reduz ruído diário e facilita análise de 20 a 40 anos).
-   * Converter valores sentinela de falha (como `-999` da NASA POWER) para `NaN` sem transformar em zero (zero de chuva é dado real).
-2. **Controle de Sazonalidade (Obrigatório):**
-   * Como variáveis ambientais oscilam naturalmente entre verão e inverno, aplicar o **Teste de Mann-Kendall Sazonal** (`pymannkendall.seasonal_test(serie, period=12)`).
-3. **Cálculo de Magnitude e Significância:**
-   * **Taxa de Mudança (Sen's Slope):** Multiplicar a inclinação mediana mensal por `120` para expressar a variação **por década** (ex: `+0,38 °C / década`).
-   * **Significância Estatística:** Avaliar o *p-value* com confiança de **95% ($\alpha = 0.05$)**. Se $p < 0.05$, a tendência é confirmada como estatisticamente significativa.
-4. **Cache Inteligente:**
-   * Salvar os resultados processados em disco/SQLite indexados por `fonte_variavel_geometria_periodo`. Consultas repetidas respondem em milissegundos.
-
+1. **Cleaning and Temporal Aggregation:**
+   * Standardize to **monthly** frequency (reduces daily noise and facilitates 20-to-40-year analysis).
+   * Convert missing-data sentinel values (such as NASA POWER's `-999`) to `NaN` without turning them into zero (zero rain is real data).
+2. **Seasonality Control (Mandatory):**
+   * Since environmental variables oscillate naturally between summer and winter, apply the **Seasonal Mann-Kendall Test** (`pymannkendall.seasonal_test(series, period=12)`).
+3. **Magnitude and Significance Calculation:**
+   * **Rate of Change (Sen's Slope):** Multiply the monthly median slope by `120` to express change **per decade** (e.g., `+0.38 °C / decade`).
+   * **Statistical Significance:** Evaluate the *p-value* at **95% confidence ($\alpha = 0.05$)**. If $p < 0.05$, the trend is confirmed as statistically significant.
+4. **Smart Cache:**
+   * Save processed results to disk/SQLite indexed by `source_variable_geometry_period`. Repeated queries respond in milliseconds.

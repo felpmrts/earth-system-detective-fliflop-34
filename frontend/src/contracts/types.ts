@@ -1,42 +1,68 @@
-/** Variáveis NASA POWER em tempo real expostas pelo catálogo do backend de dados. */
+/** Variables from the 7 Environmental Families and 5 APIs exposed by the data backend catalog. */
 export type VariableId =
   | 'T2M'
   | 'T2M_MAX'
   | 'T2M_MIN'
   | 'T2M_RANGE'
   | 'TS'
+  | 'LST_Day_CMG'
+  | 'LST_Night_CMG'
   | 'T2MDEW'
   | 'PRECTOTCORR'
-  | 'GWETTOP'
-  | 'GWETROOT'
-  | 'GWETPROF'
+  | 'GPM_3IMERGM'
   | 'RH2M'
   | 'QV2M'
   | 'TQV'
-  | 'WS2M'
-  | 'WS10M'
-  | 'WS50M'
-  | 'PS'
+  | 'GWETTOP'
+  | 'GWETROOT'
+  | 'GWETPROF'
+  | 'Evap_tavg'
+  | 'Qs_acc'
+  | 'river_discharge'
+  | 'river_discharge_mean'
+  | 'river_discharge_max'
+  | 'river_discharge_min'
+  | '_1_km_monthly_NDVI'
+  | '_1_km_monthly_EVI'
+  | 'Lai_500m'
   | 'ALLSKY_SRF_ALB'
   | 'ALLSKY_SFC_SW_DWN'
   | 'CLRSKY_SFC_SW_DWN'
   | 'CLDTOT'
   | 'CLOUD_AMT'
-  | 'ALLSKY_SFC_LW_DWN';
+  | 'ALLSKY_SFC_LW_DWN'
+  | 'WS2M'
+  | 'WS10M'
+  | 'WS50M'
+  | 'PS'
+  | 'AOD_550'
+  | 'PRCP'
+  | 'TAVG'
+  | 'TMAX'
+  | 'TMIN'
+  | 'SNOW'
+  | 'SNWD'
+  | 'AWND';
 
-export type SourceModel = 'MERRA-2' | 'CERES_SYN1deg';
+export type SourceModel =
+  | 'MERRA-2'
+  | 'CERES_SYN1deg'
+  | 'MODIS_AppEEARS'
+  | 'NASA_Giovanni'
+  | 'GloFAS'
+  | 'NOAA_CDO';
 export type ScaleType = 'interval' | 'ratio';
 export type RegionSlot = 'A' | 'B';
 export type DataMode = 'api' | 'offline';
 export type DataSourceOrigin = 'backend_api' | 'idb_cache' | 'offline_fallback';
 
-/** Coordenada no padrão Leaflet: [latitude, longitude]. */
+/** Coordinate in Leaflet convention: [latitude, longitude]. */
 export type LeafletLatLng = readonly [lat: number, lon: number];
 
-/** Retângulo delimitador no padrão Leaflet: [[south, west], [north, east]]. */
+/** Bounding box in Leaflet convention: [[south, west], [north, east]]. */
 export type LeafletBounds = readonly [southWest: LeafletLatLng, northEast: LeafletLatLng];
 
-/** Coordenada no padrão GeoJSON: [longitude, latitude]. */
+/** Coordinate in GeoJSON convention: [longitude, latitude]. */
 export type GeoJsonLonLat = readonly [lon: number, lat: number];
 
 export interface GridResolution {
@@ -51,11 +77,12 @@ export interface GridOrigin {
 
 export interface VariableMetadata {
   readonly variable_id: VariableId;
+  readonly is_alias_of?: VariableId;
   readonly variable_name: string;
   readonly domain: string;
   readonly source_model: SourceModel;
   readonly resolution: GridResolution;
-  /** Origem parametrizável da grade (alinhada com DADOS-1 no endpoint NASA POWER). */
+  /** Configurable grid origin (aligned with DATA-1 on the NASA POWER endpoint). */
   readonly grid_origin: GridOrigin;
   readonly min_year: number;
   readonly scale_type: ScaleType;
@@ -72,7 +99,7 @@ export interface GridCell {
   readonly lat: number;
   readonly lon: number;
   readonly bounds_leaflet: LeafletBounds;
-  /** Anel fechado de 5 vértices no formato GeoJSON [lon, lat]. */
+  /** Closed ring of 5 vertices in GeoJSON [lon, lat] format. */
   readonly geojson_ring: readonly GeoJsonLonLat[];
 }
 
@@ -93,7 +120,7 @@ export interface RegionSelection {
   readonly cells: readonly GridCell[];
 }
 
-/** Fluxo A: ponto pré-processado da camada global Canvas ({var_id}_grid.json). */
+/** Flow A: preprocessed point of the global Canvas layer ({var_id}_grid.json). */
 export interface GlobalGridPoint {
   readonly lat: number;
   readonly lon: number;
@@ -113,7 +140,7 @@ export interface GlobalGridFile {
   readonly points: readonly GlobalGridPoint[];
 }
 
-/** Fluxo B: requisição tipada enviada exclusivamente ao backend Python (stats_engine.py). */
+/** Flow B: typed request sent exclusively to the Python backend (stats_engine.py). */
 export interface RegionAnalysisRequest {
   readonly variable_a: VariableId;
   readonly variable_b: VariableId | null;
@@ -198,7 +225,9 @@ export interface VariableStatistics {
     readonly dates: readonly string[];
     readonly raw_values: readonly (number | null)[];
     readonly anomaly_values: readonly (number | null)[];
+    readonly z_scores?: readonly (number | null)[];
     readonly linear_fit: readonly number[];
+    readonly sen_fit?: readonly number[];
     readonly gam_smooth_fit: readonly number[];
   };
 }
@@ -211,6 +240,8 @@ export interface ComparisonPair {
   readonly multiscale_correlation: {
     readonly long_term_secular_r: number;
     readonly short_term_detrended_r: number;
+    readonly long_term_p_value?: number;
+    readonly short_term_p_value?: number;
     readonly paradox_type: string;
     readonly interpretation: string;
   };
@@ -240,3 +271,140 @@ export type SemanticErrorCode =
   | 'INVALID_DATE_INTERSECTION'
   | 'CONTRACT_VIOLATION'
   | 'BACKEND_UNAVAILABLE';
+
+export interface CopilotToolExecution {
+  readonly name: string;
+  readonly label: string;
+  readonly summary: string;
+  readonly status: 'ok' | 'unavailable' | 'error';
+  readonly duration_ms: number;
+}
+
+export interface CopilotHistoryTurn {
+  readonly role: 'user' | 'assistant';
+  readonly content: string;
+  readonly tools_used?: readonly CopilotToolExecution[];
+}
+
+export interface CopilotRequest {
+  readonly analysis?: RegionAnalysisResponse;
+  readonly analysis_key?: string;
+  readonly question?: string;
+  readonly language?: 'pt' | 'en';
+  readonly history?: readonly CopilotHistoryTurn[];
+}
+
+export interface CopilotSynthesisSections {
+  readonly mathematical_evidence: string;
+  readonly physical_meaning: string;
+  readonly false_conclusion_risk: string;
+}
+
+export interface CopilotFourAnswers {
+  readonly what: string;
+  readonly where: string;
+  readonly how_much: string;
+  readonly is_significant: string;
+}
+
+export interface CopilotResponse {
+  readonly synthesis: CopilotSynthesisSections;
+  readonly answer: string | null;
+  readonly reply_markdown: string;
+  readonly language: 'pt' | 'en';
+  readonly mode: 'llm_gemini' | 'heuristic_fallback' | 'client_deterministic';
+  readonly model: string;
+  readonly four_answers?: CopilotFourAnswers;
+  readonly suggested_questions: readonly string[];
+  readonly guardrails_applied: readonly string[];
+  readonly invariant_warnings?: readonly string[];
+  readonly tools_used?: readonly CopilotToolExecution[];
+  readonly analysis_key?: string;
+}
+
+export interface DiscoveryRegimeGeometry {
+  readonly cusum_break_detected: boolean;
+  readonly break_date: string | null;
+  readonly forensic_regime_diagnosis: string;
+  readonly cusum_max_stat?: number;
+  readonly p_value_ar1_bridge?: number;
+  readonly quadratic_b2_p_ar1?: number;
+  readonly hinge_p_ar1?: number;
+  readonly pre_break_mean_anom?: number;
+  readonly post_break_mean_anom?: number;
+  readonly pre_break_gam_slope_decade?: number;
+  readonly post_break_gam_slope_decade?: number;
+}
+
+export interface PartialTeleconnectionRow {
+  readonly ocean_box_id: string;
+  readonly ocean_var: string;
+  readonly lag_months: number;
+  readonly n_pairs: number;
+  readonly conditioning_set?: readonly string[];
+  readonly anomaly_r: number;
+  readonly detrended_r: number;
+  readonly partial_r: number;
+  readonly detrended_fdr_q: number;
+  readonly partial_fdr_q: number;
+  readonly is_detrended_sig_fdr05: boolean;
+  readonly is_partial_sig_fdr05: boolean;
+  readonly is_strictly_coupled_fdr05: boolean;
+}
+
+export interface PartialTeleconnectionsSummary {
+  readonly status: string;
+  readonly total_tests: number;
+  readonly significant_partial_fdr05_count: number;
+  readonly significant_strict_both_fdr05_count?: number;
+  readonly top_teleconnections: readonly PartialTeleconnectionRow[];
+}
+
+export interface AttributionDriverRow {
+  readonly predictor: string;
+  readonly standardized_beta: number;
+  readonly abs_importance_rank_weight: number;
+  readonly quartile_jump_q4_minus_q1: number;
+}
+
+export interface FastGcvPhysicalAttribution {
+  readonly status: string;
+  readonly n_samples?: number;
+  readonly best_ridge_alpha?: number;
+  readonly detrended_gcv_r2?: number;
+  readonly detrended_purged_cv_r2?: number;
+  readonly detrended_in_sample_r2?: number;
+  readonly n_effective_ar1?: number;
+  readonly p_value_f_ar1?: number;
+  readonly overall_model_significant?: boolean;
+  readonly drivers_ranked?: readonly AttributionDriverRow[];
+  readonly coupling_break_cusum?: {
+    readonly detected: boolean;
+    readonly break_date: string | null;
+    readonly cusum_max_stat: number;
+    readonly p_value_ar1_bridge: number;
+  };
+}
+
+export interface AttributedMahalanobisOutlier {
+  readonly date: string;
+  readonly mahalanobis_d: number;
+  readonly ocean_phase_tag: string;
+  readonly nino34_ts_z: number;
+  readonly atl_grad_ts_z: number;
+  readonly diagnostic_hint?: string;
+}
+
+export interface DiscoveryResponse {
+  readonly discovery_meta: {
+    readonly engine: string;
+    readonly variable_id: string;
+    readonly period: VariableStatistics['period'] | null;
+    readonly execution_time_ms: number;
+  };
+  readonly regime_and_gam_geometry: DiscoveryRegimeGeometry;
+  readonly partial_teleconnections: PartialTeleconnectionsSummary;
+  readonly fast_gcv_physical_attribution: FastGcvPhysicalAttribution;
+  readonly attributed_mahalanobis_outliers: readonly AttributedMahalanobisOutlier[];
+  readonly analysis_key?: string;
+}

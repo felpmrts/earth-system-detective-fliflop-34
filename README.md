@@ -1,70 +1,70 @@
 # Earth System Trend Detective — Project FlipFlop-34
 
-> **NASA International Space Apps Challenge 2026** · Desafio *Be An Earth System Trend Detective!*  
-> *(Documentação inicial v1 — base pública para reprodução local, testes e integração contínua).*
+> **NASA International Space Apps Challenge 2026** · Challenge *Be An Earth System Trend Detective!*
+> *(Initial documentation v1 — public baseline for local reproduction, testing, and continuous integration).*
 
-O **Earth System Trend Detective** transforma séries climáticas multidecadais da NASA, NOAA e Copernicus em diagnósticos visuais, geoespaciais e estatisticamente auditados, respondendo às **4 Perguntas do Detetive** para qualquer ponto ou região comparada do planeta:
+**Earth System Trend Detective** transforms multidecadal climate time series from NASA, NOAA, and Copernicus into visual, geospatial, and statistically audited diagnostics, answering the **4 Detective Questions** for any point or compared region on the planet:
 
-1. **O QUE está mudando?** Série bruta vs. anomalia climatológica mensal (sem ciclo sazonal) e regime não-linear (GAM/Spline e aceleração $B_2$).
-2. **ONDE está mudando?** Mapa interativo Canvas com grade pré-processada global ($q_{\text{FDR}} < 0{,}05$) e comparador A × B com modo **Mesmo Local (`A=B`)** e *re-snap* entre grades (`MERRA-2` $0{,}5^\circ \times 0{,}625^\circ$ e `CERES_SYN1deg` $1{,}0^\circ \times 1{,}0^\circ$).
-3. **QUANTO está mudando?** Taxa de variação por década ajustada sobre toda a nuvem de pontos (**Theil–Sen** robusto com IC 95% e **OLS**), respeitando escalas intervalares (proibido `%` em $^\circ\text{C}$, $\text{kPa}$, etc.).
-4. **É estatisticamente significativo?** Correção para autocorrelação temporal **$\text{AR}(1)$** ($N_{\text{efetivo}}$), controle de falsas descobertas (**Benjamini–Hochberg FDR**) e detecção bivariada de extremos por **Distância de Mahalanobis ($D_M > 2{,}5$)**.
-
----
-
-## Os 7 Invariantes Estatísticos do Projeto
-
-1. Proibido calcular tendência como ponto final menos ponto inicial ($Y_{\text{fim}} - Y_{\text{início}}$).
-2. Regressões aplicadas apenas sobre **anomalias climatológicas mensais** (remoção de sazonalidade — Princípio Henrietta Leavitt).
-3. Proibição absoluta de variação percentual (`%`) em variáveis de **escala intervalar**.
-4. Separação clara entre magnitude da inclinação ($B$) e força do acoplamento ($r$, $\tau$, $R^2$).
-5. Decomposição multiescala entre correlação secular de longo prazo ($r_{\text{global}}$) e oscilação residual de curto prazo ($r_{\text{detrended}}$).
-6. Modelagem não-linear suave (**GAM / Smoothing Spline**) em vez de polinômios livres de grau alto.
-7. Identificação de extremos via **Elipse de Mahalanobis ($D_M > 2{,}5$)** e significância corrigida por **$\text{AR}(1)$ + FDR ($q < 0{,}05$)**.
+1. **WHAT is changing?** Raw time series vs. monthly climatological anomaly (seasonal cycle removed) and nonlinear regime (GAM/Spline and acceleration $B_2$).
+2. **WHERE is it changing?** Interactive Canvas map with a precomputed global grid ($q_{\text{FDR}} < 0.05$) and A × B comparator with **Same Location (`A=B`)** mode and cross-grid *re-snap* (`MERRA-2` $0.5^\circ \times 0.625^\circ$ and `CERES_SYN1deg` $1.0^\circ \times 1.0^\circ$).
+3. **HOW MUCH is it changing?** Rate of change per decade fitted across the entire point cloud (robust **Theil–Sen** with 95% CI and **OLS**), respecting interval scales (`%` is forbidden on $^\circ\text{C}$, $\text{kPa}$, etc.).
+4. **Is it statistically significant?** Temporal autocorrelation **$\text{AR}(1)$** correction ($N_{\text{effective}}$), false discovery rate control (**Benjamini–Hochberg FDR**), and bivariate extreme detection via **Mahalanobis Distance ($D_M > 2.5$)**.
 
 ---
 
-## Estrutura do Repositório
+## The Project's 7 Statistical Invariants
 
-| Diretório / Arquivo | Função |
+1. Computing trends as end point minus start point ($Y_{\text{end}} - Y_{\text{start}}$) is forbidden.
+2. Regressions are applied exclusively to **monthly climatological anomalies** (seasonality removal — Henrietta Leavitt Principle).
+3. Percentage change (`%`) is strictly forbidden for **interval-scale** variables.
+4. Clear separation between slope magnitude ($B$) and coupling strength ($r$, $\tau$, $R^2$).
+5. Multiscale decomposition between long-term secular correlation ($r_{\text{global}}$) and short-term residual oscillation ($r_{\text{detrended}}$).
+6. Smooth nonlinear modeling (**GAM / Smoothing Spline**) instead of unconstrained high-degree polynomials.
+7. Outlier identification via **Mahalanobis Ellipse ($D_M > 2.5$)** and significance corrected for **$\text{AR}(1)$ + FDR ($q < 0.05$)**.
+
+---
+
+## Repository Structure
+
+| Directory / File | Role |
 | :--- | :--- |
-| `frontend/` | Aplicação web React + TypeScript + Vite + Mantine + Leaflet (Canvas) + Plotly.js, Tutorial HUD de 8 passos, camadas globais offline em `public/data/`, painel do Co-Piloto, testes Vitest e suíte E2E Playwright. |
-| `backend/` | Motor estatístico State-of-the-Art (`stats_engine.py`: GCV Spline/LOWESS, `MinCovDet` Mahalanobis, Santer `AR(1)` + Hamed-Rao + BH FDR), Chatbot Co-Piloto agêntico (`copilot_engine.py` + `copilot_tools.py` com Gemini / OpenRouter), Motor de Descoberta (`discovery_engine.py` / `ml_discovery.py`) e `requirements.txt`. |
-| `data/` | Camada de dados e API REST (`data.api.server`): catálogo das 7 Famílias Ambientais (42 variáveis), conectores multi-API, cache em disco, serviço de comparação (`comparison_service.py` delegando ao `backend/stats_engine.py`) e testes de contrato. |
-| `context/` | Base de conhecimento científica, especificações de APIs NASA/NOAA/GloFAS, mapas e guias operacionais. |
-| `.github/workflows/ci.yml` | Pipeline CI do GitHub Actions (`backend/` + `data/tests/`, typecheck, homologação de grades, auditoria offline e testes E2E Playwright). |
-| `CONTRATO_DE_DADOS.md` | Contrato JSON congelado (`RegionAnalysisRequest -> RegionAnalysisResponse`). |
-| `DATA_SOURCES.md` | Inventário de fontes de dados, resoluções espaciais, pré-processamento e citações oficiais. |
-| `00_MASTER_CONTEXT_AND_ROUTER.md` | Ponto de entrada arquitetural e roteador interno de documentação. |
+| `frontend/` | React + TypeScript + Vite + Mantine + Leaflet (Canvas) + Plotly.js web application, 8-step HUD Tutorial, offline global layers in `public/data/`, Co-Pilot panel, Vitest unit tests, and Playwright E2E suite. |
+| `backend/` | State-of-the-art statistical engine (`stats_engine.py`: GCV Spline/LOWESS, `MinCovDet` Mahalanobis, Santer `AR(1)` + Hamed-Rao + BH FDR), agentic Statistical Co-Pilot (`copilot_engine.py` + `copilot_tools.py` with Gemini / OpenRouter), Discovery Engine (`discovery_engine.py` / `ml_discovery.py`), and `requirements.txt`. |
+| `data/` | Data layer and REST API (`data.api.server`): catalog of the 7 Environmental Families (42 variables), multi-API connectors, disk cache, comparison service (`comparison_service.py` delegating to `backend/stats_engine.py`), and contract tests. |
+| `context/` | Scientific knowledge base, NASA/NOAA/GloFAS API specifications, maps, and operational guides. |
+| `.github/workflows/ci.yml` | GitHub Actions CI pipeline (`backend/` + `data/tests/`, typecheck, grid homologation, offline audit, and Playwright E2E tests). |
+| `CONTRATO_DE_DADOS.md` | Frozen JSON contract (`RegionAnalysisRequest -> RegionAnalysisResponse`). |
+| `DATA_SOURCES.md` | Inventory of data sources, spatial resolutions, preprocessing rules, and official citations. |
+| `00_MASTER_CONTEXT_AND_ROUTER.md` | Architectural entry point and internal documentation router. |
 
 ---
 
-## Como Executar Localmente
+## Running Locally
 
-### Pré-requisitos
-- **Python 3.10+** com `pip` / `venv` (dependências do motor estatístico em `backend/requirements.txt`: `numpy`, `scipy`, `scikit-learn`)
-- **Node.js 22+** e **npm**
+### Prerequisites
+- **Python 3.10+** with `pip` / `venv` (statistical engine dependencies in `backend/requirements.txt`: `numpy`, `scipy`, `scikit-learn`)
+- **Node.js 22+** and **npm**
 
-### 1. Subir o Backend (`http://127.0.0.1:8000`)
+### 1. Start the Backend (`http://127.0.0.1:8000`)
 
-Na raiz do repositório:
+From the repository root:
 
 ```bash
 python3 -m venv .venv
 source .venv/bin/activate
 pip install -r backend/requirements.txt
 
-# Opcional: copiar template de credenciais (OpenRouter / Gemini para Co-Piloto e NOAA/AppEEARS/Giovanni)
+# Optional: copy credentials template (OpenRouter / Gemini for Co-Pilot and NOAA/AppEEARS/Giovanni)
 cp data/.env.example data/.env
 
 PYTHONPATH=. python3 -m data.api.server --host 127.0.0.1 --port 8000
 ```
 
-Endpoints principais: `GET /api/health`, `GET /api/catalog`, `POST /api/analyze`, `POST /api/copilot`, `POST /api/discover`, `POST /api/compare`.
+Main endpoints: `GET /api/health`, `GET /api/catalog`, `POST /api/analyze`, `POST /api/copilot`, `POST /api/discover`, `POST /api/compare`.
 
-### 2. Subir o Frontend (`http://127.0.0.1:5173`)
+### 2. Start the Frontend (`http://127.0.0.1:5173`)
 
-Em outro terminal:
+In another terminal:
 
 ```bash
 cd frontend
@@ -72,9 +72,9 @@ npm ci
 npm run dev -- --host 127.0.0.1 --port 5173
 ```
 
-### Modo 100% Offline (Contingência de Demonstração)
+### 100% Offline Mode (Demo Contingency)
 
-Para rodar sem backend nem internet, utilize `VITE_DATA_MODE=offline` em `frontend/.env.local` (baseado em `frontend/.env.example`):
+To run without a backend or internet connection, set `VITE_DATA_MODE=offline` in `frontend/.env.local` (based on `frontend/.env.example`):
 
 ```bash
 cd frontend
@@ -85,21 +85,21 @@ npm run preview
 
 ---
 
-## Testes e Auditoria
+## Testing and Auditing
 
-### Frontend (Typecheck, Grids, Unitários, Bundle Offline e E2E real)
+### Frontend (Typecheck, Grids, Unit Tests, Offline Bundle, and Real E2E)
 
 ```bash
 cd frontend
-npm run typecheck         # Checagem estrita TypeScript (tsc --noEmit)
-npm run validate:grids    # Homologação estrutural e estatística das 12 grades globais
-npm run build             # Build de produção em dist/
-npm test                  # Suíte unitária (Vitest; inclui auditoria de dist/)
-npm run verify:offline    # Auditoria de 0 CDNs externas e integridade offline em dist/
-npm run test:e2e          # Suíte Playwright em navegador real contra vite preview
+npm run typecheck         # Strict TypeScript check (tsc --noEmit)
+npm run validate:grids    # Structural and statistical homologation of the 12 global grids
+npm run build             # Production build into dist/
+npm test                  # Unit test suite (Vitest; includes dist/ audit)
+npm run verify:offline    # Audit for 0 external CDNs and offline integrity in dist/
+npm run test:e2e          # Playwright suite in a real browser against vite preview
 ```
 
-> Para executar o `npm run test:e2e` em Linux/CI pela primeira vez: `npx playwright install --with-deps chromium`.
+> To run `npm run test:e2e` on Linux/CI for the first time: `npx playwright install --with-deps chromium`.
 
 ### Backend (`backend/` + `data/`)
 

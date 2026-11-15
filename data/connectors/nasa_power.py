@@ -1,4 +1,4 @@
-"""Conector para a NASA POWER API v2 (MERRA-2 / GPM / CERES)."""
+"""Connector for the NASA POWER API v2 (MERRA-2 / GPM / CERES)."""
 
 from __future__ import annotations
 
@@ -30,7 +30,7 @@ def _parse_power_parameter_series(
     raw_series: dict[str, Any],
     reported_unit: str,
 ) -> dict[str, float]:
-    """Limpa sentinela -999, descarta YYYY13 e converte PRECTOTCORR (mm/day -> mm/mês)."""
+    """Cleans -999 sentinel, discards YYYY13, and converts PRECTOTCORR (mm/day -> mm/month)."""
     cleaned: dict[str, float] = {}
     for yyyymm, raw_val in raw_series.items():
         if len(yyyymm) != 6 or yyyymm.endswith("13"):
@@ -44,6 +44,11 @@ def _parse_power_parameter_series(
             continue
         if variable == "PRECTOTCORR" and reported_unit == "mm/day":
             val *= calendar.monthrange(year, month)[1]
+        elif (
+            variable in {"ALLSKY_SFC_SW_DWN", "CLRSKY_SFC_SW_DWN", "ALLSKY_SFC_LW_DWN"}
+            and reported_unit == "W/m^2"
+        ):
+            val *= 0.0864
         cleaned[f"{year:04d}-{month:02d}"] = round(val, 4)
     return cleaned
 
@@ -58,11 +63,11 @@ def fetch_multi_variables_batch(
     community: str = "AG",
     label: str = "NASA POWER",
 ) -> dict[str, dict[str, Any]]:
-    """Busca 1 ou até 20 variáveis da NASA POWER em lote por célula (/point) com cache."""
+    """Fetches 1 to 20 NASA POWER variables in batch per cell (/point) with cache."""
     if not variables:
-        raise ValueError("Informe ao menos 1 variável para a NASA POWER.")
+        raise ValueError("Provide at least 1 variable for NASA POWER.")
     if len(variables) > 20:
-        raise ValueError("O endpoint /point da NASA POWER aceita no máximo 20 variáveis por chamada.")
+        raise ValueError("The NASA POWER /point endpoint accepts at most 20 variables per call.")
 
     cache_store = cache or CellCacheStore()
     base_url = os.environ.get(
@@ -193,7 +198,7 @@ def fetch_single_variable(
     cache: CellCacheStore | None = None,
     label: str = "NASA POWER",
 ) -> dict[str, Any]:
-    """Busca 1 única variável da NASA POWER reutilizando o motor em lote."""
+    """Fetches a single NASA POWER variable reusing the batch engine."""
     return fetch_multi_variables_batch(
         [variable],
         cells,

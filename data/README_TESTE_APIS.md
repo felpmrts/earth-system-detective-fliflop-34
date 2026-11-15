@@ -1,54 +1,54 @@
-# Protótipo de Teste das 5 APIs & Fluxo Local A vs. Local B (`data/`)
+# Test Prototype for the 5 APIs & Location A vs. Location B Flow (`data/`)
 
-Este diretório contém o protótipo executável ([`api_prototype_test.py`](file:///home/felipe-martins/dev/repository/earth-system-detective-fliflop-34/data/api_prototype_test.py)) e o resultado real capturado ([`sample_comparison_output.json`](file:///home/felipe-martins/dev/repository/earth-system-detective-fliflop-34/data/sample_comparison_output.json)) para validar as 5 APIs do projeto e o fluxo:
+This directory contains the executable prototype ([`api_prototype_test.py`](api_prototype_test.py)) and the captured real output ([`sample_comparison_output.json`](sample_comparison_output.json)) to validate the project's 5 APIs and the flow:
 
-> **Regra de Produto Validada:** O usuário seleciona o **Local A** (puxando **1 única variável**) e o **Local B** (puxando **1 única variável**) — podendo ser na mesma API ou em APIs diferentes — para então calcular as tendências individuais e a comparação multiescala entre A e B.
+> **Validated Product Rule:** The user selects **Location A** (pulling **1 single variable**) and **Location B** (pulling **1 single variable**) — either from the same API or from different APIs — to then compute individual trends and the multiscale comparison between A and B.
 
 ---
 
-## 1. Matriz das 5 APIs: Quais Precisam de Cadastro?
+## 1. Matrix of the 5 APIs: Which Require Registration?
 
-| # | API / Fonte | Precisa de Cadastro? | Como Obter Acesso / Credencial | Variável de Ambiente (Protótipo) | Resultado do Teste ao Vivo (`14/11/2026`) |
+| # | API / Source | Requires Registration? | How to Obtain Access / Credential | Environment Variable (Prototype) | Live Test Result (`2026-11-14`) |
 | :---: | :--- | :---: | :--- | :--- | :--- |
-| **1** | **NASA POWER API v2** *(MERRA-2 / GPM / CERES)* | **Não** *(100% aberta)* | Sem token nem login. Respeitar *rate limit* de `30 req/min` e `Semaphore(3)`. | *(Nenhuma)* | ✅ **`OK`** (`HTTP 200`, 48 meses em ~0,7s; 276 meses de `2001–2023` validados) |
-| **2** | **Open-Meteo Flood API** *(Modelo GloFAS)* | **Não** *(aberta p/ uso não-comercial)* | Sem token nem login para uso não-comercial/acadêmico. | *(Nenhuma)* | ✅ **`OK`** (`HTTP 200`, `river_discharge` em `m³/s`, 48 meses em ~1,2s; 276 meses validados) |
-| **3** | **NOAA CDO API v2** *(Estações em solo `GSOM`/`GHCND`)* | **Sim** *(Token gratuito)* | Solicitar token gratuito por e-mail em [ncdc.noaa.gov/cdo-web/token](https://www.ncdc.noaa.gov/cdo-web/token) e enviar no header `token: <SEU_TOKEN>`. | `NOAA_CDO_TOKEN` | ✅ **`OK`** (Estação `GHCND:BLM00085154` retornou registro real `TAVG: 27.9` em ~1,6s) |
-| **4** | **NASA AppEEARS API** *(Satélite MODIS: NDVI, EVI, LST)* | **Sim** *(Earthdata Login)* | Catálogo `/api/product/*` é aberto, mas criar e baixar tarefas (`/api/login`, `/api/task`) exige conta gratuita em [urs.earthdata.nasa.gov/users/new](https://urs.earthdata.nasa.gov/users/new). | `EARTHDATA_USERNAME` e `EARTHDATA_PASSWORD` | ✅ **`OK`** (Catálogo `MOD13A3.061` HTTP `200` + `OK_AUTENTICADO` via `/api/login` e `/api/task` HTTP `200` em ~2,0s) |
-| **5** | **NASA Giovanni / GES DISC** *(Validação / GLDAS)* | **Sim** *(Earthdata Login)* | Criar conta gratuita em [urs.earthdata.nasa.gov/users/new](https://urs.earthdata.nasa.gov/users/new), autorizar o app **"NASA GESDISC DATA ARCHIVE"** no perfil e exportar CSVs em [giovanni.gsfc.nasa.gov/giovanni/](https://giovanni.gsfc.nasa.gov/giovanni/) ou usar Bearer token no GES DISC / CMR. | `EARTHDATA_TOKEN` | ✅ **`OK`** (Portal `giovanni` HTTP `200` + CMR autenticado `GLDAS_NOAH025_M` coleção/granules HTTP `200` em ~2,6s; endpoint legado Data Rods `timeseries.cgi` redireciona `301` para transição pós-31/10/2025) |
+| **1** | **NASA POWER API v2** *(MERRA-2 / GPM / CERES)* | **No** *(100% open)* | No token or login. Respect *rate limit* of `30 req/min` and `Semaphore(3)`. | *(None)* | ✅ **`OK`** (`HTTP 200`, 48 months in ~0.7s; 276 months `2001–2023` validated) |
+| **2** | **Open-Meteo Flood API** *(GloFAS Model)* | **No** *(open for non-commercial use)* | No token or login for non-commercial/academic use. | *(None)* | ✅ **`OK`** (`HTTP 200`, `river_discharge` in `m³/s`, 48 months in ~1.2s; 276 months validated) |
+| **3** | **NOAA CDO API v2** *(Ground stations `GSOM`/`GHCND`)* | **Yes** *(Free token)* | Request free token via email at [ncdc.noaa.gov/cdo-web/token](https://www.ncdc.noaa.gov/cdo-web/token) and pass in header `token: <YOUR_TOKEN>`. | `NOAA_CDO_TOKEN` | ✅ **`OK`** (Station `GHCND:BLM00085154` returned real record `TAVG: 27.9` in ~1.6s) |
+| **4** | **NASA AppEEARS API** *(MODIS Satellite: NDVI, EVI, LST)* | **Yes** *(Earthdata Login)* | Catalog `/api/product/*` is open, but creating and downloading tasks (`/api/login`, `/api/task`) requires a free account at [urs.earthdata.nasa.gov/users/new](https://urs.earthdata.nasa.gov/users/new). | `EARTHDATA_USERNAME` and `EARTHDATA_PASSWORD` | ✅ **`OK`** (`MOD13A3.061` catalog HTTP `200` + `OK_AUTENTICADO` via `/api/login` and `/api/task` HTTP `200` in ~2.0s) |
+| **5** | **NASA Giovanni / GES DISC** *(Validation / GLDAS)* | **Yes** *(Earthdata Login)* | Create a free account at [urs.earthdata.nasa.gov/users/new](https://urs.earthdata.nasa.gov/users/new), authorize the **"NASA GESDISC DATA ARCHIVE"** app in your profile, and export CSVs at [giovanni.gsfc.nasa.gov/giovanni/](https://giovanni.gsfc.nasa.gov/giovanni/) or use a Bearer token on GES DISC / CMR. | `EARTHDATA_TOKEN` | ✅ **`OK`** (`giovanni` portal HTTP `200` + authenticated CMR `GLDAS_NOAH025_M` collection/granules HTTP `200` in ~2.6s; legacy Data Rods `timeseries.cgi` endpoint redirects `301` for post-2025-10-31 transition) |
 
 ---
 
-## 2. Como Funciona o Fluxo `Local A (1 variável) vs. Local B (1 variável)`
+## 2. How the `Location A (1 variable) vs. Location B (1 variable)` Flow Works
 
-No protótipo ([`api_prototype_test.py`](file:///home/felipe-martins/dev/repository/earth-system-detective-fliflop-34/data/api_prototype_test.py)), a função `compare_location_a_and_b(location_a, location_b, start_year, end_year)` executa:
+In the prototype ([`api_prototype_test.py`](api_prototype_test.py)), `compare_location_a_and_b(location_a, location_b, start_year, end_year)` executes:
 
-1. **Coleta desacoplada de 1 variável por local (com indicação da API puxada):**
-   - Cada execução imprime no terminal `>>> PUXANDO API [...]: <Nome da API> | Endpoint: <URL> | Variável: <var>` e grava `"api_puxada"` e `"endpoint_consultado"` no JSON de saída.
-   - `fetch_location_single_variable(location_a, ...)` puxa apenas `variable` de `location_a` (aplicando `snap_merra2` para NASA POWER, removendo `-999` e `YYYY13`, e convertendo `PRECTOTCORR` de `mm/day` para `mm/mês`).
-   - `fetch_location_single_variable(location_b, ...)` puxa apenas `variable` de `location_b` (podendo ser da mesma API ou de outra, como Open-Meteo GloFAS).
-2. **Alinhamento temporal estrito:** Intersecta apenas os meses comuns `[t_0, t_f]` entre A e B (276 meses de `2001-01` a `2023-12` no teste salvo).
-3. **Anomalias + Regressão + Correlação Multiescala:**
-   - Extrai anomalias mensais dessazonalizadas ($Y'_{a,m} = Y_{a,m} - \bar{Y}_m$) para A e B.
-   - Calcula inclinação decadal por **OLS** e **Theil-Sen** ($10 \times B_{\text{ano}}$) respeitando escala (`ratio` vs. `interval` para `allow_percentage_change`).
-   - Calcula **$r_{\text{global}}$** (correlação secular das anomalias) e **$r_{\text{detrended}}$** (correlação residual de curto prazo após remover a tendência linear de A e B).
+1. **Decoupled collection of 1 variable per location (with queried API indicator):**
+   - Each run prints `>>> PUXANDO API [...]: <API Name> | Endpoint: <URL> | Variável: <var>` to the terminal and records `"api_puxada"` and `"endpoint_consultado"` in the output JSON.
+   - `fetch_location_single_variable(location_a, ...)` fetches only `variable` for `location_a` (applying `snap_merra2` for NASA POWER, removing `-999` and `YYYY13`, and converting `PRECTOTCORR` from `mm/day` to `mm/month`).
+   - `fetch_location_single_variable(location_b, ...)` fetches only `variable` for `location_b` (either from the same API or another, such as Open-Meteo GloFAS).
+2. **Strict temporal alignment:** Intersects only common months `[t_0, t_f]` between A and B (276 months from `2001-01` to `2023-12` in the saved test).
+3. **Anomalies + Regression + Multiscale Correlation:**
+   - Extracts deseasonalized monthly anomalies ($Y'_{y,m} = Y_{y,m} - \bar{Y}_m$) for A and B.
+   - Computes decadal slope via **OLS** and **Theil–Sen** ($10 \times B_{\text{year}}$) respecting scale (`ratio` vs. `interval` for `allow_percentage_change`).
+   - Computes **$r_{\text{global}}$** (secular correlation of anomalies) and **$r_{\text{detrended}}$** (short-term residual correlation after removing linear trends from A and B).
 
 ---
 
-## 3. Como Executar o Protótipo
+## 3. How to Run the Prototype
 
-### Execução padrão (testa as 2 APIs abertas ao vivo + faz *probe* das 3 APIs com cadastro)
+### Default run (tests the 2 open APIs live + probes the 3 registration-gated APIs)
 ```bash
 python3 data/api_prototype_test.py
 ```
 
-### Execução autenticada (recomendada após criar os tokens gratuitos)
-1. Preencha suas credenciais no arquivo local [`data/.env`](file:///home/felipe-martins/dev/repository/earth-system-detective-fliflop-34/data/.env) (baseado em [`data/.env.example`](file:///home/felipe-martins/dev/repository/earth-system-detective-fliflop-34/data/.env.example) e já protegido no `.gitignore` para nunca subir segredos ao Git):
+### Authenticated run (recommended after creating free tokens)
+1. Fill in your credentials in the local file [`data/.env`](.env) (based on [`data/.env.example`](.env.example) and already protected in `.gitignore` so secrets are never pushed to Git):
    - `NOAA_CDO_TOKEN`
-   - `EARTHDATA_USERNAME` e `EARTHDATA_PASSWORD`
+   - `EARTHDATA_USERNAME` and `EARTHDATA_PASSWORD`
    - `EARTHDATA_TOKEN`
-2. Rode diretamente (o script lê `data/.env` automaticamente):
+2. Run directly (the script loads `data/.env` automatically):
 ```bash
 python3 data/api_prototype_test.py
 ```
 
-O script grava a saída consolidada em [`data/sample_comparison_output.json`](file:///home/felipe-martins/dev/repository/earth-system-detective-fliflop-34/data/sample_comparison_output.json).
+The script writes the consolidated output to [`data/sample_comparison_output.json`](sample_comparison_output.json).

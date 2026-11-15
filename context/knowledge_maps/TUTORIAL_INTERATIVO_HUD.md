@@ -1,8 +1,8 @@
-# Guia Técnico — Tutorial Interativo Passo a Passo (HUD Tático/Científico 2D) (`TUTORIAL_INTERATIVO_HUD.md`)
+# Technical Guide — Step-by-Step Interactive Tutorial (2D Tactical/Scientific HUD) (`TUTORIAL_INTERATIVO_HUD.md`)
 
-**Branch de referência:** `mapa`  
-**Área:** Onboarding, Sincronização de UI & UX (`PROD-1` + `PROD-2`)  
-**Arquivos principais:**
+**Reference branch:** `mapa`
+**Track:** Onboarding, UI & UX Synchronization (`PROD-1` + `PROD-2`)
+**Main files:**
 - `frontend/src/services/tutorialState.ts`
 - `frontend/src/tutorial/tutorialSteps.ts`
 - `frontend/src/tutorial/TutorialOverlay.tsx`
@@ -16,78 +16,78 @@
 
 ---
 
-## 1. Objetivo e Comportamento Geral
+## 1. Objective and General Behavior
 
-Implementar um tutorial guiado nativo em React/CSS (100% offline, sem bibliotecas externas) no formato de missões tático-científicas de jogo 2D, cobrindo o fluxo completo da aplicação em **8 etapas** (`BRIEFING INICIAL` + `MISSÃO 1 / 7` a `MISSÃO 7 / 7`):
+Implement a native React/CSS guided tutorial (100% offline, zero external libraries) styled as 2D-game tactical-scientific missions, covering the entire application flow in **8 steps** (`INITIAL BRIEFING` + `MISSION 1 / 7` through `MISSION 7 / 7`):
 
-1. **Recepção única na primeira entrada:** abre automaticamente apenas quando `shouldAutoOpenTutorial()` retorna `true` (nenhum registro válido em `localStorage`).
-2. **Reabertura sob demanda (`?`):** botão permanente **`Tutorial interativo (?)`** (`.tutorial-trigger`) no cabeçalho `.brand-header`, separado do botão contextual `Ajuda científica (?)` interno da Bancada Científica.
-3. **Foco e edição estritos por etapa:** em cada missão, apenas os seletores explicados naquela etapa recebem recorte iluminado e interação/edição ao vivo; controles ainda não explicados permanecem escurecidos e bloqueados atrás do scrim SVG.
+1. **Single welcome on first entry into the free map:** the Home page remains the default entry. The tutorial opens when accessing the `Map` tab without an active case and without a valid `localStorage` record.
+2. **On-demand reopening (`?`):** permanent **`Interactive tutorial (?)`** button (`.tutorial-trigger`) in the `.brand-header`, separate from the contextual `Scientific help (?)` button inside the Scientific Bench.
+3. **Strict per-step focus and editing:** in each mission, only the selectors explained in that step receive an illuminated cutout and live interaction/editing; unexplained controls remain dimmed and blocked behind the SVG scrim.
 
 ---
 
-## 2. Persistência Local (`frontend/src/services/tutorialState.ts`)
+## 2. Local Persistence (`frontend/src/services/tutorialState.ts`)
 
-- **Chave:** `TUTORIAL_STORAGE_KEY = 'flipflop34:tutorial:v1'`.
+- **Key:** `TUTORIAL_STORAGE_KEY = 'flipflop34:tutorial:v1'`.
 - **Schema (`PersistedTutorialState`):**
   - `version: 1`
   - `status: 'completed' | 'skipped'`
   - `updatedAt: string` (ISO 8601)
   - `lastStepId: string`
 - **API:**
-  - `loadTutorialState()` — valida o JSON e retorna `null` caso esteja ausente, corrompido ou bloqueado por privacidade/quota.
-  - `shouldAutoOpenTutorial()` — retorna `loadTutorialState() === null`.
-  - `saveTutorialOutcome(status, lastStepId)` — grava conclusão ou skip no `localStorage`.
-  - `resetTutorialState()` — remove a chave armazenada.
+  - `loadTutorialState()` — validates JSON and returns `null` if missing, corrupted, or blocked by privacy/quota.
+  - `shouldAutoOpenTutorial()` — returns `loadTutorialState() === null`.
+  - `saveTutorialOutcome(status, lastStepId)` — writes completion or skip to `localStorage`.
+  - `resetTutorialState()` — removes the stored key.
 
 ---
 
-## 3. Roteiro das 8 Etapas (`frontend/src/tutorial/tutorialSteps.ts`)
+## 3. 8-Step Script (`frontend/src/tutorial/tutorialSteps.ts`)
 
-Cada item de `TUTORIAL_STEPS` define metadados visuais (`phaseTag`, `rankTitle`, `badgeIcon`), resumo, `fieldTip`, `interactiveHint`, `shortcuts` opcionais, `resolveMissionStatus` (leitura ao vivo via `TutorialLiveContext`) e `resolveTarget({ hasAnalysis })`:
+Each item in `TUTORIAL_STEPS` defines visual metadata (`phaseTag`, `rankTitle`, `badgeIcon`), summary, `fieldTip`, `interactiveHint`, optional `shortcuts`, `resolveMissionStatus` (live reading via `TutorialLiveContext`), and `resolveTarget({ hasAnalysis })`:
 
-| Ordem | `id` | Título | `selectors` estritos (`fallbackSelectors`) | Aba / Painel |
+| Order | `id` | Title | Strict `selectors` (`fallbackSelectors`) | Tab / Panel |
 | :---: | :--- | :--- | :--- | :--- |
-| `1 / 8` | `briefing` | `Bem-vindo ao Earth System Trend Detective` | `[]` (`placement: 'center'`) | Mapa |
-| `2 / 8` | `variables-and-period` | `Escolha as Variáveis A/B e o Período` | `['[data-tour="sidebar-controls"]']` (`['[data-tour="workflow-progress"]']`) | Mapa + Sidebar aberta |
-| `3 / 8` | `global-trends-fdr` | `Leia Tendências Globais e Significância` | `['[data-tour="map-trend-tools"]', '[data-tour="map-legend"]']` | Mapa |
-| `4 / 8` | `hotspot-shortcuts` | `Salte Direto para Hotspots Globais` | `['[data-tour="hotspot-actions"]']` | Mapa |
-| `5 / 8` | `spatial-selection` | `Marque Regiões A e B no Mapa` | `['[data-tour="map-selection-tools"]', '[data-tour="map-nav-tools"]', '[data-tour="map-stage"]']` | Mapa |
-| `6 / 8` | `cartography-layers` | `Alterne Camadas de Satélite e Cartografia Local` | `['.map-container .leaflet-control-layers']` (`['[data-tour="map-stage"]']`) | Mapa |
-| `7 / 8` | `run-analysis` | `Confira o Resumo e Dispare a Análise` | `['[data-tour="map-actions"]', '[data-tour="query-summary"]']` (`['[data-tour="analyze-button"]']`) | Mapa |
-| `8 / 8` | `scientific-bench` | `Explore a Bancada Científica e Exporte Provas` | Sem análise: `['[data-tour="tab-bench"]']` (`showBenchPreview: true`)<br>Com análise: `['[data-tour="bench-panel"]']` | Mapa (prévia) ou Bancada |
+| `1 / 8` | `briefing` | `Welcome to Earth System Trend Detective` | `[]` (`placement: 'center'`) | Map |
+| `2 / 8` | `variables-and-period` | `Choose Variables A/B and Period` | `['[data-tour="sidebar-controls"]']` (`['[data-tour="workflow-progress"]']`) | Map + Sidebar open |
+| `3 / 8` | `global-trends-fdr` | `Read Global Trends and Significance` | `['[data-tour="map-trend-tools"]', '[data-tour="map-legend"]']` | Map |
+| `4 / 8` | `hotspot-shortcuts` | `Jump Straight to Global Hotspots` | `['[data-tour="hotspot-actions"]']` | Map |
+| `5 / 8` | `spatial-selection` | `Mark Regions A and B on the Map` | `['[data-tour="map-selection-tools"]', '[data-tour="map-nav-tools"]', '[data-tour="map-stage"]']` | Map |
+| `6 / 8` | `cartography-layers` | `Switch Satellite and Local Cartography Layers` | `['.map-container .leaflet-control-layers']` (`['[data-tour="map-stage"]']`) | Map |
+| `7 / 8` | `run-analysis` | `Review Summary and Run Analysis` | `['[data-tour="map-actions"]', '[data-tour="query-summary"]']` (`['[data-tour="analyze-button"]']`) | Map |
+| `8 / 8` | `scientific-bench` | `Explore the Scientific Bench and Export Evidence` | No analysis: `['[data-tour="tab-bench"]']` (`showBenchPreview: true`)<br>With analysis: `['[data-tour="bench-panel"]']` | Map (preview) or Bench |
 
 ---
 
-## 4. Motor de Overlay, Recorte SVG e Anti-Sobreposição (`TutorialOverlay.tsx` + `bench.css`)
+## 4. Overlay Engine, SVG Cutout, and Anti-Overlap (`TutorialOverlay.tsx` + `bench.css`)
 
-### 4.1 Scrim SVG multi-furo com `fillRule="evenodd"`
-- `buildEvenOddScrimPath(rects, vw, vh)` cria o retângulo externo da viewport combinado aos subcaminhos arredondados (`roundedRectSubpath`) de cada retângulo de destaque em `<svg className="tutorial-scrim-svg"><path className="tutorial-scrim-path" fillRule="evenodd" clipRule="evenodd" ... /></svg>`.
-- Em `bench.css`, `.tutorial-scrim-path` usa `fill: rgba(4, 10, 18, .76)` e `pointer-events: visiblePainted`: os "furos" ficam transparentes aos cliques do usuário direto nos controles destacados, enquanto cliques fora dos alvos disparam o ping visual (`.tutorial-spotlight.is-pinged`).
-- Um `.tutorial-spotlight` com cantoneiras HUD (`.spotlight-corner`) envolve cada elemento resolvido por `resolveStepElements`.
+### 4.1 Multi-Hole SVG Scrim with `fillRule="evenodd"`
+- `buildEvenOddScrimPath(rects, vw, vh)` builds the outer viewport rectangle combined with rounded subpaths (`roundedRectSubpath`) for each highlight rectangle inside `<svg className="tutorial-scrim-svg"><path className="tutorial-scrim-path" fillRule="evenodd" clipRule="evenodd" ... /></svg>`.
+- In `bench.css`, `.tutorial-scrim-path` uses `fill: rgba(4, 10, 18, .76)` and `pointer-events: visiblePainted`: the "holes" are transparent to user clicks directly on highlighted controls, while clicks outside targets trigger the visual ping (`.tutorial-spotlight.is-pinged`).
+- A `.tutorial-spotlight` with HUD corner brackets (`.spotlight-corner`) wraps each element resolved by `resolveStepElements`.
 
-### 4.2 Posicionamento inteligente (`computeCardLayout`)
-- Classifica os retângulos focados entre **controles/painéis** e **palcos amplos** (`r.width > vw * 0.65 && r.height > vh * 0.4`).
-- Avalia múltiplos candidatos ao redor de `primaryRect`, da união dos controles (`computeBoundingUnion`), dos alvos individuais, dos cantos/bordas da viewport e de **bolsos de altura adaptativa** (`MIN_POCKET_CARD_HEIGHT = 210` após medir a altura natural sem `maxHeight` via `measureNaturalCardSize`).
-- Penaliza interseção com controles usando `CONTROL_OVERLAP_WEIGHT = 1000` (vs. `STAGE_OVERLAP_WEIGHT = 1` e `STAGE_CENTER_OVERLAP_WEIGHT = 8` para o miolo do mapa), impedindo que o card cubra botões de seleção, filtros ou `[data-tour="query-summary"]`.
-- Quando o único alvo é o painel completo da Bancada (`hasAnalysis === true` na etapa `8/8`), o card ancora no **canto inferior direito** (sem `.is-centered`) para não obstruir os gráficos Plotly e os botões do cabeçalho (`Ajuda científica (?)`, `Exportar CSV/JSON`).
-- Em `.tutorial-hud-card` (`bench.css`), o layout em coluna flex fixa cabeçalho, barra de progresso e rodapé de navegação (`Pular tutorial`, `Anterior`, `Próximo`), restringindo rolagem apenas a `.tutorial-hud-body` em telas baixas.
-- Permite **Minimizar (`−`) / Expandir** o card para liberar 100% da tela ao marcar células no mapa.
+### 4.2 Smart Positioning (`computeCardLayout`)
+- Classifies focused rectangles into **controls/panels** vs. **wide stages** (`r.width > vw * 0.65 && r.height > vh * 0.4`).
+- Evaluates multiple candidates around `primaryRect`, the union of controls (`computeBoundingUnion`), individual targets, viewport corners/edges, and **adaptive height pockets** (`MIN_POCKET_CARD_HEIGHT = 210` after measuring natural height without `maxHeight` via `measureNaturalCardSize`).
+- Penalizes overlap with controls using `CONTROL_OVERLAP_WEIGHT = 1000` (vs. `STAGE_OVERLAP_WEIGHT = 1` and `STAGE_CENTER_OVERLAP_WEIGHT = 8` for the map center), preventing the card from covering selection buttons, filters, or `[data-tour="query-summary"]`.
+- When the sole target is the full Bench panel (`hasAnalysis === true` at step `8/8`), the card anchors in the **bottom-right corner** (without `.is-centered`) so it does not obstruct Plotly charts or header buttons (`Scientific help (?)`, `Export CSV/JSON`).
+- In `.tutorial-hud-card` (`bench.css`), the flex column layout pins header, progress bar, and navigation footer (`Skip tutorial`, `Previous`, `Next`), restricting scroll to `.tutorial-hud-body` on short viewports.
+- Allows **Minimize (`−`) / Expand** to free 100% of the screen when marking cells on the map.
 
-### 4.3 Sincronização reativa de estado e teclado (`App.tsx` + `TutorialOverlay.tsx`)
-- **Observadores de layout:** `ResizeObserver`, `MutationObserver` nos alvos (ex.: expansão de `.leaflet-control-layers`) e `mountObserver` temporário no `<main>`/`document.body` quando um alvo ainda vai montar após troca de aba.
-- **Popovers Mantine acima do overlay:** `Select` e `MonthPickerInput` em `App.tsx` usam `zIndex: tutorialOpen ? 1325 : 1100` (entre o scrim e o card).
-- **Teclado seguro durante edição:** `ArrowRight` / `ArrowLeft` são ignorados quando o foco está dentro de controles editáveis (`isEditingControlOrPopup`), e `Escape` respeita menus/popovers Mantine efetivamente visíveis (`hasOpenMantinePopup`) antes de fechar o tutorial.
-- **Sidebar / Drawer:** `effectiveSidebarOpen` expande temporariamente `#variables-sidebar` no desktop ou abre o drawer mobile (`.drawer-open`) durante a etapa `2/8`, restaurando o estado anterior ao avançar.
-- **Transição `7/8 -> 8/8` apenas em nova análise:** `prevAnalysisForTutorialRef` em `App.tsx` compara o resultado anterior de `analysis` com o atual, evitando pular o passo `7/8` caso o usuário reabra o tutorial com uma análise prévia já carregada, e avançando para `8/8` (`scientific-bench`) assim que uma nova consulta conclui em `run-analysis`.
+### 4.3 Reactive State and Keyboard Synchronization (`App.tsx` + `TutorialOverlay.tsx`)
+- **Layout observers:** `ResizeObserver`, `MutationObserver` on targets (e.g., expanding `.leaflet-control-layers`), and a temporary `mountObserver` on `<main>`/`document.body` when a target has yet to mount after a tab switch.
+- **Mantine popovers above overlay:** `Select` and `MonthPickerInput` in `App.tsx` use `zIndex: tutorialOpen ? 1325 : 1100` (between scrim and card).
+- **Safe keyboard during editing:** `ArrowRight` / `ArrowLeft` are ignored when focus is inside editable controls (`isEditingControlOrPopup`), and `Escape` respects visibly open Mantine menus/popovers (`hasOpenMantinePopup`) before closing the tutorial.
+- **Sidebar / Drawer:** `effectiveSidebarOpen` temporarily expands `#variables-sidebar` on desktop or opens the mobile drawer (`.drawer-open`) during step `2/8`, restoring the previous state upon advancing.
+- **`7/8 -> 8/8` transition only on new analysis:** `prevAnalysisForTutorialRef` in `App.tsx` compares the previous `analysis` result with the current one, avoiding skipping step `7/8` if the user reopens the tutorial with a prior analysis loaded, and advancing to `8/8` (`scientific-bench`) as soon as a new query completes in `run-analysis`.
 
 ---
 
-## 5. Cobertura de Testes e Configuração Playwright
+## 5. Test Coverage and Playwright Configuration
 
-- **Testes unitários (`frontend/src/__tests__/tutorialWalkthrough.test.tsx`):** 5 testes cobrindo persistência/fallback de `tutorialState`, 8 etapas e modo adaptativo da Bancada, ciclo de 1ª visita (`localStorage`), foco/teclado/dropdown Mantine/`fill-rule="evenodd"`/ancoragem de `bench-panel` e sincronização da barra lateral.
-- **Testes E2E (`frontend/e2e/trendDetective.spec.ts`):**
-  - Desktop `1366×768`: 1ª visita automática, edição ao vivo da Variável A, alternância de `Só q < 0,05`, bloqueio de controles fora do foco verificado via `document.elementFromPoint`, zero sobreposição em `5/8` e `7/8`, visibilidade do botão `Próximo`, minimizar/expandir ao selecionar célula, persistência pós-reload e reabertura pelo `?`.
-  - Mobile `375×812`: abertura pelo `?`, sincronização automática do drawer `#variables-sidebar.drawer-open` sem overflow horizontal, enquadramento do card e fechamento por `Escape`.
-  - Transição `7/8 -> 8/8` com análise prévia carregada (`mockAnalyzeOffline: true`): garante permanência no passo `7/8`, avanço automático para `8/8` após nova consulta e ancoragem no canto inferior direito sem `.is-centered`.
-- **Canal local do Playwright (`frontend/playwright.config.ts`):** `resolveLocalBrowserChannel()` mantém `undefined` no CI (`process.env.CI`) e detecta localmente Chrome ou Edge no Windows.
+- **Unit tests (`frontend/src/__tests__/tutorialWalkthrough.test.tsx`):** 5 tests covering `tutorialState` persistence/fallback, 8 steps and adaptive Bench mode, 1st-visit cycle (`localStorage`), focus/keyboard/Mantine dropdown/`fill-rule="evenodd"`/`bench-panel` anchoring, and sidebar synchronization.
+- **E2E tests (`frontend/e2e/trendDetective.spec.ts`):**
+  - Desktop `1366×768`: automatic 1st visit, live Variable A editing, `q < 0.05 only` toggle, out-of-focus control blocking verified via `document.elementFromPoint`, zero overlap at `5/8` and `7/8`, `Next` button visibility, minimize/expand when selecting a cell, post-reload persistence, and `?` reopening.
+  - Mobile `375×812`: opening via `?`, automatic `#variables-sidebar.drawer-open` synchronization without horizontal overflow, card framing, and `Escape` closing.
+  - `7/8 -> 8/8` transition with a prior analysis loaded (`mockAnalyzeOffline: true`): ensures staying on step `7/8`, automatic advance to `8/8` after a new query, and bottom-right anchoring without `.is-centered`.
+- **Local Playwright channel (`frontend/playwright.config.ts`):** `resolveLocalBrowserChannel()` keeps `undefined` in CI (`process.env.CI`) and locally detects Chrome or Edge on Windows.

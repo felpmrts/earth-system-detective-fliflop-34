@@ -1,4 +1,4 @@
-"""Armazenamento de cache JSON por célula, variável e janela temporal."""
+"""JSON cache storage per cell, variable, and time window."""
 
 from __future__ import annotations
 
@@ -9,7 +9,7 @@ from typing import Any
 
 
 class CellCacheStore:
-    """Cache em disco leve (JSON) para evitar chamadas HTTP repetidas às APIs."""
+    """Lightweight disk cache (JSON) to avoid repeated HTTP calls to APIs."""
 
     def __init__(self, cache_dir: Path | None = None) -> None:
         self.cache_dir = cache_dir or (Path(__file__).resolve().parent / "storage")
@@ -40,7 +40,7 @@ class CellCacheStore:
         end_year: int,
         extra: str = "",
     ) -> dict[str, Any] | None:
-        """Lê a entrada em cache se existir; retorna None em caso de miss."""
+        """Reads the cached entry if it exists; returns None on cache miss."""
         path = self.cache_dir / self._build_key(
             connector_id, variable, lat, lon, start_year, end_year, extra
         )
@@ -62,7 +62,7 @@ class CellCacheStore:
         payload: dict[str, Any],
         extra: str = "",
     ) -> Path:
-        """Persiste uma entrada limpa no cache em disco."""
+        """Persists a clean entry in the disk cache."""
         path = self.cache_dir / self._build_key(
             connector_id, variable, lat, lon, start_year, end_year, extra
         )

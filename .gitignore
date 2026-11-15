@@ -1,12 +1,29 @@
-# Credenciais e segredos locais (nunca commitar)
+# Local credentials and secrets (never commit)
 .env
 **/.env
 !.env.example
 !**/.env.example
+data/.env
 
-# Ambientes e caches Python / dados temporários
+# Python environments, caches, and generated data
 .venv/
+venv/
 __pycache__/
-*.pyc
-data/cache/storage/
+*.py[cod]
+*$py.class
+.pytest_cache/
+.coverage
 
+# Frontend dependencies and generated artifacts
+node_modules/
+dist/
+test-results/
+playwright-report/
+
+# Generated data and local worktrees
+data/cache/storage/
+.local-data/
+.local-mapa/
+
+# Operating-system files
+.DS_Store

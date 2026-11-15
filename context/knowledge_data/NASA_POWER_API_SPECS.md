@@ -1,66 +1,66 @@
-# Especificações Técnicas e Regras de Ingestão — NASA POWER API v2 (`DADOS-1`)
+# Technical Specifications & Ingestion Rules — NASA POWER API v2 (`DADOS-1`)
 
-> **Resumo Técnico Validado por `DADOS-1` (Kaio e Felipe):** Regras obrigatórias de tratamento de dados, limites de *bounding box*, unidades físicas, *rate limits* e formato de armazenamento para o backend do *Earth System Trend Detective*.
-
----
-
-## 1. Máscara Oceânica e Valores Faltantes (`GWETTOP` / `GWETROOT`)
-
-- **Valor Sentinela (*Fill Value*):** O valor padrão de dado ausente na NASA POWER API é **`-999`** (ou `-999.0` no JSON/CSV), e **não** `null`.
-- **Comportamento no Oceano:** As variáveis de umidade do solo (`GWETTOP` — superficial $0\text{--}5\text{ cm}$, e `GWETROOT` — zona radicular $0\text{--}100\text{ cm}$) vêm do modelo terrestre **MERRA-2 Land**, que só possui dados sobre continentes/ilhas. Se uma coordenada (`/point`) ou célula dentro de um retângulo (`/regional`) cair no oceano, a API retorna **`-999`** para todos os meses daquela célula.
-- **Regra Obrigatória no Backend:** Antes de calcular a média espacial de uma composição de células (especialmente em regiões costeiras como Rio de Janeiro ou Santos) ou rodar regressões, substituir `-999` por `np.nan` (`df.replace(-999, np.nan)`) e usar `np.nanmean()` para que o oceano não distorça a média da área terrestre.
+> **Technical Summary Validated by `DADOS-1` (Kaio and Felipe):** Mandatory data handling rules, *bounding box* limits, physical units, *rate limits*, and storage format for the *Earth System Trend Detective* backend.
 
 ---
 
-## 2. Unidade Real de `PRECTOTCORR` (Comunidade `AG`) e Filtro de `YYYY13`
+## 1. Ocean Mask and Missing Values (`GWETTOP` / `GWETROOT`)
 
-- **Unidade Retornada:** Mesmo no endpoint **mensal** (`/api/temporal/monthly/point` ou `/regional`) na comunidade `AG` (Agroclimatologia), a variável `PRECTOTCORR` (*Precipitation Corrected*) retorna como **taxa média diária (`mm/day`)**, e **não** o acumulado do mês (`mm/month`).
-- **Confirmação no Payload:** O bloco `"parameters"` no topo do JSON informa explicitamente `"units": "mm/day"`.
-- **Regras Obrigatórias no Backend:**
-  1. **Descartar a chave `YYYY13`:** A NASA POWER inclui a chave anual `YYYY13` junto aos 12 meses (`YYYY01..YYYY12`) nas séries mensais. Ela deve ser filtrada antes de qualquer cálculo estatístico.
-  2. **Conversão para `mm/mês`:** Para exibir o volume total mensal em `mm/mês`, multiplicar o valor de cada mês pelo número de dias daquele mês (`calendar.monthrange(ano, mes)[1]`), tratando anos bissextos em fevereiro.
+- **Sentinel Value (*Fill Value*):** The default missing-data value in the NASA POWER API is **`-999`** (or `-999.0` in JSON/CSV), and **not** `null`.
+- **Behavior Over Oceans:** Soil moisture variables (`GWETTOP` — surface $0\text{--}5\text{ cm}$, and `GWETROOT` — root zone $0\text{--}100\text{ cm}$) come from the **MERRA-2 Land** model, which only has data over continents/islands. If a coordinate (`/point`) or cell inside a rectangle (`/regional`) falls over the ocean, the API returns **`-999`** for every month of that cell.
+- **Mandatory Backend Rule:** Before computing the spatial mean of a cell composition (especially in coastal regions like Rio de Janeiro or Santos) or running regressions, replace `-999` with `np.nan` (`df.replace(-999, np.nan)`) and use `np.nanmean()` so ocean cells do not distort the land-area mean.
 
 ---
 
-## 3. `/point` vs. `/regional`: Limites de Bounding Box e Latência
+## 2. Actual Unit of `PRECTOTCORR` (`AG` Community) and `YYYY13` Filter
 
-| Característica | `/api/temporal/monthly/point` | `/api/temporal/monthly/regional` |
+- **Returned Unit:** Even on the **monthly** endpoint (`/api/temporal/monthly/point` or `/regional`) in the `AG` (Agroclimatology) community, the variable `PRECTOTCORR` (*Precipitation Corrected*) is returned as a **daily mean rate (`mm/day`)**, and **not** the monthly total (`mm/month`).
+- **Confirmation in Payload:** The `"parameters"` block at the top of the JSON explicitly reports `"units": "mm/day"`.
+- **Mandatory Backend Rules:**
+  1. **Discard the `YYYY13` key:** NASA POWER includes the annual key `YYYY13` alongside the 12 months (`YYYY01..YYYY12`) in monthly series. It must be filtered out before any statistical calculation.
+  2. **Conversion to `mm/month`:** To display monthly total volume in `mm/month`, multiply each month's value by the number of days in that month (`calendar.monthrange(year, month)[1]`), handling leap years in February.
+
+---
+
+## 3. `/point` vs. `/regional`: Bounding Box Limits and Latency
+
+| Feature | `/api/temporal/monthly/point` | `/api/temporal/monthly/regional` |
 | :--- | :--- | :--- |
-| **Parâmetros por chamada** | Até **20 parâmetros** (`parameters=T2M,PRECTOTCORR,...`) | Apenas **1 parâmetro** por requisição (múltiplos geram erro `422 Unprocessable Entity`) |
-| **Tamanho mínimo** | 1 célula nativa (`lat`, `lon`) | **`2° × 2°`** (caixas menores, como `0.5° × 0.5°`, retornam erro `422`) |
-| **Tamanho máximo síncrono** | 1 célula nativa | **`10° × 10°`** (acima disso exige processamento assíncrono/lote) |
-| **Latência real (20–30 anos)** | **~0,8 s a 1,8 s** | **~1,5 s a 3,5 s** |
+| **Parameters per call** | Up to **20 parameters** (`parameters=T2M,PRECTOTCORR,...`) | Only **1 parameter** per request (multiple parameters return `422 Unprocessable Entity`) |
+| **Minimum size** | 1 native cell (`lat`, `lon`) | **`2° × 2°`** (smaller boxes, such as `0.5° × 0.5°`, return `422`) |
+| **Maximum synchronous size** | 1 native cell | **`10° × 10°`** (larger requires async/batch processing) |
+| **Real latency (20–30 years)** | **~0.8 s to 1.8 s** | **~1.5 s to 3.5 s** |
 
-- **Atenção à Grade MERRA-2 ($0{,}5^\circ \text{ lat} \times 0{,}625^\circ \text{ lon}$):** Mesmo uma composição $3\times 3$ do MERRA-2 mede $1{,}5^\circ \times 1{,}875^\circ$, que é menor que o mínimo de $2^\circ \times 2^\circ$ do `/regional`. Portanto, para composições pequenas ($K \le 9$ células adjacentes), o uso de `/point` com controle de concorrência e cache por célula é o caminho padrão (ou `/regional` quando a caixa atingir $\ge 2^\circ \times 2^\circ$ para 1 variável).
-
----
-
-## 4. Rate Limits, Concorrência e Composição de Células Adjacentes
-
-- **Limites Oficiais (NASA POWER API v2):**
-  - **Por minuto:** Máximo de **30 requisições/minuto** por IP (consultas síncronas).
-  - **Concorrência simultânea:** Tolera rajadas curtas de **3 a 5 chamadas simultâneas** (`asyncio` / `ThreadPoolExecutor`). Disparar 9 chamadas paralelas de uma vez frequentemente gera **`429 Too Many Requests`** ou timeouts.
-- **Composição Flexível de Células Adjacentes ($K \le 9$):**
-  - O usuário não está restrito a quadrados $1\times 1 \to 2\times 2 \to 3\times 3$; pode montar qualquer formato de células adjacentes que tenham **pelo menos um ponto/vértice em comum** (ex.: $1\times 3$, $2\times 1$, $2\times 2$), permitindo escolher uma geometria para o dado $X$ (ex.: $1\times 3$) e outra para o dado $Y$ (ex.: $2\times 1$).
-- **Estratégia no Backend:**
-  - Usar semáforo de concorrência **`asyncio.Semaphore(3)`** com *backoff* exponencial.
-  - Cachear individualmente cada célula `(lat, lon, var)` para que expansões de área reutilizem células já baixadas sem novas chamadas HTTP.
+- **Note on the MERRA-2 Grid ($0.5^\circ \text{ lat} \times 0.625^\circ \text{ lon}$):** Even a $3\times 3$ MERRA-2 composition measures $1.5^\circ \times 1.875^\circ$, which is smaller than `/regional`'s $2^\circ \times 2^\circ$ minimum. Therefore, for small compositions ($K \le 9$ adjacent cells), using `/point` with concurrency control and per-cell caching is the default path (or `/regional` when the box reaches $\ge 2^\circ \times 2^\circ$ for 1 variable).
 
 ---
 
-## 5. Decisão Final sobre Formato (Parquet Descartado no Módulo 1)
+## 4. Rate Limits, Concurrency, and Adjacent-Cell Composition
 
-- **Decisão (`DADOS-1`):** O uso de `.parquet` está **descartado definitivamente** no fluxo principal (Módulo 1).
-- **Pipeline Direto:** Mantemos `JSON (NASA POWER) -> JSON (Contrato Frontend)` com armazenamento em cache local (**JSON / SQLite**) indexado por célula individual `(lat, lon, var)` e por consulta agregada de região.
+- **Official Limits (NASA POWER API v2):**
+  - **Per minute:** Maximum of **30 requests/minute** per IP (synchronous queries).
+  - **Simultaneous concurrency:** Tolerates short bursts of **3 to 5 concurrent calls** (`asyncio` / `ThreadPoolExecutor`). Firing 9 parallel calls at once frequently triggers **`429 Too Many Requests`** or timeouts.
+- **Flexible Adjacent-Cell Composition ($K \le 9$):**
+  - The user is not restricted to $1\times 1 \to 2\times 2 \to 3\times 3$ squares; they can assemble any shape of adjacent cells sharing **at least one point/vertex** (e.g., $1\times 3$, $2\times 1$, $2\times 2$), allowing one geometry for variable $X$ (e.g., $1\times 3$) and another for variable $Y$ (e.g., $2\times 1$).
+- **Backend Strategy:**
+  - Use an **`asyncio.Semaphore(3)`** concurrency semaphore with exponential *backoff*.
+  - Cache each `(lat, lon, var)` cell individually so area expansions reuse already-downloaded cells without extra HTTP calls.
 
 ---
 
-## 6. Regra de Snap Geográfico (Lat/Lon)
+## 5. Final Format Decision (Parquet Discarded in Module 1)
 
-- **MERRA-2 ($0{,}5^\circ \text{ lat} \times 0{,}625^\circ \text{ lon}$) — Malha única padrão no frontend:**
+- **Decision (`DADOS-1`):** `.parquet` usage is **definitively discarded** in the main flow (Module 1).
+- **Direct Pipeline:** We keep `JSON (NASA POWER) -> JSON (Frontend Contract)` with local cache storage (**JSON / SQLite**) indexed by individual cell `(lat, lon, var)` and by aggregated region query.
+
+---
+
+## 6. Geographic Snap Rule (Lat/Lon)
+
+- **MERRA-2 ($0.5^\circ \text{ lat} \times 0.625^\circ \text{ lon}$) — Single default mesh on the frontend:**
   - `lat_snap = round(lat / 0.5) * 0.5`
-  - `lon_snap = round(lon / 0.625) * 0.625` *(arredondado para 4 casas decimais na chave de cache)*
-- **CERES ($1{,}0^\circ \times 1{,}0^\circ$, centros em meio-grau):**
+  - `lon_snap = round(lon / 0.625) * 0.625` *(rounded to 4 decimal places in the cache key)*
+- **CERES ($1.0^\circ \times 1.0^\circ$, half-degree centers):**
   - `lat_snap = floor(lat) + 0.5`
   - `lon_snap = floor(lon) + 0.5`
-  - *(Como `/point` aceita até 20 variáveis misturando MERRA-2 e CERES na mesma chamada, o frontend utiliza apenas a grade fina MERRA-2.)*
+  - *(Since `/point` accepts up to 20 parameters mixing MERRA-2 and CERES in the same call, the frontend uses only the fine MERRA-2 grid.)*

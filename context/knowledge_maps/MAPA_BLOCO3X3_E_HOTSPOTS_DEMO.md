@@ -1,8 +1,8 @@
-# Guia Técnico — Seleção em Bloco 3×3 e Navegação por Extremos Globais (`MAPA_BLOCO3X3_E_HOTSPOTS_DEMO.md`)
+# Technical Guide — 3×3 Block Selection and Global Extremes Navigation (`MAPA_BLOCO3X3_E_HOTSPOTS_DEMO.md`)
 
-**Branch de referência:** `mapa`  
-**Área:** Mapas & Visualização Geoespacial (`PROD-1`)  
-**Arquivos principais:**
+**Reference branch:** `mapa`
+**Track:** Maps & Geospatial Visualization (`PROD-1`)
+**Main files:**
 - `frontend/src/geo/gridGeometry.ts`
 - `frontend/src/map/mapStyles.ts`
 - `frontend/src/map/MapWorkspace.tsx`
@@ -12,65 +12,65 @@
 
 ---
 
-## 1. Objetivo das Atualizações
+## 1. Goal of the Updates
 
-Preparar o módulo de mapa interativo para a demonstração ao vivo com duas evoluções de alta produtividade sem alterar o Contrato de Dados nem os 7 Invariantes Estatísticos:
+Prepare the interactive map module for live demonstration with two high-productivity enhancements without altering the Data Contract or the 7 Statistical Invariants:
 
-1. **Bloco Conexo 3×3 (`Alt + Clique` e toggle `"Bloco 3×3"`):** selecionar até 9 células nativas contíguas ao redor de um ponto clicado em 1 único clique.
-2. **Extremos Globais (`Extremo +` e `Extremo −`):** saltar diretamente para os hotspots globais de maior tendência positiva e negativa da variável ativa com zoom regional (`7`) e alvo visual explícito.
-
----
-
-## 2. Seleção em Bloco 3×3 (`buildCellBlock3x3`)
-
-### 2.1 Função pura em `frontend/src/geo/gridGeometry.ts`
-- **Assinatura:** `buildCellBlock3x3(lat: number, lon: number, variableId: VariableId): GridCell[]`
-- **Funcionamento:**
-  1. Valida `(lat, lon)` e encaixa a célula central via `snapCoordToCell(lat, lon, variableId)` (respeitando `MERRA-2` `0.5° × 0.625°`, `CERES_SYN1deg` `1.0° × 1.0°` e grades `0.5° × 0.5°`).
-  2. Gera os deslocamentos `dr, dc ∈ {-1, 0, 1}` ao redor de `(center.row, center.col)` via `buildCellFromRowCol`.
-  3. Descarta células fora dos limites geográficos/regionais do modelo (`candidate.lat ∈ [grid_origin.lat0, 90]`, `candidate.lon ∈ [grid_origin.lon0, 180]`, `bounds_leaflet` contidos em `[-90, 90] × [-180, 180]`, `south < north` e `west < east`).
-  4. Deduplica `cell_id` via `deduplicateCells`, garantindo componente 8-conexo com:
-     - **9 células** (`3×3`) em pontos interiores;
-     - **6 células** (`2×3` ou `3×2`) em bordas polares (`±90°`) ou do antimeridiano (`±180°`);
-     - **4 células** (`2×2`) nas quatro quinas extremas do globo.
-
-### 2.2 Integração na UI (`MapWorkspace.tsx` + `bench.css`)
-- **Botão `"Bloco 3×3"` na `.map-toolbar`:** alterna `blockSelectMode` de forma **mutuamente exclusiva** com **`"Arrastar Seleção"`** (`dragSelectMode`). Ativar um desativa o outro automaticamente.
-- **Atalho `"Alt + Clique"`:** funciona a qualquer momento (`Boolean(event.originalEvent?.altKey)`) mesmo com o botão toggle desligado.
-- **Locais suportados:** funciona tanto ao clicar no mapa quanto diretamente sobre um marcador circular da grade global (`L.CircleMarker`, com `L.DomEvent.stopPropagation` evitando disparo duplicado).
-- **Preview e slots:** exibe *preview* das células do bloco 3×3 durante o `mousemove`, respeita `activeSlot` (`A` ou `B`), alimenta a pilha de **`Desfazer`** e aciona o espelhamento **`Mesmo Local (A=B)`** (`mirrorRegionSelection`) entre resoluções diferentes (ex.: `MERRA-2` ↔ `CERES_SYN1deg`).
+1. **Connected 3×3 Block (`Alt + Click` and `"3×3 Block"` toggle):** select up to 9 contiguous native cells around a clicked point in a single click.
+2. **Global Extremes (`Extreme +` and `Extreme −`):** jump directly to the global hotspots with the strongest positive and negative trends for the active variable at regional zoom (`7`) with an explicit visual target.
 
 ---
 
-## 3. Navegação por Extremos Globais (`findGlobalTrendHotspots`)
+## 2. 3×3 Block Selection (`buildCellBlock3x3`)
 
-### 3.1 Seleção determinística em `frontend/src/map/mapStyles.ts`
-- **Assinatura:** `findGlobalTrendHotspots(points: readonly GlobalGridPoint[]): GlobalTrendHotspots`
-- **Regra de seleção (`selectExtremeHotspot`):**
-  1. Filtra valores finitos com sinal compatível (`slope_sen_decade > 0` para `+`; `slope_sen_decade < 0` para `−`).
-  2. **Prioriza pontos com significância FDR (`q_value_fdr < 0.05`)** quando existirem nessa direção — impedindo que ruído com `q ≥ 0.05` mascare um hotspot estatisticamente validado.
-  3. Caso não haja nenhum ponto com `q_value_fdr < 0.05` na direção solicitada, faz *fallback* para o ponto de maior magnitude naquela direção (ex.: único ponto negativo não significativo em `T2M_grid.json`).
-  4. Se não existir nenhum ponto na direção (ex.: `ALLSKY_SFC_LW_DWN_grid.json`, sem pontos negativos), retorna `null` e mantém o respectivo botão desabilitado.
-  5. Em empate exato de `slope_sen_decade`, escolhe o menor `q_value_fdr`.
+### 2.1 Pure Function in `frontend/src/geo/gridGeometry.ts`
+- **Signature:** `buildCellBlock3x3(lat: number, lon: number, variableId: VariableId): GridCell[]`
+- **Behavior:**
+  1. Validates `(lat, lon)` and snaps the center cell via `snapCoordToCell(lat, lon, variableId)` (respecting `MERRA-2` `0.5° × 0.625°`, `CERES_SYN1deg` `1.0° × 1.0°`, and `0.5° × 0.5°` grids).
+  2. Generates offsets `dr, dc ∈ {-1, 0, 1}` around `(center.row, center.col)` via `buildCellFromRowCol`.
+  3. Discards cells outside the model's geographic/regional bounds (`candidate.lat ∈ [grid_origin.lat0, 90]`, `candidate.lon ∈ [grid_origin.lon0, 180]`, `bounds_leaflet` contained in `[-90, 90] × [-180, 180]`, `south < north` and `west < east`).
+  4. Deduplicates `cell_id` via `deduplicateCells`, guaranteeing an 8-connected component with:
+     - **9 cells** (`3×3`) at interior points;
+     - **6 cells** (`2×3` or `3×2`) on polar edges (`±90°`) or the antimeridian (`±180°`);
+     - **4 cells** (`2×2`) at the four extreme corners of the globe.
 
-### 3.2 Feedback visual no mapa (`MapWorkspace.tsx`)
-- Botões compactos **`Extremo +`** e **`Extremo −`** na `.map-toolbar`.
-- Ao clicar:
-  1. Executa `map.flyTo([point.lat, point.lon], 7, { animate: true, duration: 0.65 })` (zoom regional alinhado ao `maxZoom: 7` de `focusRegions` e abaixo de `maxNativeZoom: 8` da camada NASA Blue Marble).
-  2. Desenha um alvo visual não-interativo em `hotspotHighlightLayer` (halo tracejado externo laranja/azul + anel interno amarelo) ao redor de `[point.lat, point.lon]`.
-  3. Abre o tooltip com inclinação, status FDR e coordenadas assim que a animação `moveend` termina (limpando listeners anteriores se o usuário alternar rapidamente ou mudar de variável).
-  4. Atualiza `.map-message` com a variável, magnitude formatada com unidade, `q_value_fdr` e coordenadas `(lat, lon)`.
+### 2.2 UI Integration (`MapWorkspace.tsx` + `bench.css`)
+- **`"3×3 Block"` button in `.map-toolbar`:** toggles `blockSelectMode` in a **mutually exclusive** way with **`"Drag Select"`** (`dragSelectMode`). Enabling one automatically disables the other.
+- **`"Alt + Click"` shortcut:** works anytime (`Boolean(event.originalEvent?.altKey)`) even when the toggle button is off.
+- **Supported targets:** works both when clicking directly on the map and directly on a circular marker of the global grid (`L.CircleMarker`, with `L.DomEvent.stopPropagation` preventing duplicate triggers).
+- **Preview and slots:** displays a *preview* of the 3×3 block cells on `mousemove`, respects `activeSlot` (`A` or `B`), feeds the **`Undo`** stack, and triggers **`Same Location (A=B)`** mirroring (`mirrorRegionSelection`) across different resolutions (e.g., `MERRA-2` ↔ `CERES_SYN1deg`).
 
 ---
 
-## 4. Verificação e Execução Local
+## 3. Global Extremes Navigation (`findGlobalTrendHotspots`)
 
-- **Testes unitários:**
-  - `frontend/src/__tests__/gridGeometry.test.ts` (bloco 3×3 central, polos, antimeridiano, quinas e re-snap heterogêneo `MERRA-2` ↔ `CERES_SYN1deg`).
-  - `frontend/src/__tests__/mapStylesAndLegend.test.ts` (prioridade `q_value_fdr < 0.05`, fallback não significativo, direção ausente e desempate).
-- **Comandos validados em `frontend/`:**
+### 3.1 Deterministic Selection in `frontend/src/map/mapStyles.ts`
+- **Signature:** `findGlobalTrendHotspots(points: readonly GlobalGridPoint[]): GlobalTrendHotspots`
+- **Selection rule (`selectExtremeHotspot`):**
+  1. Filters finite values with matching sign (`slope_sen_decade > 0` for `+`; `slope_sen_decade < 0` for `−`).
+  2. **Prioritizes points with FDR significance (`q_value_fdr < 0.05`)** when available in that direction — preventing noise with `q ≥ 0.05` from masking a statistically validated hotspot.
+  3. If no point has `q_value_fdr < 0.05` in the requested direction, falls back to the point with largest magnitude in that direction (e.g., single non-significant negative point in `T2M_grid.json`).
+  4. If no point exists in that direction (e.g., `ALLSKY_SFC_LW_DWN_grid.json`, with no negative points), returns `null` and keeps the corresponding button disabled.
+  5. On an exact tie in `slope_sen_decade`, chooses the smaller `q_value_fdr`.
+
+### 3.2 Visual Feedback on the Map (`MapWorkspace.tsx`)
+- Compact **`Extreme +`** and **`Extreme −`** buttons in `.map-toolbar`.
+- On click:
+  1. Executes `map.flyTo([point.lat, point.lon], 7, { animate: true, duration: 0.65 })` (regional zoom aligned with `focusRegions` `maxZoom: 7` and below NASA Blue Marble's `maxNativeZoom: 8`).
+  2. Draws a non-interactive visual target in `hotspotHighlightLayer` (outer dashed orange/blue halo + inner yellow ring) around `[point.lat, point.lon]`.
+  3. Opens the tooltip with slope, FDR status, and coordinates as soon as the `moveend` animation finishes (cleaning up prior listeners if the user switches rapidly or changes variables).
+  4. Updates `.map-message` with the variable, unit-formatted magnitude, `q_value_fdr`, and `(lat, lon)` coordinates.
+
+---
+
+## 4. Verification and Local Execution
+
+- **Unit tests:**
+  - `frontend/src/__tests__/gridGeometry.test.ts` (central 3×3 block, poles, antimeridian, corners, and heterogeneous `MERRA-2` ↔ `CERES_SYN1deg` re-snap).
+  - `frontend/src/__tests__/mapStylesAndLegend.test.ts` (`q_value_fdr < 0.05` priority, non-significant fallback, missing direction, and tie-breaking).
+- **Validated commands in `frontend/`:**
   - `npx tsc --noEmit`
-  - `npx vitest run` (9 arquivos, 49 testes)
-  - `npm run validate:grids -- --strict` (12/12 grades homologadas + alias `CLOUD_AMT -> CLDTOT_grid.json`)
+  - `npx vitest run` (9 files, 49 tests)
+  - `npm run validate:grids -- --strict` (12/12 homologated grids + `CLOUD_AMT -> CLDTOT_grid.json` alias)
   - `npm run build`
   - `npm run verify:offline`

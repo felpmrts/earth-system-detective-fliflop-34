@@ -1,14 +1,32 @@
-"""Contratos de entrada e saída do backend de dados."""
+"""Input and output contracts for the data backend."""
 
 from __future__ import annotations
 
+import os
 from dataclasses import dataclass
 from typing import Any
+
+DEFAULT_MAX_CELLS_PER_REGION = 25
+
+
+def get_max_cells_per_region() -> int:
+    """Reads the maximum cells per region from `MAX_CELLS_PER_REGION` (default 25)."""
+    raw = os.environ.get("MAX_CELLS_PER_REGION", "").strip()
+    if not raw:
+        return DEFAULT_MAX_CELLS_PER_REGION
+    try:
+        value = int(raw)
+        return value if value >= 1 else DEFAULT_MAX_CELLS_PER_REGION
+    except ValueError:
+        return DEFAULT_MAX_CELLS_PER_REGION
+
+
+MAX_CELLS_PER_REGION = get_max_cells_per_region()
 
 
 @dataclass(frozen=True)
 class CellCoord:
-    """Coordenada geográfica de uma célula selecionada no mapa."""
+    """Geographic coordinate of a cell selected on the map."""
 
     lat: float
     lon: float
@@ -19,10 +37,10 @@ class CellCoord:
 
 @dataclass
 class LocationQuery:
-    """Seleção de um local (A ou B) com 1 a 9 células adjacentes e 1 ou N variáveis.
+    """Selection of a location (A or B) with 1 to N adjacent cells and 1 or N variables.
 
-    - Hoje (MVP): informe `variable="T2M"` (1 variável por local).
-    - Futuro (expansão): informe `variables=["T2M", "PRECTOTCORR"]` (várias variáveis no mesmo local).
+    - Current (MVP): provide `variable="T2M"` (1 variable per location).
+    - Future (expansion): provide `variables=["T2M", "PRECTOTCORR"]` (multiple variables at the same location).
     """
 
     name: str
@@ -32,12 +50,15 @@ class LocationQuery:
     station_id: str | None = None
 
     def __post_init__(self) -> None:
-        if not (1 <= len(self.cells) <= 9):
-            raise ValueError(f"Local '{self.name}' deve possuir entre 1 e 9 células adjacentes.")
-        self.get_variables()  # valida imediatamente na criação
+        max_cells = get_max_cells_per_region()
+        if not (1 <= len(self.cells) <= max_cells):
+            raise ValueError(
+                f"Location '{self.name}' must have between 1 and {max_cells} adjacent cells."
+            )
+        self.get_variables()  # validate immediately on creation
 
     def get_variables(self) -> list[str]:
-        """Normaliza o acesso para sempre devolver uma lista não-vazia sem duplicatas."""
+        """Normalizes access to always return a non-empty deduplicated list."""
         raw: list[str] = []
         if self.variable:
             raw.append(self.variable)
@@ -52,13 +73,13 @@ class LocationQuery:
                 unique.append(clean)
         if not unique:
             raise ValueError(
-                f"Local '{self.name}' precisa definir 'variable' (1 variável) ou 'variables' (lista)."
+                f"Location '{self.name}' must define 'variable' (1 variable) or 'variables' (list)."
             )
         return unique
 
     @classmethod
-    def from_dict(cls, payload: dict[str, Any], *, default_name: str = "Local") -> LocationQuery:
-        """Constrói `LocationQuery` a partir de um JSON recebido via API REST ou script."""
+    def from_dict(cls, payload: dict[str, Any], *, default_name: str = "Location") -> LocationQuery:
+        """Builds `LocationQuery` from JSON received via REST API or script."""
         raw_cells = payload.get("cells") or []
         cells = [
             CellCoord(lat=float(item["lat"]), lon=float(item["lon"]))

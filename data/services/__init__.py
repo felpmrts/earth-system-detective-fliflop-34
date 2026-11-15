@@ -1,4 +1,4 @@
-"""Camada de serviços (roteamento de ingestão e comparação estatística A/B)."""
+"""Service layer (ingestion routing and A/B statistical comparison)."""
 
 from .comparison_service import (
     compare_locations_multi_variable,

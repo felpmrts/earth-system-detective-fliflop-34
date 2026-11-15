@@ -1,4 +1,4 @@
-"""Modelos de contrato de entrada e saída do backend de dados."""
+"""Input and output contract models for the data backend."""
 
 from .contracts import CellCoord, LocationQuery
 

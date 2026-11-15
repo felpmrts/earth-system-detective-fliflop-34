@@ -24,31 +24,31 @@ export function buildMapLegendConfig(variableId: VariableId): MapLegendConfig {
     variableId,
     title: meta.variable_name,
     trendUnit: meta.trend_unit,
-    statisticalNote: 'Tendência: Theil-Sen/década | Significância: AR(1) + FDR q < 0,05',
+    statisticalNote: 'Trend: Theil-Sen/decade | Significance: AR(1) + FDR q < 0.05',
     directionItems: [
       {
-        label: `Tendência Positiva (+ ${meta.trend_unit})`,
+        label: `Positive Trend (+ ${meta.trend_unit})`,
         color: '#d9480f',
         styleHint: 'solid',
       },
       {
-        label: `Tendência Negativa (- ${meta.trend_unit})`,
+        label: `Negative Trend (- ${meta.trend_unit})`,
         color: '#1864ab',
         styleHint: 'solid',
       },
     ],
     significanceItems: [
       {
-        label: 'Significativo (q < 0,05 — preenchimento sólido)',
+        label: 'Significant (q < 0.05 — solid fill)',
         color: '#0f172a',
         styleHint: 'solid',
       },
       {
-        label: 'Não significativo / ruído (q ≥ 0,05 — tracejado translúcido)',
+        label: 'Not significant / noise (q ≥ 0.05 — translucent dashed)',
         color: '#64748b',
         styleHint: 'dashed',
       },
     ],
-    magnitudeNote: `Tamanho do marcador proporcional a |inclinação| em ${meta.trend_unit}.`,
+    magnitudeNote: `Marker size proportional to |slope| in ${meta.trend_unit}.`,
   };
 }

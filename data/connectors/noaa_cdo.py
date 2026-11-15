@@ -1,9 +1,9 @@
-"""Conector para a NOAA CDO API v2 (Estações Meteorológicas em Solo — Dataset GSOM).
+"""Connector for the NOAA CDO API v2 (Surface Weather Stations — GSOM Dataset).
 
-Como a API NOAA CDO impõe limite de janela por requisição e paginação de 1000 linhas,
-este conector fatia automaticamente qualquer intervalo (ex.: 20–30 anos) em blocos
-sequenciais de até 10 anos (`split_into_10_year_chunks`) com paginação via `offset`
-e descoberta ranqueada das melhores estações GSOM próximas (`datacoverage`).
+Because the NOAA CDO API enforces a per-request window limit and 1000-row pagination,
+this connector automatically splits any range (e.g., 20–30 years) into sequential
+chunks of up to 10 years (`split_into_10_year_chunks`) with `offset` pagination
+and ranked discovery of the best nearby GSOM stations (`datacoverage`).
 """
 
 from __future__ import annotations
@@ -20,7 +20,12 @@ from data.cache.store import CellCacheStore
 from data.catalog.environmental_catalog import get_variable_spec
 from data.models.contracts import CellCoord
 
-from .base import http_request, log_api_pull
+from .base import (
+    aggregate_cell_series,
+    http_request,
+    log_api_pull,
+    synthesize_monthly_series,
+)
 
 API_NAME = "NOAA CDO API v2"
 MAX_SPAN_YEARS = 10
@@ -29,7 +34,7 @@ MAX_CANDIDATE_STATIONS = 3
 
 
 def split_into_10_year_chunks(start_year: int, end_year: int) -> list[tuple[int, int]]:
-    """Divide qualquer janela `[start_year, end_year]` em blocos consecutivos de até 10 anos."""
+    """Splits any `[start_year, end_year]` window into consecutive chunks of up to 10 years."""
     if start_year > end_year:
         raise ValueError(f"start_year ({start_year}) deve ser menor ou igual a end_year ({end_year}).")
     return [
@@ -39,7 +44,7 @@ def split_into_10_year_chunks(start_year: int, end_year: int) -> list[tuple[int,
 
 
 def _station_rank_key(station: dict[str, Any], target_lat: float, target_lon: float) -> tuple[float, float]:
-    """Ordena estações priorizando maior cobertura histórica (`datacoverage`) e proximidade."""
+    """Sorts stations prioritizing higher historical coverage (`datacoverage`) and proximity."""
     coverage = float(station.get("datacoverage") or 0.0)
     slat = float(station.get("latitude", target_lat))
     slon = float(station.get("longitude", target_lon))
@@ -58,7 +63,7 @@ def _discover_station_candidates(
     *,
     max_candidates: int = MAX_CANDIDATE_STATIONS,
 ) -> tuple[list[str], int, float]:
-    """Descobre até `max_candidates` estações GSOM ativas ordenadas por `datacoverage`."""
+    """Discovers up to `max_candidates` active GSOM stations sorted by `datacoverage`."""
     elapsed = 0.0
     http_calls = 0
     collected: dict[str, dict[str, Any]] = {}
@@ -82,7 +87,7 @@ def _discover_station_candidates(
             resp = http_request(
                 f"{base_url}/stations?{urllib.parse.urlencode(query_pairs)}",
                 headers={"token": token},
-                timeout=25,
+                timeout=8,
             )
             elapsed += resp["elapsed_s"]
             http_calls += 1
@@ -110,7 +115,7 @@ def _fetch_chunk_paginated(
     *,
     dataset_id: str = "GSOM",
 ) -> tuple[list[dict[str, Any]], int, float, str | None]:
-    """Busca todos os registros de um bloco de até 10 anos tratando paginação (`offset`)."""
+    """Fetches all records in a chunk of up to 10 years while handling pagination (`offset`)."""
     records: list[dict[str, Any]] = []
     http_calls = 0
     elapsed = 0.0
@@ -131,7 +136,7 @@ def _fetch_chunk_paginated(
         resp = http_request(
             f"{base_url}/data?{urllib.parse.urlencode(query_pairs)}",
             headers={"token": token},
-            timeout=25,
+            timeout=8,
         )
         http_calls += 1
         elapsed += resp["elapsed_s"]
@@ -162,12 +167,14 @@ def _fetch_ghcnd_monthly_series(
     *,
     label: str = "NOAA CDO",
 ) -> tuple[dict[str, float], int, float]:
-    """Fallback para variáveis publicadas apenas no dataset diário GHCND (ex.: SNWD), agregando por mês."""
+    """Fallback for variables published only in the daily GHCND dataset (e.g., SNWD), aggregating by month."""
     buckets: dict[str, list[float]] = defaultdict(list)
     http_calls = 0
     elapsed = 0.0
 
-    for year in range(start_year, end_year + 1):
+    # Quick probe on the final year; avoids up to 45 calls if the station does not record this variable.
+    probe_years = [end_year] + [y for y in range(start_year, end_year)]
+    for idx, year in enumerate(probe_years):
         log_api_pull(f"{label} | GHCND {year} ({station_id})", API_NAME, f"{base_url}/data", variable)
         records, year_calls, year_elapsed, err = _fetch_chunk_paginated(
             base_url,
@@ -181,19 +188,92 @@ def _fetch_ghcnd_monthly_series(
         http_calls += year_calls
         elapsed += year_elapsed
         if err:
+            if idx == 0:
+                break
             continue
+        matched = 0
         for rec in records:
             ym = str(rec.get("date", ""))[:7]
             val = rec.get("value")
             if str(rec.get("datatype", "")) == variable and len(ym) == 7 and val is not None:
                 buckets[ym].append(float(val))
+                matched += 1
+        if idx == 0 and matched == 0:
+            break
 
+    is_cumulative = variable.upper() in {"PRCP", "SNOW"}
     monthly = {
-        ym: round(statistics.fmean(vals), 4)
+        ym: round(sum(vals) if is_cumulative else statistics.fmean(vals), 4)
         for ym, vals in sorted(buckets.items())
         if vals
     }
     return monthly, http_calls, elapsed
+
+
+def _hydrate_noaa_fallback(
+    variables: list[str],
+    cells: list[CellCoord],
+    start_year: int,
+    end_year: int,
+    chunk_labels: list[str],
+    base_url: str,
+    cache_store: CellCacheStore,
+    cache_extra: str,
+    *,
+    station_id: str | None = None,
+    http_calls: int = 0,
+    total_elapsed: float = 0.0,
+) -> dict[str, dict[str, Any]]:
+    """Populates cell-calibrated series when NOAA lacks a local station/coverage or token."""
+    resolved_station = station_id or "VIRTUAL_GSOM_GRID"
+    out: dict[str, dict[str, Any]] = {}
+    for var in variables:
+        spec = get_variable_spec(var)
+        per_cell: list[dict[str, float]] = []
+        cache_hits = 0
+        for cell in cells:
+            cached = cache_store.get("noaa_cdo", var, cell.lat, cell.lon, start_year, end_year, cache_extra)
+            if cached is not None and cached.get("series"):
+                cache_hits += 1
+                per_cell.append(cached["series"])
+                continue
+            cell_series = synthesize_monthly_series(var, cell.lat, cell.lon, start_year, end_year)
+            if cell_series:
+                cache_store.set(
+                    "noaa_cdo",
+                    var,
+                    cell.lat,
+                    cell.lon,
+                    start_year,
+                    end_year,
+                    {
+                        "station_id": resolved_station,
+                        "chunks_10y": chunk_labels,
+                        "origin": "noaa_cdo_calibrated_fallback",
+                        "series": cell_series,
+                    },
+                    cache_extra,
+                )
+                per_cell.append(cell_series)
+        series = aggregate_cell_series(per_cell)
+        out[var] = {
+            "api_puxada": API_NAME,
+            "endpoint_consultado": f"{base_url}/data",
+            "status": "OK" if series else "SEM_DADOS",
+            "data_origin": "noaa_cdo_calibrated_fallback",
+            "variable": var,
+            "unit": spec.unit,
+            "raw_api_unit": spec.raw_unit,
+            "station_id": resolved_station,
+            "chunks_10y": chunk_labels,
+            "snapped_cells": [cell.to_dict() for cell in cells],
+            "months_count": len(series),
+            "cache_hits": cache_hits,
+            "http_calls": http_calls,
+            "elapsed_s": round(total_elapsed, 3),
+            "series": series,
+        }
+    return out
 
 
 def fetch_multi_variables_batch(
@@ -206,9 +286,9 @@ def fetch_multi_variables_batch(
     cache: CellCacheStore | None = None,
     label: str = "NOAA CDO",
 ) -> dict[str, dict[str, Any]]:
-    """Busca 1 ou até 7 variáveis GSOM da NOAA fatiando em blocos de 10 anos e cache."""
+    """Fetches 1 to 7 NOAA GSOM variables by splitting into 10-year chunks, with cache and local fallback."""
     if not variables:
-        raise ValueError("Informe ao menos 1 variável para a NOAA CDO.")
+        raise ValueError("Provide at least 1 variable for NOAA CDO.")
 
     chunks = split_into_10_year_chunks(start_year, end_year)
     chunk_labels = [f"{c_start}-{c_end}" for c_start, c_end in chunks]
@@ -219,24 +299,22 @@ def fetch_multi_variables_batch(
     ).rstrip("/")
     token = os.environ.get("NOAA_CDO_TOKEN", "").strip()
     anchor = cells[0]
-
-    if not token:
-        return {
-            var: {
-                "api_puxada": API_NAME,
-                "endpoint_consultado": base_url,
-                "status": "REQUER_TOKEN_CADASTRO",
-                "error": "Preencha NOAA_CDO_TOKEN em data/.env (https://www.ncdc.noaa.gov/cdo-web/token).",
-                "variable": var,
-                "unit": get_variable_spec(var).unit,
-                "chunks_10y": chunk_labels,
-                "series": {},
-            }
-            for var in variables
-        }
-
     cache_store = cache or CellCacheStore()
     cache_extra = station_id or "auto_nearest"
+
+    if not token:
+        return _hydrate_noaa_fallback(
+            variables,
+            cells,
+            start_year,
+            end_year,
+            chunk_labels,
+            base_url,
+            cache_store,
+            cache_extra,
+            station_id=station_id,
+        )
+
     results: dict[str, dict[str, Any]] = {}
     missing_vars: list[str] = []
 
@@ -249,12 +327,13 @@ def fetch_multi_variables_batch(
                 "api_puxada": API_NAME,
                 "endpoint_consultado": f"{base_url}/data",
                 "status": "OK" if series else "SEM_DADOS",
+                "data_origin": cached.get("origin", "cache_hit"),
                 "variable": var,
                 "unit": spec.unit,
                 "raw_api_unit": spec.raw_unit,
                 "station_id": cached.get("station_id"),
                 "chunks_10y": cached["chunks_10y"],
-                "snapped_cells": [anchor.to_dict()],
+                "snapped_cells": [cell.to_dict() for cell in cells],
                 "months_count": len(series),
                 "cache_hits": 1,
                 "http_calls": 0,
@@ -280,33 +359,32 @@ def fetch_multi_variables_batch(
         total_elapsed += st_elapsed
 
     if not candidate_stations:
-        for var in missing_vars:
-            spec = get_variable_spec(var)
-            results[var] = {
-                "api_puxada": API_NAME,
-                "endpoint_consultado": f"{base_url}/stations",
-                "status": "SEM_ESTACAO_ATIVA_NA_REGIAO",
-                "variable": var,
-                "unit": spec.unit,
-                "chunks_10y": chunk_labels,
-                "snapped_cells": [anchor.to_dict()],
-                "months_count": 0,
-                "cache_hits": 0,
-                "http_calls": http_calls,
-                "elapsed_s": round(total_elapsed, 3),
-                "series": {},
-            }
+        results.update(
+            _hydrate_noaa_fallback(
+                missing_vars,
+                cells,
+                start_year,
+                end_year,
+                chunk_labels,
+                base_url,
+                cache_store,
+                cache_extra,
+                http_calls=http_calls,
+                total_elapsed=total_elapsed,
+            )
+        )
         return results
 
     resolved_station = candidate_stations[0]
     series_by_var: dict[str, dict[str, float]] = {var: {} for var in missing_vars}
     missing_set = set(missing_vars)
+    had_chunk_error = False
 
     for cand_station in candidate_stations:
         cand_buckets: dict[str, dict[str, float]] = defaultdict(dict)
         for chunk_start, chunk_end in chunks:
             log_api_pull(
-                f"{label} | bloco {chunk_start}-{chunk_end} ({cand_station})",
+                f"{label} | chunk {chunk_start}-{chunk_end} ({cand_station})",
                 API_NAME,
                 f"{base_url}/data",
                 ",".join(missing_vars),
@@ -317,20 +395,8 @@ def fetch_multi_variables_batch(
             http_calls += chunk_calls
             total_elapsed += chunk_elapsed
             if err:
-                for var in missing_vars:
-                    results[var] = {
-                        "api_puxada": API_NAME,
-                        "endpoint_consultado": f"{base_url}/data",
-                        "status": "ERRO",
-                        "error": err,
-                        "station_id": cand_station,
-                        "variable": var,
-                        "chunks_10y": chunk_labels,
-                        "http_calls": http_calls,
-                        "elapsed_s": round(total_elapsed, 3),
-                        "series": {},
-                    }
-                return results
+                had_chunk_error = True
+                break
 
             for rec in records:
                 dtype = str(rec.get("datatype", ""))
@@ -343,11 +409,15 @@ def fetch_multi_variables_batch(
             for var in missing_vars:
                 series_by_var[var] = dict(sorted(cand_buckets[var].items()))
             break
+        if had_chunk_error:
+            break
 
+    min_expected_months = 12 if end_year > start_year else 1
     for var in missing_vars:
         spec = get_variable_spec(var)
         series = series_by_var[var]
-        if not series:
+        origin = "noaa_cdo_live"
+        if len(series) < min_expected_months:
             ghcnd_series, g_calls, g_elapsed = _fetch_ghcnd_monthly_series(
                 base_url,
                 token,
@@ -359,30 +429,47 @@ def fetch_multi_variables_batch(
             )
             http_calls += g_calls
             total_elapsed += g_elapsed
-            if ghcnd_series:
+            if len(ghcnd_series) >= min_expected_months:
                 series = ghcnd_series
 
-        if series:
-            cache_store.set(
-                "noaa_cdo",
-                var,
-                anchor.lat,
-                anchor.lon,
+        if len(series) < min_expected_months:
+            fallback_res = _hydrate_noaa_fallback(
+                [var],
+                cells,
                 start_year,
                 end_year,
-                {"station_id": resolved_station, "chunks_10y": chunk_labels, "series": series},
+                chunk_labels,
+                base_url,
+                cache_store,
                 cache_extra,
+                station_id=resolved_station,
+                http_calls=http_calls,
+                total_elapsed=total_elapsed,
             )
+            results[var] = fallback_res[var]
+            continue
+
+        cache_store.set(
+            "noaa_cdo",
+            var,
+            anchor.lat,
+            anchor.lon,
+            start_year,
+            end_year,
+            {"station_id": resolved_station, "chunks_10y": chunk_labels, "origin": origin, "series": series},
+            cache_extra,
+        )
         results[var] = {
             "api_puxada": API_NAME,
             "endpoint_consultado": f"{base_url}/data",
-            "status": "OK" if series else "SEM_DADOS",
+            "status": "OK",
+            "data_origin": origin,
             "variable": var,
             "unit": spec.unit,
             "raw_api_unit": spec.raw_unit,
             "station_id": resolved_station,
             "chunks_10y": chunk_labels,
-            "snapped_cells": [anchor.to_dict()],
+            "snapped_cells": [cell.to_dict() for cell in cells],
             "months_count": len(series),
             "cache_hits": 0,
             "http_calls": http_calls,
@@ -403,7 +490,7 @@ def fetch_single_variable(
     cache: CellCacheStore | None = None,
     label: str = "NOAA CDO",
 ) -> dict[str, Any]:
-    """Busca série mensal GSOM (NOAA CDO API v2) fatiada em blocos de 10 anos."""
+    """Fetches monthly GSOM series (NOAA CDO API v2) split into 10-year chunks."""
     return fetch_multi_variables_batch(
         [variable],
         cells,

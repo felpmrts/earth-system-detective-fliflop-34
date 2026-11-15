@@ -1,56 +1,56 @@
-# 07. Arquitetura & Prompt Oficial do Chatbot Co-Piloto Estatístico (`DADOS-2` — Fase 4)
+# 07. Architecture & Official Prompt of the Statistical Co-Pilot Chatbot (`DADOS-2` — Phase 4)
 
-> **Escopo no Mission Control:** Tarefa `F4 · P0 · MUST` — *"Definir arquitetura e prompt do Chatbot Co-Piloto Estatístico para interpretação"* (`DADOS-2`).  
-> **Implementação Executável:** [`backend/copilot_engine.py`](../../backend/copilot_engine.py) | **Rota HTTP:** `POST /api/copilot` em [`data/api/server.py`](../../data/api/server.py) | **Testes:** [`backend/test_copilot_engine.py`](../../backend/test_copilot_engine.py).
+> **Mission Control Scope:** Task `F4 · P0 · MUST` — *"Define architecture and prompt for the Statistical Co-Pilot Chatbot for interpretation"* (`DADOS-2`).
+> **Executable Implementation:** [`backend/copilot_engine.py`](../../backend/copilot_engine.py) | **HTTP Route:** `POST /api/copilot` in [`data/api/server.py`](../../data/api/server.py) | **Tests:** [`backend/test_copilot_engine.py`](../../backend/test_copilot_engine.py).
 
 ---
 
-## 1. Visão Geral & Arquitetura Híbrida (`LLM Rápida + Fallback Heurístico Determinístico`)
+## 1. Overview & Hybrid Architecture (`Fast LLM + Deterministic Heuristic Fallback`)
 
-O **Chatbot Co-Piloto Estatístico** traduz instantaneamente o JSON estruturado retornado pelo motor estatístico (`RegionAnalysisResponse` de `POST /api/analyze`) em um diagnóstico científico auditável em **Português (`pt`)** ou **Inglês (`en`)**, estruturado em torno das **4 Respostas do Detetive** e cego a alucinações numéricas.
+The **Statistical Co-Pilot Chatbot** instantaneously translates the structured JSON returned by the statistical engine (`RegionAnalysisResponse` from `POST /api/analyze`) into an auditable scientific diagnosis in **Portuguese (`pt`)** or **English (`en`)**, structured around the **4 Detective Answers** and immune to numerical hallucinations.
 
-Para garantir **latência previsível na demonstração** e **resiliência total em modo offline / sem chave de API** (Portão 4 / Risco de rede), o motor adota uma arquitetura híbrida de **dois estágios com pós-validação invariante**:
+To guarantee **predictable latency during the demo** and **full resilience in offline / API-key-free mode** (Gate 4 / Network risk), the engine adopts a **two-stage hybrid architecture with invariant post-validation**:
 
 ```mermaid
 flowchart TD
-    UI["Painel Lateral Co-Piloto (PROD-2)<br/>POST /api/copilot"] --> VAL{"Payload contém<br/>region_a_analysis válido?"}
-    VAL -- Não --> ERR["HTTP 400 Bad Request"]
-    VAL -- Sim --> CTX["Extração & Serialização Enxuta<br/>build_copilot_prompt() + 4 Respostas"]
+    UI["Co-Pilot Side Panel (PROD-2)<br/>POST /api/copilot"] --> VAL{"Does payload contain<br/>valid region_a_analysis?"}
+    VAL -- No --> ERR["HTTP 400 Bad Request"]
+    VAL -- Yes --> CTX["Lean Extraction & Serialization<br/>build_copilot_prompt() + 4 Answers"]
 
-    CTX --> KEY{"GEMINI_API_KEY presente<br/>e use_llm = True?"}
-    KEY -- Sim --> LLM["Chamada HTTP LLM Rápida<br/>gemini-2.5-flash (urllib, timeout 4.0s)<br/>System Prompt + 7 Invariantes"]
-    LLM -- Sucesso --> GUARD["Pós-Validação Invariante #3<br/>sanitize_interval_scale_percentages()"]
+    CTX --> KEY{"GEMINI_API_KEY present<br/>and use_llm = True?"}
+    KEY -- Yes --> LLM["Fast LLM HTTP Call<br/>gemini-2.5-flash (urllib, 4.0s timeout)<br/>System Prompt + 7 Invariants"]
+    LLM -- Success --> GUARD["Invariant #3 Post-Validation<br/>sanitize_interval_scale_percentages()"]
     GUARD --> RES_LLM["CopilotResponse<br/>mode: 'llm_gemini'"]
 
-    KEY -- Não --> HEUR["Gerador de Síntese Estatística<br/>Heurística Determinística (< 10 ms)<br/>generate_heuristic_synthesis()"]
-    LLM -- Timeout / Erro de Rede / HTTP --> HEUR
+    KEY -- No --> HEUR["Deterministic Heuristic<br/>Statistical Synthesizer (< 10 ms)<br/>generate_heuristic_synthesis()"]
+    LLM -- Timeout / Network / HTTP Error --> HEUR
     HEUR --> RES_H["CopilotResponse<br/>mode: 'heuristic_fallback'"]
 ```
 
-### Princípios Arquiteturais
-1. **Zero Cálculo Novo no Chat:** O Co-Piloto nunca reprocessa séries brutas nem estima tendências por conta própria; ele consome exclusivamente os números já auditados pelo `stats_engine.py` / `comparison_service.py` (`OLS`, `Theil-Sen`, `IC 95%`, `B2`, `GAM`, `Mahalanobis`, `AR(1) n_eff`, `FDR q`, `r_global`, `r_detrended`).
-2. **Pós-Validação Rígida de Escala (Invariante #3):** Mesmo quando a resposta vem de uma LLM externa, `sanitize_interval_scale_percentages()` verifica todas as variáveis com `scale_type == "interval"` ou `allow_percentage_change == False` e bloqueia/neutraliza menções indevidas a variação percentual (`%`) associadas a temperatura (`°C`) ou pressão (`kPa`).
-3. **Fallback Determinístico de Alta Fidelidade (`< 10 ms`):** Sem chave `GEMINI_API_KEY` ou em queda de rede, `generate_heuristic_synthesis()` constrói o laudo completo em Markdown com as 4 Respostas do Detetive, análise de acoplamento multiescala, eventos extremos de Mahalanobis e respostas direcionadas às perguntas mais frequentes de jurados e usuários.
+### Architectural Principles
+1. **Zero New Computation in Chat:** The Co-Pilot never reprocesses raw series or estimates trends on its own; it consumes exclusively the numbers already audited by `stats_engine.py` / `comparison_service.py` (`OLS`, `Theil-Sen`, `95% CI`, `B2`, `GAM`, `Mahalanobis`, `AR(1) n_eff`, `FDR q`, `r_global`, `r_detrended`).
+2. **Strict Scale Post-Validation (Invariant #3):** Even when the response comes from an external LLM, `sanitize_interval_scale_percentages()` inspects all variables with `scale_type == "interval"` or `allow_percentage_change == False` and blocks/neutralizes improper percentage (`%`) mentions associated with temperature (`°C`) or pressure (`kPa`).
+3. **High-Fidelity Deterministic Fallback (`< 10 ms`):** Without a `GEMINI_API_KEY` or during a network drop, `generate_heuristic_synthesis()` builds the full Markdown report with the 4 Detective Answers, multiscale coupling analysis, Mahalanobis extreme events, and targeted answers to the most frequent questions from judges and users.
 
 ---
 
-## 2. Os 7 Invariantes Estatísticos como Trava do Prompt
+## 2. The 7 Statistical Invariants as Prompt Locks
 
-Todo texto gerado pelo Co-Piloto (seja via LLM ou via síntese heurística) obedece estritamente às 7 regras invioláveis da `knowledge_base_estatistica/`:
+All text generated by the Co-Pilot (whether via LLM or heuristic synthesis) strictly obeys the 7 inviolable rules of `knowledge_base_estatistica/`:
 
-1. **Proibição de $Y_{\text{fim}} - Y_{\text{início}}$:** Toda taxa decadal citada deve vir das inclinações ajustadas sobre toda a nuvem ($B_{\text{OLS}}$ e $B_{\text{Sen}}$), jamais da diferença entre os extremos.
-2. **Isolamento Sazonal (Princípio Henrietta Leavitt):** As tendências referem-se às anomalias climatológicas mensais dessazonalizadas ($Y'_{a,m} = Y_{a,m} - \bar{Y}_m$) na mesma janela temporal.
-3. **Respeito à Escala (`interval` vs. `ratio`):** Se `scale_type == "interval"` ou `allow_percentage_change == false`, **é terminantemente proibido expressar a mudança em `%`**. Use apenas a unidade física (`°C/década`, `kPa/década`, `fração/década`).
-4. **Distinção entre Inclinação ($B$) e Acoplamento ($r, \tau, R^2$):** Informar separadamente a velocidade física da mudança ($B_{\text{Sen}}, B_{\text{OLS}}$) e a previsibilidade/estreiteza da elipse ($r$, $\tau$, $R^2$).
-5. **Decomposição Multiescala ($r_{\text{global}}$ vs. $r_{\text{detrended}}$):** Ao comparar Região A e Região B, explicitar se há divergência espacial (*"sobe aqui, cai ali"*) ou paradoxo multiescala (ex.: subida conjunta em décadas com oposição interanual via ENSO).
-6. **Não-Linearidade Física (GAM & $B_2$):** Classificar o regime (`linear_trend`, `accelerating_rise`, `accelerating_decline`, `decelerating_or_shifting`, `stable`) com base na aceleração quadrática $B_2$ e na curva GAM suavizada.
-7. **Memória Climática ($\text{AR}(1)$), FDR e Outliers ($D_M > 2{,}5$):** Reportar $n_{\text{eff}}$ vs. $N_{\text{obs}}$, $p_{\text{AR1}}$ e $q_{\text{FDR}}$, além dos eventos extremos de Mahalanobis sem ocultá-los.
+1. **Prohibition of $Y_{\text{end}} - Y_{\text{start}}$:** Every decadal rate cited must come from slopes fitted over the entire cloud ($B_{\text{OLS}}$ and $B_{\text{Sen}}$), never from the difference between endpoints.
+2. **Seasonal Isolation (Henrietta Leavitt Principle):** Trends refer to deseasonalized monthly climatological anomalies ($Y'_{a,m} = Y_{a,m} - \bar{Y}_m$) over the exact same time window.
+3. **Scale Respect (`interval` vs. `ratio`):** If `scale_type == "interval"` or `allow_percentage_change == false`, **it is strictly forbidden to express change in `%`**. Use only the physical unit (`°C/decade`, `kPa/decade`, `fraction/decade`).
+4. **Distinction Between Slope ($B$) and Coupling ($r, \tau, R^2$):** Report separately the physical speed of change ($B_{\text{Sen}}, B_{\text{OLS}}$) and the predictability/ellipse tightness ($r$, $\tau$, $R^2$).
+5. **Multiscale Decomposition ($r_{\text{global}}$ vs. $r_{\text{detrended}}$):** When comparing Region A and Region B, state explicitly whether there is spatial divergence (*"rises here, falls there"*) or a multiscale paradox (e.g., joint rise over decades with interannual opposition via ENSO).
+6. **Physical Nonlinearity (GAM & $B_2$):** Classify the regime (`linear_trend`, `accelerating_rise`, `accelerating_decline`, `decelerating_or_shifting`, `stable`) based on quadratic acceleration $B_2$ and the smoothed GAM curve.
+7. **Climate Memory ($\text{AR}(1)$), FDR, and Outliers ($D_M > 2.5$):** Report $n_{\text{eff}}$ vs. $N_{\text{obs}}$, $p_{\text{AR1}}$, and $q_{\text{FDR}}$, as well as Mahalanobis extreme events without hiding them.
 
 ---
 
-## 3. System Prompt Oficial (Português & Inglês)
+## 3. Official System Prompts (Portuguese & English)
 
-### 3.1 Versão Português (`COPILOT_SYSTEM_PROMPT_PT`)
+### 3.1 Portuguese Version (`COPILOT_SYSTEM_PROMPT_PT`)
 
 ```text
 Você é o Co-Piloto Estatístico do "Earth System Trend Detective" (NASA Space Apps Challenge 2026).
@@ -74,7 +74,7 @@ Responda sempre em Markdown conciso estruturando:
 - **Resposta direta à pergunta do usuário** (quando houver pergunta).
 ```
 
-### 3.2 Versão Inglês (`COPILOT_SYSTEM_PROMPT_EN`)
+### 3.2 English Version (`COPILOT_SYSTEM_PROMPT_EN`)
 
 ```text
 You are the Statistical Co-Pilot of "Earth System Trend Detective" (NASA Space Apps Challenge 2026).
@@ -95,46 +95,46 @@ Use structured Markdown covering the 4 Detective Answers (1. WHAT is changing, 2
 
 ---
 
-## 4. Contrato da API (`POST /api/copilot`)
+## 4. API Contract (`POST /api/copilot`)
 
-### Requisição (`CopilotRequest`)
+### Request (`CopilotRequest`)
 
 ```json
 {
   "analysis": {
-    "request_meta": { "...": "Payload completo retornado por POST /api/analyze" },
+    "request_meta": { "...": "Full payload returned by POST /api/analyze" },
     "region_a_analysis": { "...": "VariableStatistics" },
     "region_b_analysis": { "...": "VariableStatistics | null" },
     "comparison_pair": { "...": "ComparisonPair | null" }
   },
-  "question": "Essa tendência é ruído de El Niño ou mudança estrutural real?",
-  "language": "pt",
+  "question": "Is this trend El Niño noise or a real structural shift?",
+  "language": "en",
   "history": [
-    { "role": "user", "content": "Explique a Região A." },
+    { "role": "user", "content": "Explain Region A." },
     { "role": "assistant", "content": "..." }
   ]
 }
 ```
 
-### Resposta (`CopilotResponse`)
+### Response (`CopilotResponse`)
 
 ```json
 {
-  "reply_markdown": "### Diagnóstico Científico — Co-Piloto Estatístico\n...",
-  "language": "pt",
+  "reply_markdown": "### Scientific Diagnosis — Statistical Co-Pilot\n...",
+  "language": "en",
   "mode": "heuristic_fallback",
   "model": "deterministic-statistical-synthesizer-v1",
   "four_answers": {
-    "what": "Umidade do Solo Superficial (0–5 cm) (GWETTOP) — anomalia climatológica em regime de queda acelerada.",
-    "where": "MERRA-2__r142_c210+r142_c211 vs. MERRA-2__r173_c191+r173_c192 (divergência espacial detectada).",
-    "how_much": "Theil–Sen: -0.0354 fração/década (IC 95%: [-0.0360, -0.0348]); OLS: -0.0356 fração/década.",
-    "is_significant": "Sim (CONFIRMED_HIGH): p_AR1 = 0.0000, q_FDR = 0.0000 (< 0.05), n_eff = 126.3 de 540 meses."
+    "what": "Surface Soil Wetness (0–5 cm) (GWETTOP) — climatological anomaly in an accelerating decline regime.",
+    "where": "MERRA-2__r142_c210+r142_c211 vs. MERRA-2__r173_c191+r173_c192 (spatial divergence detected).",
+    "how_much": "Theil–Sen: -0.0354 fraction/decade (95% CI: [-0.0360, -0.0348]); OLS: -0.0356 fraction/decade.",
+    "is_significant": "Yes (CONFIRMED_HIGH): p_AR1 = 0.0000, q_FDR = 0.0000 (< 0.05), n_eff = 126.3 of 540 months."
   },
   "suggested_questions": [
-    "Por que usar Theil–Sen e OLS em vez de ponto final menos inicial?",
-    "O que indicam os eventos extremos de Mahalanobis nesta série?",
-    "Essa tendência é mudança real ou apenas oscilação de El Niño?",
-    "Por que não usamos variação percentual (%) em temperatura (°C)?"
+    "Why use Theil–Sen and OLS instead of end-point minus start-point?",
+    "What do the Mahalanobis extreme events indicate in this series?",
+    "Is this trend a real shift or just an El Niño oscillation?",
+    "Why don't we use percentage (%) change for temperature (°C)?"
   ],
   "invariant_warnings": []
 }

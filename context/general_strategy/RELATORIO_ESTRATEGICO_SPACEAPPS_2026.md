@@ -1,30 +1,30 @@
-# 🚀 NASA Space Apps Challenge 2026: Dossiê Estratégico & Guia de Decisão de Alto Nível
+# 🚀 NASA Space Apps Challenge 2026: Strategic Dossier & High-Level Decision Guide
 
-> **Objetivo:** Instrumentar a sua equipe com uma análise cirúrgica, técnica e orientada a resultados para vencer a maratona de 48 horas da NASA Space Apps 2026.
+> **Objective:** Equip your team with a surgical, technical, and results-driven analysis to win the 48-hour NASA Space Apps 2026 marathon.
 
 ---
 
-## 🌐 Como Colocar o Sistema de Decisão no Ar para sua Equipe
+## 🌐 How to Launch the Decision System for Your Team
 
-Para que você e seus amigos possam acessar simultaneamente, ver os desafios detalhados e votar em tempo real de qualquer dispositivo, foi criado o servidor [`server.py`](file:///home/zrhyan/Principal/Computation/Space%20Apps/server.py).
+So you and your teammates can access simultaneously, view detailed challenge dossiers, and vote in real time from any device, the `server.py` server was created.
 
-### Opção A: No mesmo Wi-Fi (Sem instalar nada)
-No terminal da pasta do projeto, execute:
+### Option A: On the Same Wi-Fi (Zero Setup)
+In the project folder terminal, run:
 ```bash
 python3 server.py
 ```
-O terminal informará os endereços:
-- **No seu próprio PC:** `http://localhost:8080`
-- **Para seus amigos no mesmo Wi-Fi:** `http://[SEU_IP_LOCAL]:8080` (ex: `http://192.168.1.15:8080`)
-- *Todos os votos são gravados automaticamente e sincronizados em tempo real em `votes.json`.*
+The terminal will print the addresses:
+- **On your own PC:** `http://localhost:8080`
+- **For teammates on the same Wi-Fi:** `http://[YOUR_LOCAL_IP]:8080` (e.g., `http://192.168.1.15:8080`)
+- *All votes are automatically saved and synced in real time in `votes.json`.*
 
-### Opção B: Para amigos fora da sua casa (Pela Internet, sem custos)
-Com o `python3 server.py` rodando, abra outro terminal e use qualquer serviço de túnel seguro:
-- **Via Localtunnel (sem cadastro):**
+### Option B: For Teammates Outside Your Home (Over the Internet, Free)
+With `python3 server.py` running, open another terminal and use any secure tunnel service:
+- **Via Localtunnel (no signup):**
   ```bash
   npx localtunnel --port 8080
   ```
-- **Via Cloudflare Tunnel (gratuito e estável):**
+- **Via Cloudflare Tunnel (free and stable):**
   ```bash
   cloudflared tunnel --url http://localhost:8080
   ```
@@ -32,267 +32,267 @@ Com o `python3 server.py` rodando, abra outro terminal e use qualquer serviço d
   ```bash
   ngrok http 8080
   ```
-O link HTTPS gerado pode ser enviado no WhatsApp/Discord da equipe para votarem de qualquer lugar.
+The generated HTTPS link can be shared in the team's WhatsApp/Discord so everyone can vote from anywhere.
 
 ---
 
-## 🧭 Metodologia dos Jurados da NASA: Como Ganhar em 48 Horas
+## 🧭 NASA Judging Methodology: How to Win in 48 Hours
 
-A avaliação oficial da NASA Space Apps é ponderada em 4 pilares de 25%:
+Official NASA Space Apps judging is weighted across four 25% pillars:
 
 ```
  ┌────────────────────────────────────────┐
- │ 1. IMPACTO GALÁCTICO (25%)             │ -> Resolve dor real na Terra ou no espaço?
+ │ 1. GALACTIC IMPACT (25%)               │ -> Solves a real pain on Earth or in space?
  ├────────────────────────────────────────┤
- │ 2. USO VÁLIDO DE DADOS DA NASA (25%)   │ -> Dados abertos reais foram conectados?
+ │ 2. VALID USE OF NASA DATA (25%)        │ -> Were real open datasets connected?
  ├────────────────────────────────────────┤
- │ 3. VIABILIDADE DO PROTÓTIPO MVP (25%) │ -> O software funciona sem travar no teste?
+ │ 3. MVP PROTOTYPE VIABILITY (25%)       │ -> Does the software run without crashing?
  ├────────────────────────────────────────┤
- │ 4. PITCH & STORYTELLING (240s) (25%)   │ -> A narrativa no vídeo é clara e emocionante?
+ │ 4. PITCH & STORYTELLING (240s) (25%)   │ -> Is the video narrative clear & compelling?
  └────────────────────────────────────────┘
 ```
 
 ---
 
-## 📊 Matriz Resumida de Habilidades & Risco dos 14 Desafios
+## 📊 Summary Matrix of Skills & 48h Risk Across the 14 Challenges
 
-| # | Desafio | Categoria | Dificuldade | Frontend | Backend | Ciência | Pitch | Risco 48h |
+| # | Challenge | Category | Difficulty | Frontend | Backend | Science | Pitch | 48h Risk |
 |---|---|---|---|:---:|:---:|:---:|:---:|:---:|
-| **01** | *Abandoned but not Forgotten* | Lua & Marte | Iniciante | 4/5 | 2/5 | 2/5 | 5/5 | 🟢 Baixo |
-| **02** | *Be An Earth System Trend Detective!* | Terra & Clima | Intermediário | 3/5 | 5/5 | 4/5 | 3/5 | 🟡 Médio |
-| **03** | *Build a Junior Astronaut Mission Trainer* | Gamificação | Intermediário | 5/5 | 2/5 | 3/5 | 4/5 | 🟡 Médio |
-| **04** | *Create Health Monitoring Software* | Saúde Espacial | Intermediário | 4/5 | 4/5 | 4/5 | 3/5 | 🟢 Baixo/Médio |
-| **05** | *Dancing with the SARs* | Radar NISAR | Avançado | 4/5 | 5/5 | 5/5 | 4/5 | 🔴 Alto |
-| **06** | *Field Shift: Adapting Farms* | Agro & Clima | Iniciante | 4/5 | 3/5 | 3/5 | 5/5 | 🟢 Baixo |
-| **07** | *Flame in Freefall* | Combustão ISS | Avançado | 3/5 | 5/5 | 5/5 | 3/5 | 🔴 Alto |
-| **08** | *Harmonization of MODIS & VIIRS* | Queimadas | Intermediário | 3/5 | 5/5 | 4/5 | 4/5 | 🟡 Médio |
-| **09** | *Identify Earth Locations Analog* | Geologia | Iniciante | 4/5 | 3/5 | 3/5 | 4/5 | 🟢 Baixo |
-| **10** | *Interplanetary Survival Guide: Martian Map* | Cartografia | Intermediário | 5/5 | 3/5 | 3/5 | 4/5 | 🟡 Médio |
-| **11** | *Lunar Landing Site Navigator* | Artemis Polo Sul | Avançado | 4/5 | 5/5 | 5/5 | 3/5 | 🔴 Alto |
-| **12** | *Planet X and SPHEREx* | Astronomia | Intermediário | 4/5 | 4/5 | 4/5 | 4/5 | 🟡 Médio |
-| **13** | *Space Mission Design Game* | Gamificação | Intermediário | 5/5 | 2/5 | 3/5 | 5/5 | 🟡 Médio |
-| **14** | *The Earth Information Jukebox* | Sonificação | Iniciante | 4/5 | 2/5 | 3/5 | 5/5 | 🟢 Baixo |
+| **01** | *Abandoned but not Forgotten* | Moon & Mars | Beginner | 4/5 | 2/5 | 2/5 | 5/5 | 🟢 Low |
+| **02** | *Be An Earth System Trend Detective!* | Earth & Climate | Intermediate | 3/5 | 5/5 | 4/5 | 3/5 | 🟡 Medium |
+| **03** | *Build a Junior Astronaut Mission Trainer* | Gamification | Intermediate | 5/5 | 2/5 | 3/5 | 4/5 | 🟡 Medium |
+| **04** | *Create Health Monitoring Software* | Space Health | Intermediate | 4/5 | 4/5 | 4/5 | 3/5 | 🟢 Low/Med |
+| **05** | *Dancing with the SARs* | NISAR Radar | Advanced | 4/5 | 5/5 | 5/5 | 4/5 | 🔴 High |
+| **06** | *Field Shift: Adapting Farms* | Agri & Climate | Beginner | 4/5 | 3/5 | 3/5 | 5/5 | 🟢 Low |
+| **07** | *Flame in Freefall* | ISS Combustion | Advanced | 3/5 | 5/5 | 5/5 | 3/5 | 🔴 High |
+| **08** | *Harmonization of MODIS & VIIRS* | Wildfires | Intermediate | 3/5 | 5/5 | 4/5 | 4/5 | 🟡 Medium |
+| **09** | *Identify Earth Locations Analog* | Geology | Beginner | 4/5 | 3/5 | 3/5 | 4/5 | 🟢 Low |
+| **10** | *Interplanetary Survival Guide: Martian Map* | Cartography | Intermediate | 5/5 | 3/5 | 3/5 | 4/5 | 🟡 Medium |
+| **11** | *Lunar Landing Site Navigator* | Artemis South Pole | Advanced | 4/5 | 5/5 | 5/5 | 3/5 | 🔴 High |
+| **12** | *Planet X and SPHEREx* | Astronomy | Intermediate | 4/5 | 4/5 | 4/5 | 4/5 | 🟡 Medium |
+| **13** | *Space Mission Design Game* | Gamification | Intermediate | 5/5 | 2/5 | 3/5 | 5/5 | 🟡 Medium |
+| **14** | *The Earth Information Jukebox* | Sonification | Beginner | 4/5 | 2/5 | 3/5 | 5/5 | 🟢 Low |
 
 ---
 
-## 🔍 Dossiê Completo dos 14 Desafios Oficiais (2026)
+## 🔍 Complete Dossier of the 14 Official Challenges (2026)
 
 ---
 
 ### 1. Abandoned but not Forgotten: Storytelling about NASA's Discarded Equipment on the Moon and Mars
-- **🎯 Contexto Real da NASA:** Com a volta iminente de missões tripuladas à Lua (Artemis) e futuras frotas de rovers privados em Marte, há o risco de destruir ou soterrar com poeira os sítios históricos das missões Apollo e das primeiras sondas. A NASA quer conscientização e ferramentas de preservação do patrimônio arqueológico espacial.
-- **🛠️ Matriz de Habilidades Exigidas:**
-  - *Frontend & UI/UX (Esforço 4/5 - Forte):* Three.js, React, Tailwind CSS, Spline 3D ou Cesium.js para o globo 3D lunar e marciano.
-  - *Backend & Dados (Esforço 2/5 - Leve):* Node.js ou Python simples para servir metadados geoespaciais e coordenadas em GeoJSON.
-  - *Ciência & Domínio (Esforço 2/5 - Acessível):* História da exploração espacial, coordenadas de pouso e física de poeira lunar (plume blast).
-  - *Storytelling & Pitch (Esforço 5/5 - Crítico):* Roteiro narrativo emocionante, design de áudio imersivo e conexão com o futuro.
-- **📡 Dados & Satélites Oficiais:** Lunar Reconnaissance Orbiter Camera (LROC), NASA Mars Trek, Apollo Lunar Surface Experiments Package (ALSEP) e arquivos históricos da NASA.
-- **✅ Prós:** Apelo emocional imediato; baixa barreira matemática; potencial imenso para um vídeo de pitch cinematográfico.
-- **❌ Contras:** Pode parecer um blog trivial ou cópia da Wikipédia se faltar inovação técnica interativa.
-- **🚨 Alerta 48h:** Construa uma mecânica de *Arqueologia Espacial Interativa*: o usuário escava camadas de regolito em 3D e descobre as lições de engenharia por trás de cada falha e sucesso do equipamento.
-- **💡 O Pulo do Gato:** *The Martian & Lunar Heritage Archive*: visualizador 3D com zonas de exclusão de pouso para naves Artemis, preservando os artefatos históricos com simulação de poeira.
+- **🎯 Real NASA Context:** With the imminent return of crewed missions to the Moon (Artemis) and future fleets of private rovers on Mars, there is a risk of destroying or burying historic Apollo sites and early probes under dust. NASA wants awareness and tools to preserve space archaeological heritage.
+- **🛠️ Required Skills Matrix:**
+  - *Frontend & UI/UX (Effort 4/5 - Strong):* Three.js, React, Tailwind CSS, Spline 3D, or Cesium.js for the lunar and Martian 3D globe.
+  - *Backend & Data (Effort 2/5 - Light):* Simple Node.js or Python to serve geospatial metadata and GeoJSON coordinates.
+  - *Science & Domain (Effort 2/5 - Accessible):* Space exploration history, landing coordinates, and lunar dust physics (plume blast).
+  - *Storytelling & Pitch (Effort 5/5 - Critical):* Emotional narrative script, immersive audio design, and connection to the future.
+- **📡 Official Data & Satellites:** Lunar Reconnaissance Orbiter Camera (LROC), NASA Mars Trek, Apollo Lunar Surface Experiments Package (ALSEP), and NASA historical archives.
+- **✅ Pros:** Immediate emotional appeal; low math barrier; huge potential for a cinematic pitch video.
+- **❌ Cons:** Can feel like a trivial blog or Wikipedia copy if interactive technical innovation is missing.
+- **🚨 48h Alert:** Build an *Interactive Space Archaeology* mechanic: the user excavates 3D regolith layers and uncovers the engineering lessons behind each piece of equipment's failures and successes.
+- **💡 The Secret Weapon:** *The Martian & Lunar Heritage Archive*: 3D viewer with landing exclusion zones for Artemis spacecraft, preserving historic artifacts with dust simulation.
 
 ---
 
 ### 2. Be An Earth System Trend Detective!
-- **🎯 Contexto Real da NASA:** A divisão de ciências da Terra da NASA opera constelações de satélites há mais de 25 anos. O desafio é cruzar esses petabytes de séries temporais para detectar anomalias sistêmicas (secas severas, ondas de calor marinho e degradação de aquíferos) antes que se tornem desastres irreversíveis.
-- **🛠️ Matriz de Habilidades Exigidas:**
-  - *Frontend & UI/UX (Esforço 3/5 - Médio):* D3.js, Plotly, Leaflet ou Deck.gl para visualização de séries temporais geoespaciais.
-  - *Backend & Dados (Esforço 5/5 - Crítico):* Python, FastAPI, Xarray, NetCDF4, Rasterio, Pandas, NumPy para manipulação de matrizes multidimensionais.
-  - *Ciência & Domínio (Esforço 4/5 - Forte):* Climatologia, sensoriamento remoto, cálculo de desvio padrão e anomalias estatísticas (Z-score).
-  - *Storytelling & Pitch (Esforço 3/5 - Médio):* Traduzir anomalias estatísticas complexas em termos compreensíveis para tomadores de decisão.
-- **📡 Dados & Satélites Oficiais:** MODIS (Terra/Aqua), AIRS, OMI, satélites de gravimetria GRACE/GRACE-FO e NASA Giovanni.
-- **✅ Prós:** Alinhamento direto com o núcleo científico da NASA; forte candidato ao prêmio máximo (*Galactic Impact*).
-- **❌ Contras:** Arquivos NetCDF e HDF5 pesados podem travar computadores modestos e consumir horas com download.
-- **🚨 Alerta 48h:** Escolha um recorte geográfico específico nas primeiras 4 horas (ex: Bacia Amazônica ou seca no Cerrado). Não tente carregar o globo inteiro!
-- **💡 O Pulo do Gato:** *Earth Anomaly Radar*: ferramenta que cruza 20 anos de anomalias de temperatura (AIRS) com perda de água subterrânea (GRACE) e alerta sobre pontos de não retorno de desertificação.
+- **🎯 Real NASA Context:** NASA's Earth Science division has operated satellite constellations for over 25 years. The challenge is crossing those petabytes of time series to detect systemic anomalies (severe droughts, marine heatwaves, and aquifer degradation) before they become irreversible disasters.
+- **🛠️ Required Skills Matrix:**
+  - *Frontend & UI/UX (Effort 3/5 - Medium):* D3.js, Plotly, Leaflet, or Deck.gl for geospatial time-series visualization.
+  - *Backend & Data (Effort 5/5 - Critical):* Python, FastAPI, Xarray, NetCDF4, Rasterio, Pandas, NumPy for multidimensional array processing.
+  - *Science & Domain (Effort 4/5 - Strong):* Climatology, remote sensing, standard deviation calculation, and statistical anomalies (Z-score).
+  - *Storytelling & Pitch (Effort 3/5 - Medium):* Translating complex statistical anomalies into understandable terms for decision-makers.
+- **📡 Official Data & Satellites:** MODIS (Terra/Aqua), AIRS, OMI, GRACE/GRACE-FO gravimetry satellites, and NASA Giovanni.
+- **✅ Pros:** Direct alignment with NASA's scientific core; strong contender for the top award (*Galactic Impact*).
+- **❌ Cons:** Heavy NetCDF and HDF5 files can freeze modest laptops and eat up hours in downloads.
+- **🚨 48h Alert:** Pick a specific geographic subset in the first 4 hours (e.g., Amazon Basin or Cerrado drought). Do not try to load the entire globe!
+- **💡 The Secret Weapon:** *Earth Anomaly Radar*: a tool that crosses 20 years of temperature anomalies (AIRS) with groundwater loss (GRACE) and warns about desertification tipping points.
 
 ---
 
 ### 3. Build a Junior Astronaut Mission Trainer
-- **🎯 Contexto Real da NASA:** Inspirar a "Geração Artemis". A NASA precisa de jogos e simuladores onde jovens aprendam como funciona o suporte de vida real (reciclagem de urina Sabatier, blindagem de radiação de prótons e cultivo de plantas em regolito).
-- **🛠️ Matriz de Habilidades Exigidas:**
-  - *Frontend & Gamedev (Esforço 5/5 - Crítico):* Phaser.js, Godot (WebAssembly), Unity WebGL ou React com animações fluidas.
-  - *Backend & Dados (Esforço 2/5 - Leve):* Lógica do jogo executada no navegador em JavaScript/TypeScript.
-  - *Ciência & Domínio (Esforço 3/5 - Médio):* Equações de consumo de oxigênio por pessoa, radiação solar e balanço energético.
-  - *Storytelling & Pitch (Esforço 4/5 - Forte):* Design lúdico, feedbacks visuais bem-humorados e didática clara.
-- **📡 Dados & Satélites Oficiais:** NASA Space Radiation Analysis Group (SRAG), manuais do sistema ECLSS da ISS e arquitetura Moon to Mars.
-- **✅ Prós:** Projeto mais cativante de demonstrar ao vivo no vídeo; favorito na categoria de educação e inspiração (*Most Inspirational*).
-- **❌ Contras:** Gamedev em 48h costuma falhar por escopo inflado e bugs de animação.
-- **🚨 Alerta 48h:** Foque em um *game loop* completo de no máximo 3 minutos: 3 decisões críticas, feedback imediato e pontuação científica.
-- **💡 O Pulo do Gato:** *Outpost Artemis Zero*: jogo web de sobrevivência tática em turnos onde o jogador gerencia eventos reais da NASA (tempestade solar de prótons, micrometeróides e pane em radiadores).
+- **🎯 Real NASA Context:** Inspire the "Artemis Generation." NASA needs games and simulators where youth learn how real life support works (Sabatier urine recycling, proton radiation shielding, and growing plants in regolith).
+- **🛠️ Required Skills Matrix:**
+  - *Frontend & Gamedev (Effort 5/5 - Critical):* Phaser.js, Godot (WebAssembly), Unity WebGL, or React with smooth animations.
+  - *Backend & Data (Effort 2/5 - Light):* Game logic running in-browser in JavaScript/TypeScript.
+  - *Science & Domain (Effort 3/5 - Medium):* Per-person oxygen consumption equations, solar radiation, and energy balance.
+  - *Storytelling & Pitch (Effort 4/5 - Strong):* Playful design, witty visual feedback, and clear didactics.
+- **📡 Official Data & Satellites:** NASA Space Radiation Analysis Group (SRAG), ISS ECLSS system manuals, and Moon to Mars architecture.
+- **✅ Pros:** Most captivating project to demo live in the video; favorite in the education and inspiration category (*Most Inspirational*).
+- **❌ Cons:** 48h gamedev often fails due to scope creep and animation bugs.
+- **🚨 48h Alert:** Focus on a complete *game loop* of at most 3 minutes: 3 critical decisions, immediate feedback, and scientific scoring.
+- **💡 The Secret Weapon:** *Outpost Artemis Zero*: turn-based tactical survival web game where the player manages real NASA events (solar proton storm, micrometeoroids, and radiator failure).
 
 ---
 
 ### 4. Create Health Monitoring Software for Astronauts on Space Missions
-- **🎯 Contexto Real da NASA:** Em missões para Marte, o delay de rádio pode chegar a 22 minutos em cada sentido. Um astronauta sofrendo arritmia ou dose excessiva de radiação não pode esperar pela resposta de um médico na Terra. O software médico precisa ser 100% autônomo e offline.
-- **🛠️ Matriz de Habilidades Exigidas:**
-  - *Frontend & UI/UX (Esforço 4/5 - Forte):* React/Vue, Tailwind CSS, dashboards médicos no estilo HUD de telemetria futurista.
-  - *Backend & Dados (Esforço 4/5 - Forte):* Python, FastAPI, detecção de anomalias em séries temporais (Isolation Forest / Autoencoders).
-  - *Ciência & Domínio (Esforço 4/5 - Forte):* Fisiologia em microgravidade, sono circadiano, radiação cósmica e telemedicina de emergência.
-  - *Storytelling & Pitch (Esforço 3/5 - Médio):* Demonstração de uma crise médica simulada resolvida autonomamente pela IA.
-- **📡 Dados & Satélites Oficiais:** NASA GeneLab, Life Sciences Data Archive (LSDA) e Human Research Program (HRP).
-- **✅ Prós:** Relevância vital para a exploração de Marte; design de interface esteticamente arrebatador.
-- **❌ Contras:** Dados biomédicos de voos reais são restritos; exige criação de telemetria sintética realista.
-- **🚨 Alerta 48h:** Garanta que sua solução seja explicitamente 100% OFFLINE (Edge AI), sem depender de chamadas a APIs na nuvem terrestre.
-- **💡 O Pulo do Gato:** *Aegis Bio-Space*: painel médico para naves Artemis/Marte com triagem autônoma offline que reprograma dieta e rotina de sono após picos de radiação detectados em caminhadas espaciais.
+- **🎯 Real NASA Context:** On Mars missions, radio delay can reach 22 minutes each way. An astronaut suffering arrhythmia or excessive radiation dose cannot wait for a doctor's reply from Earth. Medical software must be 100% autonomous and offline.
+- **🛠️ Required Skills Matrix:**
+  - *Frontend & UI/UX (Effort 4/5 - Strong):* React/Vue, Tailwind CSS, futuristic telemetry HUD-style medical dashboards.
+  - *Backend & Data (Effort 4/5 - Strong):* Python, FastAPI, time-series anomaly detection (Isolation Forest / Autoencoders).
+  - *Science & Domain (Effort 4/5 - Strong):* Microgravity physiology, circadian sleep, cosmic radiation, and emergency telemedicine.
+  - *Storytelling & Pitch (Effort 3/5 - Medium):* Demonstration of a simulated medical crisis resolved autonomously by AI.
+- **📡 Official Data & Satellites:** NASA GeneLab, Life Sciences Data Archive (LSDA), and Human Research Program (HRP).
+- **✅ Pros:** Vital relevance for Mars exploration; visually striking UI design.
+- **❌ Cons:** Real flight biomedical data are restricted; requires generating realistic synthetic telemetry.
+- **🚨 48h Alert:** Ensure your solution is explicitly 100% OFFLINE (Edge AI), without depending on Earth-cloud API calls.
+- **💡 The Secret Weapon:** *Aegis Bio-Space*: medical dashboard for Artemis/Mars spacecraft with offline autonomous triage that reprograms diet and sleep routines after radiation spikes detected during spacewalks.
 
 ---
 
 ### 5. Dancing with the SARs
-- **🎯 Contexto Real da NASA:** O satélite NISAR (NASA-ISRO SAR) utiliza radar em micro-ondas de banda L e S para enxergar através de nuvens e escuridão, medindo alterações milimétricas na crosta e vegetação. A NASA quer mostrar ao mundo o dinamismo do planeta como uma dança viva.
-- **🛠️ Matriz de Habilidades Exigidas:**
-  - *Frontend & UI/UX (Esforço 4/5 - Forte):* Deck.gl, Mapbox GL JS, Three.js shaders e animações temporais fluidas.
-  - *Backend & Dados (Esforço 5/5 - Crítico):* Python, GDAL, Rasterio, HyP3 API para produtos de coerência e amplitude.
-  - *Ciência & Domínio (Esforço 5/5 - Crítico):* Geodésia, interferometria de fase (InSAR) e polarimetria de radar.
-  - *Storytelling & Pitch (Esforço 4/5 - Forte):* Sincronizar os pulsos e deformações do solo a uma metáfora visual rítmica e expressiva.
-- **📡 Dados & Satélites Oficiais:** Produtos preliminares da missão NISAR, Alaska Satellite Facility (ASF) DAAC e NASA UAVSAR.
-- **✅ Prós:** O satélite NISAR é a missão do momento da NASA/ISRO; pontuação altíssima em *Best Use of Science*.
-- **❌ Contras:** Complexidade matemática de radar muito acima da média para iniciantes.
-- **🚨 Alerta 48h:** NÃO tente gerar interferogramas brutos! Use produtos Nível 2/3 pré-calculados (deformação do solo, perda de biomassa, velocidade de geleiras).
-- **💡 O Pulo do Gato:** *Terra Choreography*: visualizador interativo onde o usuário controla a linha do tempo e assiste ao "balé geológico" da Terra: aquíferos pulsando no verão, degelo ártico e a respiração da Amazônia via radar.
+- **🎯 Real NASA Context:** The NISAR (NASA-ISRO SAR) satellite uses L- and S-band microwave radar to see through clouds and darkness, measuring millimeter-scale changes in crust and vegetation. NASA wants to show the world the planet's dynamism as a living dance.
+- **🛠️ Required Skills Matrix:**
+  - *Frontend & UI/UX (Effort 4/5 - Strong):* Deck.gl, Mapbox GL JS, Three.js shaders, and smooth temporal animations.
+  - *Backend & Data (Effort 5/5 - Critical):* Python, GDAL, Rasterio, HyP3 API for coherence and amplitude products.
+  - *Science & Domain (Effort 5/5 - Critical):* Geodesy, phase interferometry (InSAR), and radar polarimetry.
+  - *Storytelling & Pitch (Effort 4/5 - Strong):* Synchronizing ground pulses and deformations to a rhythmic, expressive visual metaphor.
+- **📡 Official Data & Satellites:** NISAR mission preliminary products, Alaska Satellite Facility (ASF) DAAC, and NASA UAVSAR.
+- **✅ Pros:** NISAR is NASA/ISRO's flagship mission of the moment; sky-high score in *Best Use of Science*.
+- **❌ Cons:** Radar math complexity is far above average for beginners.
+- **🚨 48h Alert:** DO NOT try to generate raw interferograms! Use precomputed Level 2/3 products (ground deformation, biomass loss, glacier velocity).
+- **💡 The Secret Weapon:** *Terra Choreography*: interactive viewer where the user scrubs the timeline and watches Earth's "geological ballet": pulsing aquifers in summer, Arctic thaw, and the Amazon breathing via radar.
 
 ---
 
 ### 6. Field Shift: Adapting Farms with NASA Data
-- **🎯 Contexto Real da NASA:** O clima está mudando o calendário das chuvas e a temperatura do solo. Pequenos agricultores não entendem dados brutos de satélite, mas precisam saber quando plantar e irrigar para não falir.
-- **🛠️ Matriz de Habilidades Exigidas:**
-  - *Frontend & UI/UX (Esforço 4/5 - Forte):* PWA mobile-first, React/Vue, Tailwind CSS, interface limpa sem jargões.
-  - *Backend & Dados (Esforço 3/5 - Médio):* Python ou Node.js integrando a API REST do NASA POWER e satélite SMAP.
-  - *Ciência & Domínio (Esforço 3/5 - Médio):* Agronomia básica, janelas de semeadura e umidade crítica do solo.
-  - *Storytelling & Pitch (Esforço 5/5 - Crítico):* Foco no impacto humano real: segurança alimentar e renda para pequenos agricultores.
-- **📡 Dados & Satélites Oficiais:** NASA POWER API, satélite SMAP (Soil Moisture Active Passive) e Landsat 8/9 NDVI.
-- **✅ Prós:** A API NASA POWER é a mais fácil e estável de toda a maratona; altíssimo apelo para *Galactic Impact*.
-- **❌ Contras:** Concorrência acirrada; muitos grupos fazem apps agro genéricos.
-- **🚨 Alerta 48h:** Foque na acessibilidade: alerte por mensagens automáticas tipo WhatsApp/Telegram e suporte funcionamento offline.
-- **💡 O Pulo do Gato:** *Agro-Oracle NASA*: copiloto simples onde o agricultor informa sua coordenada e cultivo, e o sistema avisa o dia exato de plantio para evitar a seca do mês seguinte com base no SMAP.
+- **🎯 Real NASA Context:** Climate is shifting rainfall calendars and soil temperatures. Smallholder farmers don't understand raw satellite data, yet they need to know when to plant and irrigate to avoid bankruptcy.
+- **🛠️ Required Skills Matrix:**
+  - *Frontend & UI/UX (Effort 4/5 - Strong):* Mobile-first PWA, React/Vue, Tailwind CSS, clean jargon-free UI.
+  - *Backend & Data (Effort 3/5 - Medium):* Python or Node.js integrating the NASA POWER REST API and SMAP satellite.
+  - *Science & Domain (Effort 3/5 - Medium):* Basic agronomy, planting windows, and critical soil moisture.
+  - *Storytelling & Pitch (Effort 5/5 - Critical):* Focus on real human impact: food security and income for small farmers.
+- **📡 Official Data & Satellites:** NASA POWER API, SMAP (Soil Moisture Active Passive) satellite, and Landsat 8/9 NDVI.
+- **✅ Pros:** NASA POWER is the easiest, most stable API in the entire hackathon; massive appeal for *Galactic Impact*.
+- **❌ Cons:** Fierce competition; many teams build generic agri apps.
+- **🚨 48h Alert:** Focus on accessibility: alert via automated WhatsApp/Telegram-style messages and support offline operation.
+- **💡 The Secret Weapon:** *Agro-Oracle NASA*: simple co-pilot where the farmer enters their coordinate and crop, and the system advises the exact planting day to avoid next month's drought based on SMAP.
 
 ---
 
 ### 7. Flame in Freefall: AI-Powered Fire Safety Insights from Microgravity Combustion Data
-- **🎯 Contexto Real da NASA:** Sem gravidade, o fogo queima em formato esférico perfeito e sem empuxo natural. O banco de dados PSI da NASA contém décadas de vídeos e telemetria de chamas na ISS. A NASA precisa de IA para prever materiais perigosos e desenhar sistemas de extinção para naves em trânsito para Marte.
-- **🛠️ Matriz de Habilidades Exigidas:**
-  - *Frontend & UI/UX (Esforço 3/5 - Médio):* React, visualizadores de sensores de temperatura/gás e simulação de chama em Canvas 2D/3D.
-  - *Backend & Dados (Esforço 5/5 - Crítico):* Python, PyTorch/TensorFlow, OpenCV para análise de vídeo de chama e regressão.
-  - *Ciência & Domínio (Esforço 5/5 - Crítico):* Cinética de combustão, transporte difusivo e termodinâmica espacial.
-  - *Storytelling & Pitch (Esforço 3/5 - Médio):* Traduzir física complexa em protocolos práticos de salvação de tripulação.
-- **📡 Dados & Satélites Oficiais:** NASA Physical Sciences Informatics (PSI), experimentos ACME, BASS, CIR e projeto Saffire.
-- **✅ Prós:** Rigor acadêmico e tecnológico incomparável; atrai jurados doutores e engenheiros aeroespaciais.
-- **❌ Contras:** Curva de aprendizado pesadíssima em física térmica.
-- **🚨 Alerta 48h:** Não faça apenas um chatbot que resume PDFs. Crie um preditor interativo de velocidade de queima e posicionamento ótimo de detectores de fumaça.
-- **💡 O Pulo do Gato:** *Ignis Zero*: simulador de risco de incêndio para habitats espaciais que demonstra onde a fumaça realmente se acumula sem convecção natural (seguindo os dutos de ventilação).
+- **🎯 Real NASA Context:** Without gravity, fire burns in a perfect sphere without natural buoyancy. NASA's PSI database holds decades of ISS flame videos and telemetry. NASA needs AI to predict hazardous materials and design suppression systems for Mars transit spacecraft.
+- **🛠️ Required Skills Matrix:**
+  - *Frontend & UI/UX (Effort 3/5 - Medium):* React, temperature/gas sensor visualizers, and 2D/3D Canvas flame simulation.
+  - *Backend & Data (Effort 5/5 - Critical):* Python, PyTorch/TensorFlow, OpenCV for flame video analysis and regression.
+  - *Science & Domain (Effort 5/5 - Critical):* Combustion kinetics, diffusive transport, and space thermodynamics.
+  - *Storytelling & Pitch (Effort 3/5 - Medium):* Translating complex physics into practical crew-saving protocols.
+- **📡 Official Data & Satellites:** NASA Physical Sciences Informatics (PSI), ACME, BASS, CIR experiments, and the Saffire project.
+- **✅ Pros:** Unmatched academic and technological rigor; attracts PhD and aerospace-engineer judges.
+- **❌ Cons:** Very steep learning curve in thermal physics.
+- **🚨 48h Alert:** Do not build just a PDF-summarizing chatbot. Build an interactive burn-rate predictor and optimal smoke-detector placement tool.
+- **💡 The Secret Weapon:** *Ignis Zero*: fire-risk simulator for space habitats showing where smoke actually accumulates without natural convection (following ventilation ducts).
 
 ---
 
 ### 8. Harmonization of MODIS and VIIRS Hot Spots
-- **🎯 Contexto Real da NASA:** O sensor MODIS (1km) opera há 25 anos, enquanto o sensor VIIRS (375m) enxerga focos muito menores. Isso distorce séries temporais ecológicas. A NASA precisa de uma conversão algorítmica consistente para permitir análises históricas sem falsos picos.
-- **🛠️ Matriz de Habilidades Exigidas:**
-  - *Frontend & UI/UX (Esforço 3/5 - Médio):* Leaflet, MapLibre GL, gráficos comparativos temporais com Plotly/D3.
-  - *Backend & Dados (Esforço 5/5 - Crítico):* Python, GeoPandas, Shapely, Scikit-learn (normalização e calibração espacial).
-  - *Ciência & Domínio (Esforço 4/5 - Forte):* Ecologia do fogo, resolução radiométrica de satélites e estatística espacial.
-  - *Storytelling & Pitch (Esforço 4/5 - Forte):* Foco na tragédia das queimadas no Pantanal e Amazônia com rigor científico.
-- **📡 Dados & Satélites Oficiais:** NASA FIRMS API (Fire Information for Resource Management System) e produtos MODIS MCD14ML / VIIRS VNP14IMG.
-- **✅ Prós:** Urgência ambiental imediata no Brasil; a API do NASA FIRMS é rápida e estruturada.
-- **❌ Contras:** Desafio predominantemente estatístico; requer capricho visual para não ficar árido.
-- **🚨 Alerta 48h:** Não faça só um mapa com pontinhos vermelhos (o FIRMS já faz isso). O objetivo é a HARMONIZAÇÃO: entregue a função matemática e o calendário histórico comparável.
-- **💡 O Pulo do Gato:** *Pyro-Chronos*: plataforma que harmoniza os dados de queimadas da América do Sul e exibe o "Relógio Histórico do Fogo", permitindo comparar 2005 e 2026 de forma justa.
+- **🎯 Real NASA Context:** The MODIS sensor (1km) has operated for 25 years, while VIIRS (375m) sees much smaller fires. That distorts ecological time series. NASA needs a consistent algorithmic conversion to enable historical analyses without false spikes.
+- **🛠️ Required Skills Matrix:**
+  - *Frontend & UI/UX (Effort 3/5 - Medium):* Leaflet, MapLibre GL, comparative time-series charts with Plotly/D3.
+  - *Backend & Data (Effort 5/5 - Critical):* Python, GeoPandas, Shapely, Scikit-learn (spatial normalization and calibration).
+  - *Science & Domain (Effort 4/5 - Strong):* Fire ecology, satellite radiometric resolution, and spatial statistics.
+  - *Storytelling & Pitch (Effort 4/5 - Strong):* Focus on the Pantanal and Amazon wildfire tragedy with scientific rigor.
+- **📡 Official Data & Satellites:** NASA FIRMS API (Fire Information for Resource Management System) and MODIS MCD14ML / VIIRS VNP14IMG products.
+- **✅ Pros:** Immediate environmental urgency in Brazil; NASA FIRMS API is fast and structured.
+- **❌ Cons:** Predominantly statistical challenge; requires visual polish so it doesn't feel dry.
+- **🚨 48h Alert:** Do not build just a map with red dots (FIRMS already does that). The goal is HARMONIZATION: deliver the mathematical function and a comparable historical calendar.
+- **💡 The Secret Weapon:** *Pyro-Chronos*: platform harmonizing South American wildfire data and displaying the "Historical Fire Clock," enabling fair comparison between 2005 and 2026.
 
 ---
 
 ### 9. Identify Earth Locations that Analog the Permanent Moon Base Locations and Mars
-- **🎯 Contexto Real da NASA:** Antes de gastar bilhões no Polo Sul Lunar ou em Marte, a NASA treina tripulações e testa robôs em desertos terrestres, tubos de lava vulcânica e geleiras. A NASA precisa de um catálogo sistematizado e quantitativo desses ambientes análogos.
-- **🛠️ Matriz de Habilidades Exigidas:**
-  - *Frontend & UI/UX (Esforço 4/5 - Forte):* Cesium.js, Mapbox GL JS, visualização comparativa lado a lado em tela dividida (Split Screen 3D).
-  - *Backend & Dados (Esforço 3/5 - Médio):* Algoritmo de similaridade multivariável (distância euclidiana entre parâmetros de relevo e mineralogia).
-  - *Ciência & Domínio (Esforço 3/5 - Médio):* Geologia planetária comparada, regolito lunar e geomorfologia.
-  - *Storytelling & Pitch (Esforço 4/5 - Forte):* Narrativa rica mostrando como o treinamento na Terra evita falhas catastróficas no espaço.
-- **📡 Dados & Satélites Oficiais:** LRO Diviner & LOLA (Lua), Mars HiRISE/CRISM (Marte) e modelos de elevação da Terra (SRTM/ASTER).
-- **✅ Prós:** Visualmente deslumbrante; risco de quebra técnica baixíssimo em 48 horas.
-- **❌ Contras:** Pode virar uma simples lista estática de fotos se faltar o algoritmo quantitativo de correspondência.
-- **🚨 Alerta 48h:** Crie um *Analog Match Score* numérico que ranqueie qual local na Terra é o melhor para testar rovers da missão Artemis.
-- **💡 O Pulo do Gato:** *Terra Twin*: portal 3D com modo "visão dupla". Ao clicar na borda da Cratera Shackleton no Polo Sul lunar, o mapa aponta na Terra o local exato com relevo e mineralogia mais semelhantes (ex: tubos de lava na Islândia).
+- **🎯 Real NASA Context:** Before spending billions at the Lunar South Pole or on Mars, NASA trains crews and tests rovers in terrestrial deserts, volcanic lava tubes, and glaciers. NASA needs a systematized, quantitative catalog of these analog environments.
+- **🛠️ Required Skills Matrix:**
+  - *Frontend & UI/UX (Effort 4/5 - Strong):* Cesium.js, Mapbox GL JS, side-by-side split-screen 3D comparative visualization.
+  - *Backend & Data (Effort 3/5 - Medium):* Multivariate similarity algorithm (Euclidean distance across terrain and mineralogy parameters).
+  - *Science & Domain (Effort 3/5 - Medium):* Comparative planetary geology, lunar regolith, and geomorphology.
+  - *Storytelling & Pitch (Effort 4/5 - Strong):* Rich narrative showing how training on Earth prevents catastrophic failures in space.
+- **📡 Official Data & Satellites:** LRO Diviner & LOLA (Moon), Mars HiRISE/CRISM (Mars), and Earth elevation models (SRTM/ASTER).
+- **✅ Pros:** Visually stunning; very low risk of technical failure in 48 hours.
+- **❌ Cons:** Can turn into a static photo list without a quantitative matching algorithm.
+- **🚨 48h Alert:** Create a numeric *Analog Match Score* ranking which Earth site is best for testing Artemis rovers.
+- **💡 The Secret Weapon:** *Terra Twin*: 3D portal with "dual view" mode. Clicking the rim of Shackleton Crater at the lunar South Pole points on Earth to the exact site with the most similar terrain and mineralogy (e.g., lava tubes in Iceland).
 
 ---
 
 ### 10. Interplanetary Survival Guide: Martian Map
-- **🎯 Contexto Real da NASA:** Futuros astronautas em Marte farão caminhadas de campo científicas ("Marswalks") em terrenos perigosos com consumo restrito de oxigênio no traje espacial. Eles precisam de um sistema tático de navegação de superfície que evite encostas íngremes e tempestades de areia.
-- **🛠️ Matriz de Habilidades Exigidas:**
-  - *Frontend & UI/UX (Esforço 5/5 - Crítico):* Leaflet/OpenLayers com tiles do Mars Trek, Three.js e UI inspirada em HUD de capacete espacial.
-  - *Backend & Dados (Esforço 3/5 - Médio):* Algoritmo de roteamento com custo de terreno (Pathfinding A* considerando inclinação de encostas).
-  - *Ciência & Domínio (Esforço 3/5 - Médio):* Geografia de Marte, consumo metabólico de O2 e depósitos de gelo do SHARAD.
-  - *Storytelling & Pitch (Esforço 4/5 - Forte):* Simulação eletrizante de uma emergência científica estilo o filme *Perdido em Marte*.
-- **📡 Dados & Satélites Oficiais:** NASA Mars Trek WMS/WMTS, MOLA Topography, HiRISE Camera e Mars Odyssey THEMIS.
-- **✅ Prós:** O tema com maior apelo de ficção científica real da maratona; dados cartográficos já mastigados no Mars Trek.
-- **❌ Contras:** Querer mapear o planeta inteiro em alta resolução vai sobrecarregar a memória do navegador.
-- **🚨 Alerta 48h:** Delimite a área a uma cratera icônica (ex: Cratera Jezero do Perseverance) com roteamento de alta precisão.
-- **💡 O Pulo do Gato:** *Marswalk Navigator*: app de navegação tática para trajes espaciais que calcula a rota com menor gasto de oxigênio e menor risco de escorregamento entre a base e um afloramento de gelo subterrâneo.
+- **🎯 Real NASA Context:** Future astronauts on Mars will conduct scientific field traverses ("Marswalks") across hazardous terrain with limited spacesuit oxygen. They need a tactical surface navigation system that avoids steep slopes and dust storms.
+- **🛠️ Required Skills Matrix:**
+  - *Frontend & UI/UX (Effort 5/5 - Critical):* Leaflet/OpenLayers with Mars Trek tiles, Three.js, and a spacesuit-helmet HUD-inspired UI.
+  - *Backend & Data (Effort 3/5 - Medium):* Terrain-cost routing algorithm (A* pathfinding accounting for slope angle).
+  - *Science & Domain (Effort 3/5 - Medium):* Martian geography, metabolic O2 consumption, and SHARAD ice deposits.
+  - *Storytelling & Pitch (Effort 4/5 - Strong):* Thrilling simulation of a scientific emergency in the style of *The Martian*.
+- **📡 Official Data & Satellites:** NASA Mars Trek WMS/WMTS, MOLA Topography, HiRISE Camera, and Mars Odyssey THEMIS.
+- **✅ Pros:** Strongest hard-sci-fi appeal in the hackathon; cartographic data already pre-digested in Mars Trek.
+- **❌ Cons:** Trying to map the entire planet at high resolution will overload browser memory.
+- **🚨 48h Alert:** Bound the area to an iconic crater (e.g., Perseverance's Jezero Crater) with high-precision routing.
+- **💡 The Secret Weapon:** *Marswalk Navigator*: tactical navigation app for spacesuits that computes the route with lowest oxygen expenditure and lowest slip risk between base and a subsurface ice outcrop.
 
 ---
 
 ### 11. Lunar Landing Site Navigator
-- **🎯 Contexto Real da NASA:** No Polo Sul da Lua, o Sol fica rente à linha do horizonte, produzindo sombras gigantescas e crateras escuras eternas. Pousar um módulo da Artemis ou lander comercial (CLPS) exige calcular com exatidão matemática se os painéis solares receberão luz e se a antena terá visada direta para a Terra.
-- **🛠️ Matriz de Habilidades Exigidas:**
-  - *Frontend & UI/UX (Esforço 4/5 - Forte):* Three.js / WebGL para iluminação de sombras dinâmicas sobre malha topográfica lunar.
-  - *Backend & Dados (Esforço 5/5 - Crítico):* Python, Astropy, NASA Horizons API, cálculos de vetores azimute/elevação solar.
-  - *Ciência & Domínio (Esforço 5/5 - Crítico):* Mecânica celeste, efemérides astronômicas e relevo polar acidentado.
-  - *Storytelling & Pitch (Esforço 3/5 - Médio):* Explicar com clareza cristalina como a ferramenta evita que a nave congele sem energia.
-- **📡 Dados & Satélites Oficiais:** LRO LOLA Digital Elevation Models, NASA Horizons Ephemeris System e estudos de iluminação do Moon Trek.
-- **✅ Prós:** O maior valor de engenharia pura da competição; favoritíssimo para *Best Mission Concept*.
-- **❌ Contras:** Cálculos de geometria esférica e oclusão de sombras em relevo acidentado são complexos.
-- **🚨 Alerta 48h:** Não reinvente a física orbital do zero! Use efemérides pré-calculadas da Horizons API e cruze com os mapas de elevação do LRO.
-- **💡 O Pulo do Gato:** *Artemis Sun-Finder*: ferramenta onde planejadores da NASA clicam em qualquer um dos 13 sítios de pouso do Polo Sul e visualizam uma régua temporal simultânea de "Luz Solar" e "Visada Direta para a Terra", apontando o dia perfeito de pouso.
+- **🎯 Real NASA Context:** At the Lunar South Pole, the Sun hugs the horizon, casting giant shadows and creating permanently shadowed craters. Landing an Artemis module or commercial lander (CLPS) requires mathematically computing whether solar panels will receive sunlight and whether the antenna will have direct line-of-sight to Earth.
+- **🛠️ Required Skills Matrix:**
+  - *Frontend & UI/UX (Effort 4/5 - Strong):* Three.js / WebGL for dynamic shadow lighting over lunar topographic mesh.
+  - *Backend & Data (Effort 5/5 - Critical):* Python, Astropy, NASA Horizons API, solar azimuth/elevation vector math.
+  - *Science & Domain (Effort 5/5 - Critical):* Celestial mechanics, astronomical ephemerides, and rugged polar relief.
+  - *Storytelling & Pitch (Effort 3/5 - Medium):* Crystal-clear explanation of how the tool prevents the spacecraft from freezing without power.
+- **📡 Official Data & Satellites:** LRO LOLA Digital Elevation Models, NASA Horizons Ephemeris System, and Moon Trek illumination studies.
+- **✅ Pros:** Highest pure-engineering value in the competition; top favorite for *Best Mission Concept*.
+- **❌ Cons:** Spherical geometry and shadow occlusion over rugged terrain are complex.
+- **🚨 48h Alert:** Don't reinvent orbital physics from scratch! Use precomputed Horizons API ephemerides and cross them with LRO elevation maps.
+- **💡 The Secret Weapon:** *Artemis Sun-Finder*: tool where NASA planners click any of the 13 South Pole landing sites and view a simultaneous timeline of "Sunlight" and "Direct Earth Line-of-Sight," pinpointing the perfect landing day.
 
 ---
 
 ### 12. Planet X and SPHEREx
-- **🎯 Contexto Real da NASA:** O observatório espacial SPHEREx varrerá todo o céu em 102 canais de infravermelho. Comparando imagens do céu em épocas diferentes, cientistas podem identificar asteroides desconhecidos, anãs marrons frias ou até o hipotético nono planeta do sistema solar.
-- **🛠️ Matriz de Habilidades Exigidas:**
-  - *Frontend & UI/UX (Esforço 4/5 - Forte):* React, Canvas API (manipulação de pixels), visualizador de arquivos FITS web com zoom ágil.
-  - *Backend & Dados (Esforço 4/5 - Forte):* Python, AstroPy, OpenCV (subtração de fundo e identificação de centróides de estrelas).
-  - *Ciência & Domínio (Esforço 4/5 - Forte):* Astrometria, espectroscopia no infravermelho e dinâmica orbital de corpos celestes.
-  - *Storytelling & Pitch (Esforço 4/5 - Forte):* O mistério da caça ao novo planeta e a gamificação de ciência cidadã.
-- **📡 Dados & Satélites Oficiais:** SPHEREx Simulation Archive, WISE/NEOWISE Infrared Survey e NASA Planetary Data System (PDS).
-- **✅ Prós:** Astronomia observacional pura de última geração; grande engajamento público.
-- **❌ Contras:** Manipulação de cabeçalhos WCS e arquivos .FITS assusta quem nunca lidou com astronomia.
-- **🚨 Alerta 48h:** Use a técnica do *Blink Comparator* (alternância rápida entre duas fotos para fazer o objeto móvel "pular" na tela). É simples de programar e encanta qualquer jurado.
-- **💡 O Pulo do Gato:** *SPHEREx Sky Hunter*: plataforma gamificada onde o usuário pisca imagens infravermelhas e marca anomalias em movimento, gerando um relatório astrométrico automático para submissão à NASA.
+- **🎯 Real NASA Context:** The SPHEREx space observatory will survey the entire sky in 102 infrared channels. Comparing sky images across different epochs lets scientists spot unknown asteroids, cool brown dwarfs, or even the hypothetical ninth planet of the solar system.
+- **🛠️ Required Skills Matrix:**
+  - *Frontend & UI/UX (Effort 4/5 - Strong):* React, Canvas API (pixel manipulation), snappy zooming web FITS file viewer.
+  - *Backend & Data (Effort 4/5 - Strong):* Python, AstroPy, OpenCV (background subtraction and star centroid identification).
+  - *Science & Domain (Effort 4/5 - Strong):* Astrometry, infrared spectroscopy, and orbital dynamics of celestial bodies.
+  - *Storytelling & Pitch (Effort 4/5 - Strong):* The mystery of hunting for Planet Nine and citizen-science gamification.
+- **📡 Official Data & Satellites:** SPHEREx Simulation Archive, WISE/NEOWISE Infrared Survey, and NASA Planetary Data System (PDS).
+- **✅ Pros:** Cutting-edge observational astronomy; high public engagement.
+- **❌ Cons:** Handling WCS headers and .FITS files intimidates anyone new to astronomy.
+- **🚨 48h Alert:** Use the *Blink Comparator* technique (rapidly alternating two frames to make the moving object "jump" on screen). Simple to code and delights every judge.
+- **💡 The Secret Weapon:** *SPHEREx Sky Hunter*: gamified platform where users blink infrared images and flag moving anomalies, generating an automatic astrometric report for NASA submission.
 
 ---
 
 ### 13. Space Mission Design Game
-- **🎯 Contexto Real da NASA:** Toda missão espacial é um quebra-cabeça de compromissos brutais: adicionar mais instrumentos científicos exige mais combustível, o que encarece o foguete e pode estourar o orçamento do Congresso americano. A NASA quer um jogo que ensine a arte do trade-off de engenharia de sistemas.
-- **🛠️ Matriz de Habilidades Exigidas:**
-  - *Frontend & Gamedev (Esforço 5/5 - Crítico):* React/Vue, Tailwind CSS, animações de balanço de massa e estética de terminal de lançamento da NASA.
-  - *Backend & Dados (Esforço 2/5 - Leve):* Economia do jogo rodando no navegador em TypeScript/JavaScript.
-  - *Ciência & Domínio (Esforço 3/5 - Médio):* Engenharia de sistemas, delta-V básico, geração de watts e confiabilidade de componentes.
-  - *Storytelling & Pitch (Esforço 5/5 - Crítico):* Humor, dilemas éticos de corte de custos e tensão no momento da contagem regressiva.
-- **📡 Dados & Satélites Oficiais:** NASA Cost Estimating Handbook, NASA Systems Engineering Handbook e especificações de foguetes do Launch Services Program.
-- **✅ Prós:** O projeto mais divertido e viciante da maratona; altíssimo engajamento dos jurados.
-- **❌ Contras:** Tentar criar física 3D orbital em tempo real (estilo Kerbal Space Program) é garantia de não terminar o projeto.
-- **🚨 Alerta 48h:** Crie um jogo de tomada de decisões táticas baseadas em turnos/cartas (estilo *Reigns* ou simulador de gerenciamento).
-- **💡 O Pulo do Gato:** *Director: Mission to Enceladus*: o jogador tem 800 milhões de dólares e 5 minutos para montar uma missão para buscar vida em Encélado. Cada decisão (reator nuclear vs solar, furador de gelo vs espectrômetro) altera a probabilidade de explosão no lançamento e o retorno de dados científicos.
+- **🎯 Real NASA Context:** Every space mission is a puzzle of brutal trade-offs: adding more science instruments requires more fuel, which increases rocket cost and can blow the Congressional budget. NASA wants a game teaching the art of systems-engineering trade-offs.
+- **🛠️ Required Skills Matrix:**
+  - *Frontend & Gamedev (Effort 5/5 - Critical):* React/Vue, Tailwind CSS, mass-balance animations, and NASA launch-terminal aesthetics.
+  - *Backend & Data (Effort 2/5 - Light):* Game economy running in-browser in TypeScript/JavaScript.
+  - *Science & Domain (Effort 3/5 - Medium):* Systems engineering, basic delta-V, watt generation, and component reliability.
+  - *Storytelling & Pitch (Effort 5/5 - Critical):* Humor, ethical cost-cutting dilemmas, and countdown tension.
+- **📡 Official Data & Satellites:** NASA Cost Estimating Handbook, NASA Systems Engineering Handbook, and Launch Services Program rocket specs.
+- **✅ Pros:** Most fun and addictive project of the hackathon; sky-high judge engagement.
+- **❌ Cons:** Trying to build real-time 3D orbital physics (Kerbal Space Program style) guarantees not finishing.
+- **🚨 48h Alert:** Build a turn/card-based tactical decision game (*Reigns* style or management sim).
+- **💡 The Secret Weapon:** *Director: Mission to Enceladus*: the player has $800M and 5 minutes to assemble a mission to search for life on Enceladus. Every choice (nuclear vs. solar, ice drill vs. spectrometer) shifts launch explosion probability and science data return.
 
 ---
 
 ### 14. The Earth Information Jukebox
-- **🎯 Contexto Real da NASA:** Bilhões de pessoas interagem com dados climáticos da NASA por gráficos visuais, mas deficientes visuais são excluídos desse conhecimento. A sonificação de dados converte variáveis físicas (temperatura, vento, correntes marítimas) em frequências e ritmos sonoros, democratizando o acesso e criando empatia imediata com o planeta.
-- **🛠️ Matriz de Habilidades Exigidas:**
-  - *Frontend & Áudio (Esforço 4/5 - Forte):* Web Audio API, Tone.js, sintetizadores virtuais no navegador e acessibilidade WCAG (leitores de tela).
-  - *Backend & Dados (Esforço 2/5 - Leve):* Normalização de séries temporais climáticas para frequências audíveis em Hertz.
-  - *Ciência & Domínio (Esforço 3/5 - Médio):* Escalas musicais (maiores/menores), síntese sonora e anomalias de aquecimento global.
-  - *Storytelling & Pitch (Esforço 5/5 - Crítico):* Inclusão de deficientes visuais na ciência e demonstração com fones de ouvido no pitch.
-- **📡 Dados & Satélites Oficiais:** NASA GISTEMP (temperatura global), OCO-2/OCO-3 (CO2 atmosférico) e NOAA/NASA Coral Reef Watch.
-- **✅ Prós:** Originalidade extrema (pouquíssimas equipes fazem som); nota 10 garantida em acessibilidade e empatia.
-- **❌ Contras:** Se soar como ruído desconexo, perde credibilidade científica.
-- **🚨 Alerta 48h:** Mapeie métricas reais em notas musicais harmônicas: anos frios soam como notas graves de violoncelo, enquanto picos recentes de aquecimento sobem para tons agudos e percussão acelerada.
-- **💡 O Pulo do Gato:** *Symphony of a Changing Planet*: jukebox climática 100% acessível para deficientes visuais que toca a história climática da Terra de 1880 a 2026 como uma suíte orquestral gerativa, permitindo aos usuários 'ouvir' o aquecimento global com descrição em áudio integrada.
+- **🎯 Real NASA Context:** Billions interact with NASA climate data through visual charts, but visually impaired people are excluded from that knowledge. Data sonification converts physical variables (temperature, wind, ocean currents) into frequencies and rhythms, democratizing access and creating immediate empathy with the planet.
+- **🛠️ Required Skills Matrix:**
+  - *Frontend & Audio (Effort 4/5 - Strong):* Web Audio API, Tone.js, in-browser virtual synthesizers, and WCAG accessibility (screen readers).
+  - *Backend & Data (Effort 2/5 - Light):* Normalizing climate time series to audible Hertz frequencies.
+  - *Science & Domain (Effort 3/5 - Medium):* Musical scales (major/minor), sound synthesis, and global warming anomalies.
+  - *Storytelling & Pitch (Effort 5/5 - Critical):* Inclusion of visually impaired people in science and headphone demo in the pitch.
+- **📡 Official Data & Satellites:** NASA GISTEMP (global temperature), OCO-2/OCO-3 (atmospheric CO2), and NOAA/NASA Coral Reef Watch.
+- **✅ Pros:** Extreme originality (very few teams do audio); guaranteed 10/10 in accessibility and empathy.
+- **❌ Cons:** If it sounds like disjointed noise, it loses scientific credibility.
+- **🚨 48h Alert:** Map real metrics to harmonic musical notes: cold years sound like deep cello notes, while recent warming spikes rise into high tones and accelerated percussion.
+- **💡 The Secret Weapon:** *Symphony of a Changing Planet*: 100% screen-reader-accessible climate jukebox playing Earth's climate history from 1880 to 2026 as a generative orchestral suite, letting users "hear" global warming with integrated audio description.
 
 ---
 
-## 🎯 Roteiro Prático para a Decisão Hoje:
+## 🎯 Practical Roadmap for Today's Decision:
 
-1. Inicie o servidor local: `python3 server.py`
-2. Abra `http://localhost:8080` e mande o link para seu amigo.
-3. Leiam os dossiês detalhados nos cards clicando em **"Abrir Dossiê Estratégico Completo"**.
-4. Cada um dá suas notas de 1 a 5 estrelas.
-5. O painel apontará o **Desafio de Alto Consenso** da equipe!
+1. Start the local server: `python3 server.py`
+2. Open `http://localhost:8080` and send the link to your teammate.
+3. Read the detailed dossiers on the cards by clicking **"Open Full Strategic Dossier"**.
+4. Everyone submits 1-to-5-star ratings.
+5. The dashboard will highlight the team's **High-Consensus Challenge**!

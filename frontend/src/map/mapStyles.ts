@@ -1,3 +1,4 @@
+import { resolveGridVariableId } from '../contracts/catalog.ts';
 import type { GlobalGridPoint, RegionSlot, VariableId } from '../contracts/types.ts';
 
 export interface CircleMarkerVisualStyle {
@@ -17,21 +18,72 @@ export interface RegionPolygonVisualStyle {
   readonly dashArray: string | undefined;
 }
 
-/** Escalas típicas de magnitude decadal para normalização visual do raio no mapa global. */
-const MAGNITUDE_REFERENCE_BY_VAR: Readonly<Partial<Record<VariableId, number>>> = {
+/**
+ * Escalas típicas de magnitude decadal para normalização visual do raio no mapa global.
+ * Tipagem estrita `Record<VariableId, number>` obriga calibração de todas as variáveis do catálogo.
+ */
+export const MAGNITUDE_REFERENCE_BY_VAR: Readonly<Record<VariableId, number>> = {
+  // Temperatura (°C/década)
   T2M: 0.6,
   T2M_MAX: 0.7,
   T2M_MIN: 0.6,
+  T2M_RANGE: 0.4,
+  TS: 0.7,
+  LST_Day_CMG: 1.0,
+  LST_Night_CMG: 0.8,
+  T2MDEW: 0.5,
+  TAVG: 0.6,
+  TMAX: 0.7,
+  TMIN: 0.6,
+
+  // Precipitação, evapotranspiração, água atmosférica e neve
   PRECTOTCORR: 15,
+  GPM_3IMERGM: 15,
+  PRCP: 15,
+  SNOW: 10,
+  SNWD: 15,
+  Evap_tavg: 0.25,
+  Qs_acc: 5.0,
+  TQV: 1.2,
+  QV2M: 0.5,
+  RH2M: 3.0,
+
+  // Umidade do solo (fração/década) e vegetação
   GWETTOP: 0.05,
   GWETROOT: 0.05,
-  RH2M: 3.0,
+  GWETPROF: 0.04,
+  _1_km_monthly_NDVI: 0.05,
+  _1_km_monthly_EVI: 0.04,
+  Lai_500m: 0.35,
+
+  // Hidrologia e rios (m³/s/década)
+  river_discharge: 120,
+  river_discharge_mean: 120,
+  river_discharge_max: 250,
+  river_discharge_min: 40,
+
+  // Vento (m/s/década) e pressão (kPa/década)
+  WS2M: 0.3,
   WS10M: 0.4,
+  WS50M: 0.5,
+  AWND: 0.4,
   PS: 0.15,
+
+  // Radiação, albedo, nuvens e aerossóis
   ALLSKY_SFC_SW_DWN: 0.6,
+  ALLSKY_SRF_ALB: 0.02,
+  CLRSKY_SFC_SW_DWN: 0.15,
   CLDTOT: 4.0,
+  CLOUD_AMT: 4.0,
   ALLSKY_SFC_LW_DWN: 0.6,
+  AOD_550: 0.05,
 };
+
+/** Retorna a escala física decadal usada na normalização de raio do mapa global. */
+export function getMagnitudeReference(variableId: VariableId, resolveProxy = false): number {
+  const key = resolveProxy ? resolveGridVariableId(variableId) : variableId;
+  return MAGNITUDE_REFERENCE_BY_VAR[key];
+}
 
 /**
  * Paleta divergente acessível (azul/teal para negativo vs. laranja/vermelho para positivo).
@@ -45,7 +97,10 @@ export function getGlobalPointStyle(
   const isNeutral = point.slope_sen_decade === 0;
 
   const baseColor = isNeutral ? '#64748b' : isPositive ? '#d9480f' : '#1864ab';
-  const refScale = MAGNITUDE_REFERENCE_BY_VAR[variableId] ?? 1;
+  const refScale =
+    MAGNITUDE_REFERENCE_BY_VAR[variableId] ??
+    MAGNITUDE_REFERENCE_BY_VAR[resolveGridVariableId(variableId)] ??
+    1;
   const normalizedMag = Math.min(Math.abs(point.slope_sen_decade) / refScale, 1.5);
   const radius = Math.round((3.5 + normalizedMag * 4.5) * 10) / 10;
 
@@ -89,5 +144,54 @@ export function getSelectedCellStyle(slot: RegionSlot): RegionPolygonVisualStyle
     fillOpacity: 0.28,
     weight: 2.5,
     dashArray: '6 4',
+  };
+}
+
+export interface GlobalTrendHotspots {
+  readonly positive: GlobalGridPoint | null;
+  readonly negative: GlobalGridPoint | null;
+}
+
+function selectExtremeHotspot(
+  points: readonly GlobalGridPoint[],
+  direction: 'positive' | 'negative',
+): GlobalGridPoint | null {
+  const directional = points.filter(point =>
+    Number.isFinite(point.slope_sen_decade) &&
+    Number.isFinite(point.q_value_fdr) &&
+    (direction === 'positive' ? point.slope_sen_decade > 0 : point.slope_sen_decade < 0),
+  );
+  if (directional.length === 0) return null;
+
+  const significant = directional.filter(point => point.q_value_fdr < 0.05);
+  const pool = significant.length > 0 ? significant : directional;
+
+  let best = pool[0]!;
+  for (let i = 1; i < pool.length; i += 1) {
+    const candidate = pool[i]!;
+    const isStronger = direction === 'positive'
+      ? candidate.slope_sen_decade > best.slope_sen_decade
+      : candidate.slope_sen_decade < best.slope_sen_decade;
+    const isSameSlopeBetterSignificance =
+      candidate.slope_sen_decade === best.slope_sen_decade &&
+      candidate.q_value_fdr < best.q_value_fdr;
+    if (isStronger || isSameSlopeBetterSignificance) {
+      best = candidate;
+    }
+  }
+
+  return best;
+}
+
+/**
+ * Seleciona os hotspots globais de maior tendência positiva e negativa,
+ * priorizando pontos com significância estatística FDR (`q_value_fdr < 0.05`) quando disponíveis.
+ */
+export function findGlobalTrendHotspots(
+  points: readonly GlobalGridPoint[],
+): GlobalTrendHotspots {
+  return {
+    positive: selectExtremeHotspot(points, 'positive'),
+    negative: selectExtremeHotspot(points, 'negative'),
   };
 }

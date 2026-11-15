@@ -1,4 +1,4 @@
-"""Camada HTTP REST para integração do backend de dados com o frontend."""
+"""HTTP REST layer integrating the data backend with the frontend."""
 
 from .server import BackendRouter, run_server
 

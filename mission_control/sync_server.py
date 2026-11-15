@@ -1,8 +1,8 @@
 #!/usr/bin/env python3
 # -*- coding: utf-8 -*-
 """
-Space Apps · Mission Control - Servidor de Sincronização em Tempo Real (LAN / Wi-Fi)
-Biblioteca Padrão do Python 3 (Sem dependências externas: pip, npm, etc.)
+Space Apps · Mission Control - Real-Time Sync Server (LAN / Wi-Fi)
+Python 3 Standard Library (No external dependencies: pip, npm, etc.)
 """
 
 import http.server
@@ -27,10 +27,10 @@ subscribers_lock = threading.Lock()
 
 
 def get_lan_ip():
-    """Detecta automaticamente o IP local na rede Wi-Fi / LAN conectada."""
+    """Automatically detect the local IP on the connected Wi-Fi / LAN network."""
     s = socket.socket(socket.AF_INET, socket.SOCK_DGRAM)
     try:
-        # Conexão dummy UDP não envia pacotes pela rede, apenas obtém o IP da interface de saída
+        # Dummy UDP connection sends no network packets, only resolves the outbound interface IP
         s.connect(("8.8.8.8", 80))
         ip = s.getsockname()[0]
     except Exception:
@@ -41,7 +41,7 @@ def get_lan_ip():
 
 
 def broadcast_state(json_str):
-    """Envia o novo estado a todos os clientes SSE conectados."""
+    """Broadcast the new state to all connected SSE clients."""
     with subscribers_lock:
         targets = list(subscribers)
     for q in targets:
@@ -70,7 +70,7 @@ class SyncHandler(http.server.BaseHTTPRequestHandler):
 
         if path in ("/", "/index.html"):
             if not os.path.exists(HTML_FILE):
-                self.send_error(404, f"Arquivo HTML não encontrado em: {HTML_FILE}")
+                self.send_error(404, f"HTML file not found at: {HTML_FILE}")
                 return
             try:
                 with open(HTML_FILE, "rb") as f:
@@ -82,7 +82,7 @@ class SyncHandler(http.server.BaseHTTPRequestHandler):
                 self.end_headers()
                 self.wfile.write(content)
             except Exception as e:
-                self.send_error(500, f"Erro ao servir HTML: {e}")
+                self.send_error(500, f"Error serving HTML: {e}")
 
         elif path == "/api/state":
             if os.path.exists(STATE_FILE):
@@ -114,19 +114,19 @@ class SyncHandler(http.server.BaseHTTPRequestHandler):
                 subscribers.add(client_queue)
 
             try:
-                # Comentário inicial de conexão SSE
+                # Initial SSE connection comment
                 self.wfile.write(b": connected\n\n")
                 self.wfile.flush()
 
                 while True:
                     try:
                         msg = client_queue.get(timeout=15)
-                        # Formata Server-Sent Event
+                        # Format Server-Sent Event
                         sse_payload = f"data: {msg}\n\n".encode("utf-8")
                         self.wfile.write(sse_payload)
                         self.wfile.flush()
                     except queue.Empty:
-                        # Keep-alive periódico a cada 15 segundos
+                        # Periodic keep-alive every 15 seconds
                         self.wfile.write(b": keepalive\n\n")
                         self.wfile.flush()
             except (BrokenPipeError, ConnectionResetError, ConnectionAbortedError):
@@ -138,7 +138,7 @@ class SyncHandler(http.server.BaseHTTPRequestHandler):
                     subscribers.discard(client_queue)
 
         else:
-            self.send_error(404, "Endpoint não encontrado")
+            self.send_error(404, "Endpoint not found")
 
     def do_POST(self):
         parsed = urllib.parse.urlparse(self.path)
@@ -148,19 +148,19 @@ class SyncHandler(http.server.BaseHTTPRequestHandler):
             try:
                 content_length = int(self.headers.get("Content-Length", 0))
                 if content_length <= 0:
-                    raise ValueError("Corpo da requisição vazio")
+                    raise ValueError("Empty request body")
 
                 post_body = self.rfile.read(content_length)
                 raw_str = post_body.decode("utf-8")
                 data = json.loads(raw_str)
 
-                # Salva atomicamente via arquivo temporário + os.replace
+                # Save atomically via temporary file + os.replace
                 tmp_path = STATE_FILE + ".tmp"
                 with open(tmp_path, "w", encoding="utf-8") as f:
                     json.dump(data, f, ensure_ascii=False, indent=2)
                 os.replace(tmp_path, STATE_FILE)
 
-                # Transmite instantaneamente para todos os navegadores conectados via SSE
+                # Broadcast immediately to all connected browsers via SSE
                 broadcast_state(raw_str)
 
                 resp = b'{"ok": true}'
@@ -179,10 +179,10 @@ class SyncHandler(http.server.BaseHTTPRequestHandler):
                 self.end_headers()
                 self.wfile.write(err_resp)
         else:
-            self.send_error(404, "Endpoint não encontrado")
+            self.send_error(404, "Endpoint not found")
 
     def log_message(self, fmt, *args):
-        # Log limpo no terminal com hora e ação
+        # Clean terminal log with timestamp and action
         sys.stderr.write(f"[{time.strftime('%H:%M:%S')}] {args[0]} {args[1]} {args[2]}\n")
 
 
@@ -197,7 +197,7 @@ def main():
         try:
             port = int(sys.argv[1])
         except ValueError:
-            print(f"Porta inválida '{sys.argv[1]}', usando {DEFAULT_PORT}.")
+            print(f"Invalid port '{sys.argv[1]}', using {DEFAULT_PORT}.")
 
     lan_ip = get_lan_ip()
     server_address = ("0.0.0.0", port)
@@ -205,24 +205,24 @@ def main():
     try:
         httpd = ThreadedHTTPServer(server_address, SyncHandler)
     except Exception as e:
-        print(f"Erro ao vincular à porta {port}: {e}")
+        print(f"Error binding to port {port}: {e}")
         sys.exit(1)
 
     banner = f"""
 ========================================================================
-🚀 Space Apps · Mission Control - Servidor de Sincronização LAN (Wi-Fi)
+🚀 Space Apps · Mission Control - LAN Sync Server (Wi-Fi)
 ========================================================================
-📡 Servidor ativo e pronto para sincronizar a equipe em tempo real!
+📡 Server active and ready to sync the team in real time!
 
-▶ No computador HOST (esta máquina):
+▶ On the HOST computer (this machine):
   http://localhost:{port}
 
-▶ Nos computadores da equipe (mesma rede Wi-Fi / LAN):
+▶ On team computers (same Wi-Fi / LAN network):
   http://{lan_ip}:{port}
 
-✦ As alterações salvas por qualquer membro são transmitidas em tempo real
-✦ Suporta acesso via arquivo local (CORS liberado para file://)
-✦ Pressione Ctrl+C para encerrar o servidor.
+✦ Changes saved by any member are broadcast in real time
+✦ Supports local file access (CORS enabled for file://)
+✦ Press Ctrl+C to shut down the server.
 ========================================================================
 """
     print(banner)
@@ -230,7 +230,7 @@ def main():
     try:
         httpd.serve_forever()
     except KeyboardInterrupt:
-        print("\n🛑 Encerrando servidor de sincronização...")
+        print("\n🛑 Shutting down sync server...")
     finally:
         httpd.server_close()
 

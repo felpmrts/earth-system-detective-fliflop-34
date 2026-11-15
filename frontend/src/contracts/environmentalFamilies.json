@@ -1,207 +1,207 @@
 [
   {
-    "group": "Temperatura e Calor (Atmosfera e Superfície)",
+    "group": "Temperature and Heat (Atmosphere & Surface)",
     "items": [
       {
-        "label": "Temperatura Média do Ar (2m)",
+        "label": "Mean Air Temperature (2m)",
         "value": "T2M"
       },
       {
-        "label": "Temperatura Máxima do Ar (2m)",
+        "label": "Maximum Air Temperature (2m)",
         "value": "T2M_MAX"
       },
       {
-        "label": "Temperatura Mínima do Ar (2m)",
+        "label": "Minimum Air Temperature (2m)",
         "value": "T2M_MIN"
       },
       {
-        "label": "Amplitude Térmica Diária",
+        "label": "Diurnal Temperature Range",
         "value": "T2M_RANGE"
       },
       {
-        "label": "Temperatura da Superfície (Solo/Piso)",
+        "label": "Surface Skin Temperature",
         "value": "TS"
       },
       {
-        "label": "Temp. de Superfície Diurna (Satélite)",
+        "label": "Daytime Land Surface Temp. (Satellite)",
         "value": "LST_Day_CMG"
       },
       {
-        "label": "Temp. de Superfície Noturna (Satélite)",
+        "label": "Nighttime Land Surface Temp. (Satellite)",
         "value": "LST_Night_CMG"
       },
       {
-        "label": "Ponto de Orvalho (2m)",
+        "label": "Dew Point Temperature (2m)",
         "value": "T2MDEW"
       }
     ]
   },
   {
-    "group": "Chuva e Umidade Atmosférica",
+    "group": "Precipitation and Atmospheric Moisture",
     "items": [
       {
-        "label": "Precipitação Total Corrigida (Chuva)",
+        "label": "Corrected Total Precipitation (Rain)",
         "value": "PRECTOTCORR"
       },
       {
-        "label": "Precipitação por Satélite (Alta Res.)",
+        "label": "Satellite Precipitation (High Res.)",
         "value": "GPM_3IMERGM"
       },
       {
-        "label": "Umidade Relativa do Ar (2m)",
+        "label": "Relative Humidity (2m)",
         "value": "RH2M"
       },
       {
-        "label": "Umidade Específica do Ar (2m)",
+        "label": "Specific Humidity (2m)",
         "value": "QV2M"
       },
       {
-        "label": "Água Precipitável na Atmosfera",
+        "label": "Total Precipitable Water",
         "value": "TQV"
       }
     ]
   },
   {
-    "group": "Solo, Seca Agrícola e Evapotranspiração",
+    "group": "Soil, Agricultural Drought and Evapotranspiration",
     "items": [
       {
-        "label": "Umidade Superficial do Solo",
+        "label": "Surface Soil Moisture",
         "value": "GWETTOP"
       },
       {
-        "label": "Umidade na Zona das Raízes",
+        "label": "Root-Zone Soil Moisture",
         "value": "GWETROOT"
       },
       {
-        "label": "Umidade Profunda do Solo (Perfil)",
+        "label": "Deep Soil Profile Moisture",
         "value": "GWETPROF"
       },
       {
-        "label": "Evapotranspiração Total",
+        "label": "Total Evapotranspiration",
         "value": "Evap_tavg"
       },
       {
-        "label": "Escoamento Superficial (Runoff)",
+        "label": "Surface Runoff",
         "value": "Qs_acc"
       }
     ]
   },
   {
-    "group": "Rios, Vazão e Bacias Hidrográficas",
+    "group": "Rivers, Discharge and Watersheds",
     "items": [
       {
-        "label": "Vazão do Rio (Série Histórica)",
+        "label": "River Discharge (Historical Series)",
         "value": "river_discharge"
       },
       {
-        "label": "Vazão Média do Rio",
+        "label": "Mean River Discharge",
         "value": "river_discharge_mean"
       },
       {
-        "label": "Pico Máximo de Cheia",
+        "label": "Peak Flood Discharge",
         "value": "river_discharge_max"
       },
       {
-        "label": "Vazão Mínima Crítica (Estiagem)",
+        "label": "Critical Low-Flow Discharge (Drought)",
         "value": "river_discharge_min"
       }
     ]
   },
   {
-    "group": "Vegetação, Florestas e Uso da Terra",
+    "group": "Vegetation, Forests and Land Use",
     "items": [
       {
-        "label": "Índice de Vegetação (NDVI)",
+        "label": "Vegetation Index (NDVI)",
         "value": "_1_km_monthly_NDVI"
       },
       {
-        "label": "Índice de Vegetação Melhorado (EVI)",
+        "label": "Enhanced Vegetation Index (EVI)",
         "value": "_1_km_monthly_EVI"
       },
       {
-        "label": "Índice de Área Foliar (LAI)",
+        "label": "Leaf Area Index (LAI)",
         "value": "Lai_500m"
       },
       {
-        "label": "Albedo da Superfície",
+        "label": "Surface Albedo",
         "value": "ALLSKY_SRF_ALB"
       }
     ]
   },
   {
-    "group": "Radiação Solar, Nuvens, Ventos e Atmosfera",
+    "group": "Solar Radiation, Clouds, Winds and Atmosphere",
     "items": [
       {
-        "label": "Radiação Solar Incidente",
+        "label": "All-Sky Surface Shortwave Downward Irradiance",
         "value": "ALLSKY_SFC_SW_DWN"
       },
       {
-        "label": "Radiação Solar de Céu Limpo",
+        "label": "Clear-Sky Solar Radiation",
         "value": "CLRSKY_SFC_SW_DWN"
       },
       {
-        "label": "Radiação Infravermelha (Efeito Estufa)",
+        "label": "Longwave Infrared Radiation (Greenhouse)",
         "value": "ALLSKY_SFC_LW_DWN"
       },
       {
-        "label": "Cobertura de Nuvens",
+        "label": "Cloud Cover Amount",
         "value": "CLOUD_AMT"
       },
       {
-        "label": "Velocidade do Vento (2m)",
+        "label": "Wind Speed (2m)",
         "value": "WS2M"
       },
       {
-        "label": "Velocidade do Vento (10m)",
+        "label": "Wind Speed (10m)",
         "value": "WS10M"
       },
       {
-        "label": "Velocidade do Vento p/ Turbinas (50m)",
+        "label": "Wind Speed for Turbines (50m)",
         "value": "WS50M"
       },
       {
-        "label": "Pressão Atmosférica na Superfície",
+        "label": "Surface Atmospheric Pressure",
         "value": "PS"
       },
       {
-        "label": "Espessura Óptica de Aerossóis (Fumaça)",
+        "label": "Aerosol Optical Depth (Smoke)",
         "value": "AOD_550"
       },
       {
-        "label": "Cobertura Total de Nuvens",
+        "label": "Total Cloud Fraction",
         "value": "CLDTOT"
       }
     ]
   },
   {
-    "group": "Estações Meteorológicas em Solo (Validação Local)",
+    "group": "Ground Weather Stations (Local Validation)",
     "items": [
       {
-        "label": "Chuva na Estação (Pluviômetro)",
+        "label": "Station Precipitation (Rain Gauge)",
         "value": "PRCP"
       },
       {
-        "label": "Temperatura Média na Estação",
+        "label": "Station Mean Temperature",
         "value": "TAVG"
       },
       {
-        "label": "Temperatura Máxima na Estação",
+        "label": "Station Maximum Temperature",
         "value": "TMAX"
       },
       {
-        "label": "Temperatura Mínima na Estação",
+        "label": "Station Minimum Temperature",
         "value": "TMIN"
       },
       {
-        "label": "Queda de Neve (Estação)",
+        "label": "Snowfall (Station)",
         "value": "SNOW"
       },
       {
-        "label": "Acúmulo de Neve no Solo",
+        "label": "Snow Depth on Ground",
         "value": "SNWD"
       },
       {
-        "label": "Velocidade Média do Vento (Solo)",
+        "label": "Mean Wind Speed (Ground)",
         "value": "AWND"
       }
     ]

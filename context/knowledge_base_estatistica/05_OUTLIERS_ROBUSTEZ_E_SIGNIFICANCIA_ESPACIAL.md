@@ -1,104 +1,104 @@
-# 05. Outliers, Distância de Mahalanobis, Robustez e Significância Espacial
+# 05. Outliers, Mahalanobis Distance, Robustness, and Spatial Significance
 
-> **Referência Base:** [`transcricao.txt`](file:///home/zrhyan/Principal/Computation/Space%20Apps/transcricao.txt) (Linhas 1, 5 e 9) + [`ESTRATEGIA_TREND_DETECTIVE.md`](file:///home/zrhyan/Principal/Computation/Space%20Apps/general_strategy/ESTRATEGIA_TREND_DETECTIVE.md) (Seção 4 e Riscos #3, #6)
-> **Objetivo para Agentes de IA:** Implementar o tratamento rigoroso de *outliers* bivariados/multivariados via **Elipse e Distância de Mahalanobis**, combinar estimadores robustos com Mínimos Quadrados, e aplicar o estado da arte em testes de **Significância Estatística Espacial** corrigidos para autocorrelação serial e múltiplos testes (FDR).
+> **Base Reference:** `transcricao.txt` (Lines 1, 5, and 9) + [`ESTRATEGIA_TREND_DETECTIVE.md`](../general_strategy/ESTRATEGIA_TREND_DETECTIVE.md) (Section 4 and Risks #3, #6)
+> **Goal for AI Agents:** Implement rigorous bivariate/multivariate *outlier* handling via **Mahalanobis Ellipse and Distance**, combine robust estimators with Ordinary Least Squares, and apply state-of-the-art **Spatial Statistical Significance** tests corrected for serial autocorrelation and multiple testing (FDR).
 
 ---
 
-## 1. O Problema dos Outliers e a Elipse de Mahalanobis
+## 1. The Outlier Problem and the Mahalanobis Ellipse
 
-Em [`transcricao.txt`](file:///home/zrhyan/Principal/Computation/Space%20Apps/transcricao.txt#L5), ao demonstrar como a correlação evolui de $r = 0{,}905$ para $r = 0{,}94$ e depois $r = 0{,}98$ após o tratamento de *outliers* e aumento de variáveis, Hindemburg esclarece um conceito geométrico crucial que quase todos os programadores erram:
+In `transcricao.txt` (Line 5), when demonstrating how correlation improves from $r = 0.905$ to $r = 0.94$ and then $r = 0.98$ after *outlier* treatment and adding variables, Hindemburg clarifies a crucial geometric concept that almost all programmers get wrong:
 
-### 1.1 O Que Realmente Define um Outlier em uma Regressão/Correlação?
-- **O Erro Comum (Univariado):** Muitos desenvolvedores tentam filtrar *outliers* olhando apenas para o eixo $Y$ isoladamente (ex.: cortar valores onde $|Y - \bar{Y}| > 3\sigma_Y$).
-- **A Verdade Geométrica (Bivariada/Multivariada):** Na transcrição, destaca-se que um *outlier* na regressão **não é um ponto extremo num único eixo**, mas sim um ponto **"muito destoante da nuvem de pontos, fora da elipse de contorno"**:
-  - Um ponto pode ter um valor moderado em $X$ e moderado em $Y$, mas estar completamente fora da elipse estreita que une $X$ e $Y$ (ex.: os casos citados de William Herschel ou Brian Greene abaixo da elipse, ou Conde de Buffon acima da elipse).
-  - Inversamente, um ponto no final de uma série temporal com forte tendência pode ter um valor altíssimo de $Y$, mas estar **perfeitamente em cima da reta de regressão** dentro da elipse! Cortá-lo por um filtro simples de $3\sigma_Y$ amputaria justamente o final da tendência real!
+### 1.1 What Truly Defines an Outlier in a Regression/Correlation?
+- **The Common (Univariate) Error:** Many developers try to filter *outliers* by looking only at the $Y$-axis in isolation (e.g., cutting values where $|Y - \bar{Y}| > 3\sigma_Y$).
+- **The Geometric Truth (Bivariate/Multivariate):** The transcript emphasizes that an *outlier* in regression **is not an extreme point along a single axis**, but rather a point **"far out of step with the point cloud, outside the contour ellipse"**:
+  - A point may have a moderate value in $X$ and a moderate value in $Y$, yet lie completely outside the narrow ellipse linking $X$ and $Y$ (e.g., the cited cases of William Herschel or Brian Greene below the ellipse, or Comte de Buffon above the ellipse).
+  - Conversely, a point at the end of a strongly trending time series may have a very high $Y$ value, yet sit **right on top of the regression line** inside the ellipse! Cutting it with a naive $3\sigma_Y$ filter would amputate the very end of the real trend!
 
-### 1.2 A Distância de Mahalanobis ($D_M$) e a Elipse de Contorno
-Conforme mencionado explicitamente em [`transcricao.txt`](file:///home/zrhyan/Principal/Computation/Space%20Apps/transcricao.txt#L5), a métrica matemática correta para definir a borda elíptica de uma nuvem de pontos correlacionada é a **Distância de Mahalanobis**:
+### 1.2 Mahalanobis Distance ($D_M$) and the Contour Ellipse
+As explicitly mentioned in `transcricao.txt` (Line 5), the proper mathematical metric for defining the elliptical boundary of a correlated point cloud is **Mahalanobis Distance**:
 
 $$D_M(z_i) = \sqrt{(z_i - \mu)^T \Sigma^{-1} (z_i - \mu)}$$
 
-Onde $z_i = (x_i, y_i)^T$ é o vetor de observação no ponto $i$, $\mu = (\bar{x}, \bar{y})^T$ é o centro de massa da nuvem e $\Sigma$ é a matriz de covariância amostral (preferencialmente estimada de forma robusta via *Minimum Covariance Determinant* — MCD, ou mediana/MAD).
+Where $z_i = (x_i, y_i)^T$ is the observation vector at point $i$, $\mu = (\bar{x}, \bar{y})^T$ is the cloud's center of mass, and $\Sigma$ is the sample covariance matrix (preferably estimated robustly via *Minimum Covariance Determinant* — MCD, or median/MAD).
 
-- **Propriedade Fundamental:**
-  - Enquanto a distância euclidiana desenha um **círculo** cego à inclinação e à correlação dos dados, a Distância de Mahalanobis desenha uma **elipse perfeitamente alinhada com o eixo principal da regressão** e cuja largura se estreita automaticamente à medida que $|r| \to 1$.
-  - Sob normalidade bivariada, $D_M^2$ segue uma distribuição Qui-Quadrado com 2 graus de liberdade ($\chi^2_2$). Um limiar de $2{,}5\sigma$ a $3{,}0\sigma$ equivalentes identifica com precisão cirúrgica os pontos fora da elipse:
-    - **Pontos muito abaixo da elipse ($\text{resíduo padronizado} \ll -2{,}5$):** Eventos de queda anômala abrupta (ex.: seca extrema de 1 mês ou falha de leitura fria de nuvem não filtrada no MODIS).
-    - **Pontos muito acima da elipse ($\text{resíduo padronizado} \gg +2{,}5$):** Eventos de pico extremo (ex.: onda de calor recorde, queimada concentrada ou *spike* radiométrico).
+- **Fundamental Property:**
+  - Whereas Euclidean distance draws a **circle** blind to slope and correlation, Mahalanobis Distance draws an **ellipse perfectly aligned with the principal regression axis**, whose width automatically narrows as $|r| \to 1$.
+  - Under bivariate normality, $D_M^2$ follows a Chi-Squared distribution with 2 degrees of freedom ($\chi^2_2$). An equivalent threshold of $2.5\sigma$ to $3.0\sigma$ pinpoints points outside the ellipse with surgical precision:
+    - **Points far below the ellipse ($\text{standardized residual} \ll -2.5$):** Abrupt anomalous drop events (e.g., 1-month extreme drought or unfiltered cold cloud-contamination reading in MODIS).
+    - **Points far above the ellipse ($\text{standardized residual} \gg +2.5$):** Extreme spike events (e.g., record heatwave, concentrated wildfire, or radiometric *spike*).
 
-### 1.3 Não confunda a Curva com uma Normal Gaussiana!
-No final de [`transcricao.txt`](file:///home/zrhyan/Principal/Computation/Space%20Apps/transcricao.txt#L9), Hindemburg introduz um alerta severo sobre o erro sistemático de **confundir distribuições de caudas pesadas (leptocúrticas / Cauchy / Pareto / t-Student / Lévy) com a Distribuição Normal (Gaussiana)**:
-- Em Ciências da Terra e Climatologia, extremos hidroclimáticos (chuvas torrenciais, incêndios florestais, anomalias de vento, descargas de rios) **não seguem uma distribuição normal gaussiana**; eles possuem **caudas pesadas (*fat tails*)** ou assimetria pronunciada (distribuições GEV, Gamma, Weibull, Log-Normal).
-- **Consequência prática para o nosso código (`DADOS-2`):**
-  1. Se assumirmos cegamente distribuição normal usando apenas média e desvio-padrão ordinário (OLS + teste $t$ paramétrico ingênuo) em variáveis com caudas pesadas, um único extremo climático real ou erro de sensor distorcerá a inclinação $B$ e o $p\text{-valor}$.
-  2. Por isso, nossa arquitetura estatística deve operar em **Dupla Camada (Paramétrica + Não-Paramétrica Robusta)**.
-
----
-
-## 2. Regressão Robusta vs. Regressão Clássica: O Protocolo de Dupla Validação
-
-Em vez de escolher cegamente apenas um método ou descartar *outliers* no escuro, o estado da arte para o *Trend Detective* consiste em calcular e comparar:
-
-1. **Estimador Clássico de Mínimos Quadrados (OLS) + Filtro de Mahalanobis:**
-   - Calcula $B_{\text{OLS}}$, $r_{\text{Pearson}}$ e identifica os pontos com $D_M > \text{limiar}$ (ou resíduo studentizado $|e_i / \hat{\sigma}_e| > 2{,}5$).
-   - **Importante na UI (`PROD-2`):** Não apague os *outliers* silenciosamente do gráfico! Destaque-os com um marcador especial na série temporal (ex.: círculo contornado em alerta) para que o usuário veja onde ocorreu um ano extremo (ex.: Super El Niño 2015/2016 ou Seca Histórica 2023/2024), mas mostre como a tendência é protegida contra eles.
-2. **Estimador Robusto de Theil-Sen (*Sen's Slope*) + Teste de Mann-Kendall:**
-   - O **Declive de Sen (*Sen's Slope*)** calcula a mediana das inclinações de todas as $\binom{n}{2}$ retas que passam por todos os pares de pontos $(t_i, y_i)$ e $(t_j, y_j)$:
-     $$B_{\text{Sen}} = \text{mediana}_{1 \le i < j \le n} \left( \frac{y_j - y_i}{t_j - t_i} \right)$$
-   - **Ponto de Ruptura (*Breakdown Point*) de $29{,}3\%$:** Até quase $30\%$ dos dados da NASA podem estar completamente corrompidos por nuvens ou extremos severos sem que $B_{\text{Sen}}$ seja distorcido!
-   - Quando $B_{\text{OLS}}$ e $B_{\text{Sen}}$ concordam em sinal e magnitude, a confiança na tendência é máxima. Quando divergem fortemente, isso é um diagnóstico imediato de que a série é dominada por poucos eventos extremos nas pontas!
+### 1.3 Do Not Confuse the Curve with a Gaussian Normal!
+At the end of `transcricao.txt` (Line 9), Hindemburg introduces a stern warning about the systematic error of **confusing heavy-tailed distributions (leptokurtic / Cauchy / Pareto / Student-$t$ / Lévy) with the Normal (Gaussian) Distribution**:
+- In Earth Sciences and Climatology, hydroclimatic extremes (torrential rainfall, wildfires, wind anomalies, river discharges) **do not follow a Gaussian normal distribution**; they exhibit **heavy tails (*fat tails*)** or pronounced skewness (GEV, Gamma, Weibull, Log-Normal distributions).
+- **Practical consequence for our code (`DADOS-2`):**
+  1. If we blindly assume normality using only ordinary mean and standard deviation (OLS + naive parametric $t$-test) on heavy-tailed variables, a single real climate extreme or sensor glitch will distort slope $B$ and the $p\text{-value}$.
+  2. Therefore, our statistical architecture must operate in **Dual Layer (Parametric + Robust Nonparametric)**.
 
 ---
 
-## 3. Estado da Arte em Significância Estatística: Respondendo "É Estatisticamente Significativo?"
+## 2. Robust Regression vs. Classical Regression: The Dual-Validation Protocol
 
-A 4ª pergunta obrigatória do desafio da NASA é: ***"Are these variations statistically significant?"*** (*Essas variações são estatisticamente significativas?*).
-Na maioria dos projetos de hackathon, os participantes apenas pegam o `pvalue` padrão do `scipy.stats.linregress(t, y)` e comparam com $0{,}05$. **Fazer apenas isso em dados climáticos espaciais da NASA comete dois erros graves** já identificados em [`ESTRATEGIA_TREND_DETECTIVE.md`](file:///home/zrhyan/Principal/Computation/Space%20Apps/general_strategy/ESTRATEGIA_TREND_DETECTIVE.md#L277) (Autocorrelação e Falsos Positivos em Massa).
+Rather than blindly picking a single method or silently discarding *outliers*, the state-of-the-art approach for *Trend Detective* is to compute and compare:
 
-Veja como nossa equipe resolverá ambos com rigor de estado da arte e baixíssimo custo computacional:
+1. **Classical Ordinary Least Squares (OLS) + Mahalanobis Filter:**
+   - Computes $B_{\text{OLS}}$, $r_{\text{Pearson}}$, and flags points with $D_M > \text{threshold}$ (or studentized residual $|e_i / \hat{\sigma}_e| > 2.5$).
+   - **Important in the UI (`PROD-2`):** Do not silently delete *outliers* from the chart! Highlight them with a special marker on the time series (e.g., alert-outlined circle) so the user sees where an extreme year occurred (e.g., 2015/2016 Super El Niño or 2023/2024 Historic Drought), while showing how the trend is protected against them.
+2. **Robust Theil-Sen Estimator (*Sen's Slope*) + Mann-Kendall Test:**
+   - **Sen's Slope** computes the median of the slopes of all $\binom{n}{2}$ lines passing through every pair of points $(t_i, y_i)$ and $(t_j, y_j)$:
+     $$B_{\text{Sen}} = \text{median}_{1 \le i < j \le n} \left( \frac{y_j - y_i}{t_j - t_i} \right)$$
+   - **$29.3\%$ Breakdown Point:** Nearly $30\%$ of NASA data can be completely corrupted by clouds or severe extremes without distorting $B_{\text{Sen}}$!
+   - When $B_{\text{OLS}}$ and $B_{\text{Sen}}$ agree in sign and magnitude, confidence in the trend is maximal. When they diverge sharply, that is an immediate diagnostic that the series is dominated by a few extreme events at the endpoints!
 
-### 3.1 Erro Grave A: Autocorrelação Serial (Memória Climática $\text{AR}(1)$)
-- **O Fenômeno:** Testes clássicos ($t\text{-test}$ de OLS ou Mann-Kendall original) assumem que as observações mensais são **independentes**. Porém, o clima tem inércia térmica e hídrica: se o oceano ou aquífero estava anomalamente quente/seco em março, ele continuará quente/seco em abril (autocorrelação de lag-1 positiva, $\rho_1 > 0$).
-- **A Consequência:** Com $\rho_1 > 0$, o número real de graus de liberdade independentes ($N_{\text{efetivo}}$) é **muito menor** que o número de meses $N$. O teste ingênuo acha que tem $N = 240$ observações independentes quando na verdade tem o equivalente a $N_{\text{efetivo}} \approx 40$, gerando $p\text{-valores}$ artificialmente minúsculos e **falsos positivos de tendência**!
-- **A Correção de Estado da Arte (Tamanho Amostral Efetivo de Santer et al. / Hamed & Rao):**
-  1. **Para Regressão Linear ($t\text{-test}$ corrigido para $\text{AR}(1)$, método de Santer et al., 2000 — padrão do IPCC):**
-     - Calcula-se a autocorrelação de lag-1 dos resíduos da regressão: $\rho_1 = \text{corr}(e_t, e_{t-1})$.
-     - Ajusta-se o tamanho efetivo da amostra ($N_{\text{eff}}$):
-       $$N_{\text{eff}} = N \cdot \frac{1 - \rho_1}{1 + \rho_1} \quad (\text{para } \rho_1 > 0)$$
-     - O erro-padrão da inclinação $B$ é corrigido usando $N_{\text{eff}} - 2$ graus de liberdade em vez de $N - 2$:
-       $$SE_{\text{corrigido}}(B) = SE_{\text{OLS}}(B) \cdot \sqrt{\frac{N - 2}{N_{\text{eff}} - 2}}$$
-  2. **Para Mann-Kendall (Teste de Hamed & Rao, 1998):**
-     - Disponível nativamente em Python via `pymannkendall.hamed_rao_modification_test(y)`, que corrige a variância da estatística $S$ de Kendall pela estrutura de autocorrelação da série.
+---
 
-### 3.2 Erro Grave B: Multiplicidade de Testes Espaciais (Falsos Positivos em Massa no Mapa)
-- **O Fenômeno:** Conforme alertado no Risco #6 de [`ESTRATEGIA_TREND_DETECTIVE.md`](file:///home/zrhyan/Principal/Computation/Space%20Apps/general_strategy/ESTRATEGIA_TREND_DETECTIVE.md#L496), se o nosso mapa tem uma grade de, digamos, $2.000$ células espaciais e aplicarmos $p < 0{,}05$ individualmente em cada célula sob uma hipótese nula verdadeira (onde nada está mudando no planeta), $5\%$ de $2.000 = \mathbf{100}\text{ regiões}$ acenderão no mapa como "estatisticamente significativas" por puro acaso!
-- **A Correção de Estado da Arte (Controle da Taxa de Falsas Descobertas — FDR de Benjamini-Hochberg, 1995):**
-  - Em vez da correção de Bonferroni (que é excessivamente conservadora e apaga tendências reais), a climatologia moderna (Wilks, 2016) utiliza o procedimento **Benjamini-Hochberg (FDR)** sobre o conjunto de $M$ células do mapa:
-    1. Ordenam-se os $M$ $p\text{-valores}$ (já corrigidos por autocorrelação) em ordem crescente: $p_{(1)} \le p_{(2)} \le \dots \le p_{(M)}$.
-    2. Encontra-se o maior índice $k$ tal que:
-       $$p_{(k)} \le \frac{k}{M} \cdot \alpha_{\text{FDR}} \quad (\text{com } \alpha_{\text{FDR}} = 0{,}05)$$
-    3. Todas as células com $p_{(i)} \le p_{(k)}$ são declaradas **espacialmente significativas com controle de FDR**!
-  - **Implementação em 1 linha de código Python (`scipy.stats.false_discovery_control(p_values, method='bh')`):** Já vem nativo no `scipy.stats` moderno e leva menos de 1 milissegundo para rodar em toda a grade!
+## 3. State of the Art in Statistical Significance: Answering "Is It Statistically Significant?"
+
+The 4th mandatory question of the NASA challenge is: ***"Are these variations statistically significant?"***
+In most hackathon projects, participants simply grab the default `pvalue` from `scipy.stats.linregress(t, y)` and compare it against $0.05$. **Doing only that on NASA spatial climate data commits two grave errors** already identified in [`ESTRATEGIA_TREND_DETECTIVE.md`](../general_strategy/ESTRATEGIA_TREND_DETECTIVE.md#L277) (Autocorrelation and Mass False Positives).
+
+Here is how our team will solve both with state-of-the-art rigor and minimal computational cost:
+
+### 3.1 Grave Error A: Serial Autocorrelation (Climate Memory $\text{AR}(1)$)
+- **The Phenomenon:** Classical tests (OLS $t\text{-test}$ or original Mann-Kendall) assume that monthly observations are **independent**. However, climate has thermal and hydrological inertia: if the ocean or aquifer was anomalously warm/dry in March, it will remain warm/dry in April (positive lag-1 autocorrelation, $\rho_1 > 0$).
+- **The Consequence:** With $\rho_1 > 0$, the true number of independent degrees of freedom ($N_{\text{effective}}$) is **much smaller** than the number of months $N$. The naive test thinks it has $N = 240$ independent observations when it really has the equivalent of $N_{\text{effective}} \approx 40$, producing artificially tiny $p\text{-values}$ and **false-positive trends**!
+- **State-of-the-Art Correction (Effective Sample Size of Santer et al. / Hamed & Rao):**
+  1. **For Linear Regression ($\text{AR}(1)$-corrected $t\text{-test}$, Santer et al., 2000 method — IPCC standard):**
+     - Compute lag-1 autocorrelation of regression residuals: $\rho_1 = \text{corr}(e_t, e_{t-1})$.
+     - Adjust effective sample size ($N_{\text{eff}}$):
+       $$N_{\text{eff}} = N \cdot \frac{1 - \rho_1}{1 + \rho_1} \quad (\text{for } \rho_1 > 0)$$
+     - The standard error of slope $B$ is corrected using $N_{\text{eff}} - 2$ degrees of freedom instead of $N - 2$:
+       $$SE_{\text{corrected}}(B) = SE_{\text{OLS}}(B) \cdot \sqrt{\frac{N - 2}{N_{\text{eff}} - 2}}$$
+  2. **For Mann-Kendall (Hamed & Rao Test, 1998):**
+     - Natively available in Python via `pymannkendall.hamed_rao_modification_test(y)`, which adjusts the variance of Kendall's $S$ statistic for the series' autocorrelation structure.
+
+### 3.2 Grave Error B: Spatial Multiple Testing (Mass False Positives on the Map)
+- **The Phenomenon:** As warned in Risk #6 of [`ESTRATEGIA_TREND_DETECTIVE.md`](../general_strategy/ESTRATEGIA_TREND_DETECTIVE.md#L496), if our map has a grid of, say, $2,000$ spatial cells and we apply $p < 0.05$ individually to each cell under a true null hypothesis (where nothing is changing on the planet), $5\%$ of $2,000 = \mathbf{100}\text{ regions}$ will light up on the map as "statistically significant" by pure chance!
+- **State-of-the-Art Correction (Benjamini-Hochberg False Discovery Rate — FDR Control, 1995):**
+  - Instead of Bonferroni correction (which is overly conservative and erases real trends), modern climatology (Wilks, 2016) uses the **Benjamini-Hochberg (FDR)** procedure over the set of $M$ map cells:
+    1. Sort the $M$ $p\text{-values}$ (already corrected for autocorrelation) in ascending order: $p_{(1)} \le p_{(2)} \le \dots \le p_{(M)}$.
+    2. Find the largest index $k$ such that:
+       $$p_{(k)} \le \frac{k}{M} \cdot \alpha_{\text{FDR}} \quad (\text{with } \alpha_{\text{FDR}} = 0.05)$$
+    3. All cells with $p_{(i)} \le p_{(k)}$ are declared **spatially significant with FDR control**!
+  - **1-line Python implementation (`scipy.stats.false_discovery_control(p_values, method='bh')`):** Built natively into modern `scipy.stats` and runs in under 1 millisecond across the entire grid!
 
 ```mermaid
 flowchart LR
-    S["Série Mensal Bruta Y(t)<br/>em cada célula da grade"] --> A["1. Extrair Anomalia<br/>Climatológica Y'(t)<br/>(Estratégia Leavitt)"]
-    A --> B["2. Calcular Regressão<br/>Linear (B_OLS) + Robusta<br/>(Sen's Slope B_Sen)"]
-    B --> C["3. Calcular p-valor corrigido<br/>para Autocorrelação AR(1)<br/>(N_eff de Santer / Hamed-Rao)"]
-    C --> D["4. Aplicar Filtro Espacial<br/>Benjamini-Hochberg (FDR)<br/>sobre toda a grade do mapa"]
-    D --> E["Mapa Final Crível:<br/>Cores Fortes = Significativo<br/>Hachurado/Cinza = Ruído"]
+    S["Raw Monthly Series Y(t)<br/>in each grid cell"] --> A["1. Extract Climatological<br/>Anomaly Y'(t)<br/>(Leavitt Strategy)"]
+    A --> B["2. Compute Linear (B_OLS)<br/>+ Robust Regression<br/>(Sen's Slope B_Sen)"]
+    B --> C["3. Compute AR(1)-Corrected<br/>p-value<br/>(Santer N_eff / Hamed-Rao)"]
+    C --> D["4. Apply Benjamini-Hochberg<br/>Spatial Filter (FDR)<br/>across entire map grid"]
+    D --> E["Credible Final Map:<br/>Strong Colors = Significant<br/>Hatched/Gray = Noise"]
 ```
 
 ---
 
-## 4. Classificação Visual e Semântica da Significância para o Usuário (`PROD-1` / `PROD-2` / `NARR`)
+## 4. Visual and Semantic Classification of Significance for the User (`PROD-1` / `PROD-2` / `NARR`)
 
-Para responder à 4ª pergunta sem exigir que o usuário seja doutor em estatística, traduziremos os números rigorosos acima em **3 Níveis Claros de Evidência Científica**:
+To answer the 4th question without requiring the user to hold a PhD in statistics, we translate the rigorous numbers above into **3 Clear Tiers of Scientific Evidence**:
 
-| Nível na Interface | Critério Matemático (`DADOS-2`) | Representação no Mapa (`PROD-1`) | Explicação Automática (`NARR` / `PROD-2`) |
+| UI Tier | Mathematical Criterion (`DADOS-2`) | Map Representation (`PROD-1`) | Automatic Explanation (`NARR` / `PROD-2`) |
 | :--- | :--- | :--- | :--- |
-| **🟢 Tendência Confirmada (Alta Confiança)** | $p_{\text{AR1}} < 0{,}01$, aprovado no filtro espacial **FDR ($q < 0{,}05$)**, e concordância de sinal entre $B_{\text{OLS}}$ e $B_{\text{Sen}}$. | Cor sólida vibrante (Azul/Vermelho pleno), contorno nítido. | *"Sim, altamente significativa ($p < 0{,}01$, validada contra memória climática e falsos positivos espaciais). A chance de essa tendência ser mero acaso ou ciclo curto é inferior a 1%."* |
-| **🟡 Tendência Emergente / Moderada** | $0{,}01 \le p_{\text{AR1}} < 0{,}05$ (significativa localmente, ou na fronteira do FDR). | Cor intermediária com leve transparência. | *"Moderadamente significativa ($p < 0{,}05$). Há um sinal consistente de mudança, mas com variabilidade interanual importante."* |
-| **⚪ Sem Tendência Significativa (Domínio de Ruído/Ciclo)** | $p_{\text{AR1}} \ge 0{,}05$ ou discordância entre estimador robusto e linear. | Desaturado / Cinza translúcido ou hachurado pontilhado (*stippling*). | *"Não significativa ($p = \dots$). As oscilações observadas neste período estão dentro da faixa de variabilidade natural ou ciclos como El Niño, não configurando tendência secular comprovada."* |
+| **🟢 Confirmed Trend (High Confidence)** | $p_{\text{AR1}} < 0.01$, passes spatial **FDR ($q < 0.05$)** filter, and sign agreement between $B_{\text{OLS}}$ and $B_{\text{Sen}}$. | Solid vibrant color (full Blue/Red), sharp contour. | *"Yes, highly significant ($p < 0.01$, validated against climate memory and spatial false positives). The chance that this trend is mere noise or a short cycle is under 1%."* |
+| **🟡 Emerging / Moderate Trend** | $0.01 \le p_{\text{AR1}} < 0.05$ (locally significant, or at the FDR boundary). | Intermediate color with slight transparency. | *"Moderately significant ($p < 0.05$). There is a consistent signal of change, but with substantial interannual variability."* |
+| **⚪ No Significant Trend (Noise/Cycle Domain)** | $p_{\text{AR1}} \ge 0.05$ or disagreement between robust and linear estimator. | Desaturated / Translucent gray or dotted hatching (*stippling*). | *"Not significant ($p = \dots$). Oscillations observed in this period fall within natural variability or cycles like El Niño, not establishing a proven secular trend."* |

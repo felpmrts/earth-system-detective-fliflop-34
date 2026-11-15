@@ -1,4 +1,4 @@
-"""Camada de cache local em disco por célula/variável."""
+"""Local disk caching layer per cell/variable."""
 
 from .store import CellCacheStore
 

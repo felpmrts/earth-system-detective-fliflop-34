@@ -1,7 +1,8 @@
 import { describe, expect, it } from 'vitest';
 import mockAnalysisJson from '../../public/data/mock_analysis.json';
 import t2mGridJson from '../../public/data/T2M_grid.json';
-import { getIntersectingDateBounds, VARIABLE_LIST } from '../contracts/catalog.ts';
+import { getIntersectingDateBounds, getVariableMetadata, VARIABLE_LIST } from '../contracts/catalog.ts';
+import { MAX_CELLS_PER_REGION } from '../geo/gridGeometry.ts';
 import {
   ContractValidationError,
   validateAnalysisResponse,
@@ -9,13 +10,16 @@ import {
 } from '../contracts/contractValidator.ts';
 
 describe('catalog & contractValidator — blindagem dos 7 Invariantes', () => {
-  it('catálogo cobre as variáveis NASA POWER em tempo real e proíbe % em variáveis intervalares', () => {
-    expect(VARIABLE_LIST).toHaveLength(23);
+  it('catálogo cobre todas as 42 variáveis (+ alias CLDTOT), proíbe % em intervalares e em escalas limitadas (0–1 / %)', () => {
+    expect(VARIABLE_LIST).toHaveLength(43);
     for (const v of VARIABLE_LIST) {
       if (v.scale_type === 'interval') {
         expect(v.allow_percentage_change).toBe(false);
       }
     }
+    expect(getVariableMetadata('CLOUD_AMT').allow_percentage_change).toBe(false);
+    expect(getVariableMetadata('GWETPROF').allow_percentage_change).toBe(false);
+    expect(getVariableMetadata('ALLSKY_SRF_ALB').allow_percentage_change).toBe(false);
   });
 
   it('calcula interseção temporal entre MERRA-2 (1981) e CERES (1984)', () => {
@@ -26,6 +30,7 @@ describe('catalog & contractValidator — blindagem dos 7 Invariantes', () => {
     const crossModel = getIntersectingDateBounds('T2M', 'ALLSKY_SFC_SW_DWN');
     expect(crossModel.minYear).toBe(1984);
     expect(crossModel.startDate).toBe('1984-01');
+    expect(crossModel.endDate).toBe(`${new Date().getUTCFullYear()}-12`);
   });
 
   it('valida os arquivos JSON reais de public/data/', () => {
@@ -57,6 +62,29 @@ describe('catalog & contractValidator — blindagem dos 7 Invariantes', () => {
     expect(() => validateAnalysisResponse(broken)).toThrow(ContractValidationError);
   });
 
+  it('rejeita meses desordenados e valores não numéricos nas séries', () => {
+    const badDates = structuredClone(mockAnalysisJson) as {
+      region_a_analysis: { series: { dates: string[] } };
+    };
+    badDates.region_a_analysis.series.dates[1] = badDates.region_a_analysis.series.dates[0]!;
+    expect(() => validateAnalysisResponse(badDates)).toThrow(ContractValidationError);
+
+    const badValues = structuredClone(mockAnalysisJson) as {
+      region_a_analysis: { series: { linear_fit: unknown[] } };
+    };
+    badValues.region_a_analysis.series.linear_fit[0] = Number.NaN;
+    expect(() => validateAnalysisResponse(badValues)).toThrow(ContractValidationError);
+  });
+
+  it('rejeita escala divergente do catálogo oficial da variável', () => {
+    const broken = structuredClone(mockAnalysisJson) as {
+      region_a_analysis: { scale_type: string; allow_percentage_change: boolean };
+    };
+    broken.region_a_analysis.scale_type = 'interval';
+    broken.region_a_analysis.allow_percentage_change = false;
+    expect(() => validateAnalysisResponse(broken)).toThrow(ContractValidationError);
+  });
+
   it('rejeita cells_count_b inválido quando Região B está presente', () => {
     const zeroCellsB = structuredClone(mockAnalysisJson) as {
       request_meta: { cells_count_b: number };
@@ -67,7 +95,7 @@ describe('catalog & contractValidator — blindagem dos 7 Invariantes', () => {
     const overCellsB = structuredClone(mockAnalysisJson) as {
       request_meta: { cells_count_b: number };
     };
-    overCellsB.request_meta.cells_count_b = 10;
+    overCellsB.request_meta.cells_count_b = MAX_CELLS_PER_REGION + 1;
     expect(() => validateAnalysisResponse(overCellsB)).toThrow(ContractValidationError);
   });
 
@@ -95,5 +123,43 @@ describe('catalog & contractValidator — blindagem dos 7 Invariantes', () => {
     };
     badComparisonP.comparison_pair.multiscale_correlation.long_term_p_value = -0.01;
     expect(() => validateAnalysisResponse(badComparisonP)).toThrow(ContractValidationError);
+  });
+
+  it('rejeita "%" em unit/trend_unit de variável intervalar e campos inválidos de regression/coupling/tier/outliers (AUD-10)', () => {
+    const pctUnit = structuredClone(mockAnalysisJson) as {
+      region_b_analysis: { unit: string };
+    };
+    pctUnit.region_b_analysis.unit = '%';
+    expect(() => validateAnalysisResponse(pctUnit)).toThrow(ContractValidationError);
+
+    const pctTrend = structuredClone(mockAnalysisJson) as {
+      region_b_analysis: { trend_unit: string };
+    };
+    pctTrend.region_b_analysis.trend_unit = '%/década';
+    expect(() => validateAnalysisResponse(pctTrend)).toThrow(ContractValidationError);
+
+    const badRegime = structuredClone(mockAnalysisJson) as {
+      region_a_analysis: { regression: { regime_shape: string } };
+    };
+    badRegime.region_a_analysis.regression.regime_shape = 'unknown_shape';
+    expect(() => validateAnalysisResponse(badRegime)).toThrow(ContractValidationError);
+
+    const badR2 = structuredClone(mockAnalysisJson) as {
+      region_a_analysis: { correlation_and_coupling: { r_squared: number } };
+    };
+    badR2.region_a_analysis.correlation_and_coupling.r_squared = 1.4;
+    expect(() => validateAnalysisResponse(badR2)).toThrow(ContractValidationError);
+
+    const badTier = structuredClone(mockAnalysisJson) as {
+      region_b_analysis: { significance: { confidence_tier: string } };
+    };
+    badTier.region_b_analysis.significance.confidence_tier = 'MAYBE';
+    expect(() => validateAnalysisResponse(badTier)).toThrow(ContractValidationError);
+
+    const badOutlier = structuredClone(mockAnalysisJson) as {
+      region_a_analysis: { outliers_mahalanobis: Array<{ mahalanobis_d: number }> };
+    };
+    badOutlier.region_a_analysis.outliers_mahalanobis[0]!.mahalanobis_d = Number.NaN;
+    expect(() => validateAnalysisResponse(badOutlier)).toThrow(ContractValidationError);
   });
 });

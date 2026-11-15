@@ -1,26 +1,40 @@
-"""Serviço estatístico e comparador Local A vs. Local B.
+"""Statistical service and Location A vs. Location B comparator.
 
-Implementa os invariantes da base estatística (`knowledge_base_estatistica/`):
-- Anomalias climatológicas mensais antes da regressão (Princípio Henrietta Leavitt).
-- Regressão sobre toda a nuvem: OLS + declive robusto de Theil-Sen por década.
-- Curva suave não-linear (kernel Gaussiano estilo GAM/Spline) + diagnóstico de regime.
-- Respeito a escalas (proibição de % em variáveis intervalares).
-- Significância corrigida para autocorrelação serial AR(1) (N_efetivo).
-- Detecção bivariada de outliers por Distância de Mahalanobis (D_M > 2.5).
-- Decomposição multiescala entre A e B: r_global vs. r_detrended.
+Delegates mathematical computation and the 7 Statistical Invariants to the
+state-of-the-art engine in `backend/stats_engine.py`:
+- Deseasonalized monthly climatological anomalies with trimmed mean (Henrietta Leavitt principle).
+- Full-cloud regression: OLS + robust Theil-Sen slope per decade with 95% CI.
+- Smooth nonlinear curve (Cubic Smoothing Spline with GCV + LOWESS fallback) + B2 acceleration.
+- Strict scale compliance (% change forbidden on interval variables).
+- AR(1)-corrected significance (Santer et al.) + Hamed-Rao Mann-Kendall + Benjamini-Hochberg FDR.
+- Robust bivariate outlier detection via Mahalanobis Distance (MinCovDet, D_M > 2.5).
+- Multiscale decomposition between A and B: r_global vs. r_detrended with paradox detection.
 """
 
 from __future__ import annotations
 
 import math
 import re
-import statistics
-from collections import defaultdict
+import sys
+from pathlib import Path
 from typing import Any
 
+# Ensure `backend` at the repo root is importable even when executed from outside the root.
+_REPO_ROOT = str(Path(__file__).resolve().parents[2])
+if _REPO_ROOT not in sys.path:
+    sys.path.insert(0, _REPO_ROOT)
+
+from backend.stats_engine import (
+    SemanticContractError,
+    analyze_single_series,
+    apply_benjamini_hochberg_fdr,
+    compute_multiscale_comparison,
+    update_fdr_significance,
+)
 from data.cache.store import CellCacheStore
 from data.catalog.environmental_catalog import get_variable_spec
-from data.models.contracts import CellCoord, LocationQuery
+from data.connectors.base import snap_ceres, snap_merra2
+from data.models.contracts import CellCoord, LocationQuery, get_max_cells_per_region
 
 from .ingestion_service import (
     fetch_location_multiple_variables,
@@ -29,48 +43,62 @@ from .ingestion_service import (
 
 _YM_PATTERN = re.compile(r"^(\d{4})-(\d{2})$")
 
-# Aliases entre os IDs do CONTRATO_DE_DADOS.md (frontend) e códigos do catálogo/APIs
+# Aliases between CONTRATO_DE_DADOS.md (frontend) IDs and catalog/API codes
 _FRONTEND_VAR_TO_BACKEND: dict[str, str] = {
     "CLDTOT": "CLOUD_AMT",
 }
 
-# Regras normativas de escala do CONTRATO_DE_DADOS.md / frontend/src/contracts/catalog.ts
+# Normative scale rules from CONTRATO_DE_DADOS.md / frontend/src/contracts/catalog.ts
 _CONTRACT_METADATA_OVERRIDES: dict[str, dict[str, Any]] = {
     "CLDTOT": {
-        "variable_name": "Cobertura Total de Nuvens",
+        "variable_name": "Total Cloud Cover",
         "scale_type": "ratio",
         "unit": "%",
-        "trend_unit": "p.p./década",
+        "trend_unit": "p.p./decade",
         "allow_percentage_change": False,
         "min_year": 1984,
     },
     "PS": {
         "scale_type": "interval",
         "unit": "kPa",
-        "trend_unit": "kPa/década",
+        "trend_unit": "kPa/decade",
         "allow_percentage_change": False,
         "min_year": 1981,
     },
     "RH2M": {
         "scale_type": "ratio",
         "unit": "%",
-        "trend_unit": "p.p./década",
+        "trend_unit": "p.p./decade",
         "allow_percentage_change": False,
         "min_year": 1981,
     },
     "GWETTOP": {
         "scale_type": "ratio",
-        "unit": "fração (0–1)",
-        "trend_unit": "fração/década",
+        "unit": "fraction (0–1)",
+        "trend_unit": "fraction/decade",
         "allow_percentage_change": False,
         "min_year": 1981,
     },
     "GWETROOT": {
         "scale_type": "ratio",
-        "unit": "fração (0–1)",
-        "trend_unit": "fração/década",
+        "unit": "fraction (0–1)",
+        "trend_unit": "fraction/decade",
         "allow_percentage_change": False,
         "min_year": 1981,
+    },
+    "GWETPROF": {
+        "scale_type": "ratio",
+        "unit": "fraction (0–1)",
+        "trend_unit": "fraction/decade",
+        "allow_percentage_change": False,
+        "min_year": 1981,
+    },
+    "ALLSKY_SRF_ALB": {
+        "scale_type": "ratio",
+        "unit": "fraction (0–1)",
+        "trend_unit": "fraction/decade",
+        "allow_percentage_change": False,
+        "min_year": 1984,
     },
     "ALLSKY_SFC_SW_DWN": {"min_year": 1984},
     "ALLSKY_SFC_LW_DWN": {"min_year": 1984},
@@ -78,7 +106,7 @@ _CONTRACT_METADATA_OVERRIDES: dict[str, dict[str, Any]] = {
 
 
 class ContractSemanticError(ValueError):
-    """Erro semântico padronizado conforme Seção 5 do CONTRATO_DE_DADOS.md."""
+    """Standardized semantic error per Section 5 of CONTRATO_DE_DADOS.md."""
 
     def __init__(self, code: str, message: str, status_code: int = 422) -> None:
         super().__init__(message)
@@ -86,314 +114,101 @@ class ContractSemanticError(ValueError):
         self.status_code = status_code
 
 
-def _climatological_anomalies(series: dict[str, float]) -> dict[str, float]:
-    by_month: dict[int, list[float]] = defaultdict(list)
-    for ym, val in series.items():
-        by_month[int(ym[5:7])].append(val)
-    month_means = {m: statistics.fmean(vals) for m, vals in by_month.items()}
-    return {
-        ym: round(val - month_means[int(ym[5:7])], 6)
-        for ym, val in sorted(series.items())
+def _trend_unit_from_unit(unit: str) -> str:
+    if unit == "%":
+        return "p.p./decade"
+    if unit.lower().startswith("fraction") or unit.lower().startswith("fração"):
+        return "fraction/decade"
+    return f"{unit}/decade" if unit else "unit/decade"
+
+
+def _build_variable_meta(fetched: dict[str, Any], requested_var_id: str | None = None) -> dict[str, Any]:
+    """Builds metadata compatible with `backend.stats_engine` preserving all 42 variables and invariants."""
+    var_id = requested_var_id or str(fetched["variable"])
+    unit = str(fetched.get("unit") or "")
+    scale_type = str(fetched.get("scale_type") or "ratio")
+    allow_pct = bool(fetched.get("allow_percentage_change", scale_type == "ratio"))
+    if scale_type == "interval" or var_id in {
+        "GWETTOP",
+        "GWETROOT",
+        "GWETPROF",
+        "RH2M",
+        "CLDTOT",
+        "CLOUD_AMT",
+        "ALLSKY_SRF_ALB",
+    }:
+        allow_pct = False
+
+    meta: dict[str, Any] = {
+        "variable_id": var_id,
+        "variable_name": str(fetched.get("ui_name") or var_id),
+        "scale_type": scale_type,
+        "unit": unit,
+        "trend_unit": _trend_unit_from_unit(unit),
+        "allow_percentage_change": allow_pct,
     }
+    overrides = _CONTRACT_METADATA_OVERRIDES.get(var_id, {})
+    for key, val in overrides.items():
+        if key != "min_year":
+            meta[key] = val
+    if meta["scale_type"] == "interval":
+        meta["allow_percentage_change"] = False
+    return meta
 
 
-def _ols_fit(xs: list[float], ys: list[float]) -> tuple[float, float, list[float]]:
-    mx = statistics.fmean(xs)
-    my = statistics.fmean(ys)
-    num = sum((x - mx) * (y - my) for x, y in zip(xs, ys))
-    den = sum((x - mx) ** 2 for x in xs)
-    slope = num / den if den > 0 else 0.0
-    intercept = my - slope * mx
-    residuals = [y - (intercept + slope * x) for x, y in zip(xs, ys)]
-    return intercept, slope, residuals
-
-
-def _theil_sen_with_ci(xs: list[float], ys: list[float]) -> tuple[float, float, float]:
-    """Calcula inclinação mediana de Theil-Sen e intervalo de confiança aproximado (95%)."""
-    slopes: list[float] = []
-    n = len(xs)
-    for i in range(n):
-        for j in range(i + 1, n):
-            dx = xs[j] - xs[i]
-            if dx != 0:
-                slopes.append((ys[j] - ys[i]) / dx)
-    if not slopes:
-        return 0.0, 0.0, 0.0
-    slopes.sort()
-    median_slope = statistics.median(slopes)
-    # Estimativa não-paramétrica por variância de Kendall S (Sen 1968)
-    m = len(slopes)
-    var_s = n * (n - 1) * (2 * n + 5) / 18.0
-    c_alpha = 1.96 * math.sqrt(var_s)
-    lower_idx = max(0, int(math.floor((m - c_alpha) / 2.0)))
-    upper_idx = min(m - 1, int(math.ceil((m + c_alpha) / 2.0)))
-    return median_slope, slopes[lower_idx], slopes[upper_idx]
-
-
-def _gaussian_smooth_curve(xs: list[float], ys: list[float], bandwidth_years: float = 3.5) -> list[float]:
-    """Suavização local não-linear (proxy determinístico para GAM/Spline sem dependências)."""
-    smoothed = []
-    denom = 2.0 * (bandwidth_years ** 2)
-    for x0 in xs:
-        weights = [math.exp(-((x - x0) ** 2) / denom) for x in xs]
-        w_sum = sum(weights)
-        smoothed.append(round(sum(w * y for w, y in zip(weights, ys)) / w_sum, 4) if w_sum > 0 else 0.0)
-    return smoothed
-
-
-def _quadratic_acceleration(xs: list[float], ys: list[float]) -> float:
-    """Ajusta termo quadrático B2 simples comparando primeira e segunda metades."""
-    mid = len(xs) // 2
-    if mid < 6:
-        return 0.0
-    _, slope_first, _ = _ols_fit(xs[:mid], ys[:mid])
-    _, slope_second, _ = _ols_fit(xs[mid:], ys[mid:])
-    span = max(xs[-1] - xs[0], 1.0)
-    return (slope_second - slope_first) / span
-
-
-def _classify_regime_shape(slope_decade: float, b2_accel: float) -> str:
-    """Classifica o formato do regime conforme `RegimeShape` do CONTRATO_DE_DADOS.md."""
-    if slope_decade > 0 and b2_accel > 0.005:
-        return "accelerating_rise"
-    if slope_decade < 0 and b2_accel < -0.005:
-        return "accelerating_decline"
-    if (slope_decade > 0 and b2_accel < -0.005) or (slope_decade < 0 and b2_accel > 0.005):
-        return "saturating"
-    if abs(slope_decade) < 1e-3 and abs(b2_accel) > 0.005:
-        return "non_monotonic"
-    return "linear"
-
-
-def _pearson_r(xs: list[float], ys: list[float]) -> float:
-    mx = statistics.fmean(xs)
-    my = statistics.fmean(ys)
-    num = sum((x - mx) * (y - my) for x, y in zip(xs, ys))
-    den_x = math.sqrt(sum((x - mx) ** 2 for x in xs))
-    den_y = math.sqrt(sum((y - my) ** 2 for y in ys))
-    if den_x == 0 or den_y == 0:
-        return 0.0
-    return max(-1.0, min(1.0, num / (den_x * den_y)))
-
-
-def _kendall_tau(xs: list[float], ys: list[float]) -> float:
-    n = len(xs)
-    if n < 2:
-        return 0.0
-    concordant = 0
-    discordant = 0
-    for i in range(n):
-        for j in range(i + 1, n):
-            dx = xs[j] - xs[i]
-            dy = ys[j] - ys[i]
-            prod = dx * dy
-            if prod > 0:
-                concordant += 1
-            elif prod < 0:
-                discordant += 1
-    denom = concordant + discordant
-    return (concordant - discordant) / denom if denom > 0 else 0.0
-
-
-def _normal_two_tailed_p(z_score: float) -> float:
-    return max(1e-16, min(1.0, math.erfc(abs(z_score) / math.sqrt(2.0))))
-
-
-def _ar1_significance(xs: list[float], ys: list[float], residuals: list[float], r_val: float) -> dict[str, Any]:
-    """Calcula p-valor ingênuo, p-valor AR(1) (N_efetivo) e FDR alinhado ao CONTRATO_DE_DADOS.md."""
-    n = len(xs)
-    if n < 6:
-        return {
-            "lag1_autocorrelation": 0.0,
-            "n_effective_ar1": float(n),
-            "p_value_naive": 1.0,
-            "p_value_ar1_corrected": 1.0,
-            "fdr_q_value": 1.0,
-            "is_significant_fdr05": False,
-            "is_significant_ar1_05": False,
-            "confidence_tier": "INSUFFICIENT_SIGNAL",
-        }
-    rho1 = _pearson_r(residuals[:-1], residuals[1:])
-    rho1_clamped = max(-0.95, min(0.95, rho1))
-    n_eff = max(4.0, n * (1.0 - rho1_clamped) / (1.0 + rho1_clamped))
-
-    def _p_from_n(sample_n: float) -> float:
-        r2 = min(0.999999, r_val ** 2)
-        t_stat = abs(r_val) * math.sqrt(max(sample_n - 2.0, 1.0) / max(1.0 - r2, 1e-12))
-        return _normal_two_tailed_p(t_stat)
-
-    p_naive = _p_from_n(float(n))
-    p_ar1 = _p_from_n(n_eff)
-    fdr_q = min(1.0, p_ar1 * 1.15)
-    if p_ar1 < 0.01:
-        tier = "CONFIRMED_HIGH"
-    elif p_ar1 < 0.05:
-        tier = "CONFIRMED_MODERATE"
-    elif p_ar1 < 0.15:
-        tier = "INSUFFICIENT_SIGNAL"
-    else:
-        tier = "NO_TREND"
-
-    return {
-        "lag1_autocorrelation": round(rho1, 4),
-        "n_effective_ar1": round(n_eff, 2),
-        "p_value_naive": round(p_naive, 6),
-        "p_value_ar1_corrected": round(p_ar1, 6),
-        "fdr_q_value": round(fdr_q, 6),
-        "is_significant_fdr05": fdr_q < 0.05,
-        "is_significant_ar1_05": p_ar1 < 0.05,
-        "confidence_tier": tier,
-    }
-
-
-def _mahalanobis_outliers(
-    months: list[str],
-    xs: list[float],
-    anomalies: list[float],
-    linear_fit: list[float],
-    threshold: float = 2.5,
-) -> list[dict[str, Any]]:
-    """Identifica extremos bivariados pela Distância de Mahalanobis (tempo, anomalia)."""
-    n = len(xs)
-    if n < 6:
-        return []
-    mx, my = statistics.fmean(xs), statistics.fmean(anomalies)
-    sxx = sum((x - mx) ** 2 for x in xs) / (n - 1)
-    syy = sum((y - my) ** 2 for y in anomalies) / (n - 1)
-    sxy = sum((x - mx) * (y - my) for x, y in zip(xs, anomalies)) / (n - 1)
-    det = sxx * syy - sxy * sxy
-    if det <= 1e-12:
-        return []
-    inv_xx, inv_yy, inv_xy = syy / det, sxx / det, -sxy / det
-
-    outliers = []
-    for ym, x, y, y_hat in zip(months, xs, anomalies, linear_fit):
-        dx, dy = x - mx, y - my
-        d_sq = dx * dx * inv_xx + 2.0 * dx * dy * inv_xy + dy * dy * inv_yy
-        d_m = math.sqrt(max(0.0, d_sq))
-        if d_m > threshold:
-            direction = "above_ellipse" if y > y_hat else "below_ellipse"
-            hint = (
-                "Anomalia positiva extrema acima da elipse de acoplamento (D_M > 2.5)."
-                if direction == "above_ellipse"
-                else "Anomalia negativa extrema abaixo da elipse de acoplamento (D_M > 2.5)."
-            )
-            outliers.append({
-                "date": ym,
-                "observed_anomaly": round(y, 4),
-                "expected_regression": round(y_hat, 4),
-                "mahalanobis_d": round(d_m, 3),
-                "direction": direction,
-                "diagnostic_hint": hint,
-            })
-    outliers.sort(key=lambda item: item["mahalanobis_d"], reverse=True)
-    return outliers[:10]
+def _apply_joint_fdr(blocks: list[dict[str, Any]]) -> None:
+    """Applies joint Benjamini-Hochberg FDR control across multiple analyzed blocks."""
+    if not blocks:
+        return
+    p_vals = [float(b["significance"]["p_value_ar1_corrected"]) for b in blocks]
+    q_vals, _ = apply_benjamini_hochberg_fdr(p_vals, alpha=0.05)
+    for block, q_val in zip(blocks, q_vals):
+        update_fdr_significance(block, q_val, alpha=0.05)
 
 
 def build_variable_statistics(
     location_name: str,
     fetched: dict[str, Any],
     common_months: list[str],
-    xs_years: list[float],
+    xs_years: list[float] | None = None,
+    *,
+    requested_var_id: str | None = None,
+    fdr_q_override: float | None = None,
 ) -> tuple[dict[str, Any], list[float], list[float]]:
-    """Gera o bloco completo do Contrato de Dados para 1 variável em 1 local."""
-    anom_map = _climatological_anomalies(fetched["series"])
-    anomalies = [anom_map[ym] for ym in common_months]
-    raw_values = [fetched["series"][ym] for ym in common_months]
+    """Generates the complete Data Contract block by delegating to `backend/stats_engine.py`."""
+    del xs_years  # The engine computes exact fractional time directly from common_months
+    var_meta = _build_variable_meta(fetched, requested_var_id=requested_var_id)
+    series_map = fetched["series"]
+    raw_values = [series_map.get(ym) for ym in common_months]
 
-    a0, slope_ols_yr, residuals = _ols_fit(xs_years, anomalies)
-    slope_sen_yr, sen_low_yr, sen_high_yr = _theil_sen_with_ci(xs_years, anomalies)
-    linear_fit = [round(a0 + slope_ols_yr * x, 4) for x in xs_years]
-    gam_fit = _gaussian_smooth_curve(xs_years, anomalies)
-    b2 = _quadratic_acceleration(xs_years, anomalies)
+    try:
+        stats = analyze_single_series(
+            var_meta["variable_id"],
+            common_months,
+            raw_values,
+            fdr_q_value=fdr_q_override,
+            variable_meta=var_meta,
+        )
+    except SemanticContractError as exc:
+        raise ContractSemanticError(exc.code, exc.message, 422) from exc
 
-    r_val = _pearson_r(xs_years, anomalies)
-    tau_val = _kendall_tau(xs_years, anomalies)
-    r2_val = r_val ** 2
-    ellipse_ratio = math.sqrt(max(0.0, 1.0 - r2_val))
-
-    sig = _ar1_significance(xs_years, anomalies, residuals, r_val)
-    outliers = _mahalanobis_outliers(common_months, xs_years, anomalies, linear_fit)
-    span_years = xs_years[-1] - xs_years[0] if xs_years else 0.0
-
-    block = {
+    block: dict[str, Any] = {
         "location_name": location_name,
-        "api_puxada": fetched["api_puxada"],
+        "api_puxada": fetched.get("api_puxada"),
         "endpoint_consultado": fetched.get("endpoint_consultado"),
-        "family_id": fetched["family_id"],
-        "variable_id": fetched["variable"],
-        "variable_name": fetched["ui_name"],
-        "unit": fetched["unit"],
-        "trend_unit": f"{fetched['unit']} / década",
-        "scale_type": fetched["scale_type"],
-        "allow_percentage_change": fetched["allow_percentage_change"],
+        "family_id": fetched.get("family_id"),
         "cells_snapped": fetched.get("snapped_cells", []),
         "cache_hits": fetched.get("cache_hits", 0),
         "http_calls": fetched.get("http_calls", 0),
-        "period": {
-            "start": common_months[0],
-            "end": common_months[-1],
-            "n_observations": len(common_months),
-            "n_effective_ar1": sig["n_effective_ar1"],
-        },
-        "regression": {
-            "intercept_at_start_A0": round(a0, 4),
-            "slope_per_decade_ols": round(slope_ols_yr * 10.0, 4),
-            "slope_per_decade_sen": round(slope_sen_yr * 10.0, 4),
-            "slope_ci95_low": round(sen_low_yr * 10.0, 4),
-            "slope_ci95_high": round(sen_high_yr * 10.0, 4),
-            "cumulative_model_change": round(slope_ols_yr * span_years, 4),
-            "quadratic_acceleration_B2": round(b2, 5),
-            "regime_shape": _classify_regime_shape(slope_ols_yr * 10.0, b2),
-        },
-        "correlation_and_coupling": {
-            "pearson_r": round(r_val, 4),
-            "kendall_tau": round(tau_val, 4),
-            "r_squared": round(r2_val, 4),
-            "ellipse_aspect_ratio": round(ellipse_ratio, 4),
-        },
-        "significance": sig,
-        "outliers_mahalanobis": outliers,
-        "series": {
-            "dates": common_months,
-            "raw_values": raw_values,
-            "anomaly_values": anomalies,
-            "linear_fit": linear_fit,
-            "gam_smooth_fit": gam_fit,
-        },
+        **stats,
     }
+
+    anomalies = [0.0 if a is None else float(a) for a in stats["series"]["anomaly_values"]]
+    residuals = [
+        float(a) - float(lin)
+        for a, lin in zip(anomalies, stats["series"]["linear_fit"])
+    ]
     return block, anomalies, residuals
-
-
-def _build_pair_interpretation(
-    var_a: str,
-    var_b: str,
-    paradox_type: str,
-    r_global: float,
-    r_detrended: float,
-    divergent: bool,
-) -> str:
-    if paradox_type == "OPPOSING_SHORT_TERM_WITH_SECULAR_CO_MOVEMENT":
-        return (
-            f"Paradoxo multiescala entre {var_a} e {var_b}: tendência secular conjunta "
-            f"(r_global={r_global:.2f}), mas oposição nas oscilações interanuais "
-            f"(r_detrended={r_detrended:.2f})."
-        )
-    if paradox_type == "OPPOSING_SECULAR_WITH_COUPLED_SHORT_TERM":
-        return (
-            f"Paradoxo multiescala entre {var_a} e {var_b}: trajetórias seculares opostas "
-            f"(r_global={r_global:.2f}), porém variabilidade de curto prazo acoplada "
-            f"(r_detrended={r_detrended:.2f})."
-        )
-    if divergent:
-        return (
-            f"Divergência espacial/física detectada entre {var_a} e {var_b}: "
-            f"declives decadais com sinais opostos (r_global={r_global:.2f}, r_detrended={r_detrended:.2f})."
-        )
-    return (
-        f"Acoplamento entre {var_a} e {var_b}: r_global={r_global:.2f} na tendência secular "
-        f"e r_detrended={r_detrended:.2f} na variabilidade residual."
-    )
 
 
 def _compute_pair_comparison(
@@ -409,52 +224,21 @@ def _compute_pair_comparison(
     region_a_id: str | None = None,
     region_b_id: str | None = None,
 ) -> dict[str, Any]:
-    r_global = _pearson_r(anomalies_a, anomalies_b)
-    r_detrended = _pearson_r(residuals_a, residuals_b)
-    tau_pair = _kendall_tau(anomalies_a, anomalies_b)
-    slope_a = block_a["regression"]["slope_per_decade_sen"]
-    slope_b = block_b["regression"]["slope_per_decade_sen"]
-    divergent = (slope_a > 0 > slope_b) or (slope_a < 0 < slope_b)
-
-    if r_global > 0.15 and r_detrended < -0.15:
-        paradox_type = "OPPOSING_SHORT_TERM_WITH_SECULAR_CO_MOVEMENT"
-    elif r_global < -0.15 and r_detrended > 0.15:
-        paradox_type = "OPPOSING_SECULAR_WITH_COUPLED_SHORT_TERM"
-    elif divergent:
-        paradox_type = "OPPOSING_SECULAR_DIVERGENCE"
-    else:
-        paradox_type = "ALIGNED_OR_WEAK_COUPLING"
-
-    slope_diff = (
-        round(slope_a - slope_b, 4)
-        if block_a.get("unit") == block_b.get("unit")
-        else None
-    )
-    interpretation = _build_pair_interpretation(
-        block_a["variable_id"],
-        block_b["variable_id"],
-        paradox_type,
-        r_global,
-        r_detrended,
-        divergent,
-    )
+    """Delegates multiscale comparison and paradox detection to `backend/stats_engine.py`."""
+    del anomalies_a, residuals_a, anomalies_b, residuals_b
+    eff_a = region_a_id or name_a
+    eff_b = region_b_id or name_b
+    try:
+        pair = compute_multiscale_comparison(eff_a, eff_b, block_a, block_b)
+    except SemanticContractError as exc:
+        raise ContractSemanticError(exc.code, exc.message, 422) from exc
 
     return {
-        "region_a_id": region_a_id or name_a,
-        "region_b_id": region_b_id or name_b,
+        **pair,
         "location_a_name": name_a,
         "location_a_variable": block_a["variable_id"],
         "location_b_name": name_b,
         "location_b_variable": block_b["variable_id"],
-        "spatial_divergence_detected": divergent,
-        "slope_difference_per_decade": slope_diff,
-        "multiscale_correlation": {
-            "long_term_secular_r": round(r_global, 4),
-            "short_term_detrended_r": round(r_detrended, 4),
-            "kendall_tau_pair": round(tau_pair, 4),
-            "paradox_type": paradox_type,
-            "interpretation": interpretation,
-        },
     }
 
 
@@ -479,13 +263,13 @@ def compare_locations_single_variable(
     *,
     cache: CellCacheStore | None = None,
 ) -> dict[str, Any]:
-    """Fluxo principal (MVP): 1 variável no Local A vs. 1 variável no Local B."""
+    """Main flow (MVP): 1 variable at Location A vs. 1 variable at Location B."""
     cache_store = cache or CellCacheStore()
     fetched_a = fetch_location_single_variable(
-        location_a, start_year, end_year, cache=cache_store, label="Local A"
+        location_a, start_year, end_year, cache=cache_store, label="Location A"
     )
     fetched_b = fetch_location_single_variable(
-        location_b, start_year, end_year, cache=cache_store, label="Local B"
+        location_b, start_year, end_year, cache=cache_store, label="Location B"
     )
 
     if fetched_a["status"] != "OK" or fetched_b["status"] != "OK":
@@ -506,6 +290,7 @@ def compare_locations_single_variable(
 
     block_a, anom_a, res_a = build_variable_statistics(location_a.name, fetched_a, common_months, xs_years)
     block_b, anom_b, res_b = build_variable_statistics(location_b.name, fetched_b, common_months, xs_years)
+    _apply_joint_fdr([block_a, block_b])
     pair = _compute_pair_comparison(
         location_a.name, block_a, anom_a, res_a, location_b.name, block_b, anom_b, res_b
     )
@@ -532,13 +317,13 @@ def compare_locations_multi_variable(
     *,
     cache: CellCacheStore | None = None,
 ) -> dict[str, Any]:
-    """Extensão futura: N variáveis no Local A vs. M variáveis no Local B (matriz cruzada)."""
+    """Future extension: N variables at Location A vs. M variables at Location B (cross-matrix)."""
     cache_store = cache or CellCacheStore()
     batch_a = fetch_location_multiple_variables(
-        location_a, start_year, end_year, cache=cache_store, label="Local A Multi"
+        location_a, start_year, end_year, cache=cache_store, label="Location A Multi"
     )
     batch_b = fetch_location_multiple_variables(
-        location_b, start_year, end_year, cache=cache_store, label="Local B Multi"
+        location_b, start_year, end_year, cache=cache_store, label="Location B Multi"
     )
 
     ok_a = {code: data for code, data in batch_a["variables"].items() if data.get("status") == "OK"}
@@ -569,6 +354,9 @@ def compare_locations_multi_variable(
         code: build_variable_statistics(location_b.name, data, common_months, xs_years)
         for code, data in ok_b.items()
     }
+    _apply_joint_fdr(
+        [vals[0] for vals in stats_a.values()] + [vals[0] for vals in stats_b.values()]
+    )
 
     cross_matrix = [
         _compute_pair_comparison(
@@ -592,98 +380,26 @@ def compare_locations_multi_variable(
     }
 
 
-_FIELD_HUMAN_LABELS: dict[str, str] = {
-    "start_date": "Mês inicial",
-    "end_date": "Mês final",
-}
-
-
-def _slot_human_label(slot_label: str) -> str:
-    """Converte identificadores internos (`region_a`/`region_b`) em rótulos amigáveis."""
-    if slot_label == "region_a":
-        return "Local A"
-    if slot_label == "region_b":
-        return "Local B"
-    return slot_label
-
-
-def _friendly_var_label(var_id: str, fetched: dict[str, Any] | None = None) -> str:
-    """Resolve um nome legível para exibição ao usuário sem expor apenas siglas técnicas."""
-    if fetched and fetched.get("ui_name"):
-        return f"{fetched['ui_name']} ({var_id})"
-    override_name = _CONTRACT_METADATA_OVERRIDES.get(var_id, {}).get("variable_name")
-    if override_name:
-        return f"{override_name} ({var_id})"
-    backend_code = _FRONTEND_VAR_TO_BACKEND.get(var_id, var_id)
-    try:
-        spec = get_variable_spec(backend_code)
-        if spec.ui_name:
-            return f"{spec.ui_name} ({var_id})"
-    except KeyError:
-        pass
-    return var_id
-
-
-def _months_inclusive(start_ym: str, end_ym: str) -> int:
-    """Retorna a quantidade de meses do calendário no intervalo fechado [start_ym, end_ym]."""
-    return (int(end_ym[:4]) - int(start_ym[:4])) * 12 + (int(end_ym[5:7]) - int(start_ym[5:7])) + 1
-
-
-def _friendly_backend_error(raw_error: str, var_label: str, slot_name: str, status: str) -> str:
-    """Traduz falhas técnicas de rede/API para mensagens compreensíveis ao usuário final."""
-    lower = raw_error.lower()
-    if "429" in lower or "rate" in lower or "too many" in lower:
-        return (
-            f"O servidor da NASA recebeu muitas solicitações seguidas ao buscar {var_label} "
-            f"para o {slot_name}. Aguarde alguns segundos e tente novamente."
-        )
-    if "timed out" in lower or "timeout" in lower or "tempo" in lower:
-        return (
-            f"A consulta de {var_label} para o {slot_name} demorou mais do que o esperado "
-            "(tempo limite excedido). Tente selecionar menos retângulos ou tentar novamente em instantes."
-        )
-    if any(
-        token in lower
-        for token in ("urlerror", "connection", "name resolution", "dns", "network", "ssl", "certificate")
-    ):
-        return (
-            f"Não foi possível conectar ao servidor de dados da NASA ao buscar {var_label} "
-            f"para o {slot_name}. Verifique sua conexão com a internet e tente novamente."
-        )
-    if any(token in lower for token in ("async", "fila", "credencia", "api key", "oauth")):
-        return (
-            f"A fonte de dados para {var_label} ({slot_name}) exige integração externa ou fila "
-            f"assíncrona que ainda não está configurada neste ambiente ({raw_error})."
-        )
-    detail = raw_error or status or "erro desconhecido"
-    return (
-        f"Não foi possível obter os dados de {var_label} para o {slot_name} no momento "
-        f"(detalhe: {detail}). Tente novamente em instantes."
-    )
-
-
 def _parse_year_month(raw: Any, field_name: str) -> tuple[str, int]:
-    """Valida string YYYY-MM do CONTRATO_DE_DADOS.md e devolve (YYYY-MM, ano)."""
+    """Validates a YYYY-MM string per CONTRATO_DE_DADOS.md and returns (YYYY-MM, year)."""
     text = str(raw or "").strip()
-    label = _FIELD_HUMAN_LABELS.get(field_name, field_name)
-    if not text:
-        raise ContractSemanticError(
-            "INVALID_DATE_INTERSECTION",
-            f"Selecione o {label} no calendário antes de iniciar a análise.",
-        )
     match = _YM_PATTERN.match(text)
     if not match:
         raise ContractSemanticError(
             "INVALID_DATE_INTERSECTION",
-            f"A data informada em {label} ({text}) não é válida. Use o formato AAAA-MM (ex.: 2015-01).",
+            f"Invalid field '{field_name}' (expected YYYY-MM): {raw!r}",
         )
     year, month = int(match.group(1)), int(match.group(2))
     if not (1 <= month <= 12):
         raise ContractSemanticError(
             "INVALID_DATE_INTERSECTION",
-            f"O mês informado em {label} ({text}) precisa estar entre 01 e 12.",
+            f"Month out of range 01..12 in '{field_name}': {text}",
         )
     return text, year
+
+
+def _slot_human_label(slot_label: str) -> str:
+    return "Location A" if slot_label == "region_a" else "Location B"
 
 
 def _parse_contract_region(
@@ -691,41 +407,138 @@ def _parse_contract_region(
     slot_label: str,
     backend_var_code: str,
 ) -> tuple[str, int, LocationQuery]:
-    """Converte `region_a` ou `region_b` de `RegionAnalysisRequest` para `LocationQuery`."""
+    """Converts `region_a` or `region_b` from `RegionAnalysisRequest` into `LocationQuery`."""
     slot_name = _slot_human_label(slot_label)
     if not isinstance(raw_region, dict):
         raise ContractSemanticError(
             "CONTRACT_VIOLATION",
-            f"Os dados enviados para o {slot_name} estão em formato inválido.",
+            f"Data submitted for {slot_name} has an invalid format.",
             400,
         )
     region_id = str(raw_region.get("region_id") or "").strip()
     if not region_id:
         raise ContractSemanticError(
             "CONTRACT_VIOLATION",
-            f"Identificador ausente para o {slot_name} (region_id obrigatório).",
+            f"Missing identifier for {slot_name} (region_id is required).",
             400,
         )
     raw_cells = raw_region.get("cells")
     if not isinstance(raw_cells, list) or len(raw_cells) == 0:
         raise ContractSemanticError(
             "CONTRACT_VIOLATION",
-            f"Selecione pelo menos 1 retângulo no mapa para o {slot_name}.",
+            f"Select at least 1 grid cell on the map for {slot_name}.",
             400,
         )
-    if len(raw_cells) > 9:
+    max_cells = get_max_cells_per_region()
+    if len(raw_cells) > max_cells:
         raise ContractSemanticError(
             "MAX_CELLS_EXCEEDED",
-            f"O {slot_name} possui {len(raw_cells)} retângulos selecionados, mas o limite máximo é de 9 retângulos adjacentes por região.",
+            f"{slot_name} has {len(raw_cells)} selected cells, but the maximum limit is {max_cells} adjacent cells per region.",
         )
-    try:
-        cells = [CellCoord(lat=float(item["lat"]), lon=float(item["lon"])) for item in raw_cells]
-    except (KeyError, TypeError, ValueError) as exc:
-        raise ContractSemanticError(
-            "CONTRACT_VIOLATION",
-            f"As coordenadas selecionadas para o {slot_name} estão incompletas ou inválidas.",
-            400,
-        ) from exc
+    spec = get_variable_spec(backend_var_code)
+    grid_contracts = {
+        "merra2": ("MERRA-2", 0.5, 0.625, snap_merra2),
+        "ceres": ("CERES_SYN1deg", 1.0, 1.0, snap_ceres),
+    }
+    grid_contract = grid_contracts.get(spec.grid_type)
+
+    if grid_contract:
+        expected_model, expected_dlat, expected_dlon, _ = grid_contract
+        if raw_region.get("source_model") != expected_model:
+            raise ContractSemanticError(
+                "CONTRACT_VIOLATION",
+                f"'{slot_label}.source_model' incompatible with {backend_var_code}: expected {expected_model}.",
+                400,
+            )
+        resolution = raw_region.get("grid_resolution")
+        try:
+            dlat = float(resolution.get("dLat", math.nan)) if isinstance(resolution, dict) else math.nan
+            dlon = float(resolution.get("dLon", math.nan)) if isinstance(resolution, dict) else math.nan
+        except (TypeError, ValueError) as exc:
+            raise ContractSemanticError(
+                "CONTRACT_VIOLATION",
+                f"'{slot_label}.grid_resolution' incompatible with {backend_var_code}.",
+                400,
+            ) from exc
+        if not math.isclose(dlat, expected_dlat) or not math.isclose(dlon, expected_dlon):
+            raise ContractSemanticError(
+                "CONTRACT_VIOLATION",
+                f"'{slot_label}.grid_resolution' incompatible with {backend_var_code}.",
+                400,
+            )
+
+    cells: list[CellCoord] = []
+    grid_indices: list[tuple[int, int]] = []
+    seen_coords: set[tuple[float, float]] = set()
+    for index, item in enumerate(raw_cells):
+        if not isinstance(item, dict):
+            raise ContractSemanticError(
+                "CONTRACT_VIOLATION", f"Invalid '{slot_label}.cells[{index}]' ({slot_name}).", 400
+            )
+        try:
+            lat, lon = float(item["lat"]), float(item["lon"])
+        except (KeyError, TypeError, ValueError) as exc:
+            raise ContractSemanticError(
+                "CONTRACT_VIOLATION",
+                f"Selected coordinates for {slot_name} are incomplete or invalid.",
+                400,
+            ) from exc
+        if not math.isfinite(lat) or not math.isfinite(lon) or not (-90 <= lat <= 90) or not (-180 <= lon <= 180):
+            raise ContractSemanticError(
+                "CONTRACT_VIOLATION",
+                f"Coordinates out of domain in '{slot_label}.cells[{index}]'.",
+                400,
+            )
+        coord = (round(lat, 4), round(lon, 4))
+        if coord in seen_coords:
+            raise ContractSemanticError(
+                "CONTRACT_VIOLATION", f"Duplicate cell in '{slot_label}': {coord}.", 400
+            )
+        seen_coords.add(coord)
+
+        if grid_contract:
+            _, _, _, snap_fn = grid_contract
+            snapped = snap_fn(lat, lon)
+            if coord != snapped:
+                raise ContractSemanticError(
+                    "CONTRACT_VIOLATION",
+                    f"Cell {coord} is not on the native grid center of {backend_var_code}.",
+                    400,
+                )
+            if spec.grid_type == "ceres":
+                expected_row, expected_col = math.floor(min(lat, 89.9999)), math.floor(min(lon, 179.9999))
+            else:
+                expected_row, expected_col = round(lat / 0.5), round(lon / 0.625)
+            if item.get("row") != expected_row or item.get("col") != expected_col:
+                raise ContractSemanticError(
+                    "CONTRACT_VIOLATION",
+                    f"Invalid grid indices in '{slot_label}.cells[{index}]'.",
+                    400,
+                )
+            expected_cell_id = f"r{expected_row}_c{expected_col}"
+            if item.get("cell_id") != expected_cell_id:
+                raise ContractSemanticError(
+                    "CONTRACT_VIOLATION",
+                    f"Invalid cell_id in '{slot_label}.cells[{index}]': expected {expected_cell_id}.",
+                    400,
+                )
+            grid_indices.append((expected_row, expected_col))
+        cells.append(CellCoord(lat=lat, lon=lon))
+
+    if grid_contract and len(grid_indices) > 1:
+        visited = {grid_indices[0]}
+        pending = [grid_indices[0]]
+        while pending:
+            row, col = pending.pop()
+            for candidate in grid_indices:
+                if candidate not in visited and max(abs(candidate[0] - row), abs(candidate[1] - col)) <= 1:
+                    visited.add(candidate)
+                    pending.append(candidate)
+        if len(visited) != len(grid_indices):
+            raise ContractSemanticError(
+                "NOT_ADJACENT",
+                f"The cells of '{slot_label}' ({slot_name}) must form an 8-connected region.",
+            )
     station_id = raw_region.get("station_id")
     query = LocationQuery(
         name=region_id,
@@ -746,80 +559,34 @@ def _fetch_contract_series(
     *,
     cache: CellCacheStore,
     label: str,
-    slot_label: str = "region_a",
 ) -> dict[str, Any]:
-    """Busca e filtra a série mensal no intervalo [start_date, end_date] tratando erros semânticos."""
-    slot_name = _slot_human_label(slot_label)
+    """Fetches and filters the monthly series in [start_date, end_date], handling semantic errors."""
     fetched = fetch_location_single_variable(
         query, start_year, end_year, cache=cache, label=label
     )
-    var_label = _friendly_var_label(requested_var_id, fetched)
-
     if fetched.get("status") == "OCEANO_SEM_DADOS_TERRESTRES":
         raise ContractSemanticError(
             "OCEAN_MASK_NO_DATA",
-            (
-                f"Sem dados terrestres para {var_label} no {slot_name}: os retângulos selecionados "
-                "estão sobre o oceano ou grande corpo d'água, e variáveis de solo só existem em terra "
-                "firme. Mova a seleção para o continente ou escolha uma variável atmosférica (ex.: Temperatura ou Precipitação)."
-            ),
-        )
-    if fetched.get("status") == "SEM_DADOS":
-        raise ContractSemanticError(
-            "INVALID_DATE_INTERSECTION",
-            (
-                f"A NASA não possui dados publicados para {var_label} no {slot_name} entre "
-                f"{start_date} e {end_date}. Tente ajustar as datas ou selecionar outra variável."
-            ),
+            f"Ocean cells have no land data for '{requested_var_id}'.",
         )
     if fetched.get("status") != "OK":
         raise ContractSemanticError(
             "BACKEND_UNAVAILABLE",
-            _friendly_backend_error(
-                str(fetched.get("error") or ""),
-                var_label,
-                slot_name,
-                str(fetched.get("status") or ""),
-            ),
+            str(fetched.get("error") or f"Failed to fetch '{requested_var_id}' ({fetched.get('status')})."),
             502,
         )
-
     filtered_series = {
         ym: val for ym, val in fetched.get("series", {}).items() if start_date <= ym <= end_date
     }
-    if not filtered_series:
-        raise ContractSemanticError(
-            "INVALID_DATE_INTERSECTION",
-            (
-                f"Não há meses publicados para {var_label} no {slot_name} dentro do intervalo "
-                f"{start_date} a {end_date}. Meses muito recentes podem ainda não estar disponíveis "
-                "na NASA — tente recuar a data final (por exemplo, até 2023 ou 2024)."
-            ),
-        )
-    # No endpoint /point da NASA POWER (MERRA-2 Land), células oceânicas retornam -999 ou 1.0 constante
-    if requested_var_id in {"GWETTOP", "GWETROOT", "GWETPROF"} and set(filtered_series.values()) <= {1.0}:
+    # On the NASA POWER /point endpoint (MERRA-2 Land), ocean cells return -999 or constant 1.0
+    if requested_var_id in {"GWETTOP", "GWETROOT", "GWETPROF"} and (
+        not filtered_series or set(filtered_series.values()) <= {1.0}
+    ):
         raise ContractSemanticError(
             "OCEAN_MASK_NO_DATA",
-            (
-                f"Sem variação terrestre para {var_label} no {slot_name}: os retângulos selecionados "
-                "estão sobre o oceano ou área alagada sem cobertura de solo no MERRA-2. Selecione uma "
-                "área em terra firme ou escolha outra variável."
-            ),
+            f"Ocean cells have no land variation for '{requested_var_id}'.",
         )
     return {**fetched, "series": filtered_series}
-
-
-def _apply_contract_metadata(block: dict[str, Any], requested_var_id: str) -> dict[str, Any]:
-    """Alinha `variable_id`, `scale_type`, `unit`, `trend_unit` e `allow_percentage_change` ao contrato."""
-    overrides = _CONTRACT_METADATA_OVERRIDES.get(requested_var_id, {})
-    merged = {
-        **block,
-        "variable_id": requested_var_id,
-        **{k: v for k, v in overrides.items() if k != "min_year"},
-    }
-    if merged["scale_type"] == "interval":
-        merged["allow_percentage_change"] = False
-    return merged
 
 
 def analyze_regions_contract(
@@ -827,13 +594,13 @@ def analyze_regions_contract(
     *,
     cache: CellCacheStore | None = None,
 ) -> dict[str, Any]:
-    """Executa análise compatível 100% com `RegionAnalysisRequest -> RegionAnalysisResponse` (POST /api/analyze)."""
+    """Runs analysis 100% compatible with `RegionAnalysisRequest -> RegionAnalysisResponse` (POST /api/analyze)."""
     if not isinstance(request_body, dict):
-        raise ContractSemanticError("CONTRACT_VIOLATION", "Requisição enviada em formato inválido.", 400)
+        raise ContractSemanticError("CONTRACT_VIOLATION", "Invalid JSON payload.", 400)
 
     var_a = str(request_body.get("variable_a") or "").strip()
     if not var_a:
-        raise ContractSemanticError("CONTRACT_VIOLATION", "Escolha a variável do Local A antes de analisar.", 400)
+        raise ContractSemanticError("CONTRACT_VIOLATION", "Field 'variable_a' is required.", 400)
     raw_var_b = request_body.get("variable_b")
     var_b = str(raw_var_b).strip() if raw_var_b else None
 
@@ -842,7 +609,7 @@ def analyze_regions_contract(
     if start_date > end_date:
         raise ContractSemanticError(
             "INVALID_DATE_INTERSECTION",
-            f"A data inicial ({start_date}) é posterior à data final ({end_date}). Escolha um Mês final igual ou posterior ao Mês inicial.",
+            f"Invalid time window: {start_date} > {end_date}.",
         )
 
     backend_var_a = _FRONTEND_VAR_TO_BACKEND.get(var_a, var_a)
@@ -853,36 +620,22 @@ def analyze_regions_contract(
     cache_store = cache or CellCacheStore()
     fetched_a = _fetch_contract_series(
         query_a, var_a, start_date, end_date, start_year, end_year,
-        cache=cache_store, label="Analyze Region A", slot_label="region_a",
+        cache=cache_store, label="Analyze Region A",
     )
 
     raw_region_b = request_body.get("region_b")
     has_second_series = raw_region_b is not None or var_b is not None
-    cal_months = _months_inclusive(start_date, end_date)
-    var_label_a = _friendly_var_label(var_a, fetched_a)
 
     if not has_second_series:
         common_months, xs_years = _common_months_and_axis([fetched_a["series"]])
         if len(common_months) < 12:
-            if cal_months < 12:
-                raise ContractSemanticError(
-                    "INVALID_DATE_INTERSECTION",
-                    (
-                        f"O período escolhido ({start_date} a {end_date}) tem apenas {cal_months} "
-                        f"{'mês' if cal_months == 1 else 'meses'}, mas a análise estatística precisa "
-                        "de pelo menos 12 meses para calcular anomalias e tendências. Amplie o intervalo de datas."
-                    ),
-                )
             raise ContractSemanticError(
                 "INVALID_DATE_INTERSECTION",
-                (
-                    f"Dos {cal_months} meses escolhidos ({start_date} a {end_date}), {var_label_a} no "
-                    f"Local A possui apenas {len(common_months)} {'mês' if len(common_months) == 1 else 'meses'} "
-                    "com dados publicados (mínimo de 12). Tente recuar a data final (por exemplo, até 2023 ou 2024)."
-                ),
+                f"Fewer than 12 valid months for '{var_a}' in [{start_date}, {end_date}].",
             )
-        block_a_raw, _, _ = build_variable_statistics(region_a_id, fetched_a, common_months, xs_years)
-        block_a = _apply_contract_metadata(block_a_raw, var_a)
+        block_a, _, _ = build_variable_statistics(
+            region_a_id, fetched_a, common_months, xs_years, requested_var_id=var_a
+        )
         return {
             "request_meta": {
                 "variable_a": var_a,
@@ -907,15 +660,11 @@ def analyze_regions_contract(
             raw_region_b, "region_b", backend_var_b
         )
         pair_region_b_id = region_b_id
-        second_slot_label = "region_b"
-        second_label = "Analyze Region B"
     else:
-        # Mesma Região A com 2 variáveis distintas (var_a vs var_b)
+        # Same Region A with 2 distinct variables (var_a vs var_b)
         region_b_id = None
         cells_count_b = 0
         pair_region_b_id = region_a_id
-        second_slot_label = "region_a"
-        second_label = "Analyze Region A (var B)"
         query_b = LocationQuery(
             name=region_a_id,
             cells=query_a.cells,
@@ -925,38 +674,23 @@ def analyze_regions_contract(
 
     fetched_b = _fetch_contract_series(
         query_b, second_req_var, start_date, end_date, start_year, end_year,
-        cache=cache_store, label=second_label, slot_label=second_slot_label,
+        cache=cache_store, label="Analyze Region B",
     )
 
     common_months, xs_years = _common_months_and_axis([fetched_a["series"], fetched_b["series"]])
     if len(common_months) < 12:
-        var_label_b = _friendly_var_label(second_req_var, fetched_b)
-        second_slot_name = _slot_human_label(second_slot_label)
-        if cal_months < 12:
-            raise ContractSemanticError(
-                "INVALID_DATE_INTERSECTION",
-                (
-                    f"O período escolhido ({start_date} a {end_date}) tem apenas {cal_months} "
-                    f"{'mês' if cal_months == 1 else 'meses'}, mas a comparação precisa de pelo menos "
-                    "12 meses em comum entre as duas variáveis. Amplie o intervalo de datas."
-                ),
-            )
         raise ContractSemanticError(
             "INVALID_DATE_INTERSECTION",
-            (
-                f"O período {start_date} a {end_date} ({cal_months} meses) gerou apenas "
-                f"{len(common_months)} {'mês' if len(common_months) == 1 else 'meses'} em comum "
-                f"com dados publicados (mínimo de 12): {var_label_a} no Local A teve "
-                f"{len(fetched_a['series'])} meses e {var_label_b} no {second_slot_name} teve "
-                f"{len(fetched_b['series'])} meses. Recue a data final (por exemplo, até 2023 ou 2024) "
-                "ou amplie a janela de datas."
-            ),
+            f"Insufficient common intersection ({len(common_months)} months) between '{var_a}' and '{second_req_var}'.",
         )
 
-    block_a_raw, anom_a, res_a = build_variable_statistics(region_a_id, fetched_a, common_months, xs_years)
-    block_b_raw, anom_b, res_b = build_variable_statistics(pair_region_b_id, fetched_b, common_months, xs_years)
-    block_a = _apply_contract_metadata(block_a_raw, var_a)
-    block_b = _apply_contract_metadata(block_b_raw, second_req_var)
+    block_a, anom_a, res_a = build_variable_statistics(
+        region_a_id, fetched_a, common_months, xs_years, requested_var_id=var_a
+    )
+    block_b, anom_b, res_b = build_variable_statistics(
+        pair_region_b_id, fetched_b, common_months, xs_years, requested_var_id=second_req_var
+    )
+    _apply_joint_fdr([block_a, block_b])
 
     pair = _compute_pair_comparison(
         region_a_id,
