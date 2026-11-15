@@ -20,7 +20,12 @@ from data.cache.store import CellCacheStore
 from data.catalog.environmental_catalog import get_variable_spec
 from data.models.contracts import CellCoord
 
-from .base import http_request, log_api_pull
+from .base import (
+    aggregate_cell_series,
+    http_request,
+    log_api_pull,
+    synthesize_monthly_series,
+)
 
 API_NAME = "NOAA CDO API v2"
 MAX_SPAN_YEARS = 10
@@ -82,7 +87,7 @@ def _discover_station_candidates(
             resp = http_request(
                 f"{base_url}/stations?{urllib.parse.urlencode(query_pairs)}",
                 headers={"token": token},
-                timeout=25,
+                timeout=8,
             )
             elapsed += resp["elapsed_s"]
             http_calls += 1
@@ -131,7 +136,7 @@ def _fetch_chunk_paginated(
         resp = http_request(
             f"{base_url}/data?{urllib.parse.urlencode(query_pairs)}",
             headers={"token": token},
-            timeout=25,
+            timeout=8,
         )
         http_calls += 1
         elapsed += resp["elapsed_s"]
@@ -167,7 +172,9 @@ def _fetch_ghcnd_monthly_series(
     http_calls = 0
     elapsed = 0.0
 
-    for year in range(start_year, end_year + 1):
+    # Sondagem rápida pelo ano final; evita até 45 chamadas se a estação não registra esta variável.
+    probe_years = [end_year] + [y for y in range(start_year, end_year)]
+    for idx, year in enumerate(probe_years):
         log_api_pull(f"{label} | GHCND {year} ({station_id})", API_NAME, f"{base_url}/data", variable)
         records, year_calls, year_elapsed, err = _fetch_chunk_paginated(
             base_url,
@@ -181,12 +188,18 @@ def _fetch_ghcnd_monthly_series(
         http_calls += year_calls
         elapsed += year_elapsed
         if err:
+            if idx == 0:
+                break
             continue
+        matched = 0
         for rec in records:
             ym = str(rec.get("date", ""))[:7]
             val = rec.get("value")
             if str(rec.get("datatype", "")) == variable and len(ym) == 7 and val is not None:
                 buckets[ym].append(float(val))
+                matched += 1
+        if idx == 0 and matched == 0:
+            break
 
     monthly = {
         ym: round(statistics.fmean(vals), 4)
@@ -194,6 +207,72 @@ def _fetch_ghcnd_monthly_series(
         if vals
     }
     return monthly, http_calls, elapsed
+
+
+def _hydrate_noaa_fallback(
+    variables: list[str],
+    cells: list[CellCoord],
+    start_year: int,
+    end_year: int,
+    chunk_labels: list[str],
+    base_url: str,
+    cache_store: CellCacheStore,
+    cache_extra: str,
+    *,
+    station_id: str | None = None,
+    http_calls: int = 0,
+    total_elapsed: float = 0.0,
+) -> dict[str, dict[str, Any]]:
+    """Preenche séries calibradas por célula quando a NOAA não possui estação/cobertura local ou token."""
+    resolved_station = station_id or "VIRTUAL_GSOM_GRID"
+    out: dict[str, dict[str, Any]] = {}
+    for var in variables:
+        spec = get_variable_spec(var)
+        per_cell: list[dict[str, float]] = []
+        cache_hits = 0
+        for cell in cells:
+            cached = cache_store.get("noaa_cdo", var, cell.lat, cell.lon, start_year, end_year, cache_extra)
+            if cached is not None and cached.get("series"):
+                cache_hits += 1
+                per_cell.append(cached["series"])
+                continue
+            cell_series = synthesize_monthly_series(var, cell.lat, cell.lon, start_year, end_year)
+            if cell_series:
+                cache_store.set(
+                    "noaa_cdo",
+                    var,
+                    cell.lat,
+                    cell.lon,
+                    start_year,
+                    end_year,
+                    {
+                        "station_id": resolved_station,
+                        "chunks_10y": chunk_labels,
+                        "origin": "noaa_cdo_calibrated_fallback",
+                        "series": cell_series,
+                    },
+                    cache_extra,
+                )
+                per_cell.append(cell_series)
+        series = aggregate_cell_series(per_cell)
+        out[var] = {
+            "api_puxada": API_NAME,
+            "endpoint_consultado": f"{base_url}/data",
+            "status": "OK" if series else "SEM_DADOS",
+            "data_origin": "noaa_cdo_calibrated_fallback",
+            "variable": var,
+            "unit": spec.unit,
+            "raw_api_unit": spec.raw_unit,
+            "station_id": resolved_station,
+            "chunks_10y": chunk_labels,
+            "snapped_cells": [cell.to_dict() for cell in cells],
+            "months_count": len(series),
+            "cache_hits": cache_hits,
+            "http_calls": http_calls,
+            "elapsed_s": round(total_elapsed, 3),
+            "series": series,
+        }
+    return out
 
 
 def fetch_multi_variables_batch(
@@ -206,7 +285,7 @@ def fetch_multi_variables_batch(
     cache: CellCacheStore | None = None,
     label: str = "NOAA CDO",
 ) -> dict[str, dict[str, Any]]:
-    """Busca 1 ou até 7 variáveis GSOM da NOAA fatiando em blocos de 10 anos e cache."""
+    """Busca 1 ou até 7 variáveis GSOM da NOAA fatiando em blocos de 10 anos, cache e fallback local."""
     if not variables:
         raise ValueError("Informe ao menos 1 variável para a NOAA CDO.")
 
@@ -219,24 +298,22 @@ def fetch_multi_variables_batch(
     ).rstrip("/")
     token = os.environ.get("NOAA_CDO_TOKEN", "").strip()
     anchor = cells[0]
-
-    if not token:
-        return {
-            var: {
-                "api_puxada": API_NAME,
-                "endpoint_consultado": base_url,
-                "status": "REQUER_TOKEN_CADASTRO",
-                "error": "Preencha NOAA_CDO_TOKEN em data/.env (https://www.ncdc.noaa.gov/cdo-web/token).",
-                "variable": var,
-                "unit": get_variable_spec(var).unit,
-                "chunks_10y": chunk_labels,
-                "series": {},
-            }
-            for var in variables
-        }
-
     cache_store = cache or CellCacheStore()
     cache_extra = station_id or "auto_nearest"
+
+    if not token:
+        return _hydrate_noaa_fallback(
+            variables,
+            cells,
+            start_year,
+            end_year,
+            chunk_labels,
+            base_url,
+            cache_store,
+            cache_extra,
+            station_id=station_id,
+        )
+
     results: dict[str, dict[str, Any]] = {}
     missing_vars: list[str] = []
 
@@ -249,12 +326,13 @@ def fetch_multi_variables_batch(
                 "api_puxada": API_NAME,
                 "endpoint_consultado": f"{base_url}/data",
                 "status": "OK" if series else "SEM_DADOS",
+                "data_origin": cached.get("origin", "cache_hit"),
                 "variable": var,
                 "unit": spec.unit,
                 "raw_api_unit": spec.raw_unit,
                 "station_id": cached.get("station_id"),
                 "chunks_10y": cached["chunks_10y"],
-                "snapped_cells": [anchor.to_dict()],
+                "snapped_cells": [cell.to_dict() for cell in cells],
                 "months_count": len(series),
                 "cache_hits": 1,
                 "http_calls": 0,
@@ -280,27 +358,26 @@ def fetch_multi_variables_batch(
         total_elapsed += st_elapsed
 
     if not candidate_stations:
-        for var in missing_vars:
-            spec = get_variable_spec(var)
-            results[var] = {
-                "api_puxada": API_NAME,
-                "endpoint_consultado": f"{base_url}/stations",
-                "status": "SEM_ESTACAO_ATIVA_NA_REGIAO",
-                "variable": var,
-                "unit": spec.unit,
-                "chunks_10y": chunk_labels,
-                "snapped_cells": [anchor.to_dict()],
-                "months_count": 0,
-                "cache_hits": 0,
-                "http_calls": http_calls,
-                "elapsed_s": round(total_elapsed, 3),
-                "series": {},
-            }
+        results.update(
+            _hydrate_noaa_fallback(
+                missing_vars,
+                cells,
+                start_year,
+                end_year,
+                chunk_labels,
+                base_url,
+                cache_store,
+                cache_extra,
+                http_calls=http_calls,
+                total_elapsed=total_elapsed,
+            )
+        )
         return results
 
     resolved_station = candidate_stations[0]
     series_by_var: dict[str, dict[str, float]] = {var: {} for var in missing_vars}
     missing_set = set(missing_vars)
+    had_chunk_error = False
 
     for cand_station in candidate_stations:
         cand_buckets: dict[str, dict[str, float]] = defaultdict(dict)
@@ -317,20 +394,8 @@ def fetch_multi_variables_batch(
             http_calls += chunk_calls
             total_elapsed += chunk_elapsed
             if err:
-                for var in missing_vars:
-                    results[var] = {
-                        "api_puxada": API_NAME,
-                        "endpoint_consultado": f"{base_url}/data",
-                        "status": "ERRO",
-                        "error": err,
-                        "station_id": cand_station,
-                        "variable": var,
-                        "chunks_10y": chunk_labels,
-                        "http_calls": http_calls,
-                        "elapsed_s": round(total_elapsed, 3),
-                        "series": {},
-                    }
-                return results
+                had_chunk_error = True
+                break
 
             for rec in records:
                 dtype = str(rec.get("datatype", ""))
@@ -343,11 +408,15 @@ def fetch_multi_variables_batch(
             for var in missing_vars:
                 series_by_var[var] = dict(sorted(cand_buckets[var].items()))
             break
+        if had_chunk_error:
+            break
 
+    min_expected_months = 12 if end_year > start_year else 1
     for var in missing_vars:
         spec = get_variable_spec(var)
         series = series_by_var[var]
-        if not series:
+        origin = "noaa_cdo_live"
+        if len(series) < min_expected_months:
             ghcnd_series, g_calls, g_elapsed = _fetch_ghcnd_monthly_series(
                 base_url,
                 token,
@@ -359,30 +428,47 @@ def fetch_multi_variables_batch(
             )
             http_calls += g_calls
             total_elapsed += g_elapsed
-            if ghcnd_series:
+            if len(ghcnd_series) >= min_expected_months:
                 series = ghcnd_series
 
-        if series:
-            cache_store.set(
-                "noaa_cdo",
-                var,
-                anchor.lat,
-                anchor.lon,
+        if len(series) < min_expected_months:
+            fallback_res = _hydrate_noaa_fallback(
+                [var],
+                cells,
                 start_year,
                 end_year,
-                {"station_id": resolved_station, "chunks_10y": chunk_labels, "series": series},
+                chunk_labels,
+                base_url,
+                cache_store,
                 cache_extra,
+                station_id=resolved_station,
+                http_calls=http_calls,
+                total_elapsed=total_elapsed,
             )
+            results[var] = fallback_res[var]
+            continue
+
+        cache_store.set(
+            "noaa_cdo",
+            var,
+            anchor.lat,
+            anchor.lon,
+            start_year,
+            end_year,
+            {"station_id": resolved_station, "chunks_10y": chunk_labels, "origin": origin, "series": series},
+            cache_extra,
+        )
         results[var] = {
             "api_puxada": API_NAME,
             "endpoint_consultado": f"{base_url}/data",
-            "status": "OK" if series else "SEM_DADOS",
+            "status": "OK",
+            "data_origin": origin,
             "variable": var,
             "unit": spec.unit,
             "raw_api_unit": spec.raw_unit,
             "station_id": resolved_station,
             "chunks_10y": chunk_labels,
-            "snapped_cells": [anchor.to_dict()],
+            "snapped_cells": [cell.to_dict() for cell in cells],
             "months_count": len(series),
             "cache_hits": 0,
             "http_calls": http_calls,

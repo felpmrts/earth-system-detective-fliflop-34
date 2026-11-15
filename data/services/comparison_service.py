@@ -19,7 +19,9 @@ from collections import defaultdict
 from typing import Any
 
 from data.cache.store import CellCacheStore
-from data.models.contracts import CellCoord, LocationQuery
+from data.catalog.environmental_catalog import get_variable_spec
+from data.connectors.base import snap_ceres, snap_merra2
+from data.models.contracts import CellCoord, LocationQuery, get_max_cells_per_region
 
 from .ingestion_service import (
     fetch_location_multiple_variables,
@@ -43,6 +45,13 @@ _CONTRACT_METADATA_OVERRIDES: dict[str, dict[str, Any]] = {
         "allow_percentage_change": False,
         "min_year": 1984,
     },
+    "CLOUD_AMT": {
+        "scale_type": "ratio",
+        "unit": "%",
+        "trend_unit": "p.p./década",
+        "allow_percentage_change": True,
+        "min_year": 1984,
+    },
     "PS": {
         "scale_type": "interval",
         "unit": "kPa",
@@ -55,6 +64,13 @@ _CONTRACT_METADATA_OVERRIDES: dict[str, dict[str, Any]] = {
         "unit": "%",
         "trend_unit": "p.p./década",
         "allow_percentage_change": False,
+        "min_year": 1981,
+    },
+    "TQV": {
+        "scale_type": "ratio",
+        "unit": "kg/m²",
+        "trend_unit": "kg/m²/década",
+        "allow_percentage_change": True,
         "min_year": 1981,
     },
     "GWETTOP": {
@@ -71,8 +87,174 @@ _CONTRACT_METADATA_OVERRIDES: dict[str, dict[str, Any]] = {
         "allow_percentage_change": False,
         "min_year": 1981,
     },
-    "ALLSKY_SFC_SW_DWN": {"min_year": 1984},
-    "ALLSKY_SFC_LW_DWN": {"min_year": 1984},
+    "GWETPROF": {
+        "scale_type": "ratio",
+        "unit": "fração (0–1)",
+        "trend_unit": "fração/década",
+        "allow_percentage_change": True,
+        "min_year": 1981,
+    },
+    "ALLSKY_SRF_ALB": {
+        "scale_type": "ratio",
+        "unit": "fração (0–1)",
+        "trend_unit": "fração/década",
+        "allow_percentage_change": True,
+        "min_year": 1984,
+    },
+    "ALLSKY_SFC_SW_DWN": {
+        "scale_type": "ratio",
+        "unit": "MJ/m²/dia",
+        "trend_unit": "MJ/m²/dia/década",
+        "allow_percentage_change": True,
+        "min_year": 1984,
+    },
+    "ALLSKY_SFC_LW_DWN": {
+        "scale_type": "ratio",
+        "unit": "MJ/m²/dia",
+        "trend_unit": "MJ/m²/dia/década",
+        "allow_percentage_change": True,
+        "min_year": 1984,
+    },
+    "LST_Day_CMG": {
+        "scale_type": "interval",
+        "unit": "°C",
+        "trend_unit": "°C/década",
+        "allow_percentage_change": False,
+        "min_year": 2000,
+    },
+    "LST_Night_CMG": {
+        "scale_type": "interval",
+        "unit": "°C",
+        "trend_unit": "°C/década",
+        "allow_percentage_change": False,
+        "min_year": 2000,
+    },
+    "_1_km_monthly_NDVI": {
+        "scale_type": "interval",
+        "unit": "Índice (-1 a +1)",
+        "trend_unit": "NDVI/década",
+        "allow_percentage_change": False,
+        "min_year": 2000,
+    },
+    "_1_km_monthly_EVI": {
+        "scale_type": "interval",
+        "unit": "Índice (-1 a +1)",
+        "trend_unit": "EVI/década",
+        "allow_percentage_change": False,
+        "min_year": 2000,
+    },
+    "Lai_500m": {
+        "scale_type": "ratio",
+        "unit": "m²/m²",
+        "trend_unit": "m²/m²/década",
+        "allow_percentage_change": True,
+        "min_year": 2000,
+    },
+    "GPM_3IMERGM": {
+        "scale_type": "ratio",
+        "unit": "mm/mês",
+        "trend_unit": "mm/mês/década",
+        "allow_percentage_change": True,
+        "min_year": 2000,
+    },
+    "Evap_tavg": {
+        "scale_type": "ratio",
+        "unit": "mm/dia",
+        "trend_unit": "mm/dia/década",
+        "allow_percentage_change": True,
+        "min_year": 2000,
+    },
+    "Qs_acc": {
+        "scale_type": "ratio",
+        "unit": "kg/m²",
+        "trend_unit": "kg/m²/década",
+        "allow_percentage_change": True,
+        "min_year": 2000,
+    },
+    "AOD_550": {
+        "scale_type": "ratio",
+        "unit": "Adimensional",
+        "trend_unit": "AOD/década",
+        "allow_percentage_change": True,
+        "min_year": 2000,
+    },
+    "river_discharge": {
+        "scale_type": "ratio",
+        "unit": "m³/s",
+        "trend_unit": "m³/s/década",
+        "allow_percentage_change": True,
+        "min_year": 1984,
+    },
+    "river_discharge_mean": {
+        "scale_type": "ratio",
+        "unit": "m³/s",
+        "trend_unit": "m³/s/década",
+        "allow_percentage_change": True,
+        "min_year": 1984,
+    },
+    "river_discharge_max": {
+        "scale_type": "ratio",
+        "unit": "m³/s",
+        "trend_unit": "m³/s/década",
+        "allow_percentage_change": True,
+        "min_year": 1984,
+    },
+    "river_discharge_min": {
+        "scale_type": "ratio",
+        "unit": "m³/s",
+        "trend_unit": "m³/s/década",
+        "allow_percentage_change": True,
+        "min_year": 1984,
+    },
+    "PRCP": {
+        "scale_type": "ratio",
+        "unit": "mm",
+        "trend_unit": "mm/década",
+        "allow_percentage_change": True,
+        "min_year": 1981,
+    },
+    "TAVG": {
+        "scale_type": "interval",
+        "unit": "°C",
+        "trend_unit": "°C/década",
+        "allow_percentage_change": False,
+        "min_year": 1981,
+    },
+    "TMAX": {
+        "scale_type": "interval",
+        "unit": "°C",
+        "trend_unit": "°C/década",
+        "allow_percentage_change": False,
+        "min_year": 1981,
+    },
+    "TMIN": {
+        "scale_type": "interval",
+        "unit": "°C",
+        "trend_unit": "°C/década",
+        "allow_percentage_change": False,
+        "min_year": 1981,
+    },
+    "SNOW": {
+        "scale_type": "ratio",
+        "unit": "mm",
+        "trend_unit": "mm/década",
+        "allow_percentage_change": True,
+        "min_year": 1981,
+    },
+    "SNWD": {
+        "scale_type": "ratio",
+        "unit": "mm",
+        "trend_unit": "mm/década",
+        "allow_percentage_change": True,
+        "min_year": 1981,
+    },
+    "AWND": {
+        "scale_type": "ratio",
+        "unit": "m/s",
+        "trend_unit": "m/s/década",
+        "allow_percentage_change": True,
+        "min_year": 1981,
+    },
 }
 
 
@@ -296,9 +478,10 @@ def build_variable_statistics(
     xs_years: list[float],
 ) -> tuple[dict[str, Any], list[float], list[float]]:
     """Gera o bloco completo do Contrato de Dados para 1 variável em 1 local."""
-    anom_map = _climatological_anomalies(fetched["series"])
+    common_series = {ym: fetched["series"][ym] for ym in common_months}
+    anom_map = _climatological_anomalies(common_series)
     anomalies = [anom_map[ym] for ym in common_months]
-    raw_values = [fetched["series"][ym] for ym in common_months]
+    raw_values = [common_series[ym] for ym in common_months]
 
     a0, slope_ols_yr, residuals = _ols_fit(xs_years, anomalies)
     slope_sen_yr, sen_low_yr, sen_high_yr = _theil_sen_with_ci(xs_years, anomalies)
@@ -323,7 +506,7 @@ def build_variable_statistics(
         "variable_id": fetched["variable"],
         "variable_name": fetched["ui_name"],
         "unit": fetched["unit"],
-        "trend_unit": f"{fetched['unit']} / década",
+        "trend_unit": f"{fetched['unit']}/década",
         "scale_type": fetched["scale_type"],
         "allow_percentage_change": fetched["allow_percentage_change"],
         "cells_snapped": fetched.get("snapped_cells", []),
@@ -591,20 +774,96 @@ def compare_locations_multi_variable(
     }
 
 
+_FIELD_HUMAN_LABELS: dict[str, str] = {
+    "start_date": "Mês inicial",
+    "end_date": "Mês final",
+}
+
+
+def _slot_human_label(slot_label: str) -> str:
+    """Converte identificadores internos (`region_a`/`region_b`) em rótulos amigáveis."""
+    if slot_label == "region_a":
+        return "Local A"
+    if slot_label == "region_b":
+        return "Local B"
+    return slot_label
+
+
+def _friendly_var_label(var_id: str, fetched: dict[str, Any] | None = None) -> str:
+    """Resolve um nome legível para exibição ao usuário sem expor apenas siglas técnicas."""
+    if fetched and fetched.get("ui_name"):
+        return f"{fetched['ui_name']} ({var_id})"
+    override_name = _CONTRACT_METADATA_OVERRIDES.get(var_id, {}).get("variable_name")
+    if override_name:
+        return f"{override_name} ({var_id})"
+    backend_code = _FRONTEND_VAR_TO_BACKEND.get(var_id, var_id)
+    try:
+        spec = get_variable_spec(backend_code)
+        if spec.ui_name:
+            return f"{spec.ui_name} ({var_id})"
+    except KeyError:
+        pass
+    return var_id
+
+
+def _months_inclusive(start_ym: str, end_ym: str) -> int:
+    """Retorna a quantidade de meses do calendário no intervalo fechado [start_ym, end_ym]."""
+    return (int(end_ym[:4]) - int(start_ym[:4])) * 12 + (int(end_ym[5:7]) - int(start_ym[5:7])) + 1
+
+
+def _friendly_backend_error(raw_error: str, var_label: str, slot_name: str, status: str) -> str:
+    """Traduz falhas técnicas de rede/API para mensagens compreensíveis ao usuário final."""
+    lower = raw_error.lower()
+    if "429" in lower or "rate" in lower or "too many" in lower:
+        return (
+            f"O servidor da NASA recebeu muitas solicitações seguidas ao buscar {var_label} "
+            f"para o {slot_name}. Aguarde alguns segundos e tente novamente."
+        )
+    if "timed out" in lower or "timeout" in lower or "tempo" in lower:
+        return (
+            f"A consulta de {var_label} para o {slot_name} demorou mais do que o esperado "
+            "(tempo limite excedido). Tente selecionar menos retângulos ou tentar novamente em instantes."
+        )
+    if any(
+        token in lower
+        for token in ("urlerror", "connection", "name resolution", "dns", "network", "ssl", "certificate")
+    ):
+        return (
+            f"Não foi possível conectar ao servidor de dados da NASA ao buscar {var_label} "
+            f"para o {slot_name}. Verifique sua conexão com a internet e tente novamente."
+        )
+    if any(token in lower for token in ("async", "fila", "credencia", "api key", "oauth")):
+        return (
+            f"A fonte de dados para {var_label} ({slot_name}) exige integração externa ou fila "
+            f"assíncrona que ainda não está configurada neste ambiente ({raw_error})."
+        )
+    detail = raw_error or status or "erro desconhecido"
+    return (
+        f"Não foi possível obter os dados de {var_label} para o {slot_name} no momento "
+        f"(detalhe: {detail}). Tente novamente em instantes."
+    )
+
+
 def _parse_year_month(raw: Any, field_name: str) -> tuple[str, int]:
     """Valida string YYYY-MM do CONTRATO_DE_DADOS.md e devolve (YYYY-MM, ano)."""
     text = str(raw or "").strip()
+    label = _FIELD_HUMAN_LABELS.get(field_name, field_name)
+    if not text:
+        raise ContractSemanticError(
+            "INVALID_DATE_INTERSECTION",
+            f"Selecione o {label} no calendário antes de iniciar a análise.",
+        )
     match = _YM_PATTERN.match(text)
     if not match:
         raise ContractSemanticError(
             "INVALID_DATE_INTERSECTION",
-            f"Campo '{field_name}' inválido (esperado YYYY-MM): {raw!r}",
+            f"A data informada em {label} ({text}) não é válida. Use o formato AAAA-MM (ex.: 2015-01).",
         )
     year, month = int(match.group(1)), int(match.group(2))
     if not (1 <= month <= 12):
         raise ContractSemanticError(
             "INVALID_DATE_INTERSECTION",
-            f"Mês fora do intervalo 01..12 em '{field_name}': {text}",
+            f"O mês informado em {label} ({text}) precisa estar entre 01 e 12.",
         )
     return text, year
 
@@ -615,24 +874,137 @@ def _parse_contract_region(
     backend_var_code: str,
 ) -> tuple[str, int, LocationQuery]:
     """Converte `region_a` ou `region_b` de `RegionAnalysisRequest` para `LocationQuery`."""
+    slot_name = _slot_human_label(slot_label)
     if not isinstance(raw_region, dict):
-        raise ContractSemanticError("CONTRACT_VIOLATION", f"Bloco '{slot_label}' inválido.", 400)
+        raise ContractSemanticError(
+            "CONTRACT_VIOLATION",
+            f"Os dados enviados para o {slot_name} estão em formato inválido.",
+            400,
+        )
     region_id = str(raw_region.get("region_id") or "").strip()
     if not region_id:
         raise ContractSemanticError(
-            "CONTRACT_VIOLATION", f"'{slot_label}.region_id' obrigatório.", 400
+            "CONTRACT_VIOLATION",
+            f"Identificador ausente para o {slot_name} (region_id obrigatório).",
+            400,
         )
     raw_cells = raw_region.get("cells")
     if not isinstance(raw_cells, list) or len(raw_cells) == 0:
         raise ContractSemanticError(
-            "CONTRACT_VIOLATION", f"'{slot_label}.cells' exige ao menos 1 célula.", 400
+            "CONTRACT_VIOLATION",
+            f"Selecione pelo menos 1 retângulo no mapa para o {slot_name}.",
+            400,
         )
-    if len(raw_cells) > 9:
+    max_cells = get_max_cells_per_region()
+    if len(raw_cells) > max_cells:
         raise ContractSemanticError(
             "MAX_CELLS_EXCEEDED",
-            f"'{slot_label}' excedeu o limite máximo de 9 células adjacentes ({len(raw_cells)}).",
+            f"O {slot_name} possui {len(raw_cells)} retângulos selecionados, mas o limite máximo é de {max_cells} retângulos adjacentes por região.",
         )
-    cells = [CellCoord(lat=float(item["lat"]), lon=float(item["lon"])) for item in raw_cells]
+    spec = get_variable_spec(backend_var_code)
+    grid_contracts = {
+        "merra2": ("MERRA-2", 0.5, 0.625, snap_merra2),
+        "ceres": ("CERES_SYN1deg", 1.0, 1.0, snap_ceres),
+    }
+    grid_contract = grid_contracts.get(spec.grid_type)
+
+    if grid_contract:
+        expected_model, expected_dlat, expected_dlon, _ = grid_contract
+        if raw_region.get("source_model") != expected_model:
+            raise ContractSemanticError(
+                "CONTRACT_VIOLATION",
+                f"'{slot_label}.source_model' incompatível com {backend_var_code}: esperado {expected_model}.",
+                400,
+            )
+        resolution = raw_region.get("grid_resolution")
+        try:
+            dlat = float(resolution.get("dLat", math.nan)) if isinstance(resolution, dict) else math.nan
+            dlon = float(resolution.get("dLon", math.nan)) if isinstance(resolution, dict) else math.nan
+        except (TypeError, ValueError) as exc:
+            raise ContractSemanticError(
+                "CONTRACT_VIOLATION",
+                f"'{slot_label}.grid_resolution' incompatível com {backend_var_code}.",
+                400,
+            ) from exc
+        if not math.isclose(dlat, expected_dlat) or not math.isclose(dlon, expected_dlon):
+            raise ContractSemanticError(
+                "CONTRACT_VIOLATION",
+                f"'{slot_label}.grid_resolution' incompatível com {backend_var_code}.",
+                400,
+            )
+
+    cells: list[CellCoord] = []
+    grid_indices: list[tuple[int, int]] = []
+    seen_coords: set[tuple[float, float]] = set()
+    for index, item in enumerate(raw_cells):
+        if not isinstance(item, dict):
+            raise ContractSemanticError(
+                "CONTRACT_VIOLATION", f"'{slot_label}.cells[{index}]' inválida ({slot_name}).", 400
+            )
+        try:
+            lat, lon = float(item["lat"]), float(item["lon"])
+        except (KeyError, TypeError, ValueError) as exc:
+            raise ContractSemanticError(
+                "CONTRACT_VIOLATION",
+                f"As coordenadas selecionadas para o {slot_name} estão incompletas ou inválidas.",
+                400,
+            ) from exc
+        if not math.isfinite(lat) or not math.isfinite(lon) or not (-90 <= lat <= 90) or not (-180 <= lon <= 180):
+            raise ContractSemanticError(
+                "CONTRACT_VIOLATION",
+                f"Coordenadas fora do domínio em '{slot_label}.cells[{index}]'.",
+                400,
+            )
+        coord = (round(lat, 4), round(lon, 4))
+        if coord in seen_coords:
+            raise ContractSemanticError(
+                "CONTRACT_VIOLATION", f"Célula duplicada em '{slot_label}': {coord}.", 400
+            )
+        seen_coords.add(coord)
+
+        if grid_contract:
+            _, _, _, snap_fn = grid_contract
+            snapped = snap_fn(lat, lon)
+            if coord != snapped:
+                raise ContractSemanticError(
+                    "CONTRACT_VIOLATION",
+                    f"Célula {coord} não está no centro da grade nativa de {backend_var_code}.",
+                    400,
+                )
+            if spec.grid_type == "ceres":
+                expected_row, expected_col = math.floor(min(lat, 89.9999)), math.floor(min(lon, 179.9999))
+            else:
+                expected_row, expected_col = round(lat / 0.5), round(lon / 0.625)
+            if item.get("row") != expected_row or item.get("col") != expected_col:
+                raise ContractSemanticError(
+                    "CONTRACT_VIOLATION",
+                    f"Índices de grade inválidos em '{slot_label}.cells[{index}]'.",
+                    400,
+                )
+            expected_cell_id = f"r{expected_row}_c{expected_col}"
+            if item.get("cell_id") != expected_cell_id:
+                raise ContractSemanticError(
+                    "CONTRACT_VIOLATION",
+                    f"cell_id inválido em '{slot_label}.cells[{index}]': esperado {expected_cell_id}.",
+                    400,
+                )
+            grid_indices.append((expected_row, expected_col))
+        cells.append(CellCoord(lat=lat, lon=lon))
+
+    if grid_contract and len(grid_indices) > 1:
+        visited = {grid_indices[0]}
+        pending = [grid_indices[0]]
+        while pending:
+            row, col = pending.pop()
+            for candidate in grid_indices:
+                if candidate not in visited and max(abs(candidate[0] - row), abs(candidate[1] - col)) <= 1:
+                    visited.add(candidate)
+                    pending.append(candidate)
+        if len(visited) != len(grid_indices):
+            raise ContractSemanticError(
+                "NOT_ADJACENT",
+                f"As células de '{slot_label}' ({slot_name}) precisam formar uma região conexa em 8 vizinhos.",
+            )
     station_id = raw_region.get("station_id")
     query = LocationQuery(
         name=region_id,
@@ -641,6 +1013,22 @@ def _parse_contract_region(
         station_id=str(station_id) if station_id else None,
     )
     return region_id, len(cells), query
+
+
+def _resolve_min_year(requested_var_id: str, backend_var_code: str) -> int:
+    """Resolve o ano inicial válido respeitando fronteiras MERRA-2/NOAA (1981), CERES/GloFAS (1984) e MODIS/GLDAS (2000)."""
+    override_year = _CONTRACT_METADATA_OVERRIDES.get(requested_var_id, {}).get("min_year")
+    if isinstance(override_year, int):
+        return override_year
+    try:
+        spec = get_variable_spec(backend_var_code)
+        if spec.grid_type in {"ceres", "point"}:
+            return 1984
+        if spec.grid_type in {"modis", "gldas"}:
+            return 2000
+    except KeyError:
+        pass
+    return 1981
 
 
 def _fetch_contract_series(
@@ -653,32 +1041,87 @@ def _fetch_contract_series(
     *,
     cache: CellCacheStore,
     label: str,
+    slot_label: str = "region_a",
 ) -> dict[str, Any]:
     """Busca e filtra a série mensal no intervalo [start_date, end_date] tratando erros semânticos."""
+    slot_name = _slot_human_label(slot_label)
+    backend_var_code = _FRONTEND_VAR_TO_BACKEND.get(requested_var_id, requested_var_id)
+    min_year = _resolve_min_year(requested_var_id, backend_var_code)
+    min_ym = f"{min_year}-01"
+    effective_start_date = max(start_date, min_ym)
+    effective_start_year = max(start_year, min_year)
+
+    if effective_start_date > end_date:
+        var_label = _friendly_var_label(requested_var_id)
+        raise ContractSemanticError(
+            "INVALID_DATE_INTERSECTION",
+            (
+                f"A variável {var_label} ({slot_name}) só possui série histórica a partir de "
+                f"{min_ym}, mas a data final escolhida foi {end_date}. Escolha um período igual ou "
+                f"posterior a {min_ym}."
+            ),
+        )
+
     fetched = fetch_location_single_variable(
-        query, start_year, end_year, cache=cache, label=label
+        query, effective_start_year, end_year, cache=cache, label=label
     )
+    var_label = _friendly_var_label(requested_var_id, fetched)
+
     if fetched.get("status") == "OCEANO_SEM_DADOS_TERRESTRES":
         raise ContractSemanticError(
             "OCEAN_MASK_NO_DATA",
-            f"Células sobre oceano sem dados terrestres para '{requested_var_id}'.",
+            (
+                f"Sem dados terrestres para {var_label} no {slot_name}: os retângulos selecionados "
+                "estão sobre o oceano ou grande corpo d'água, e variáveis de solo só existem em terra "
+                "firme. Mova a seleção para o continente ou escolha uma variável atmosférica (ex.: Temperatura ou Precipitação)."
+            ),
+        )
+    if fetched.get("status") == "SEM_DADOS":
+        raise ContractSemanticError(
+            "INVALID_DATE_INTERSECTION",
+            (
+                f"A NASA não possui dados publicados para {var_label} no {slot_name} entre "
+                f"{effective_start_date} e {end_date}. Tente ajustar as datas ou selecionar outra variável."
+            ),
         )
     if fetched.get("status") != "OK":
         raise ContractSemanticError(
             "BACKEND_UNAVAILABLE",
-            str(fetched.get("error") or f"Falha ao obter '{requested_var_id}' ({fetched.get('status')})."),
+            _friendly_backend_error(
+                str(fetched.get("error") or ""),
+                var_label,
+                slot_name,
+                str(fetched.get("status") or ""),
+            ),
             502,
         )
+
     filtered_series = {
-        ym: val for ym, val in fetched.get("series", {}).items() if start_date <= ym <= end_date
+        ym: float(val)
+        for ym, val in fetched.get("series", {}).items()
+        if effective_start_date <= ym <= end_date
+        and isinstance(val, (int, float))
+        and not isinstance(val, bool)
+        and math.isfinite(float(val))
     }
+    if not filtered_series:
+        raise ContractSemanticError(
+            "INVALID_DATE_INTERSECTION",
+            (
+                f"Não há meses publicados para {var_label} no {slot_name} dentro do intervalo "
+                f"{effective_start_date} a {end_date}. Meses muito recentes podem ainda não estar disponíveis "
+                "na NASA — tente recuar a data final (por exemplo, até 2023 ou 2024)."
+            ),
+        )
     # No endpoint /point da NASA POWER (MERRA-2 Land), células oceânicas retornam -999 ou 1.0 constante
-    if requested_var_id in {"GWETTOP", "GWETROOT", "GWETPROF"} and (
-        not filtered_series or set(filtered_series.values()) <= {1.0}
-    ):
+    if requested_var_id in {"GWETTOP", "GWETROOT", "GWETPROF"} and set(filtered_series.values()) <= {1.0}:
         raise ContractSemanticError(
             "OCEAN_MASK_NO_DATA",
-            f"Células sobre oceano sem variação terrestre para '{requested_var_id}'.",
+            (
+                f"Sem variação terrestre para {var_label} no {slot_name}: os retângulos selecionados "
+                "estão sobre o oceano ou área alagada sem cobertura de solo no MERRA-2. Selecione uma "
+                "área em terra firme ou escolha outra variável."
+            ),
         )
     return {**fetched, "series": filtered_series}
 
@@ -703,11 +1146,11 @@ def analyze_regions_contract(
 ) -> dict[str, Any]:
     """Executa análise compatível 100% com `RegionAnalysisRequest -> RegionAnalysisResponse` (POST /api/analyze)."""
     if not isinstance(request_body, dict):
-        raise ContractSemanticError("CONTRACT_VIOLATION", "Payload JSON inválido.", 400)
+        raise ContractSemanticError("CONTRACT_VIOLATION", "Requisição enviada em formato inválido.", 400)
 
     var_a = str(request_body.get("variable_a") or "").strip()
     if not var_a:
-        raise ContractSemanticError("CONTRACT_VIOLATION", "Campo 'variable_a' obrigatório.", 400)
+        raise ContractSemanticError("CONTRACT_VIOLATION", "Escolha a variável do Local A antes de analisar.", 400)
     raw_var_b = request_body.get("variable_b")
     var_b = str(raw_var_b).strip() if raw_var_b else None
 
@@ -716,7 +1159,7 @@ def analyze_regions_contract(
     if start_date > end_date:
         raise ContractSemanticError(
             "INVALID_DATE_INTERSECTION",
-            f"Janela temporal inválida: {start_date} > {end_date}.",
+            f"A data inicial ({start_date}) é posterior à data final ({end_date}). Escolha um Mês final igual ou posterior ao Mês inicial.",
         )
 
     backend_var_a = _FRONTEND_VAR_TO_BACKEND.get(var_a, var_a)
@@ -727,18 +1170,33 @@ def analyze_regions_contract(
     cache_store = cache or CellCacheStore()
     fetched_a = _fetch_contract_series(
         query_a, var_a, start_date, end_date, start_year, end_year,
-        cache=cache_store, label="Analyze Region A",
+        cache=cache_store, label="Analyze Region A", slot_label="region_a",
     )
 
     raw_region_b = request_body.get("region_b")
     has_second_series = raw_region_b is not None or var_b is not None
+    cal_months = _months_inclusive(start_date, end_date)
+    var_label_a = _friendly_var_label(var_a, fetched_a)
 
     if not has_second_series:
         common_months, xs_years = _common_months_and_axis([fetched_a["series"]])
         if len(common_months) < 12:
+            if cal_months < 12:
+                raise ContractSemanticError(
+                    "INVALID_DATE_INTERSECTION",
+                    (
+                        f"O período escolhido ({start_date} a {end_date}) tem apenas {cal_months} "
+                        f"{'mês' if cal_months == 1 else 'meses'}, mas a análise estatística precisa "
+                        "de pelo menos 12 meses para calcular anomalias e tendências. Amplie o intervalo de datas."
+                    ),
+                )
             raise ContractSemanticError(
                 "INVALID_DATE_INTERSECTION",
-                f"Menos de 12 meses válidos para '{var_a}' em [{start_date}, {end_date}].",
+                (
+                    f"Dos {cal_months} meses escolhidos ({start_date} a {end_date}), {var_label_a} no "
+                    f"Local A possui apenas {len(common_months)} {'mês' if len(common_months) == 1 else 'meses'} "
+                    "com dados publicados (mínimo de 12). Tente recuar a data final (por exemplo, até 2023 ou 2024)."
+                ),
             )
         block_a_raw, _, _ = build_variable_statistics(region_a_id, fetched_a, common_months, xs_years)
         block_a = _apply_contract_metadata(block_a_raw, var_a)
@@ -766,11 +1224,15 @@ def analyze_regions_contract(
             raw_region_b, "region_b", backend_var_b
         )
         pair_region_b_id = region_b_id
+        second_slot_label = "region_b"
+        second_label = "Analyze Region B"
     else:
         # Mesma Região A com 2 variáveis distintas (var_a vs var_b)
         region_b_id = None
         cells_count_b = 0
         pair_region_b_id = region_a_id
+        second_slot_label = "region_a"
+        second_label = "Analyze Region A (var B)"
         query_b = LocationQuery(
             name=region_a_id,
             cells=query_a.cells,
@@ -780,14 +1242,32 @@ def analyze_regions_contract(
 
     fetched_b = _fetch_contract_series(
         query_b, second_req_var, start_date, end_date, start_year, end_year,
-        cache=cache_store, label="Analyze Region B",
+        cache=cache_store, label=second_label, slot_label=second_slot_label,
     )
 
     common_months, xs_years = _common_months_and_axis([fetched_a["series"], fetched_b["series"]])
     if len(common_months) < 12:
+        var_label_b = _friendly_var_label(second_req_var, fetched_b)
+        second_slot_name = _slot_human_label(second_slot_label)
+        if cal_months < 12:
+            raise ContractSemanticError(
+                "INVALID_DATE_INTERSECTION",
+                (
+                    f"O período escolhido ({start_date} a {end_date}) tem apenas {cal_months} "
+                    f"{'mês' if cal_months == 1 else 'meses'}, mas a comparação precisa de pelo menos "
+                    "12 meses em comum entre as duas variáveis. Amplie o intervalo de datas."
+                ),
+            )
         raise ContractSemanticError(
             "INVALID_DATE_INTERSECTION",
-            f"Interseção comum insuficiente ({len(common_months)} meses) entre '{var_a}' e '{second_req_var}'.",
+            (
+                f"O período {start_date} a {end_date} ({cal_months} meses) gerou apenas "
+                f"{len(common_months)} {'mês' if len(common_months) == 1 else 'meses'} em comum "
+                f"com dados publicados (mínimo de 12): {var_label_a} no Local A teve "
+                f"{len(fetched_a['series'])} meses e {var_label_b} no {second_slot_name} teve "
+                f"{len(fetched_b['series'])} meses. Recue a data final (por exemplo, até 2023 ou 2024) "
+                "ou amplie a janela de datas."
+            ),
         )
 
     block_a_raw, anom_a, res_a = build_variable_statistics(region_a_id, fetched_a, common_months, xs_years)

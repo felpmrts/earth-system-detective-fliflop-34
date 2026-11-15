@@ -534,7 +534,7 @@ _VARIABLES: tuple[VariableSpec, ...] = (
         mode="realtime",
         unit="kPa",
         raw_unit="kPa",
-        scale_type="ratio",
+        scale_type="interval",
         description="Peso da coluna de ar; tendências de longo prazo indicam mudanças em sistemas de alta/baixa pressão.",
     ),
     VariableSpec(
