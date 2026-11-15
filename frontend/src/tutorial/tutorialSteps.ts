@@ -80,19 +80,19 @@ export const TUTORIAL_STEPS: readonly TutorialStep[] = [
     phaseTag: 'MISSÃO 1 / 7',
     rankTitle: 'Catalogador',
     badgeIcon: 'variables',
-    title: 'Escolha as Variáveis A/B e o Período',
+    title: 'Escolha as Variáveis X/Y e o Período',
     summary:
-      'Defina a Variável A (ciano) e a Variável B (laranja) entre as 7 famílias ambientais (ex.: T2M, GWETTOP, ALLSKY_SFC_SW_DWN) e ajuste o mês inicial e final dentro da janela comum calculada automaticamente.',
+      'Defina a Variável X (ciano) e a Variável Y (laranja) entre as 7 famílias ambientais (ex.: T2M, GWETTOP, ALLSKY_SFC_SW_DWN) e ajuste o mês inicial e final dentro da janela comum calculada automaticamente.',
     fieldTip:
       'Somente o catálogo lateral e os seletores de período estão liberados agora para você experimentar trocar variáveis ou datas.',
-    interactiveHint: 'Apenas Variáveis A/B e Período liberados para edição',
+    interactiveHint: 'Apenas Variáveis X/Y e Período liberados para edição',
     resolveMissionStatus: ctx => {
       const varsOk = Boolean(ctx.variableA && ctx.variableB);
       const ready = varsOk && ctx.periodReady;
       const periodText = ctx.periodReady ? `${ctx.startMonth} → ${ctx.endMonth}` : 'período pendente';
       return {
         complete: ready,
-        label: `A: ${ctx.variableA || '—'} · B: ${ctx.variableB || '—'} · ${periodText}`,
+        label: `X: ${ctx.variableA || '—'} · Y: ${ctx.variableB || '—'} · ${periodText}`,
       };
     },
     resolveTarget: () => ({
@@ -135,7 +135,7 @@ export const TUTORIAL_STEPS: readonly TutorialStep[] = [
     resolveTarget: () => ({
       selectors: ['[data-tour="hotspot-actions"]'],
       requiredTab: 'map',
-      requiresSidebar: false,
+      requiresSidebar: true,
       placement: 'bottom',
     }),
   },
@@ -159,9 +159,9 @@ export const TUTORIAL_STEPS: readonly TutorialStep[] = [
       label: `Região A: ${ctx.regionACells} cél. · Região B: ${ctx.regionBCells} cél.`,
     }),
     resolveTarget: () => ({
-      selectors: ['[data-tour="map-selection-tools"]', '[data-tour="map-nav-tools"]', '[data-tour="map-stage"]'],
+      selectors: ['[data-tour="map-selection-tools"]', '[data-tour="map-nav-tools"]', '[data-tour="map-stage"]', '[data-tour="close-variables"]', '[data-tour="open-variables"] button'],
       requiredTab: 'map',
-      requiresSidebar: false,
+      requiresSidebar: true,
       placement: 'bottom',
     }),
   },
@@ -210,7 +210,7 @@ export const TUTORIAL_STEPS: readonly TutorialStep[] = [
       selectors: ['[data-tour="map-actions"]', '[data-tour="query-summary"]'],
       fallbackSelectors: ['[data-tour="analyze-button"]'],
       requiredTab: 'map',
-      requiresSidebar: false,
+      requiresSidebar: true,
       placement: 'bottom',
     }),
   },

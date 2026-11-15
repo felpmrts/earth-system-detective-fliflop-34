@@ -1,5 +1,5 @@
 import environmentalFamilies from './contracts/environmentalFamilies.json';
-import { Select } from '@mantine/core';
+import { Select, TextInput } from '@mantine/core';
 import { MonthPickerInput } from '@mantine/dates';
 import { useEffect, useRef, useState } from 'react';
 import type { RegionAnalysisResponse, RegionSelection, VariableId } from './contracts/types';
@@ -16,7 +16,7 @@ import {
   TOUR_STEP_COUNT,
 } from './services/sessionState';
 import { StoryHub } from './story/StoryHub';
-import { materializeStoryPreset, STORY_PRESETS, type StoryPreset } from './story/storyPresets';
+import { materializeStoryPreset, type StoryPreset } from './story/storyPresets';
 import { saveTutorialOutcome, shouldAutoOpenTutorial, type TutorialCompletionStatus } from './services/tutorialState';
 import { hasOpenMantinePopup, TutorialOverlay } from './tutorial/TutorialOverlay';
 import { TUTORIAL_STEPS } from './tutorial/tutorialSteps';
@@ -30,6 +30,20 @@ const fallbackVariableOptions = environmentalFamilies.map(({ group, items }) => 
     disabled: !supportedVariables.has(option.value),
   })),
 }));
+
+const coordinateFormat = new Intl.NumberFormat('pt-BR', { maximumFractionDigits: 4 });
+
+function formatRegionCoordinates(region: RegionSelection | null): string {
+  const firstCell = region?.cells[0];
+  if (!region || !firstCell) return '';
+  const { cells } = region;
+  const reference = firstCell.lon;
+  const latitude = cells.reduce((sum, cell) => sum + cell.lat, 0) / cells.length;
+  // Desenrola longitudes próximas ao antimeridiano antes de calcular a média.
+  const longitudeOffset = cells.reduce((sum, cell) => sum + (cell.lon - reference + 540) % 360 - 180, 0) / cells.length;
+  const longitude = (reference + longitudeOffset + 540) % 360 - 180;
+  return `Longitude ${coordinateFormat.format(longitude)}° · Latitude ${coordinateFormat.format(latitude)}°`;
+}
 
 export default function App() {
   const [initialSession] = useState(loadPersistedSession);
@@ -46,7 +60,6 @@ export default function App() {
   const [regionA, setRegionA] = useState<RegionSelection | null>(initialSession.regionA);
   const [regionB, setRegionB] = useState<RegionSelection | null>(initialSession.regionB);
   const [sameLocation, setSameLocation] = useState(initialSession.sameLocation);
-  const [activePresetId, setActivePresetId] = useState<string | null>(initialSession.activePresetId);
   const [focusKey, setFocusKey] = useState(0);
   const [startMonth, setStartMonth] = useState(initialSession.startMonth);
   const [endMonth, setEndMonth] = useState(initialSession.endMonth);
@@ -61,8 +74,10 @@ export default function App() {
   const [trendMode, setTrendMode] = useState<TrendMode>(initialSession.trendMode);
   const [sidebarOpen, setSidebarOpen] = useState(initialSession.sidebarOpen);
   const [mobileDrawerOpen, setMobileDrawerOpen] = useState(false);
+  const [mapControlsTarget, setMapControlsTarget] = useState<HTMLDivElement | null>(null);
   const [tutorialOpen, setTutorialOpen] = useState(false);
   const [tutorialPending, setTutorialPending] = useState(shouldAutoOpenTutorial);
+  const skipTutorialAutoOpenRef = useRef(false);
   const [tutorialStepIndex, setTutorialStepIndex] = useState(0);
   const tutorialTriggerRef = useRef<HTMLButtonElement | null>(null);
   const restoreFocusOnTutorialCloseRef = useRef(false);
@@ -80,7 +95,6 @@ export default function App() {
   const handleVariableAChange = (next: string) => {
     if (next !== variableA) {
       setRegionA(null);
-      setActivePresetId(null);
     }
     setVariableA(next);
   };
@@ -88,7 +102,6 @@ export default function App() {
   const handleVariableBChange = (next: string) => {
     if (next !== variableB) {
       setRegionB(null);
-      setActivePresetId(null);
     }
     setVariableB(next);
   };
@@ -106,7 +119,6 @@ export default function App() {
       tourStep,
       tourCompleted,
       sameLocation,
-      activePresetId,
       anomaly,
       separate,
       dual,
@@ -125,7 +137,6 @@ export default function App() {
     tourStep,
     tourCompleted,
     sameLocation,
-    activePresetId,
     anomaly,
     separate,
     dual,
@@ -177,11 +188,16 @@ export default function App() {
   useEffect(() => () => analysisControllerRef.current?.abort(), []);
 
   useEffect(() => {
-    if (!tutorialPending || tab !== 'map' || activePresetId) return;
+    if (tab !== 'map') return;
+    if (skipTutorialAutoOpenRef.current) {
+      skipTutorialAutoOpenRef.current = false;
+      return;
+    }
+    if (!tutorialPending) return;
     setTutorialPending(false);
     setTutorialStepIndex(0);
     setTutorialOpen(true);
-  }, [tab, tutorialPending, activePresetId]);
+  }, [tab, tutorialPending]);
 
   useEffect(() => {
     if (tutorialOpen && (tab === 'story' || tab === 'info')) {
@@ -319,7 +335,6 @@ export default function App() {
   function handleOpenFreeMap(options?: { readonly sameLocation?: boolean }) {
     if (options?.sameLocation !== undefined) {
       setSameLocation(options.sameLocation);
-      setActivePresetId(null);
     }
     if (tab === 'info' && infoMode === 'tour' && tourStep >= TOUR_STEP_COUNT - 1) {
       setTourCompleted(true);
@@ -337,7 +352,6 @@ export default function App() {
     setSameLocation(materialized.sameLocation);
     setRegionA(materialized.regionA);
     setRegionB(materialized.regionB);
-    setActivePresetId(preset.id);
     setAnomaly(preset.recommendedBench.anomaly);
     setSeparate(preset.recommendedBench.separate);
     setDual(preset.recommendedBench.dual);
@@ -347,6 +361,7 @@ export default function App() {
       setTourCompleted(true);
       setInfoMode('full');
     }
+    skipTutorialAutoOpenRef.current = options.autoAnalyze;
     setTab('map');
 
     if (options.autoAnalyze) {
@@ -365,8 +380,6 @@ export default function App() {
     analysisControllerRef.current?.abort('Consulta cancelada pelo usuário.');
   }
 
-  const activePreset = activePresetId ? STORY_PRESETS.find(preset => preset.id === activePresetId) ?? null : null;
-
   const variablesReady = Boolean(variableA && variableB);
   const regionsReady = Boolean(regionA && regionB);
   const currentStep = !variablesReady ? 0 : !periodReady ? 1 : !regionsReady ? 2 : 3;
@@ -381,14 +394,60 @@ export default function App() {
   const resolvedTutorialTarget = currentTutorialStep?.resolveTarget({ hasAnalysis: Boolean(analysis) });
   const effectiveSidebarOpen = sidebarOpen || Boolean(tutorialOpen && resolvedTutorialTarget?.requiresSidebar);
 
+  const desktopSidebarToggle = (
+      <button
+        type="button"
+        className={`sidebar-toggle desktop-only${effectiveSidebarOpen ? '' : ' is-collapsed-icon'}`}
+        aria-expanded={effectiveSidebarOpen}
+        aria-controls="variables-sidebar"
+        aria-label={effectiveSidebarOpen ? undefined : 'Abrir painel de variáveis'}
+        title={effectiveSidebarOpen ? 'Recolher painel de variáveis' : 'Variáveis'}
+        onClick={() => setSidebarOpen(prev => !prev)}
+      >
+        {effectiveSidebarOpen ? (
+          '« Recolher painel'
+        ) : (
+          <svg
+            width="20"
+            height="20"
+            viewBox="0 0 24 24"
+            fill="none"
+            stroke="currentColor"
+            strokeWidth="1.9"
+            strokeLinecap="round"
+            strokeLinejoin="round"
+            aria-hidden="true"
+          >
+            <rect x="3" y="3" width="18" height="18" rx="3" />
+            <path d="M9 3v18" />
+            <path className="rail-chevron" d="M13.5 9.5 16 12l-2.5 2.5" />
+          </svg>
+        )}
+      </button>
+  );
+  const mobileSidebarToggle = (
+      <button
+        type="button"
+        className="sidebar-toggle mobile-only"
+        aria-expanded={mobileDrawerOpen}
+        aria-controls="variables-sidebar"
+        onClick={() => setMobileDrawerOpen(true)}
+      >
+        Variáveis e período
+      </button>
+  );
+
   return (
     <main className={tab === 'story' || tab === 'info' ? 'story-mode' : ''}>
       <header className="brand-header">
         <div className="brand-identity">
-          <div>
-            <h1>Flipflop 34</h1>
-            <p className="brand-tagline">Earth System Trend Detective · Liberdade Planetária</p>
-          </div>
+          <h1 className="brand-mark">
+            <img
+              className="brand-logo"
+              src="/flipflop-34-logo.jpeg"
+              alt="Flipflop 34"
+            />
+          </h1>
         </div>
         <div className="header-actions">
           {tab === 'map' && (
@@ -435,15 +494,6 @@ export default function App() {
         />
       ) : (
         <>
-          <ol className="workflow-progress" data-tour="workflow-progress" aria-label="Etapas da investigação">
-            {workflowSteps.map((step, index) => (
-              <li key={step.label} className={step.complete ? 'complete' : index === currentStep ? 'current' : ''}
-                aria-current={index === currentStep && !step.complete ? 'step' : undefined}>
-                <span>{step.complete ? '✓' : index + 1}</span>
-                <strong>{step.label}</strong>
-              </li>
-            ))}
-          </ol>
           <div className={`workspace ${effectiveSidebarOpen ? '' : 'sidebar-collapsed'}`}>
             {mobileDrawerOpen && (
               <div
@@ -454,76 +504,99 @@ export default function App() {
             )}
             <aside
               id="variables-sidebar"
-              data-tour="sidebar-controls"
               className={mobileDrawerOpen ? 'drawer-open' : ''}
               aria-label="Catálogo de variáveis e período"
             >
               <div className="sidebar-head">
                 <h2>Variáveis</h2>
+                {desktopSidebarToggle}
                 <button
                   type="button"
                   className="drawer-close"
+                  data-tour="close-variables"
                   aria-label="Fechar painel de variáveis"
                   onClick={() => setMobileDrawerOpen(false)}
                 >
                   ×
                 </button>
               </div>
-              {catalogError && <p className="catalog-warning" role="alert">{catalogError} Usando catálogo local.</p>}
-              {([
-                { slot: 'A', value: variableA, onChange: handleVariableAChange },
-                { slot: 'B', value: variableB, onChange: handleVariableBChange },
-              ]).map(({ slot, value, onChange }) => (
-                <Select key={slot} className={`variable-picker variable-picker-${slot.toLowerCase()}`}
-                  classNames={{ input: 'selection-input', dropdown: 'selection-dropdown', option: 'selection-option' }}
-                  label={<span className={`slot-label slot-${slot.toLowerCase()}`}><b>{slot}</b> Variável {slot}</span>} placeholder="Buscar variável"
-                  data={variableOptions} searchable clearable clearSectionMode="clear"
-                  clearButtonProps={{ 'aria-label': 'Limpar variável ' + slot }} nothingFoundMessage="Nenhuma variável encontrada"
-                  value={value || null} onChange={id => onChange(id ?? '')}
-                  comboboxProps={{ width: 310, position: 'bottom-start', withinPortal: true, zIndex: tutorialOpen ? 1325 : 1300 }}
-                  maxDropdownHeight={340} />
-              ))}
-              <fieldset className="period-picker" disabled={!minimumMonth}>
-                <legend>Período</legend>
-                <MonthPickerInput className="variable-picker" classNames={{ input: 'selection-input' }} label="Mês inicial" placeholder="Selecione o mês"
-                  locale="pt-br" valueFormat="MMMM [de] YYYY" clearable disabled={!minimumMonth}
-                  popoverProps={{ withinPortal: true, zIndex: tutorialOpen ? 1325 : 1300 }}
-                  minDate={minimumMonth ? minimumMonth + '-01' : undefined} maxDate={maximumMonth + '-01'}
-                  value={start ? start + '-01' : null} onChange={value => setStartMonth(value?.slice(0, 7) ?? '')} />
-                <MonthPickerInput className="variable-picker" classNames={{ input: 'selection-input' }} label="Mês final" placeholder="Selecione o mês"
-                  locale="pt-br" valueFormat="MMMM [de] YYYY" clearable disabled={!minimumMonth}
-                  popoverProps={{ withinPortal: true, zIndex: tutorialOpen ? 1325 : 1300 }}
-                  minDate={minimumMonth ? (start || minimumMonth) + '-01' : undefined} maxDate={maximumMonth + '-01'}
-                  value={end ? end + '-01' : null} onChange={value => setEndMonth(value?.slice(0, 7) ?? '')} />
-              </fieldset>
+              <div data-tour="sidebar-controls">
+                {catalogError && <p className="catalog-warning" role="alert">{catalogError} Usando catálogo local.</p>}
+                {([
+                  { slot: 'A', symbol: 'X', region: regionA, value: variableA, onChange: handleVariableAChange },
+                  { slot: 'B', symbol: 'Y', region: regionB, value: variableB, onChange: handleVariableBChange },
+                ]).map(({ slot, symbol, region, value, onChange }) => {
+                  const locationValue = formatRegionCoordinates(region);
+                  return (
+                    <div key={slot} className={`variable-local-pair pair-${slot.toLowerCase()}`}>
+                      <Select className={`variable-picker variable-picker-${slot.toLowerCase()}`}
+                        classNames={{ input: 'selection-input', dropdown: 'selection-dropdown', option: 'selection-option' }}
+                        label={<span className={`slot-label slot-${slot.toLowerCase()}`}>Variável {symbol}</span>} placeholder="Buscar variável"
+                        data={variableOptions} searchable clearable clearSectionMode="clear"
+                        clearButtonProps={{ 'aria-label': 'Limpar variável ' + symbol }} nothingFoundMessage="Nenhuma variável encontrada"
+                        value={value || null} onChange={id => onChange(id ?? '')}
+                        comboboxProps={{ width: 310, position: 'bottom-start', withinPortal: true, zIndex: tutorialOpen ? 1325 : 1300 }}
+                        maxDropdownHeight={340} />
+                      <TextInput
+                        readOnly
+                        className={`variable-picker variable-picker-${slot.toLowerCase()} location-picker`}
+                        classNames={{ input: 'selection-input' }}
+                        label={<span className={`slot-label slot-${slot.toLowerCase()}`}>Local {slot}</span>}
+                        value={locationValue}
+                        placeholder=""
+                        title={locationValue || undefined}
+                      />
+                    </div>
+                  );
+                })}
+                <fieldset className="period-picker" disabled={!minimumMonth}>
+                  <legend><span>Período da análise</span></legend>
+                  <MonthPickerInput className="variable-picker" classNames={{ input: 'selection-input' }} label="Mês inicial" placeholder="Selecione o mês"
+                    locale="pt-br" valueFormat="MMMM [de] YYYY" clearable disabled={!minimumMonth}
+                    popoverProps={{ withinPortal: true, zIndex: tutorialOpen ? 1325 : 1300 }}
+                    minDate={minimumMonth ? minimumMonth + '-01' : undefined} maxDate={maximumMonth + '-01'}
+                    value={start ? start + '-01' : null} onChange={value => setStartMonth(value?.slice(0, 7) ?? '')} />
+                  <MonthPickerInput className="variable-picker" classNames={{ input: 'selection-input' }} label="Mês final" placeholder="Selecione o mês"
+                    locale="pt-br" valueFormat="MMMM [de] YYYY" clearable disabled={!minimumMonth}
+                    popoverProps={{ withinPortal: true, zIndex: tutorialOpen ? 1325 : 1300 }}
+                    minDate={minimumMonth ? (start || minimumMonth) + '-01' : undefined} maxDate={maximumMonth + '-01'}
+                    value={end ? end + '-01' : null} onChange={value => setEndMonth(value?.slice(0, 7) ?? '')} />
+                </fieldset>
+              </div>
+              {tab === 'map' && <div ref={setMapControlsTarget} className="sidebar-map-controls-host" />}
             </aside>
+            {!effectiveSidebarOpen && (
+              <div className="sidebar-collapsed-rail desktop-only" data-tour="open-variables">
+                {desktopSidebarToggle}
+              </div>
+            )}
             <div className="exploration">
-              <div className="exploration-toolbar" role="toolbar" aria-label="Controles do painel">
-                <button
-                  type="button"
-                  className="sidebar-toggle desktop-only"
-                  aria-expanded={effectiveSidebarOpen}
-                  aria-controls="variables-sidebar"
-                  onClick={() => setSidebarOpen(prev => !prev)}
-                >
-                  {effectiveSidebarOpen ? '« Recolher painel' : '» Variáveis'}
-                </button>
-                <button
-                  type="button"
-                  className="sidebar-toggle mobile-only"
-                  aria-expanded={mobileDrawerOpen}
-                  aria-controls="variables-sidebar"
-                  onClick={() => setMobileDrawerOpen(true)}
-                >
-                  Variáveis e período
-                </button>
-                <button
-                  type="button"
-                  className="sidebar-toggle"
-                  onClick={() => setTab('story')}
-                >
-                  ← Ver História &amp; Casos
-                </button>
+              <ol className="workflow-progress" data-tour="workflow-progress" aria-label="Etapas da investigação">
+                {workflowSteps.map((step, index) => (
+                  <li key={step.label} className={step.complete ? 'complete' : index === currentStep ? 'current' : ''}
+                    aria-current={index === currentStep && !step.complete ? 'step' : undefined}>
+                    <span>
+                      {step.complete ? (
+                        <svg width="11" height="11" viewBox="0 0 12 12" aria-hidden="true">
+                          <path
+                            d="M2.4 6.3L4.9 8.8L9.6 3.5"
+                            fill="none"
+                            stroke="currentColor"
+                            strokeWidth="1.9"
+                            strokeLinecap="round"
+                            strokeLinejoin="round"
+                          />
+                        </svg>
+                      ) : (
+                        index + 1
+                      )}
+                    </span>
+                    <strong>{step.label}</strong>
+                  </li>
+                ))}
+              </ol>
+              <div className={mobileDrawerOpen ? 'map-panel-toggle drawer-active' : 'map-panel-toggle'}>
+                {mobileSidebarToggle}
               </div>
               <div className={tab === 'map' ? 'map-tab-shell' : 'map-tab-shell is-hidden'}>
                 <MapWorkspace
@@ -538,14 +611,12 @@ export default function App() {
                   onRegionBChange={setRegionB}
                   sameLocation={sameLocation}
                   onSameLocationChange={setSameLocation}
-                  activePreset={activePreset}
-                  onClearPreset={() => setActivePresetId(null)}
-                  onOpenStory={() => setTab('story')}
                   focusKey={focusKey}
                   isAnalyzing={isAnalyzing}
                   analysisError={analysisError}
                   onAnalyze={analyzeSelection}
                   onCancel={cancelAnalysis}
+                  controlsTarget={tab === 'map' ? mapControlsTarget : null}
                 />
               </div>
               {tab === 'bench' && (

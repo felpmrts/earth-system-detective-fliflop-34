@@ -12,6 +12,7 @@ const fakeMapInstance = {
   off: () => fakeMapInstance,
   remove: () => {},
   fitBounds: vi.fn(),
+  panInsideBounds: vi.fn(),
   invalidateSize: () => {},
   getContainer: () => ({
     addEventListener: () => {},
@@ -31,6 +32,8 @@ const fakeLayer = {
   off: () => fakeLayer,
   bindTooltip: () => fakeLayer,
   openTooltip: () => fakeLayer,
+  setLatLng: () => fakeLayer,
+  setContent: () => fakeLayer,
   bringToFront: () => fakeLayer,
   remove: () => {},
   getContainer: () => null,
@@ -44,6 +47,7 @@ vi.mock('leaflet', () => ({
       layers: () => ({ addTo: () => ({ getContainer: () => null }) }),
     },
     tileLayer: () => fakeLayer,
+    tooltip: () => fakeLayer,
     layerGroup: () => fakeLayer,
     rectangle: () => fakeLayer,
     polyline: () => fakeLayer,
@@ -177,18 +181,14 @@ describe('StoryHub & fluxo narrativo em App', () => {
     fireEvent.click(auditStageTab);
     expect(screen.getByText(/Meses consecutivos de seca ou calor guardam memória climática/i)).toBeTruthy();
 
-    // Lança o primeiro Story Preset para o Mapa
+    // Lança o primeiro Story Preset para o Mapa e confirma que abre sempre em modo livre (sem barra nem card de dipolo)
     const openMapButtons = screen.getAllByRole('button', { name: /Abrir no Mapa →/i });
     fireEvent.click(openMapButtons[0]!);
 
-    // Verifica briefing do caso, resumo com arquétipo detectado e saída para modo livre
-    expect(screen.getByRole('region', { name: /Briefing do caso selecionado/i })).toBeTruthy();
-    expect(screen.getByText(/Contraste Espacial \(Dipolo\)/i)).toBeTruthy();
     expect(fakeMapInstance.fitBounds).toHaveBeenCalled();
-
-    const freeModeBtn = screen.getByRole('button', { name: /Liberar para Modo Livre/i });
-    fireEvent.click(freeModeBtn);
     expect(screen.queryByRole('region', { name: /Briefing do caso selecionado/i })).toBeNull();
+    expect(screen.queryByText(/Contraste Espacial \(Dipolo\)/i)).toBeNull();
+    expect(screen.queryByRole('button', { name: /Liberar para Modo Livre/i })).toBeNull();
   });
 
   it('dispara análise imediata ao clicar em "Analisar agora" e abre a Bancada científica sem apagar o resultado', async () => {

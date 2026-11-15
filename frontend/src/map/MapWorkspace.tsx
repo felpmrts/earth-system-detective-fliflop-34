@@ -1,6 +1,7 @@
 import L from 'leaflet';
 import 'leaflet/dist/leaflet.css';
 import { useEffect, useRef, useState } from 'react';
+import { createPortal } from 'react-dom';
 import type {
   GlobalGridFile,
   GlobalGridPoint,
@@ -27,7 +28,6 @@ import {
   shouldUseOfflineBasemapByDefault,
   TRANSPARENT_TILE_DATA_URI,
 } from './offlineBasemap';
-import { classifyExperimentArchetype, type StoryPreset } from '../story/storyPresets';
 
 interface MapWorkspaceProps {
   readonly variableA: VariableId | null;
@@ -41,14 +41,12 @@ interface MapWorkspaceProps {
   readonly onRegionBChange: (region: RegionSelection | null) => void;
   readonly sameLocation?: boolean;
   readonly onSameLocationChange?: (sameLocation: boolean) => void;
-  readonly activePreset?: StoryPreset | null;
-  readonly onClearPreset?: () => void;
-  readonly onOpenStory?: () => void;
   readonly focusKey?: number;
   readonly isAnalyzing: boolean;
   readonly analysisError: string;
   readonly onAnalyze: () => void | Promise<void>;
   readonly onCancel: () => void;
+  readonly controlsTarget?: HTMLElement | null;
 }
 
 const selectionErrorMessages = {
@@ -77,8 +75,15 @@ function formatActiveSources(models: readonly (string | undefined)[], variant: '
   return labels.length > 0 ? labels.join(' + ') : 'fontes climáticas';
 }
 
+function clampWrappedLatLon(lat: number, lon: number) {
+  const wrappedLon = Number.isFinite(lon)
+    ? ((((lon + 180) % 360) + 360) % 360) - 180
+    : 0;
+  return clampLatLon(lat, wrappedLon);
+}
+
 function snapSafeCoord(lat: number, lon: number, variableId: VariableId) {
-  const clamped = clampLatLon(lat, lon);
+  const clamped = clampWrappedLatLon(lat, lon);
   return snapCoordToCell(clamped.lat, clamped.lon, variableId);
 }
 
@@ -123,14 +128,12 @@ export function MapWorkspace({
   onRegionBChange,
   sameLocation: sameLocationProp,
   onSameLocationChange,
-  activePreset = null,
-  onClearPreset,
-  onOpenStory,
   focusKey = 0,
   isAnalyzing,
   analysisError,
   onAnalyze,
   onCancel,
+  controlsTarget,
 }: MapWorkspaceProps) {
   const containerRef = useRef<HTMLDivElement>(null);
   const mapRef = useRef<L.Map | null>(null);
@@ -220,13 +223,13 @@ export function MapWorkspace({
       return;
     }
     if (!variable) {
-      setNotice(`Selecione a variável ${slot} antes de marcar o local.`);
+      setNotice(`Selecione a variável ${slot === 'A' ? 'X' : 'Y'} antes de marcar o Local ${slot}.`);
       setNoticeKind('error');
       return;
     }
 
     if (current.blockSelectMode || altKey) {
-      const clamped = clampLatLon(lat, lon);
+      const clamped = clampWrappedLatLon(lat, lon);
       const blockCells = buildCellBlock3x3(clamped.lat, clamped.lon, variable);
       if (blockCells.length > MAX_CELLS_PER_REGION) {
         setNotice(selectionErrorMessages.MAX_CELLS_EXCEEDED);
@@ -282,11 +285,22 @@ export function MapWorkspace({
   useEffect(() => {
     if (!containerRef.current || mapRef.current) return;
 
+    const worldBounds = L.latLngBounds([-85.05112878, -180], [85.05112878, 180]);
+    const initialRect = containerRef.current.getBoundingClientRect();
+    const initialMinZoom =
+      initialRect.width > 0 && initialRect.height > 0
+        ? Math.max(2, Math.ceil(Math.log2(Math.max(initialRect.width, initialRect.height) / 256)))
+        : 2;
+
     const map = L.map(containerRef.current, {
-      center: [-10, -50],
-      zoom: 4,
-      minZoom: 2,
+      center: [-12, -50],
+      zoom: Math.max(4, initialMinZoom),
+      minZoom: initialMinZoom,
       maxZoom: 10,
+      maxBounds: worldBounds,
+      maxBoundsViscosity: 1.0,
+      bounceAtZoomLimits: false,
+      worldCopyJump: false,
       preferCanvas: true,
       zoomControl: false,
       // Desativa o boxZoom nativo para reservar Shift+Arrastar à seleção de células.
@@ -303,6 +317,8 @@ export function MapWorkspace({
     const tileOptionsBase = {
       errorTileUrl: TRANSPARENT_TILE_DATA_URI,
       crossOrigin: 'anonymous' as const,
+      noWrap: true,
+      bounds: worldBounds,
     };
 
     const nasaGibs = L.tileLayer(
@@ -393,6 +409,28 @@ export function MapWorkspace({
     previewLayerRef.current = previewLayer;
     mapRef.current = map;
 
+    let isZooming = false;
+    let isEnforcingWorldBounds = false;
+    const enforceWorldBounds = () => {
+      if (isEnforcingWorldBounds) return;
+      isEnforcingWorldBounds = true;
+      try {
+        map.panInsideBounds(worldBounds, { animate: false });
+      } finally {
+        isEnforcingWorldBounds = false;
+      }
+    };
+    map.on('zoomstart', () => {
+      isZooming = true;
+      previewLayer.clearLayers();
+      previewCellIdRef.current = '';
+    });
+    map.on('zoomend', () => {
+      isZooming = false;
+      enforceWorldBounds();
+    });
+    map.on('moveend', enforceWorldBounds);
+
     map.on('click', event => {
       if (suppressNextClickRef.current) {
         suppressNextClickRef.current = false;
@@ -406,12 +444,12 @@ export function MapWorkspace({
     });
 
     map.on('mousemove', ({ latlng, originalEvent }) => {
-      if (isDraggingBoxRef.current) return;
+      if (isDraggingBoxRef.current || isZooming) return;
       const current = stateRef.current;
       const slot: RegionSlot = current.sameLocation ? 'A' : activeSlotRef.current;
       const variable = slot === 'A' ? current.variableA : current.variableB;
       if (!variable) return;
-      const clamped = clampLatLon(latlng.lat, latlng.lng);
+      const clamped = clampWrappedLatLon(latlng.lat, latlng.lng);
       const cell = snapCoordToCell(clamped.lat, clamped.lon, variable);
       const isBlockPreview = current.blockSelectMode || Boolean(originalEvent?.altKey);
       const previewKey = `${slot}:${isBlockPreview ? '3x3' : '1x1'}:${cell.cell_id}`;
@@ -436,10 +474,11 @@ export function MapWorkspace({
             [cell.bounds_leaflet[1][0], cell.bounds_leaflet[1][1]],
           ),
           { opacity: 0, fillOpacity: 0, interactive: false },
-        ).bindTooltip(
-          `${slot} · Bloco 3×3 (${blockCells.length} células)<br>${cell.lat.toFixed(4)}, ${cell.lon.toFixed(4)}`,
-          { direction: 'top', opacity: 0.92 },
-        ).addTo(previewLayer).openTooltip();
+        ).addTo(previewLayer);
+        L.tooltip({ direction: 'top', opacity: 0.92 })
+          .setLatLng(latlng)
+          .setContent(`${slot} · Bloco 3×3 (${blockCells.length} células)<br>${cell.lat.toFixed(4)}, ${cell.lon.toFixed(4)}`)
+          .addTo(previewLayer);
       } else {
         L.rectangle(
           L.latLngBounds(
@@ -447,10 +486,11 @@ export function MapWorkspace({
             [cell.bounds_leaflet[1][0], cell.bounds_leaflet[1][1]],
           ),
           { ...selectedStyle, fillOpacity: 0.12, weight: 1.5, dashArray: '4 4', interactive: false },
-        ).bindTooltip(
-          `${slot} · ${cell.cell_id}<br>${cell.lat.toFixed(4)}, ${cell.lon.toFixed(4)}`,
-          { direction: 'top', opacity: 0.92 },
-        ).addTo(previewLayer).openTooltip();
+        ).addTo(previewLayer);
+        L.tooltip({ direction: 'top', opacity: 0.92 })
+          .setLatLng(latlng)
+          .setContent(`${slot} · ${cell.cell_id}<br>${cell.lat.toFixed(4)}, ${cell.lon.toFixed(4)}`)
+          .addTo(previewLayer);
       }
       previewCellIdRef.current = previewKey;
     });
@@ -500,7 +540,7 @@ export function MapWorkspace({
       activeDrag = {
         startClientX: event.clientX,
         startClientY: event.clientY,
-        startLatLng: clampLatLon(rawStart.lat, rawStart.lng),
+        startLatLng: clampWrappedLatLon(rawStart.lat, rawStart.lng),
         slot,
         variable,
         movedBeyondThreshold: false,
@@ -528,7 +568,7 @@ export function MapWorkspace({
       }
 
       const rawCurrent = map.mouseEventToLatLng(event);
-      const endLatLng = clampLatLon(rawCurrent.lat, rawCurrent.lng);
+      const endLatLng = clampWrappedLatLon(rawCurrent.lat, rawCurrent.lng);
       const selection = selectCellsInBoundingBox(activeDrag.startLatLng, endLatLng, activeDrag.variable);
       const selectedStyle = getSelectedCellStyle(activeDrag.slot);
 
@@ -613,13 +653,13 @@ export function MapWorkspace({
         return;
       }
       if (!finished.variable) {
-        setNotice(`Selecione a variável ${finished.slot} antes de marcar o local.`);
+        setNotice(`Selecione a variável ${finished.slot === 'A' ? 'X' : 'Y'} antes de marcar o Local ${finished.slot}.`);
         setNoticeKind('error');
         return;
       }
 
       const rawEnd = map.mouseEventToLatLng(event);
-      const endLatLng = clampLatLon(rawEnd.lat, rawEnd.lng);
+      const endLatLng = clampWrappedLatLon(rawEnd.lat, rawEnd.lng);
       const boxResult = selectCellsInBoundingBox(finished.startLatLng, endLatLng, finished.variable);
       recordHistory(current.regionA, current.regionB);
 
@@ -662,9 +702,28 @@ export function MapWorkspace({
     window.addEventListener('offline', onBrowserOffline);
     window.addEventListener('online', onBrowserOnline);
 
-    const resizeObserver = new ResizeObserver(() => map.invalidateSize());
+    const syncMapViewport = () => {
+      const el = containerRef.current;
+      if (!el) return;
+      const rect = el.getBoundingClientRect();
+      if (rect.width <= 0 || rect.height <= 0) return;
+      map.invalidateSize({ animate: false, pan: false });
+      const requiredMinZoom = Math.max(2, Math.ceil(Math.log2(Math.max(rect.width, rect.height) / 256)));
+      const maybeMap = map as unknown as {
+        setMinZoom?: (zoom: number) => void;
+        getZoom?: () => number;
+        setZoom?: (zoom: number, options?: { animate?: boolean }) => void;
+      };
+      maybeMap.setMinZoom?.(requiredMinZoom);
+      if (typeof maybeMap.getZoom === 'function' && maybeMap.getZoom() < requiredMinZoom) {
+        maybeMap.setZoom?.(requiredMinZoom, { animate: false });
+      }
+      enforceWorldBounds();
+    };
+
+    const resizeObserver = new ResizeObserver(syncMapViewport);
     resizeObserver.observe(containerRef.current);
-    const invalidateTimer = window.setTimeout(() => map.invalidateSize(), 0);
+    const invalidateTimer = window.setTimeout(syncMapViewport, 0);
 
     return () => {
       mapContainer.removeEventListener('mousedown', onMouseDown, { capture: true });
@@ -679,6 +738,7 @@ export function MapWorkspace({
         window.clearTimeout(suppressClickTimer);
       }
       window.clearTimeout(invalidateTimer);
+      map.off('moveend', enforceWorldBounds);
       for (const tileLayer of tileLayers) {
         tileLayer.off('tileerror', handleTileError);
         tileLayer.off('tileload', handleTileLoad);
@@ -823,7 +883,7 @@ export function MapWorkspace({
   }, [loadedGrid, showGlobalGrid, significantOnly]);
 
   useEffect(() => {
-    if (focusKey === 0 && !activePreset) return;
+    if (focusKey === 0) return;
     const cells = [regionA, regionB].flatMap(region => region?.cells ?? []);
     if (!mapRef.current || cells.length === 0) return;
     const bounds = L.latLngBounds(
@@ -836,13 +896,6 @@ export function MapWorkspace({
   }, [focusKey]);
 
   const readyToAnalyze = periodReady && Boolean(regionA && regionB);
-  const archetype = classifyExperimentArchetype({
-    variableA: variableA ?? '',
-    variableB: variableB ?? '',
-    regionA,
-    regionB,
-    sameLocation,
-  });
   const metadataA = variableA ? getVariableMetadata(variableA) : null;
   const metadataB = variableB ? getVariableMetadata(variableB) : null;
   const activeLegend = loadedGrid && showGlobalGrid ? buildMapLegendConfig(loadedGrid.grid.variable_id) : null;
@@ -987,31 +1040,12 @@ export function MapWorkspace({
 
   return (
     <section className="map-workspace" data-tour="map-workspace" aria-label="Seleção espacial">
-      {activePreset && (
-        <div className="case-briefing-bar" role="region" aria-label="Briefing do caso selecionado">
-          <div className="case-briefing-copy">
-            <span className="case-briefing-tag">
-              {activePreset.archetypeLabel} · <code>{activePreset.formula}</code>
-            </span>
-            <strong>{activePreset.title}</strong>
-            <p>{activePreset.question}</p>
-          </div>
-          <div className="case-briefing-actions">
-            {onOpenStory && (
-              <button type="button" className="briefing-btn-secondary" onClick={onOpenStory}>
-                ← Ver outros casos
-              </button>
-            )}
-            {onClearPreset && (
-              <button type="button" className="briefing-btn-secondary" onClick={onClearPreset}>
-                Liberar para Modo Livre
-              </button>
-            )}
-          </div>
-        </div>
-      )}
+      {controlsTarget && createPortal(
       <div className="map-toolbar">
         <div className="map-toolbar-group">
+          <div className="sidebar-control-heading">
+            <h3>Seleção espacial</h3>
+          </div>
           <div className="map-selection-group" data-tour="map-selection-tools">
             <div className="slot-switch" aria-label="Região ativa">
               <button
@@ -1089,6 +1123,7 @@ export function MapWorkspace({
               Bloco 3×3
             </button>
           </div>
+          <span className="control-group-label">Atalhos globais</span>
           <div className="hotspot-actions" data-tour="hotspot-actions" aria-label="Extremos globais">
             <button
               type="button"
@@ -1124,15 +1159,11 @@ export function MapWorkspace({
             {isAnalyzing ? `Consultando ${shortSourcesLabel}…` : 'Analisar seleção'}
           </button>
         </div>
-      </div>
+      </div>, controlsTarget)}
       <div className="query-summary" data-tour="query-summary" aria-label="Resumo da consulta preparada">
-        <div className="summary-region summary-a"><b>A</b><span><strong>{metadataA?.variable_name ?? 'Variável pendente'}</strong><small>{regionA?.cells.length ?? 0} célula(s) · {metadataA?.source_model ?? '—'}</small></span></div>
-        <div className="summary-region summary-b"><b>B</b><span><strong>{metadataB?.variable_name ?? 'Variável pendente'}</strong><small>{regionB?.cells.length ?? 0} célula(s) · {metadataB?.source_model ?? '—'}</small></span></div>
+        <div className="summary-region summary-a"><b>X</b><span><strong>{metadataA?.variable_name ?? 'Variável pendente'}</strong><small>{regionA?.cells.length ?? 0} célula(s) · {metadataA?.source_model ?? '—'}</small></span></div>
+        <div className="summary-region summary-b"><b>Y</b><span><strong>{metadataB?.variable_name ?? 'Variável pendente'}</strong><small>{regionB?.cells.length ?? 0} célula(s) · {metadataB?.source_model ?? '—'}</small></span></div>
         <div className="summary-period"><span>Período</span><strong>{formatMonth(startMonth)} — {formatMonth(endMonth)}</strong></div>
-        <div className="summary-archetype" title={archetype.summary}>
-          <span>{archetype.formula}</span>
-          <strong>{archetype.label}</strong>
-        </div>
       </div>
       {isAnalyzing && <div className="analysis-progress" role="status" aria-live="polite">
         <div><strong>Consultando duas regiões ({fullSourcesLabel})</strong><span>{elapsedSeconds}s</span></div>
@@ -1198,36 +1229,42 @@ export function MapWorkspace({
           {!analysisError && offlineTileNotice && <span className="map-grid-note"> · {offlineTileNotice}</span>}
         </span>
         <div className="map-tools" data-tour="map-tools">
-          <div className="map-tools-group" data-tour="map-trend-tools">
-            <button
-              type="button"
-              className={showGlobalGrid ? 'active' : ''}
-              aria-pressed={showGlobalGrid}
-              disabled={!loadedGrid}
-              onClick={() => setShowGlobalGrid(prev => !prev)}
-              title="Mostrar ou ocultar pontos de tendência global pré-calculada"
-            >
-              {showGlobalGrid ? 'Ocultar tendências' : 'Mostrar tendências'}
-            </button>
-            <button
-              type="button"
-              className={significantOnly ? 'active' : ''}
-              aria-pressed={significantOnly}
-              disabled={!loadedGrid || !showGlobalGrid}
-              onClick={() => setSignificantOnly(prev => !prev)}
-              title="Filtrar apenas pontos com significância estatística (AR(1) + FDR q < 0,05)"
-            >
-              Só q &lt; 0,05
-            </button>
+          <div className="map-tools-section">
+            <strong className="map-tools-label">Tendências</strong>
+            <div className="map-tools-group" data-tour="map-trend-tools">
+              <button
+                type="button"
+                className={showGlobalGrid ? 'active' : ''}
+                aria-pressed={showGlobalGrid}
+                disabled={!loadedGrid}
+                onClick={() => setShowGlobalGrid(prev => !prev)}
+                title="Mostrar ou ocultar pontos de tendência global pré-calculada"
+              >
+                {showGlobalGrid ? 'Ocultar tendências' : 'Mostrar tendências'}
+              </button>
+              <button
+                type="button"
+                className={significantOnly ? 'active' : ''}
+                aria-pressed={significantOnly}
+                disabled={!loadedGrid || !showGlobalGrid}
+                onClick={() => setSignificantOnly(prev => !prev)}
+                title="Filtrar apenas pontos com significância estatística (AR(1) + FDR q < 0,05)"
+              >
+                Só q &lt; 0,05
+              </button>
+            </div>
           </div>
-          <div className="map-tools-group" data-tour="map-nav-tools">
-            <button type="button" disabled={!regionA} onClick={() => focusRegions([regionA])}>Ir para A</button>
-            <button type="button" disabled={!regionB} onClick={() => focusRegions([regionB])}>Ir para B</button>
-            <button type="button" disabled={!regionA && !regionB} onClick={() => focusRegions([regionA, regionB])} title="Enquadrar regiões A e B no mapa">Enquadrar A + B</button>
-            <button type="button" disabled={!historyDepth} onClick={undoLastSelection}>Desfazer</button>
-            <button type="button" disabled={!regionA && !regionB} onClick={clearAll}>Limpar tudo</button>
-            {regionA && <button type="button" className="compact-clear" aria-label="Limpar região A" onClick={() => clearRegion('A')}>× A</button>}
-            {regionB && <button type="button" className="compact-clear" aria-label="Limpar região B" onClick={() => { if (sameLocation) updateSameLocation(false); clearRegion('B'); }}>× B</button>}
+          <div className="map-tools-section">
+            <strong className="map-tools-label">Navegação e edição</strong>
+            <div className="map-tools-group" data-tour="map-nav-tools">
+              <button type="button" disabled={!regionA} onClick={() => focusRegions([regionA])}>Ir para A</button>
+              <button type="button" disabled={!regionB} onClick={() => focusRegions([regionB])}>Ir para B</button>
+              <button type="button" disabled={!regionA && !regionB} onClick={() => focusRegions([regionA, regionB])} title="Enquadrar regiões A e B no mapa">Enquadrar A + B</button>
+              <button type="button" disabled={!historyDepth} onClick={undoLastSelection}>Desfazer</button>
+              <button type="button" className="danger-action" disabled={!regionA && !regionB} onClick={clearAll}>Limpar tudo</button>
+              {regionA && <button type="button" className="compact-clear" aria-label="Limpar região A" onClick={() => clearRegion('A')}>× A</button>}
+              {regionB && <button type="button" className="compact-clear" aria-label="Limpar região B" onClick={() => { if (sameLocation) updateSameLocation(false); clearRegion('B'); }}>× B</button>}
+            </div>
           </div>
         </div>
       </div>

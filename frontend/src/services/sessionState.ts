@@ -20,7 +20,6 @@ export interface PersistedSession {
   readonly tourStep: number;
   readonly tourCompleted: boolean;
   readonly sameLocation: boolean;
-  readonly activePresetId: string | null;
   readonly anomaly: boolean;
   readonly separate: boolean;
   readonly dual: boolean;
@@ -43,7 +42,6 @@ const DEFAULT_SESSION: PersistedSession = {
   tourStep: 0,
   tourCompleted: false,
   sameLocation: false,
-  activePresetId: null,
   anomaly: false,
   separate: false,
   dual: true,
@@ -156,7 +154,6 @@ export function loadPersistedSession(): PersistedSession {
       tourStep: sanitizeTourStep(parsed.tourStep),
       tourCompleted: typeof parsed.tourCompleted === 'boolean' ? parsed.tourCompleted : DEFAULT_SESSION.tourCompleted,
       sameLocation: typeof parsed.sameLocation === 'boolean' ? parsed.sameLocation : DEFAULT_SESSION.sameLocation,
-      activePresetId: typeof parsed.activePresetId === 'string' ? parsed.activePresetId : null,
       anomaly: typeof parsed.anomaly === 'boolean' ? parsed.anomaly : DEFAULT_SESSION.anomaly,
       separate: typeof parsed.separate === 'boolean' ? parsed.separate : DEFAULT_SESSION.separate,
       dual: typeof parsed.dual === 'boolean' ? parsed.dual : DEFAULT_SESSION.dual,

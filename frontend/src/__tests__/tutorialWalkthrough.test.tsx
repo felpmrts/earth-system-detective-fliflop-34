@@ -13,8 +13,9 @@ import { TutorialOverlay } from '../tutorial/TutorialOverlay';
 import { TUTORIAL_STEPS } from '../tutorial/tutorialSteps';
 
 vi.mock('../map/MapWorkspace', () => ({
-  MapWorkspace: () => (
+  MapWorkspace: ({ sidebarControls }: { sidebarControls?: unknown }) => (
     <section data-testid="mock-map-workspace">
+      {sidebarControls as import('react').ReactNode}
       <div data-tour="map-selection-tools" />
       <div data-tour="hotspot-actions" />
       <button type="button" data-tour="analyze-button">

@@ -126,22 +126,143 @@ test.describe('Earth System Trend Detective — Suite E2E (vite preview)', () =>
     expect(canvasBox!.height).toBeGreaterThan(250);
 
     // Ativa Mesmo Local (A=B) para espelhar MERRA-2 (0.5°×0.625°) -> CERES_SYN1deg (1.0°×1.0°)
+    const variables = page.locator('#variables-sidebar');
+    const localAInput = variables.getByLabel('Local A');
+    const localBInput = variables.getByLabel('Local B');
+    await expect(localAInput).toBeVisible();
+    await expect(localBInput).toBeVisible();
+    await expect(localAInput).toHaveValue('');
+    await expect(localBInput).toHaveValue('');
     const sameLocationBtn = page.getByRole('button', { name: 'Mesmo Local (A=B)' });
     await sameLocationBtn.click();
     await expect(sameLocationBtn).toHaveAttribute('aria-pressed', 'true');
+    const activeSameLocationBadge = await sameLocationBtn.evaluate(el =>
+      getComputedStyle(el, '::after').content.replaceAll('"', ''),
+    );
+    expect(activeSameLocationBadge).toBe('ATIVO');
 
     const mapBox = await mapContainer.boundingBox();
     expect(mapBox).not.toBeNull();
+    const pointer = {
+      x: mapBox!.x + mapBox!.width * 0.5,
+      y: mapBox!.y + mapBox!.height * 0.5,
+    };
+    await page.mouse.move(pointer.x, pointer.y);
+    const selectionPreview = page.locator('.leaflet-tooltip').last();
+    await expect(selectionPreview).toBeVisible();
+    const previewBox = await selectionPreview.boundingBox();
+    expect(previewBox).not.toBeNull();
+    expect(Math.abs(previewBox!.x + previewBox!.width / 2 - pointer.x)).toBeLessThan(80);
     await page.mouse.click(mapBox!.x + mapBox!.width * 0.5, mapBox!.y + mapBox!.height * 0.5);
 
     const selectABtn = page.locator('.slot-switch button').nth(0);
     const selectBBtn = page.locator('.slot-switch button').nth(1);
     await expect(selectABtn).toContainText('1/25');
     await expect(selectBBtn).toContainText('1/25');
+    await expect(localAInput).toHaveValue(/Longitude .+° · Latitude .+°/);
+    await expect(localBInput).toHaveValue(/Longitude .+° · Latitude .+°/);
     await expect(selectBBtn).toBeDisabled();
     await expect(page.locator('.summary-a')).toContainText('MERRA-2');
     await expect(page.locator('.summary-b')).toContainText('CERES_SYN1deg');
     await expect(page.getByRole('button', { name: 'Analisar seleção' })).toBeEnabled();
+
+    const sidebarBox = await variables.boundingBox();
+    expect(sidebarBox).not.toBeNull();
+    expect(sidebarBox!.width).toBeGreaterThanOrEqual(270);
+
+    const sidebarMetrics = await variables.evaluate(el => ({
+      scrollHeight: el.scrollHeight,
+      clientHeight: el.clientHeight,
+    }));
+    expect(sidebarMetrics.scrollHeight).toBeLessThanOrEqual(sidebarMetrics.clientHeight);
+
+    const analyzeBox = await page.getByRole('button', { name: 'Analisar seleção' }).boundingBox();
+    expect(analyzeBox).not.toBeNull();
+    expect(Math.abs((sidebarBox!.y + sidebarBox!.height) - (analyzeBox!.y + analyzeBox!.height))).toBeLessThanOrEqual(20);
+
+    await page.getByRole('button', { name: /Recolher painel/i }).click();
+    await expect(variables).toBeHidden();
+    const reopenBtn = page.getByRole('button', { name: /Variáveis/i });
+    await expect(reopenBtn).toBeVisible();
+    const reopenBox = await reopenBtn.boundingBox();
+    const workflowBox = await page.locator('.workflow-progress').boundingBox();
+    expect(reopenBox).not.toBeNull();
+    expect(workflowBox).not.toBeNull();
+    expect(Math.abs(reopenBox!.width - reopenBox!.height)).toBeLessThanOrEqual(1);
+    expect(Math.abs(reopenBox!.y - workflowBox!.y)).toBeLessThanOrEqual(1);
+    expect(Math.abs(reopenBox!.height - workflowBox!.height)).toBeLessThanOrEqual(1);
+
+    const collapsedMapBox = await mapContainer.boundingBox();
+    expect(collapsedMapBox).not.toBeNull();
+    expect(collapsedMapBox!.height).toBeGreaterThan(420);
+
+    await page.mouse.move(
+      collapsedMapBox!.x + collapsedMapBox!.width / 2,
+      collapsedMapBox!.y + collapsedMapBox!.height / 2,
+    );
+    await page.mouse.wheel(0, 800);
+    await page.mouse.wheel(0, -800);
+
+    const mapWorkspaceScrollTop = await page.locator('.map-workspace').evaluate(el => el.scrollTop);
+    expect(mapWorkspaceScrollTop).toBe(0);
+    const summaryBox = await page.locator('.query-summary').boundingBox();
+    const workspaceBox = await page.locator('.map-workspace').boundingBox();
+    expect(summaryBox).not.toBeNull();
+    expect(workspaceBox).not.toBeNull();
+    expect(Math.abs(summaryBox!.y - workspaceBox!.y)).toBeLessThanOrEqual(2);
+
+    await reopenBtn.click();
+    await expect(variables).toBeVisible();
+
+    await page.setViewportSize({ width: 1440, height: 900 });
+    const roomySidebarMetrics = await variables.evaluate(el => ({
+      scrollHeight: el.scrollHeight,
+      clientHeight: el.clientHeight,
+    }));
+    expect(roomySidebarMetrics.scrollHeight).toBeLessThanOrEqual(roomySidebarMetrics.clientHeight);
+    const emphasizedLabel = variables.locator('.mantine-InputWrapper-label').first();
+    const labelFontSize = await emphasizedLabel.evaluate(el => Number.parseFloat(getComputedStyle(el).fontSize));
+    const roomyInputBox = await variables.locator('.selection-input').first().boundingBox();
+    expect(labelFontSize).toBeGreaterThanOrEqual(13);
+    expect(roomyInputBox).not.toBeNull();
+    expect(roomyInputBox!.height).toBeGreaterThanOrEqual(32);
+  });
+
+  test('Mapa limita a navegação ao mundo disponível mesmo no menor zoom', async ({ page }) => {
+    await page.setViewportSize({ width: 1366, height: 768 });
+    await seedSessionAndRoutes(page, {
+      variableA: 'GWETTOP',
+      variableB: 'T2M_MAX',
+      startMonth: '2015-01',
+      endMonth: '2022-12',
+    });
+    await page.goto('/');
+
+    const mapContainer = page.locator('.map-container');
+    const mapBox = await mapContainer.boundingBox();
+    expect(mapBox).not.toBeNull();
+    const zoomOut = page.locator('.leaflet-control-zoom-out');
+    for (let attempt = 0; attempt < 10 && await zoomOut.isEnabled(); attempt += 1) {
+      await zoomOut.click();
+    }
+
+    const centerX = mapBox!.x + mapBox!.width / 2;
+    const centerY = mapBox!.y + mapBox!.height / 2;
+    for (let attempt = 0; attempt < 5; attempt += 1) {
+      await page.mouse.move(centerX, centerY);
+      await page.mouse.down();
+      await page.mouse.move(centerX, mapBox!.y + 8, { steps: 4 });
+      await page.mouse.up();
+    }
+
+    await page.mouse.click(centerX, centerY);
+    const locationText = await page.getByLabel('Local A').inputValue();
+    const match = locationText.match(/Longitude\s+(-?[\d.,]+)°\s+·\s+Latitude\s+(-?[\d.,]+)°/);
+    expect(match).not.toBeNull();
+    const longitude = Number(match![1]!.replace(',', '.'));
+    const latitude = Number(match![2]!.replace(',', '.'));
+    expect(Math.abs(longitude)).toBeLessThan(120);
+    expect(Math.abs(latitude)).toBeLessThan(70);
   });
 
   test('Desktop 1366x768: arraste em caixa seleciona células até o limite configurável de 25 células', async ({ page }) => {
@@ -281,7 +402,7 @@ test.describe('Earth System Trend Detective — Suite E2E (vite preview)', () =>
 
     // AUD-01: dropdown Mantine dentro do drawer mobile deve abrir acima do painel (z-index > 1200)
     await page.locator('#variables-sidebar .variable-picker-a input').first().click();
-    const visibleDropdown = page.getByRole('listbox', { name: 'A Variável A' });
+    const visibleDropdown = page.getByRole('listbox', { name: 'Variável X' });
     await expect(visibleDropdown).toBeVisible();
     const dropdownOnTop = await visibleDropdown.evaluate(el => {
       const rect = el.getBoundingClientRect();
@@ -324,7 +445,9 @@ test.describe('Earth System Trend Detective — Suite E2E (vite preview)', () =>
     });
     expect(legendCollidesAttribution).toBe(false);
 
+    await page.getByRole('button', { name: 'Variáveis e período' }).click();
     const analyzeBtn = page.getByRole('button', { name: 'Analisar seleção' });
+    await analyzeBtn.scrollIntoViewIfNeeded();
     await expect(analyzeBtn).toBeVisible();
     const btnRect = await analyzeBtn.boundingBox();
     expect(btnRect).not.toBeNull();
@@ -361,6 +484,10 @@ test.describe('Earth System Trend Detective — Suite E2E (vite preview)', () =>
 
     // Helper que verifica via elementFromPoint se ponto relativo do locator está livre (focado) ou bloqueado pelo scrim
     const hitTagAndClass = async (locator: ReturnType<typeof page.locator>, rx = 0.5, ry = 0.5) => {
+      await locator.scrollIntoViewIfNeeded();
+      await page.evaluate(() => new Promise<void>(resolve => {
+        requestAnimationFrame(() => requestAnimationFrame(() => resolve()));
+      }));
       const box = await locator.boundingBox();
       expect(box).not.toBeNull();
       return page.evaluate(
@@ -377,7 +504,7 @@ test.describe('Earth System Trend Detective — Suite E2E (vite preview)', () =>
     const varAInput = page.locator('#variables-sidebar input').first();
     await varAInput.click();
     await page.getByRole('option', { name: 'Temperatura Média do Ar (2m)', exact: true }).click();
-    await expect(dialog.locator('.tutorial-mission-readout')).toContainText('A: T2M');
+    await expect(dialog.locator('.tutorial-mission-readout')).toContainText('X: T2M');
     expect(await hitTagAndClass(page.getByRole('button', { name: 'Extremo +' }))).toContain('tutorial-scrim-path');
 
     // Avança para Missão 2/7 (Tendências Globais) -> apenas legenda + filtros de tendência em foco
@@ -496,7 +623,7 @@ test.describe('Earth System Trend Detective — Suite E2E (vite preview)', () =>
 
     // Avança para Missão 1/7 (Variáveis e Período) -> abre automaticamente o drawer mobile
     await dialog.getByRole('button', { name: 'Próximo' }).click();
-    await expect(dialog).toContainText('Escolha as Variáveis A/B e o Período');
+    await expect(dialog).toContainText('Escolha as Variáveis X/Y e o Período');
     await expect(page.locator('#variables-sidebar.drawer-open')).toBeVisible();
 
     const stepOverflow = await page.evaluate(() => ({
