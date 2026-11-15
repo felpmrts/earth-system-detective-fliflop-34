@@ -1,1 +1,3 @@
-# Backend 100% Python 3 stdlib (sem dependencias externas de terceiros)
+numpy>=1.25
+scipy>=1.11
+scikit-learn>=1.4
