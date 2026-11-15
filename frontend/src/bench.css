@@ -1,4 +1,4 @@
-:root { font-family: "Segoe UI Variable Text", "Aptos", Inter, system-ui, sans-serif; background: #07111f; color: #e1edf8; color-scheme: dark; }
+﻿:root { font-family: "Segoe UI Variable Text", "Aptos", Inter, system-ui, sans-serif; background: #07111f; color: #e1edf8; color-scheme: dark; }
 body { margin: 0; min-height: 100dvh; background: radial-gradient(circle at 8% 0%, rgba(14, 165, 233, .15), transparent 30rem), radial-gradient(circle at 92% 8%, rgba(34, 211, 238, .09), transparent 28rem), radial-gradient(circle at 72% 100%, rgba(251, 146, 60, .055), transparent 32rem), linear-gradient(145deg, #07111f 0%, #0a1728 48%, #081321 100%); background-attachment: fixed; }
 main { box-sizing: border-box; height: 100dvh; display: grid; grid-template-rows: auto auto minmax(0, 1fr); gap: .65rem; padding: .75rem; }
 .brand-header { display: flex; align-items: center; gap: .7rem; min-width: 0; }
@@ -587,8 +587,8 @@ button:focus-visible, a:focus-visible, summary:focus-visible, input:focus-visibl
 
 
 /* ==========================================================================
-   Bancada Científica — HUD de Telemetria (redesign v2)
-   Mantém: .diag-card/.diag-meta (min-width: 0, quebra de palavra), z-index e regras mobile 375px.
+   Bancada CientÃ­fica â€” HUD de Telemetria (redesign v2)
+   MantÃ©m: .diag-card/.diag-meta (min-width: 0, quebra de palavra), z-index e regras mobile 375px.
    ========================================================================== */
 .discovery-header,
 .diagnostic-drawer {
@@ -615,7 +615,7 @@ button:focus-visible, a:focus-visible, summary:focus-visible, input:focus-visibl
 .discovery-title-row h2 { letter-spacing: .01em; }
 .discovery-metrics dd, .discovery-subtitle strong { font-family: var(--hud-mono); font-variant-numeric: tabular-nums; }
 
-/* Barra de ações do cabeçalho (Exportar · Co-Piloto · 4 Respostas · Ajuda) */
+/* Barra de aÃ§Ãµes do cabeÃ§alho (Exportar Â· Co-Piloto Â· 4 Respostas Â· Ajuda) */
 .bench-header-actions {
   align-items: center;
   gap: .4rem;
@@ -658,7 +658,7 @@ button:focus-visible, a:focus-visible, summary:focus-visible, input:focus-visibl
 }
 .glossary-toggle:focus-visible { outline: 2px solid #fde047; outline-offset: 2px; }
 
-/* Barra de controles do gráfico */
+/* Barra de controles do grÃ¡fico */
 .controls-bar {
   display: flex;
   flex-wrap: wrap;
@@ -703,7 +703,7 @@ button:focus-visible, a:focus-visible, summary:focus-visible, input:focus-visibl
 .controls-bar .segmented-group button:disabled { opacity: .38; cursor: not-allowed; }
 .controls-bar .segmented-group button:focus-visible { outline: 2px solid #fde047; outline-offset: 1px; }
 
-/* Containers dos gráficos Plotly */
+/* Containers dos grÃ¡ficos Plotly */
 .chart-box {
   position: relative;
   border-color: #28455f;
@@ -775,7 +775,7 @@ button:focus-visible, a:focus-visible, summary:focus-visible, input:focus-visibl
 .slot-tag { font-family: var(--hud-mono); }
 
 /* ==========================================================================
-   Co-Piloto Estatístico — NASA Mission Telemetry HUD
+   Co-Piloto EstatÃ­stico â€” NASA Mission Telemetry HUD
    ========================================================================== */
 .copilot-drawer {
   --cp-mono: ui-monospace, 'Cascadia Mono', 'SFMono-Regular', Consolas, 'Liberation Mono', monospace;
@@ -906,7 +906,7 @@ button:focus-visible, a:focus-visible, summary:focus-visible, input:focus-visibl
 .copilot-lang-switch button:disabled { opacity: .4; cursor: not-allowed; }
 .copilot-lang-switch button:focus-visible { outline: 2px solid #fde047; outline-offset: 1px; }
 
-/* Síntese tripla */
+/* SÃ­ntese tripla */
 .copilot-synthesis-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(260px, 1fr)); gap: .8rem; min-width: 0; }
 .copilot-card {
   --card-accent: var(--cp-cyan);
@@ -1195,4 +1195,301 @@ button:focus-visible, a:focus-visible, summary:focus-visible, input:focus-visibl
 
 @media (prefers-contrast: more) {
   .copilot-drawer, .copilot-card, .copilot-chat-box, .copilot-chip, .diag-card, .chart-box { border-color: #94a3b8; }
+}
+
+
+
+/* ==========================================================================
+   NASA Mission Telemetry — Selo de Invariantes, Dossiê Metodológico,
+   Seletor de Modo Gráfico e Banners Lag-Lead / Sazonal
+   ========================================================================== */
+:root {
+  --mt-mono: ui-monospace, 'Cascadia Mono', 'SFMono-Regular', Consolas, 'Liberation Mono', monospace;
+  --mt-emerald: #34d399;
+  --mt-cyan: #22d3ee;
+  --mt-amber: #fbbf24;
+  --mt-line: rgba(103, 232, 249, .22);
+}
+
+/* ---------- Selo vivo 7/7 ---------- */
+.invariants-badge {
+  position: relative;
+  display: inline-flex;
+  align-items: center;
+  gap: .5rem;
+  max-width: 100%;
+  padding: .3rem .85rem .3rem .6rem;
+  font-family: var(--mt-mono);
+  font-size: .74rem;
+  font-weight: 600;
+  letter-spacing: .03em;
+  border-radius: 999px;
+  border: 1px solid rgba(52, 211, 153, .55);
+  color: #d1fae5;
+  background:
+    linear-gradient(135deg, rgba(16, 185, 129, .2) 0%, rgba(34, 211, 238, .12) 100%),
+    #08141f;
+  box-shadow: inset 0 1px 0 rgba(209, 250, 229, .12), 0 0 0 1px rgba(34, 211, 238, .06);
+  transition: box-shadow .18s ease, border-color .18s ease, transform .18s ease;
+}
+.invariants-badge:hover {
+  border-color: #6ee7b7;
+  box-shadow: 0 0 16px rgba(52, 211, 153, .38), 0 0 0 1px rgba(34, 211, 238, .25), inset 0 1px 0 rgba(209, 250, 229, .2);
+  transform: translateY(-1px);
+}
+.invariants-badge:focus-visible { outline: 2px solid #fde047; outline-offset: 2px; }
+.invariants-badge-score {
+  display: inline-flex;
+  align-items: center;
+  padding: .08rem .42rem;
+  border-radius: 6px;
+  font-weight: 800;
+  font-variant-numeric: tabular-nums;
+  letter-spacing: .06em;
+  color: #04251c;
+  background: linear-gradient(180deg, #6ee7b7 0%, #34d399 100%);
+  box-shadow: 0 0 8px rgba(52, 211, 153, .45);
+}
+.invariants-badge-label { text-transform: uppercase; font-size: .68rem; letter-spacing: .08em; color: #a7f3d0; }
+.invariants-badge-dot {
+  position: relative;
+  flex: 0 0 auto;
+  width: .5rem;
+  height: .5rem;
+  border-radius: 50%;
+  background: var(--mt-emerald);
+  box-shadow: 0 0 8px rgba(52, 211, 153, .9);
+  animation: mt-pulse 2.4s ease-out infinite;
+}
+.invariants-badge-warn { border-color: rgba(251, 191, 36, .6); color: #fef3c7; background: linear-gradient(135deg, rgba(245, 158, 11, .2), rgba(8, 20, 31, 1)); }
+.invariants-badge-warn .invariants-badge-score { background: linear-gradient(180deg, #fde68a, #fbbf24); color: #2b1700; box-shadow: 0 0 8px rgba(251, 191, 36, .45); }
+.invariants-badge-warn .invariants-badge-label { color: #fde68a; }
+.invariants-badge-warn .invariants-badge-dot { background: var(--mt-amber); box-shadow: 0 0 8px rgba(251, 191, 36, .9); }
+@keyframes mt-pulse {
+  0% { box-shadow: 0 0 0 0 rgba(52, 211, 153, .6); }
+  70% { box-shadow: 0 0 0 7px rgba(52, 211, 153, 0); }
+  100% { box-shadow: 0 0 0 0 rgba(52, 211, 153, 0); }
+}
+@media (prefers-reduced-motion: reduce) { .invariants-badge-dot { animation: none; } .invariants-badge:hover { transform: none; } }
+
+/* ---------- Seletor segmentado de modo gráfico ---------- */
+.controls-bar .segmented-group.view-mode-group,
+.segmented-group.view-mode-group {
+  display: inline-grid;
+  grid-auto-flow: column;
+  grid-auto-columns: minmax(0, 1fr);
+  gap: 2px;
+  padding: 3px;
+  max-width: 100%;
+  min-width: 0;
+  border: 1px solid #2f4d6e;
+  border-radius: 12px;
+  background: linear-gradient(180deg, #091422 0%, #0b1a2b 100%);
+  box-shadow: inset 0 1px 6px rgba(0, 0, 0, .35);
+  overflow: hidden;
+}
+.segmented-group.view-mode-group button {
+  min-width: 0;
+  border: 1px solid transparent;
+  border-right: 1px solid transparent;
+  border-radius: 9px;
+  padding: .42rem .8rem;
+  font-size: .78rem;
+  font-weight: 600;
+  line-height: 1.2;
+  text-align: center;
+  color: #a9bfd6;
+  background: transparent;
+  white-space: nowrap;
+  transition: color .14s ease, background .14s ease, box-shadow .14s ease;
+}
+.segmented-group.view-mode-group button:hover:not(:disabled):not(.active) { color: #ecfeff; background: rgba(34, 211, 238, .12); }
+.segmented-group.view-mode-group button.active,
+.segmented-group.view-mode-group button[aria-pressed='true'] {
+  color: #04222c;
+  font-weight: 800;
+  background: linear-gradient(180deg, #8ff3ff 0%, #38d3ee 100%);
+  box-shadow: 0 0 12px rgba(34, 211, 238, .45), inset 0 1px 0 rgba(255, 255, 255, .45);
+}
+.segmented-group.view-mode-group button[data-testid='view-mode-lag'].active,
+.segmented-group.view-mode-group button[data-testid='view-mode-lag'][aria-pressed='true'] {
+  background: linear-gradient(180deg, #fde68a 0%, #fbbf24 100%);
+  box-shadow: 0 0 12px rgba(251, 191, 36, .45), inset 0 1px 0 rgba(255, 255, 255, .45);
+  color: #2b1700;
+}
+.segmented-group.view-mode-group button[data-testid='view-mode-seasonal'].active,
+.segmented-group.view-mode-group button[data-testid='view-mode-seasonal'][aria-pressed='true'] {
+  background: linear-gradient(180deg, #a7f3d0 0%, #34d399 100%);
+  box-shadow: 0 0 12px rgba(52, 211, 153, .45), inset 0 1px 0 rgba(255, 255, 255, .45);
+  color: #04251c;
+}
+.segmented-group.view-mode-group button:focus-visible { outline: 2px solid #fde047; outline-offset: 1px; }
+
+/* ---------- Banners de diagnóstico (τ* e estação dominante) ---------- */
+.chart-insight-strip {
+  --ins-accent: #fbbf24;
+  position: relative;
+  display: grid;
+  grid-template-columns: auto minmax(0, 1fr);
+  grid-template-areas: 'badge text' 'pills pills';
+  align-items: center;
+  gap: .6rem 1rem;
+  min-width: 0;
+  margin-bottom: .6rem;
+  padding: .8rem 1rem;
+  border: 1px solid color-mix(in srgb, var(--ins-accent) 38%, #1e2f45);
+  border-left: 4px solid var(--ins-accent);
+  border-radius: 12px;
+  background:
+    radial-gradient(90% 140% at 0% 0%, color-mix(in srgb, var(--ins-accent) 14%, transparent) 0%, transparent 60%),
+    linear-gradient(180deg, rgba(13, 25, 42, .96) 0%, rgba(8, 17, 30, .98) 100%);
+  box-shadow: 0 8px 22px rgba(2, 8, 20, .4), inset 0 1px 0 rgba(165, 243, 252, .08);
+}
+.lag-lead-chart-box .chart-insight-strip { --ins-accent: #fbbf24; }
+.seasonal-chart-box .chart-insight-strip { --ins-accent: #34d399; }
+.chart-insight-badge { grid-area: badge; display: grid; gap: .15rem; min-width: 0; padding-right: 1rem; border-right: 1px dashed rgba(148, 163, 184, .3); }
+.chart-insight-kicker { font-family: var(--mt-mono); font-size: .62rem; font-weight: 700; letter-spacing: .14em; text-transform: uppercase; color: #8fb4d4; }
+.chart-insight-badge strong {
+  font-family: var(--mt-mono);
+  font-size: 1.35rem;
+  line-height: 1.1;
+  font-variant-numeric: tabular-nums;
+  color: var(--ins-accent);
+  text-shadow: 0 0 14px color-mix(in srgb, var(--ins-accent) 45%, transparent);
+  overflow-wrap: anywhere;
+}
+.chart-insight-text { grid-area: text; margin: 0; min-width: 0; font-size: .86rem; line-height: 1.55; color: #e0ecf8; overflow-wrap: anywhere; }
+.chart-insight-pills { grid-area: pills; display: flex; flex-wrap: wrap; gap: .4rem; min-width: 0; }
+.chart-insight-pill {
+  display: inline-flex;
+  align-items: center;
+  max-width: 100%;
+  padding: .18rem .6rem;
+  border-radius: 6px;
+  font-family: var(--mt-mono);
+  font-size: .7rem;
+  font-variant-numeric: tabular-nums;
+  color: #cfe8fb;
+  background: rgba(7, 15, 27, .75);
+  border: 1px solid #2b445f;
+  overflow-wrap: anywhere;
+}
+.chart-insight-pill:first-child { color: var(--ins-accent); border-color: color-mix(in srgb, var(--ins-accent) 50%, #2b445f); }
+.chart-insight-pill.is-fdr-pass { color: #a7f3d0; background: rgba(16, 185, 129, .16); border-color: rgba(52, 211, 153, .58); font-weight: 700; }
+.chart-insight-pill.is-fdr-warn { color: #fde68a; background: rgba(245, 158, 11, .16); border-color: rgba(251, 191, 36, .58); font-weight: 700; }
+.chart-insight-pill.is-fdr-null { color: #cbd5e1; background: rgba(51, 65, 85, .38); border-color: #475569; }
+
+/* ---------- Cards sazonais ---------- */
+.seasonal-cards-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(170px, 1fr)); gap: .6rem; margin-top: .7rem; min-width: 0; }
+.seasonal-mini-card { display: grid; gap: .25rem; min-width: 0; padding: .65rem .8rem; border-radius: 10px; background: linear-gradient(180deg, rgba(14, 27, 45, .92), rgba(9, 18, 31, .95)); border: 1px solid #243a55; }
+.seasonal-mini-card-dominant { border-color: rgba(52, 211, 153, .65); box-shadow: 0 0 14px rgba(52, 211, 153, .16); background: linear-gradient(180deg, rgba(16, 70, 58, .35), rgba(9, 18, 31, .95)); }
+.seasonal-mini-head { display: flex; flex-wrap: wrap; justify-content: space-between; align-items: center; gap: .35rem; font-family: var(--mt-mono); font-size: .72rem; color: #8fb4d4; }
+.seasonal-mini-head strong { font-size: .86rem; letter-spacing: .1em; color: #e8f7ff; }
+.seasonal-sig-pass { padding: .08rem .38rem; border-radius: 999px; color: #a7f3d0; background: rgba(16, 185, 129, .16); border: 1px solid rgba(52, 211, 153, .45); }
+.seasonal-sig-ns { color: #94a8be; }
+.seasonal-mini-slope { font-family: var(--mt-mono); font-size: 1rem; font-weight: 800; font-variant-numeric: tabular-nums; color: #f8fbff; overflow-wrap: anywhere; }
+.seasonal-mini-slope small { font-size: .68rem; font-weight: 500; color: #8fb4d4; }
+.seasonal-mini-meta { font-family: var(--mt-mono); font-size: .66rem; color: #a9bfd6; overflow-wrap: anywhere; }
+.seasonal-mini-sub { margin-top: .15rem; padding-top: .25rem; border-top: 1px dashed rgba(148, 163, 184, .22); font-family: var(--mt-mono); font-size: .65rem; color: #fde68a; overflow-wrap: anywhere; }
+
+/* ---------- Dossiê metodológico (modal) ---------- */
+.methodology-modal-backdrop {
+  position: fixed;
+  inset: 0;
+  z-index: 1310;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 1rem;
+  background: rgba(2, 6, 14, .82);
+  backdrop-filter: blur(6px);
+  -webkit-backdrop-filter: blur(6px);
+}
+.methodology-modal {
+  position: relative;
+  display: flex;
+  flex-direction: column;
+  width: min(1040px, 100%);
+  max-height: min(90dvh, 900px);
+  min-width: 0;
+  border: 1px solid #2a4d70;
+  border-radius: 16px;
+  background:
+    radial-gradient(110% 80% at 0% 0%, rgba(34, 211, 238, .08) 0%, transparent 55%),
+    linear-gradient(165deg, #0d1b2d 0%, #070f1b 100%);
+  box-shadow: 0 0 0 1px rgba(34, 211, 238, .12), 0 28px 70px rgba(0, 0, 0, .7);
+  overflow: hidden;
+}
+.methodology-modal::before { content: ''; position: absolute; inset: 0 0 auto 0; height: 2px; background: linear-gradient(90deg, transparent, var(--mt-cyan) 25%, var(--mt-emerald) 75%, transparent); }
+.methodology-modal-header {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: space-between;
+  gap: .8rem 1rem;
+  padding: 1rem 1.2rem .9rem;
+  border-bottom: 1px solid var(--mt-line);
+  background: linear-gradient(180deg, rgba(20, 44, 68, .55), rgba(12, 24, 40, .35));
+}
+.methodology-modal-header > div:first-child { min-width: 0; flex: 1 1 320px; }
+.methodology-kicker { display: block; font-family: var(--mt-mono); font-size: .64rem; font-weight: 700; letter-spacing: .14em; text-transform: uppercase; color: var(--mt-emerald); }
+.methodology-modal-header h3 { margin: .25rem 0 0; font-size: 1.12rem; letter-spacing: .01em; color: #f1f7fd; overflow-wrap: anywhere; }
+.methodology-header-actions { display: flex; flex-wrap: wrap; gap: .5rem; min-width: 0; }
+.methodology-copy-btn,
+.methodology-close-btn { font: inherit; font-size: .78rem; border-radius: 9px; padding: .42rem .85rem; cursor: pointer; transition: box-shadow .15s ease, background .15s ease, border-color .15s ease; }
+.methodology-copy-btn { font-weight: 700; color: #ecfdf5; background: linear-gradient(180deg, rgba(16, 185, 129, .28), rgba(5, 150, 105, .45)); border: 1px solid #34d399; }
+.methodology-copy-btn:hover { box-shadow: 0 0 14px rgba(52, 211, 153, .4); }
+.methodology-copy-btn[data-copied='true'],
+.methodology-copy-btn.is-copied { color: #04251c; background: linear-gradient(180deg, #a7f3d0, #34d399); border-color: #a7f3d0; box-shadow: 0 0 16px rgba(52, 211, 153, .55); }
+.methodology-close-btn { color: #cfe0f1; background: rgba(15, 28, 46, .9); border: 1px solid #35506f; }
+.methodology-close-btn:hover { border-color: #67e8f9; color: #ecfeff; }
+.methodology-copy-btn:focus-visible,
+.methodology-close-btn:focus-visible { outline: 2px solid #fde047; outline-offset: 2px; }
+
+.methodology-modal-body { display: grid; gap: 1rem; min-width: 0; padding: 1.1rem 1.2rem 1.4rem; overflow-y: auto; }
+.methodology-audit-summary { display: flex; flex-wrap: wrap; align-items: center; justify-content: space-between; gap: .6rem 1rem; min-width: 0; padding: .7rem .95rem; border: 1px solid rgba(52, 211, 153, .4); border-radius: 12px; background: linear-gradient(135deg, rgba(6, 78, 59, .32), rgba(8, 20, 31, .7)); }
+.methodology-audit-pill { font-family: var(--mt-mono); font-size: .8rem; font-weight: 800; letter-spacing: .02em; color: #6ee7b7; }
+.methodology-audit-meta { min-width: 0; flex: 1 1 280px; font-size: .78rem; color: #cbd5e1; }
+.methodology-audit-meta .cp-rich { gap: 0; }
+.methodology-section-title { display: flex; align-items: center; gap: .6rem; margin: .3rem 0 0; font-family: var(--mt-mono); font-size: .72rem; font-weight: 700; letter-spacing: .12em; text-transform: uppercase; color: #8fb4d4; }
+.methodology-section-title::after { content: ''; flex: 1 1 auto; height: 1px; background: linear-gradient(90deg, var(--mt-line), transparent); }
+
+.methodology-invariants-grid,
+.methodology-formulas-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(290px, 1fr)); gap: .75rem; min-width: 0; }
+.methodology-invariant-card,
+.methodology-formula-card { display: flex; flex-direction: column; gap: .5rem; min-width: 0; padding: .85rem .95rem; border-radius: 12px; border: 1px solid #243a55; background: linear-gradient(180deg, rgba(14, 27, 45, .92), rgba(9, 18, 31, .95)); box-shadow: 0 6px 16px rgba(2, 8, 20, .3); }
+.methodology-invariant-card { border-left: 3px solid var(--mt-emerald); }
+.methodology-invariant-card.invariant-warn { border-left-color: var(--mt-amber); border-color: rgba(251, 191, 36, .45); }
+.methodology-invariant-head { display: flex; flex-direction: column; gap: .3rem; min-width: 0; }
+.methodology-invariant-head strong { font-size: .84rem; line-height: 1.35; color: #f1f7fd; overflow-wrap: anywhere; }
+.methodology-invariant-status { align-self: flex-start; padding: .1rem .5rem; border-radius: 999px; font-family: var(--mt-mono); font-size: .62rem; font-weight: 800; letter-spacing: .1em; color: #a7f3d0; background: rgba(16, 185, 129, .16); border: 1px solid rgba(52, 211, 153, .5); }
+.invariant-warn .methodology-invariant-status { color: #fde68a; background: rgba(245, 158, 11, .15); border-color: rgba(251, 191, 36, .55); }
+.methodology-formula-chip,
+.methodology-equation-block { display: block; min-width: 0; margin: 0; padding: .5rem .7rem; font-family: var(--mt-mono); font-size: .74rem; line-height: 1.6; color: #fde68a; background: rgba(4, 10, 20, .85); border: 1px solid rgba(148, 163, 184, .2); border-left: 2px solid var(--mt-amber); border-radius: 8px; overflow-x: auto; white-space: pre-wrap; overflow-wrap: anywhere; }
+.methodology-formula-chip { color: #7dd3fc; border-left-color: var(--mt-cyan); }
+.methodology-equation-block code { font-family: inherit; }
+.methodology-live-evidence .cp-rich,
+.methodology-formula-desc .cp-rich { font-size: .78rem; line-height: 1.55; color: #d6e4f3; }
+.methodology-rationale .cp-rich { font-size: .74rem; line-height: 1.5; color: #94a8be; }
+.methodology-formula-top { display: flex; flex-direction: column; gap: .3rem; min-width: 0; }
+.methodology-formula-top h5 { margin: 0; font-size: .84rem; line-height: 1.35; color: #f1f7fd; overflow-wrap: anywhere; }
+.methodology-formula-badge { align-self: flex-start; padding: .1rem .5rem; border-radius: 6px; font-family: var(--mt-mono); font-size: .62rem; font-weight: 800; letter-spacing: .1em; color: #04222c; background: linear-gradient(135deg, #67e8f9, #34d399); }
+
+/* ---------- Responsivo (375px) ---------- */
+@media (max-width: 720px) {
+  .segmented-group.view-mode-group { display: flex; flex-wrap: wrap; width: 100%; }
+  .segmented-group.view-mode-group button { flex: 1 1 calc(50% - 4px); white-space: normal; }
+  .chart-insight-strip { grid-template-columns: minmax(0, 1fr); grid-template-areas: 'badge' 'text' 'pills'; }
+  .chart-insight-badge { padding-right: 0; padding-bottom: .5rem; border-right: 0; border-bottom: 1px dashed rgba(148, 163, 184, .3); }
+}
+@media (max-width: 640px) {
+  .methodology-invariants-grid,
+  .methodology-formulas-grid,
+  .seasonal-cards-grid { grid-template-columns: minmax(0, 1fr); }
+  .methodology-modal-backdrop { padding: .4rem; }
+  .methodology-modal { max-height: 96dvh; border-radius: 12px; }
+  .methodology-modal-header { padding: .8rem .85rem; }
+  .methodology-modal-body { padding: .85rem .85rem 1.1rem; }
+  .methodology-header-actions { width: 100%; }
+  .methodology-copy-btn, .methodology-close-btn { flex: 1 1 auto; }
 }

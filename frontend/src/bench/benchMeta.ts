@@ -3,7 +3,7 @@ import type { ConfidenceTier, RegimeShape, RegionSelection, VariableStatistics }
 export type TrendMode = 'none' | 'ols' | 'sen' | 'both';
 export type MetricMode = 'raw' | 'anomaly' | 'zscore';
 export type ScaleMode = 'linear' | 'symlog';
-export type ViewMode = 'timeseries' | 'scatter' | 'both';
+export type ViewMode = 'timeseries' | 'scatter' | 'both' | 'lag' | 'seasonal';
 
 export const REGIME_LABELS: Readonly<Record<RegimeShape, string>> = {
   linear: 'Tendência linear constante',

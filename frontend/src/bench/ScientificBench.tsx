@@ -13,6 +13,14 @@ import { exportAnalysisAsCsv, exportAnalysisAsJson } from '../services/dataExpor
 import { CopilotRichText } from './CopilotRichText';
 import { askStatisticalCopilot, buildClientCopilotResponse } from '../services/regionDataAdapter';
 import {
+  auditAnalysisInvariants,
+  buildMethodologicalSummaryText,
+  computeClientLaggedCrossCorrelation,
+  computeClientSeasonalStratifiedTrends,
+  MATHEMATICAL_FORMULATIONS,
+  type SeasonCode,
+} from '../services/scientificInsights';
+import {
   computeMahalanobisContourAndFit,
   CONFIDENCE_LABELS,
   countMissingValues,
@@ -187,10 +195,24 @@ export function ScientificBench({
   const [showMahalanobis, setShowMahalanobis] = useState(true);
   const [showDiagnostics, setShowDiagnostics] = useState(true);
   const [showCopilot, setShowCopilot] = useState(true);
+  const [showMethodologyModal, setShowMethodologyModal] = useState(false);
+  const [copiedMethodology, setCopiedMethodology] = useState(false);
   const [copilotLang, setCopilotLang] = useState<'pt' | 'en'>('pt');
   const [copilotQuestion, setCopilotQuestion] = useState('');
   const [copilotLoading, setCopilotLoading] = useState(false);
   const [copilotElapsedSec, setCopilotElapsedSec] = useState(0);
+
+  useEffect(() => {
+    if (!showMethodologyModal) return;
+    function handleKeyDown(event: KeyboardEvent) {
+      if (event.key === 'Escape' && !event.defaultPrevented) {
+        event.stopPropagation();
+        setShowMethodologyModal(false);
+      }
+    }
+    window.addEventListener('keydown', handleKeyDown);
+    return () => window.removeEventListener('keydown', handleKeyDown);
+  }, [showMethodologyModal]);
 
   useEffect(() => {
     if (!copilotLoading) {
@@ -564,6 +586,173 @@ export function ScientificBench({
   const primaryUnitLabel = transformedByRegion[0]?.transformed.unitLabel ?? '';
   const secondaryUnitLabel = transformedByRegion[1]?.transformed.unitLabel ?? '';
 
+  const invariantsReport = auditAnalysisInvariants(analysis);
+  const lagLeadResult = computeClientLaggedCrossCorrelation(analysis, 12);
+  const seasonalResult = computeClientSeasonalStratifiedTrends(analysis);
+
+  const lagX = lagLeadResult.lag_profile.map(r => r.lag_months);
+  const lagLeadTraces: PlotTraces = [
+    {
+      x: lagX,
+      y: lagLeadResult.lag_profile.map(r => r.ci95_threshold),
+      name: 'Limiar Significância 95% AR(1) (+r_crit)',
+      type: 'scatter',
+      mode: 'lines',
+      line: { color: '#fb923c', width: 1.5, dash: 'dot' },
+      hoverinfo: 'skip',
+    },
+    {
+      x: lagX,
+      y: lagLeadResult.lag_profile.map(r => -r.ci95_threshold),
+      name: 'Banda Nula AR(1) 95% (±r_crit)',
+      type: 'scatter',
+      mode: 'lines',
+      fill: 'tonexty',
+      fillcolor: 'rgba(251, 146, 60, 0.08)',
+      line: { color: '#fb923c', width: 1.5, dash: 'dot' },
+      hovertemplate: 'Defasagem τ = %{x}m<br>Limiar 95% AR(1): ±%{y:.3f}<extra></extra>',
+    },
+    {
+      x: lagX,
+      y: lagLeadResult.lag_profile.map(r => r.r_raw_anomalies),
+      name: 'r(τ) Anomalias Brutas',
+      type: 'scatter',
+      mode: 'lines',
+      line: { color: '#94a3b8', width: 1.8, dash: 'dash' },
+      hovertemplate: 'Defasagem τ = %{x} meses<br>r_bruto(τ): %{y:.4f}<extra></extra>',
+    },
+    {
+      x: lagX,
+      y: lagLeadResult.lag_profile.map(r => r.r_detrended),
+      customdata: lagLeadResult.lag_profile.map(r => [
+        r.p_detrended_ar1.toFixed(4),
+        r.q_fdr.toFixed(4),
+        r.n_effective_ar1.toFixed(1),
+        r.ci95_threshold.toFixed(3),
+      ]),
+      name: 'r(τ) Dessazonalizado e Detrended',
+      type: 'scatter',
+      mode: 'lines+markers',
+      marker: { color: '#38bdf8', size: 6 },
+      line: { color: '#38bdf8', width: 2.6 },
+      hovertemplate:
+        '<b>Correlação com defasagem τ = %{x} meses</b><br>r_detrended(τ): %{y:.4f}<br>p_AR1: %{customdata[0]} · q_FDR (25 lags): %{customdata[1]}<br>N_eff: %{customdata[2]} · Limiar AR(1) 95%: ±%{customdata[3]}<extra></extra>',
+    },
+    {
+      x: [lagLeadResult.best_detrended_lag.lag_months],
+      y: [lagLeadResult.best_detrended_lag.r_detrended],
+      name: `Pico τ* = ${lagLeadResult.best_detrended_lag.lag_months >= 0 ? '+' : ''}${lagLeadResult.best_detrended_lag.lag_months}m (r = ${lagLeadResult.best_detrended_lag.r_detrended.toFixed(3)}, q_FDR = ${lagLeadResult.best_detrended_lag.q_fdr.toFixed(4)})`,
+      type: 'scatter',
+      mode: 'markers',
+      marker: {
+        color: '#fbbf24',
+        size: 13,
+        symbol: 'diamond',
+        line: { color: '#0a1422', width: 1.8 },
+      },
+      hovertemplate:
+        '<b>Pico de Precedência Temporal τ* = %{x} meses</b><br>r_detrended(τ*): %{y:.4f}<br>Correlação com defasagem (sem implicação determinística)<extra></extra>',
+    },
+  ];
+
+  const seasonCodes: SeasonCode[] = ['DJF', 'MAM', 'JJA', 'SON'];
+  const seasonA = seasonalResult.region_a;
+  const seasonB = seasonalResult.region_b;
+  const seasonalTraces: PlotTraces = [
+    {
+      x: seasonCodes,
+      y: seasonCodes.map(s => seasonA.seasons[s].slope_per_decade_sen),
+      name: `A · ${seasonA.variable_id} Theil–Sen (${seasonA.trend_unit})`,
+      type: 'bar',
+      marker: { color: '#38bdf8', opacity: 0.86 },
+      error_y: {
+        type: 'data',
+        symmetric: false,
+        array: seasonCodes.map(
+          s => seasonA.seasons[s].slope_ci95_high - seasonA.seasons[s].slope_per_decade_sen
+        ),
+        arrayminus: seasonCodes.map(
+          s => seasonA.seasons[s].slope_per_decade_sen - seasonA.seasons[s].slope_ci95_low
+        ),
+        color: '#bae6fd',
+        thickness: 1.6,
+        width: 5,
+      },
+      customdata: seasonCodes.map(s => [
+        seasonA.seasons[s].slope_ci95_low.toFixed(3),
+        seasonA.seasons[s].slope_ci95_high.toFixed(3),
+        seasonA.seasons[s].p_value_ar1_corrected.toFixed(4),
+        seasonA.seasons[s].n_effective_ar1.toFixed(1),
+      ]),
+      hovertemplate:
+        '<b>%{x} · Região A</b><br>B_Sen: %{y:.4f}<br>IC 95%: [%{customdata[0]}, %{customdata[1]}]<br>p_AR1: %{customdata[2]} (N_eff=%{customdata[3]})<extra></extra>',
+    },
+    ...(seasonB
+      ? [
+          {
+            x: seasonCodes,
+            y: seasonCodes.map(s => seasonB.seasons[s].slope_per_decade_sen),
+            name: `B · ${seasonB.variable_id} Theil–Sen (${seasonB.trend_unit})`,
+            type: 'bar' as const,
+            marker: { color: '#f59e0b', opacity: 0.84 },
+            error_y: {
+              type: 'data' as const,
+              symmetric: false,
+              array: seasonCodes.map(
+                s =>
+                  seasonB.seasons[s].slope_ci95_high -
+                  seasonB.seasons[s].slope_per_decade_sen
+              ),
+              arrayminus: seasonCodes.map(
+                s =>
+                  seasonB.seasons[s].slope_per_decade_sen -
+                  seasonB.seasons[s].slope_ci95_low
+              ),
+              color: '#fde68a',
+              thickness: 1.6,
+              width: 5,
+            },
+            customdata: seasonCodes.map(s => [
+              seasonB.seasons[s].slope_ci95_low.toFixed(3),
+              seasonB.seasons[s].slope_ci95_high.toFixed(3),
+              seasonB.seasons[s].p_value_ar1_corrected.toFixed(4),
+              seasonB.seasons[s].n_effective_ar1.toFixed(1),
+            ]),
+            hovertemplate:
+              '<b>%{x} · Região B</b><br>B_Sen: %{y:.4f}<br>IC 95%: [%{customdata[0]}, %{customdata[1]}]<br>p_AR1: %{customdata[2]} (N_eff=%{customdata[3]})<extra></extra>',
+          },
+        ]
+      : []),
+    {
+      x: seasonCodes,
+      y: seasonCodes.map(s => seasonA.seasons[s].slope_per_decade_ols),
+      name: `A · ${seasonA.variable_id} Inclinação OLS`,
+      type: 'scatter',
+      mode: 'markers',
+      marker: {
+        color: '#c084fc',
+        size: 10,
+        symbol: 'diamond',
+        line: { color: '#0a1422', width: 1.2 },
+      },
+      hovertemplate: '<b>%{x} · OLS A</b><br>B_OLS: %{y:.4f}<extra></extra>',
+    },
+  ];
+
+  async function handleCopyMethodology() {
+    if (!analysis) return;
+    const summaryText = buildMethodologicalSummaryText(analysis, invariantsReport);
+    try {
+      if (navigator.clipboard && typeof navigator.clipboard.writeText === 'function') {
+        await navigator.clipboard.writeText(summaryText);
+      }
+    } catch {
+      // Fallback silencioso para ambientes de teste sem permissão de clipboard
+    }
+    setCopiedMethodology(true);
+    window.setTimeout(() => setCopiedMethodology(false), 2500);
+  }
+
   return (
     <section className="bench-panel" data-tour="bench-panel" aria-label="Séries temporais e diagnóstico">
       <header className="discovery-header" data-tour="bench-discovery">
@@ -577,6 +766,23 @@ export function ScientificBench({
             </p>
           </div>
           <div className="bench-header-actions">
+            <button
+              type="button"
+              data-testid="invariants-badge-btn"
+              className={
+                invariantsReport.allPassed
+                  ? 'glossary-toggle invariants-badge invariants-badge-pass'
+                  : 'glossary-toggle invariants-badge invariants-badge-warn'
+              }
+              aria-expanded={showMethodologyModal}
+              onClick={() => setShowMethodologyModal(prev => !prev)}
+            >
+              <span className="invariants-badge-dot" aria-hidden="true" />
+              <span className="invariants-badge-score">
+                {invariantsReport.passedCount}/{invariantsReport.totalCount}
+              </span>{' '}
+              <span className="invariants-badge-label">Invariantes Auditados</span>
+            </button>
             <BenchExportActions
               disabled={!analysis}
               onExportCsv={() => exportAnalysisAsCsv(analysis, exportOptions)}
@@ -713,7 +919,7 @@ export function ScientificBench({
           </button>
         </div>
 
-        <div className="segmented-group" role="group" aria-label="Tipo de visualização">
+        <div className="segmented-group view-mode-group" role="group" aria-label="Tipo de visualização">
           <button
             type="button"
             aria-pressed={viewMode === 'timeseries'}
@@ -739,6 +945,24 @@ export function ScientificBench({
             onClick={() => setViewMode('both')}
           >
             Visão Dupla
+          </button>
+          <button
+            type="button"
+            data-testid="view-mode-lag"
+            aria-pressed={viewMode === 'lag'}
+            className={viewMode === 'lag' ? 'active' : ''}
+            onClick={() => setViewMode('lag')}
+          >
+            Defasagem (Lag-Lead)
+          </button>
+          <button
+            type="button"
+            data-testid="view-mode-seasonal"
+            aria-pressed={viewMode === 'seasonal'}
+            className={viewMode === 'seasonal' ? 'active' : ''}
+            onClick={() => setViewMode('seasonal')}
+          >
+            Sazonal (DJF–SON)
           </button>
         </div>
 
@@ -899,6 +1123,191 @@ export function ScientificBench({
                   legend: { orientation: 'h', y: -0.24 },
                 }}
               />
+            </div>
+          )}
+
+          {viewMode === 'lag' && (
+            <div className="plot-frame chart-box lag-lead-chart-box" data-testid="lag-lead-chart-container">
+              <div className="chart-insight-strip">
+                <div className="chart-insight-badge">
+                  <span className="chart-insight-kicker">PRECEDÊNCIA TEMPORAL AR(1) · BH-FDR</span>
+                  <strong>
+                    τ* = {lagLeadResult.best_detrended_lag.lag_months >= 0 ? '+' : ''}
+                    {lagLeadResult.best_detrended_lag.lag_months} meses
+                  </strong>
+                </div>
+                <p className="chart-insight-text">{lagLeadResult.precedence_interpretation}</p>
+                <div className="chart-insight-pills">
+                  <span className="chart-insight-pill">
+                    r_detrended(τ*) = {lagLeadResult.best_detrended_lag.r_detrended.toFixed(3)}
+                  </span>
+                  <span className="chart-insight-pill">
+                    p_AR1 = {formatPValue(lagLeadResult.best_detrended_lag.p_detrended_ar1)}
+                  </span>
+                  <span className="chart-insight-pill" data-testid="lag-peak-fdr-value">
+                    q_FDR ({lagLeadResult.fdr_family_size} lags) ={' '}
+                    {formatPValue(lagLeadResult.best_detrended_lag.q_fdr)}
+                  </span>
+                  <span className="chart-insight-pill">
+                    N_eff = {lagLeadResult.best_detrended_lag.n_effective_ar1.toFixed(1)}
+                  </span>
+                  <span className="chart-insight-pill">
+                    Limiar AR(1) 95% = ±{lagLeadResult.best_detrended_lag.ci95_threshold.toFixed(3)}
+                  </span>
+                  <span
+                    data-testid="lag-peak-fdr-status"
+                    className={
+                      lagLeadResult.best_fdr_status === 'FDR_SIGNIFICANT'
+                        ? 'chart-insight-pill is-fdr-pass'
+                        : lagLeadResult.best_fdr_status === 'LOCAL_AR1_ONLY'
+                          ? 'chart-insight-pill is-fdr-warn'
+                          : 'chart-insight-pill is-fdr-null'
+                    }
+                  >
+                    {lagLeadResult.best_fdr_status === 'FDR_SIGNIFICANT'
+                      ? `✓ BH-FDR (${lagLeadResult.fdr_family_size} lags): q_FDR < 0,05 (${lagLeadResult.fdr_significant_lags_count}/${lagLeadResult.fdr_family_size})`
+                      : lagLeadResult.best_fdr_status === 'LOCAL_AR1_ONLY'
+                        ? `△ BH-FDR (${lagLeadResult.fdr_family_size} lags): supera banda AR(1) local, mas q_FDR ≥ 0,05`
+                        : `○ BH-FDR (${lagLeadResult.fdr_family_size} lags): q_FDR ≥ 0,05 (na banda nula AR(1))`}
+                  </span>
+                </div>
+              </div>
+              <Plot
+                key={`lag-${lagLeadResult.variable_a}-${lagLeadResult.variable_b}`}
+                data={lagLeadTraces}
+                useResizeHandler
+                style={{ width: '100%', height: '100%', minHeight: 350 }}
+                config={{ responsive: true, displaylogo: false }}
+                layout={{
+                  autosize: true,
+                  title: {
+                    text: `Correlação Cruzada Defasada r_detrended(τ) · ${lagLeadResult.variable_a} (A) vs. ${lagLeadResult.variable_b} (B) · τ ∈ [-12, +12] meses`,
+                    font: { size: 13 },
+                  },
+                  paper_bgcolor: '#121e30',
+                  plot_bgcolor: '#121e30',
+                  font: { color: '#e1edf8' },
+                  hovermode: 'closest',
+                  margin: { l: 52, t: 44, r: 24, b: 82 },
+                  xaxis: {
+                    title: {
+                      text: 'Defasagem τ (meses) · τ < 0: B antecede A | τ = 0: síncrono | τ > 0: A antecede B',
+                    },
+                    dtick: 2,
+                    zeroline: true,
+                    zerolinecolor: 'rgba(148, 163, 184, 0.35)',
+                    automargin: true,
+                  },
+                  yaxis: {
+                    title: { text: 'Correlação de Pearson r_detrended(τ)' },
+                    range: [-1.05, 1.05],
+                    zeroline: true,
+                    zerolinecolor: 'rgba(148, 163, 184, 0.35)',
+                    automargin: true,
+                  },
+                  legend: { orientation: 'h', y: -0.24 },
+                }}
+              />
+            </div>
+          )}
+
+          {viewMode === 'seasonal' && (
+            <div className="plot-frame chart-box seasonal-chart-box" data-testid="seasonal-chart-container">
+              <div className="chart-insight-strip">
+                <div className="chart-insight-badge">
+                  <span className="chart-insight-kicker">ESTRATIFICAÇÃO SAZONAL · ANOMALIAS Y′(a,m)</span>
+                  <strong>Estação Dominante: {seasonA.dominant_season}</strong>
+                </div>
+                <p className="chart-insight-text">{seasonalResult.summary_interpretation}</p>
+                <div className="chart-insight-pills">
+                  <span className="chart-insight-pill">
+                    Base: anomalias mensais dessazonalizadas Y′(a,m) · zero % em escala interval
+                  </span>
+                  <span className="chart-insight-pill">
+                    {seasonA.has_seasonal_sign_reversal
+                      ? '⇄ Inversão Sazonal de Sinal Detectada'
+                      : '✓ Coerência Sazonal Direcional'}
+                  </span>
+                  {seasonB && (
+                    <span className="chart-insight-pill">
+                      B ({seasonB.variable_id}): dom. {seasonB.dominant_season} (p_AR1 ={' '}
+                      {formatPValue(seasonB.seasons[seasonB.dominant_season].p_value_ar1_corrected)})
+                    </span>
+                  )}
+                </div>
+              </div>
+              <Plot
+                key={`seasonal-${seasonA.variable_id}-${seasonB?.variable_id ?? 'single'}`}
+                data={seasonalTraces}
+                useResizeHandler
+                style={{ width: '100%', height: '100%', minHeight: 350 }}
+                config={{ responsive: true, displaylogo: false }}
+                layout={{
+                  autosize: true,
+                  barmode: 'group',
+                  title: {
+                    text: `Inclinação Secular de Theil–Sen (B_Sen ± IC 95%) sobre Anomalias Mensais Y′(a,m) · DJF, MAM, JJA, SON`,
+                    font: { size: 13 },
+                  },
+                  paper_bgcolor: '#121e30',
+                  plot_bgcolor: '#121e30',
+                  font: { color: '#e1edf8' },
+                  hovermode: 'closest',
+                  margin: { l: 54, t: 44, r: 24, b: 82 },
+                  xaxis: {
+                    title: { text: 'Estação Climatológica (Trimestre Austral)' },
+                    automargin: true,
+                  },
+                  yaxis: {
+                    title: { text: `Taxa Secular (${seasonA.trend_unit})` },
+                    zeroline: true,
+                    zerolinecolor: 'rgba(148, 163, 184, 0.4)',
+                    automargin: true,
+                  },
+                  legend: { orientation: 'h', y: -0.24 },
+                }}
+              />
+              <div className="seasonal-cards-grid">
+                {seasonCodes.map(code => {
+                  const s = seasonA.seasons[code];
+                  const sB = seasonB?.seasons[code] ?? null;
+                  return (
+                    <div
+                      key={code}
+                      data-testid={`seasonal-card-${code}`}
+                      className={
+                        code === seasonA.dominant_season
+                          ? 'seasonal-mini-card seasonal-mini-card-dominant'
+                          : 'seasonal-mini-card'
+                      }
+                    >
+                      <div className="seasonal-mini-head">
+                        <strong>{code}</strong>
+                        <span className={s.significant_ar1 ? 'seasonal-sig-pass' : 'seasonal-sig-ns'}>
+                          p_AR1 = {formatPValue(s.p_value_ar1_corrected)} ·{' '}
+                          {s.significant_ar1 ? 'sig.' : 'n.s.'}
+                        </span>
+                      </div>
+                      <div className="seasonal-mini-slope">
+                        {formatSignedNumber(s.slope_per_decade_sen, 3)}{' '}
+                        <small>{seasonA.trend_unit}</small>
+                      </div>
+                      <div className="seasonal-mini-meta">
+                        IC 95%: [{formatPointValue(s.slope_ci95_low, 3)},{' '}
+                        {formatPointValue(s.slope_ci95_high, 3)}] · N={s.n_months} · N_eff=
+                        {formatPointValue(s.n_effective_ar1, 1)}
+                      </div>
+                      {sB && seasonB && (
+                        <div className="seasonal-mini-sub">
+                          B ({seasonB.variable_id}): {formatSignedNumber(sB.slope_per_decade_sen, 3)}{' '}
+                          {seasonB.trend_unit} · p_AR1 = {formatPValue(sB.p_value_ar1_corrected)} (
+                          {sB.significant_ar1 ? 'sig.' : 'n.s.'})
+                        </div>
+                      )}
+                    </div>
+                  );
+                })}
+              </div>
             </div>
           )}
         </div>
@@ -1322,6 +1731,116 @@ export function ScientificBench({
           <p className="note">A curva Theil–Sen depende da série ajustada fornecida pelo backend.</p>
         )}
       </footer>
+
+      {showMethodologyModal && (
+        <div
+          className="methodology-modal-backdrop"
+          data-testid="methodology-modal-backdrop"
+          onClick={() => setShowMethodologyModal(false)}
+        >
+          <section
+            className="methodology-modal"
+            role="dialog"
+            aria-modal="true"
+            aria-label="Metodologia e Rigor Científico"
+            data-testid="methodology-modal"
+            onClick={e => e.stopPropagation()}
+          >
+            <header className="methodology-modal-header">
+              <div>
+                <span className="methodology-kicker">DOSSIÊ TÉCNICO PARA AVALIADORES · RIGOR ESTATÍSTICO NASA POWER</span>
+                <h3>Metodologia &amp; Auditoria ao Vivo dos 7 Invariantes Estatísticos</h3>
+              </div>
+              <div className="methodology-header-actions">
+                <button
+                  type="button"
+                  data-testid="copy-methodology-btn"
+                  className={copiedMethodology ? 'methodology-copy-btn is-copied' : 'methodology-copy-btn'}
+                  data-copied={copiedMethodology ? 'true' : 'false'}
+                  onClick={() => void handleCopyMethodology()}
+                >
+                  {copiedMethodology ? '✓ Resumo Copiado!' : 'Copiar Resumo Metodológico'}
+                </button>
+                <button
+                  type="button"
+                  data-testid="close-methodology-btn"
+                  className="methodology-close-btn"
+                  aria-label="Fechar Metodologia e Rigor Científico"
+                  onClick={() => setShowMethodologyModal(false)}
+                >
+                  ✕ Fechar
+                </button>
+              </div>
+            </header>
+
+            <div className="methodology-modal-body">
+              <div className="methodology-audit-summary">
+                <span className="methodology-audit-pill">
+                  ✓ {invariantsReport.passedCount}/{invariantsReport.totalCount} Invariantes Auditados em Tempo Real
+                </span>
+                <div className="methodology-audit-meta">
+                  <CopilotRichText
+                    text={`**Variáveis Ativas:** \`${analysis.region_a_analysis.variable_id}\`${
+                      analysis.region_b_analysis ? ` × \`${analysis.region_b_analysis.variable_id}\`` : ''
+                    } · **Janela:** ${analysis.region_a_analysis.period.start} a ${
+                      analysis.region_a_analysis.period.end
+                    } (**N_eff** = ${analysis.region_a_analysis.period.n_effective_ar1.toFixed(1)})`}
+                  />
+                </div>
+              </div>
+
+              <h4 className="methodology-section-title">1. Checklist Auditado em Tempo Real da Análise Aberta</h4>
+              <div className="methodology-invariants-grid">
+                {invariantsReport.items.map(item => (
+                  <article
+                    key={item.id}
+                    data-testid={`invariant-audit-${item.id}`}
+                    className={
+                      item.passed
+                        ? 'methodology-invariant-card invariant-pass'
+                        : 'methodology-invariant-card invariant-warn'
+                    }
+                  >
+                    <div className="methodology-invariant-head">
+                      <span className="methodology-invariant-status">
+                        {item.passed ? '✓ AUDITADO' : '⚠ VERIFICAR'}
+                      </span>
+                      <strong>{item.title}</strong>
+                    </div>
+                    <code className="methodology-formula-chip">{item.formulaDisplay}</code>
+                    <div className="methodology-live-evidence">
+                      <CopilotRichText text={`**Evidência Ativa:** ${item.liveEvidence}`} />
+                    </div>
+                    <div className="methodology-rationale">
+                      <CopilotRichText text={item.scientificRationale} />
+                    </div>
+                  </article>
+                ))}
+              </div>
+
+              <h4 className="methodology-section-title">
+                2. Formulações Matemáticas do Motor &amp; Grades Nativas NASA POWER
+              </h4>
+              <div className="methodology-formulas-grid">
+                {MATHEMATICAL_FORMULATIONS.map(doc => (
+                  <article key={doc.id} className="methodology-formula-card">
+                    <div className="methodology-formula-top">
+                      <span className="methodology-formula-badge">{doc.badge}</span>
+                      <h5>{doc.title}</h5>
+                    </div>
+                    <pre className="methodology-equation-block">
+                      <code>{doc.equation}</code>
+                    </pre>
+                    <div className="methodology-formula-desc">
+                      <CopilotRichText text={doc.description} />
+                    </div>
+                  </article>
+                ))}
+              </div>
+            </div>
+          </section>
+        </div>
+      )}
     </section>
   );
 }
