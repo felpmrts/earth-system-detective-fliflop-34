@@ -27,7 +27,9 @@ summary { cursor: pointer; }
 nav { display: flex; flex-wrap: wrap; gap: .5rem; margin-bottom: .75rem; }
 .exploration > nav > button[aria-current] { border-color: #67e8f9; color: #a5f3fc; }
 .exploration { display: grid; grid-template-rows: auto minmax(0, 1fr); min-width: 0; min-height: 0; }
-.exploration > section { overflow: auto; }
+.exploration > section, .exploration > .map-tab-shell > section { overflow: auto; }
+.map-tab-shell { display: contents; }
+.map-tab-shell.is-hidden { display: none; }
 .workspace.sidebar-collapsed { grid-template-columns: minmax(0, 1fr); }
 .workspace.sidebar-collapsed > aside { display: none; }
 .sidebar-head { display: flex; align-items: center; justify-content: space-between; gap: .5rem; margin-bottom: .75rem; }
@@ -72,7 +74,7 @@ nav { display: flex; flex-wrap: wrap; gap: .5rem; margin-bottom: .75rem; }
 .map-workspace { position: relative; min-height: 0; padding: 0; display: flex; flex-direction: column; }
 .map-toolbar, .map-status { z-index: 500; display: flex; align-items: center; justify-content: space-between; gap: .75rem; padding: .55rem .75rem; background: #121e30; }
 .map-toolbar { border-bottom: 1px solid #2a3c54; flex-wrap: wrap; }
-.map-status { min-height: 1.8rem; color: #acc1d9; border-top: 1px solid #2a3c54; font-size: .85rem; }
+.map-status { min-height: 1.8rem; flex-wrap: wrap; color: #acc1d9; border-top: 1px solid #2a3c54; font-size: .85rem; }
 .map-status > div, .slot-switch, .map-toolbar-group { display: flex; gap: .45rem; flex-wrap: wrap; align-items: center; }
 .map-actions { display: flex; gap: .45rem; }
 .map-toolbar button, .map-status button { font: inherit; color: inherit; background: #1d3047; border: 1px solid #39516d; border-radius: 6px; padding: .45rem .7rem; cursor: pointer; }
@@ -206,8 +208,10 @@ button:focus-visible, a:focus-visible, summary:focus-visible, input:focus-visibl
   .map-actions { position: fixed; left: 0; right: 0; bottom: 0; z-index: 900; padding: .6rem .75rem; background: rgba(10, 20, 34, .96); border-top: 1px solid #2a3c54; backdrop-filter: blur(8px); }
   .map-actions > button { flex: 1; min-height: 2.5rem; }
   .map-status { flex-direction: column; align-items: stretch; gap: .5rem; }
-  .map-legend { left: .5rem; bottom: 1.55rem; max-width: min(15rem, calc(100% - 4.2rem)); padding: .42rem .55rem; gap: .2rem; font-size: .68rem; }
+  .map-message { flex-basis: 100%; }
+  .map-legend { left: .5rem; bottom: 1.55rem; max-width: min(14.5rem, calc(100% - 4.2rem)); padding: .42rem .55rem; gap: .2rem; font-size: .68rem; }
   .legend-magnitude-note { display: none; }
+  .map-container .leaflet-control-layers-expanded { max-height: 11rem; overflow-y: auto; }
 }
 
 @media (prefers-reduced-motion: reduce) {
@@ -232,12 +236,12 @@ button:focus-visible, a:focus-visible, summary:focus-visible, input:focus-visibl
 
 .diagnostic-drawer { background: #0e1929; border: 1px solid #24364e; border-radius: 12px; padding: .85rem; }
 .diag-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(260px, 1fr)); gap: .75rem; }
-.diag-card { background: #122136; border: 1px solid #2a3f5c; border-radius: 10px; padding: .75rem .85rem; display: flex; flex-direction: column; gap: .55rem; }
+.diag-card { min-width: 0; background: #122136; border: 1px solid #2a3f5c; border-radius: 10px; padding: .75rem .85rem; display: flex; flex-direction: column; gap: .55rem; }
 .diag-card h4 { margin: 0; font-size: .9rem; color: #67e8f9; border-bottom: 1px solid #23364f; padding-bottom: .35rem; }
 .diag-row { display: flex; flex-direction: column; gap: .25rem; font-size: .84rem; padding-top: .25rem; }
 .diag-row + .diag-row { border-top: 1px dashed #243852; padding-top: .5rem; }
-.diag-meta { color: #bdd0e6; font-size: .8rem; line-height: 1.45; }
-.diag-meta code { color: #a5f3fc; background: #0a1422; padding: .08rem .28rem; border-radius: 4px; font-size: .78rem; }
+.diag-meta { min-width: 0; color: #bdd0e6; font-size: .8rem; line-height: 1.45; }
+.diag-meta code { color: #a5f3fc; background: #0a1422; padding: .08rem .28rem; border-radius: 4px; font-size: .78rem; overflow-wrap: anywhere; word-break: break-word; }
 
 .slot-tag { display: inline-block; width: fit-content; font-size: .72rem; font-weight: 700; letter-spacing: .03em; padding: .12rem .45rem; border-radius: 999px; border: 1px solid transparent; }
 .slot-tag.slot-a { color: #ecfeff; background: rgba(34, 211, 238, .18); border-color: #22d3ee; }

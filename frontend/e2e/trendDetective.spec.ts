@@ -222,6 +222,22 @@ test.describe('Earth System Trend Detective — Suite E2E (vite preview)', () =>
     expect(jsonPath).not.toBeNull();
     const parsedJson = JSON.parse(fs.readFileSync(jsonPath!, 'utf-8')) as { schema_version?: string };
     expect(parsedJson.schema_version).toBe('1.0.0');
+
+    // AUD-11 / AUD-13: cards de diagnóstico sem estouro horizontal e exibindo unidades
+    const diagOverflow = await page.evaluate(() => {
+      const cards = Array.from(document.querySelectorAll<HTMLElement>('.diag-card'));
+      return cards.some(card => card.scrollWidth > card.clientWidth + 1);
+    });
+    expect(diagOverflow).toBe(false);
+    await expect(page.locator('.diagnostic-drawer')).toContainText('fração/década');
+
+    // AUD-05: voltar para o Mapa preserva o modo "Mesmo Local (A=B)" e o canvas Leaflet
+    await page.getByRole('button', { name: 'Mapa' }).click();
+    await expect(page.getByRole('button', { name: 'Mesmo Local (A=B)' })).toHaveClass(/active/);
+    const restoredMapBox = await page.locator('.map-container').boundingBox();
+    expect(restoredMapBox).not.toBeNull();
+    expect(restoredMapBox!.width).toBeGreaterThan(200);
+    expect(restoredMapBox!.height).toBeGreaterThan(200);
   });
 
   test('Mobile 375x812: layout sem overflow, gaveta com z-index acima do mapa e barra Analisar acessível', async ({ page }) => {
@@ -261,8 +277,50 @@ test.describe('Earth System Trend Detective — Suite E2E (vite preview)', () =>
       )
       .toBe(true);
 
+    // AUD-01: dropdown Mantine dentro do drawer mobile deve abrir acima do painel (z-index > 1200)
+    await page.locator('#variables-sidebar .variable-picker-a input').first().click();
+    const visibleDropdown = page.getByRole('listbox', { name: 'A Variável A' });
+    await expect(visibleDropdown).toBeVisible();
+    const dropdownOnTop = await visibleDropdown.evaluate(el => {
+      const rect = el.getBoundingClientRect();
+      if (rect.width <= 0 || rect.height <= 0) return false;
+      const hit = document.elementFromPoint(rect.left + rect.width * 0.5, rect.top + Math.min(rect.height * 0.5, 40));
+      return Boolean(hit && el.contains(hit));
+    });
+    expect(dropdownOnTop).toBe(true);
+    await page.keyboard.press('Escape');
+
+    // AUD-01: datepicker Mantine também deve abrir acima do drawer mobile
+    await page.getByRole('button', { name: 'Mês inicial' }).click();
+    const monthPopover = page.locator('.mantine-Popover-dropdown:visible').first();
+    await expect(monthPopover).toBeVisible();
+    const popoverOnTop = await monthPopover.evaluate(el => {
+      const rect = el.getBoundingClientRect();
+      if (rect.width <= 0 || rect.height <= 0) return false;
+      const hit = document.elementFromPoint(rect.left + rect.width * 0.5, rect.top + Math.min(rect.height * 0.5, 40));
+      return Boolean(hit && el.contains(hit));
+    });
+    expect(popoverOnTop).toBe(true);
+    await page.keyboard.press('Escape');
+    await expect(monthPopover).toHaveCount(0);
+    await expect(page.locator('#variables-sidebar.drawer-open')).toBeVisible();
+
     await page.getByRole('button', { name: 'Fechar painel de variáveis' }).click();
     await expect(page.locator('#variables-sidebar.drawer-open')).toHaveCount(0);
+
+    // AUD-12: legenda não colide com atribuição do Leaflet no mobile 375px
+    const legendCollidesAttribution = await page.evaluate(() => {
+      const legend = document.querySelector('.map-legend')?.getBoundingClientRect();
+      const attr = document.querySelector('.leaflet-control-attribution')?.getBoundingClientRect();
+      if (!legend || !attr) return false;
+      return !(
+        legend.right <= attr.left ||
+        legend.left >= attr.right ||
+        legend.bottom <= attr.top ||
+        legend.top >= attr.bottom
+      );
+    });
+    expect(legendCollidesAttribution).toBe(false);
 
     const analyzeBtn = page.getByRole('button', { name: 'Analisar seleção' });
     await expect(analyzeBtn).toBeVisible();

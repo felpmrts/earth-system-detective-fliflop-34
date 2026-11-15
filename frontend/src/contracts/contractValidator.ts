@@ -149,10 +149,13 @@ export function validateVariableStatistics(data: unknown, prefix = 'statistics')
     throw new ContractValidationError(`${prefix}.allow_percentage_change deve ser boolean.`);
   }
 
-  // Trava do Invariante #3: proibido exibir variação percentual em escalas intervalares (°C, kPa).
-  if (scaleType === 'interval' && data.allow_percentage_change) {
+  const unit = assertNonEmptyString(data.unit, `${prefix}.unit`);
+  const trendUnit = assertNonEmptyString(data.trend_unit, `${prefix}.trend_unit`);
+
+  // Trava do Invariante #3: proibido exibir variação percentual ou unidade "%" em escalas intervalares (°C, kPa).
+  if (scaleType === 'interval' && (data.allow_percentage_change || unit.includes('%') || trendUnit.includes('%'))) {
     throw new ContractValidationError(
-      `Violação do Invariante #3 em ${prefix}: scale_type="interval" (${varId}) não pode ter allow_percentage_change=true.`,
+      `Violação do Invariante #3 em ${prefix}: scale_type="interval" (${varId}) não pode usar variação ou unidade "%".`,
     );
   }
 
@@ -165,8 +168,28 @@ export function validateVariableStatistics(data: unknown, prefix = 'statistics')
   if (!isRecord(data.regression)) {
     throw new ContractValidationError(`${prefix}.regression ausente.`);
   }
+  assertFiniteNumber(data.regression.intercept_at_start_A0, `${prefix}.regression.intercept_at_start_A0`);
   assertFiniteNumber(data.regression.slope_per_decade_ols, `${prefix}.regression.slope_per_decade_ols`);
   assertFiniteNumber(data.regression.slope_per_decade_sen, `${prefix}.regression.slope_per_decade_sen`);
+  assertFiniteNumber(data.regression.slope_ci95_low, `${prefix}.regression.slope_ci95_low`);
+  assertFiniteNumber(data.regression.slope_ci95_high, `${prefix}.regression.slope_ci95_high`);
+  assertFiniteNumber(data.regression.cumulative_model_change, `${prefix}.regression.cumulative_model_change`);
+  assertFiniteNumber(data.regression.quadratic_acceleration_B2, `${prefix}.regression.quadratic_acceleration_B2`);
+  const regime = assertNonEmptyString(data.regression.regime_shape, `${prefix}.regression.regime_shape`);
+  if (!['linear', 'accelerating_rise', 'accelerating_decline', 'saturating', 'non_monotonic'].includes(regime)) {
+    throw new ContractValidationError(`${prefix}.regression.regime_shape inválido: ${regime}`);
+  }
+
+  if (!isRecord(data.correlation_and_coupling)) {
+    throw new ContractValidationError(`${prefix}.correlation_and_coupling ausente.`);
+  }
+  assertNumberInRange(data.correlation_and_coupling.pearson_r, -1, 1, `${prefix}.correlation_and_coupling.pearson_r`);
+  assertNumberInRange(data.correlation_and_coupling.kendall_tau, -1, 1, `${prefix}.correlation_and_coupling.kendall_tau`);
+  assertNumberInRange(data.correlation_and_coupling.r_squared, 0, 1, `${prefix}.correlation_and_coupling.r_squared`);
+  assertFiniteNumber(
+    data.correlation_and_coupling.ellipse_aspect_ratio,
+    `${prefix}.correlation_and_coupling.ellipse_aspect_ratio`,
+  );
 
   if (!isRecord(data.significance)) {
     throw new ContractValidationError(`${prefix}.significance ausente.`);
@@ -182,6 +205,21 @@ export function validateVariableStatistics(data: unknown, prefix = 'statistics')
   if (typeof data.significance.is_significant_fdr05 !== 'boolean') {
     throw new ContractValidationError(`${prefix}.significance.is_significant_fdr05 deve ser boolean.`);
   }
+  const tier = assertNonEmptyString(data.significance.confidence_tier, `${prefix}.significance.confidence_tier`);
+  if (!['CONFIRMED_HIGH', 'CONFIRMED_MODERATE', 'INSUFFICIENT_SIGNAL', 'NO_TREND'].includes(tier)) {
+    throw new ContractValidationError(`${prefix}.significance.confidence_tier inválido: ${tier}`);
+  }
+
+  if (!Array.isArray(data.outliers_mahalanobis)) {
+    throw new ContractValidationError(`${prefix}.outliers_mahalanobis deve ser um array.`);
+  }
+  data.outliers_mahalanobis.forEach((outlier, index) => {
+    if (!isRecord(outlier)) {
+      throw new ContractValidationError(`${prefix}.outliers_mahalanobis[${index}] deve ser objeto.`);
+    }
+    assertNonEmptyString(outlier.date, `${prefix}.outliers_mahalanobis[${index}].date`);
+    assertFiniteNumber(outlier.mahalanobis_d, `${prefix}.outliers_mahalanobis[${index}].mahalanobis_d`);
+  });
 
   if (!isRecord(data.series)) {
     throw new ContractValidationError(`${prefix}.series ausente.`);

@@ -10,7 +10,7 @@ import { MapWorkspace } from './map/MapWorkspace';
 import { getBackendCatalog, getRegionData } from './services/regionDataAdapter';
 import { loadPersistedSession, savePersistedSession } from './services/sessionState';
 import { saveTutorialOutcome, shouldAutoOpenTutorial, type TutorialCompletionStatus } from './services/tutorialState';
-import { TutorialOverlay } from './tutorial/TutorialOverlay';
+import { hasOpenMantinePopup, TutorialOverlay } from './tutorial/TutorialOverlay';
 import { TUTORIAL_STEPS } from './tutorial/tutorialSteps';
 import './bench.css';
 
@@ -88,8 +88,9 @@ export default function App() {
     });
   }, [variableA, variableB, startMonth, endMonth, regionA, regionB, tab, anomaly, separate, dual, trendMode, sidebarOpen]);
 
-  // Qualquer mudança no formulário espacial/temporal invalida a análise anterior.
+  // Qualquer mudança no formulário espacial/temporal invalida e aborta a análise anterior em voo.
   useEffect(() => {
+    analysisControllerRef.current?.abort('Seleção alterada durante a consulta.');
     setAnalysis(undefined);
     setAnalyzedAt(null);
     setAnalysisError('');
@@ -117,11 +118,12 @@ export default function App() {
   useEffect(() => {
     if (!mobileDrawerOpen) return;
     const onKeyDown = (event: KeyboardEvent) => {
-      if (event.key === 'Escape') setMobileDrawerOpen(false);
+      if (event.key !== 'Escape' || tutorialOpen || hasOpenMantinePopup(event.target)) return;
+      setMobileDrawerOpen(false);
     };
-    window.addEventListener('keydown', onKeyDown);
-    return () => window.removeEventListener('keydown', onKeyDown);
-  }, [mobileDrawerOpen]);
+    window.addEventListener('keydown', onKeyDown, true);
+    return () => window.removeEventListener('keydown', onKeyDown, true);
+  }, [mobileDrawerOpen, tutorialOpen]);
 
   useEffect(() => () => analysisControllerRef.current?.abort(), []);
 
@@ -193,6 +195,7 @@ export default function App() {
         endDate: end,
         signal: controller.signal,
       });
+      if (controller.signal.aborted) return;
       setAnalysis(result);
       setAnalyzedAt(new Date().toLocaleString('pt-BR', { dateStyle: 'short', timeStyle: 'medium' }));
       setTab('bench');
@@ -289,19 +292,19 @@ export default function App() {
               data={variableOptions} searchable clearable clearSectionMode="clear"
               clearButtonProps={{ 'aria-label': 'Limpar variável ' + slot }} nothingFoundMessage="Nenhuma variável encontrada"
               value={value || null} onChange={id => onChange(id ?? '')}
-              comboboxProps={{ width: 310, position: 'bottom-start', withinPortal: true, zIndex: tutorialOpen ? 1325 : 1100 }}
+              comboboxProps={{ width: 310, position: 'bottom-start', withinPortal: true, zIndex: tutorialOpen ? 1325 : 1300 }}
               maxDropdownHeight={340} />
           ))}
           <fieldset className="period-picker" disabled={!minimumMonth}>
             <legend>Período</legend>
             <MonthPickerInput className="variable-picker" classNames={{ input: 'selection-input' }} label="Mês inicial" placeholder="Selecione o mês"
               locale="pt-br" valueFormat="MMMM [de] YYYY" clearable disabled={!minimumMonth}
-              popoverProps={{ withinPortal: true, zIndex: tutorialOpen ? 1325 : 1100 }}
+              popoverProps={{ withinPortal: true, zIndex: tutorialOpen ? 1325 : 1300 }}
               minDate={minimumMonth ? minimumMonth + '-01' : undefined} maxDate={maximumMonth + '-01'}
               value={start ? start + '-01' : null} onChange={value => setStartMonth(value?.slice(0, 7) ?? '')} />
             <MonthPickerInput className="variable-picker" classNames={{ input: 'selection-input' }} label="Mês final" placeholder="Selecione o mês"
               locale="pt-br" valueFormat="MMMM [de] YYYY" clearable disabled={!minimumMonth}
-              popoverProps={{ withinPortal: true, zIndex: tutorialOpen ? 1325 : 1100 }}
+              popoverProps={{ withinPortal: true, zIndex: tutorialOpen ? 1325 : 1300 }}
               minDate={minimumMonth ? (start || minimumMonth) + '-01' : undefined} maxDate={maximumMonth + '-01'}
               value={end ? end + '-01' : null} onChange={value => setEndMonth(value?.slice(0, 7) ?? '')} />
           </fieldset>
@@ -329,7 +332,7 @@ export default function App() {
             <button type="button" aria-current={tab === 'map' ? 'page' : undefined} onClick={() => setTab('map')}>Mapa</button>
             <button type="button" data-tour="tab-bench" aria-current={tab === 'bench' ? 'page' : undefined} onClick={() => setTab('bench')}>Bancada científica</button>
           </nav>
-          {tab === 'map' ? (
+          <div className={tab === 'map' ? 'map-tab-shell' : 'map-tab-shell is-hidden'}>
             <MapWorkspace
               variableA={variableA ? variableA as VariableId : null}
               variableB={variableB ? variableB as VariableId : null}
@@ -345,7 +348,8 @@ export default function App() {
               onAnalyze={analyzeSelection}
               onCancel={cancelAnalysis}
             />
-          ) : (
+          </div>
+          {tab === 'bench' && (
             <ScientificBench
               analysis={analysis}
               variableA={variableA}
