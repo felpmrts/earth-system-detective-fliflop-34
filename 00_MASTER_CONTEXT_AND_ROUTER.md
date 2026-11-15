@@ -174,5 +174,6 @@ Abaixo estão os documentos Markdown do projeto, organizados por módulo funcion
 | ✅ *Criado* | `DECISOES.md` | Log cronológico de decisões de escopo e arquitetura (inclui registros `PROD-1` de *re-snap* `A=B` e homologação `validate:grids`). | `COORD` + `PROD-1` |
 | ✅ *Criado* | `data/README_TESTE_APIS.md` | Matriz das 5 APIs, instruções de credenciais (`data/.env`) e protótipo executável do fluxo `Local A (1 variável) vs. Local B (1 variável)`. | `DADOS-1` |
 | ✅ *Criado* | `frontend/UX_UI_ROADMAP.md` | Roadmap de melhorias de UX/UI, acessibilidade e continuidade do fluxo Mapa → Bancada. | `PROD-1` + `PROD-2` |
+| ✅ *Criado* | `context/general_strategy/DESCOBERTA_CIENTIFICA_ML_DEEP_RESEARCH.md` | Síntese do Deep Research (`Tendências Globais do Sistema Terrestre.md`), 2 hipóteses científicas, arquitetura do pipeline `backend/ml_discovery.py` e resultados empíricos (`2001–2025`) em `backend/ml_discovery_results.json`. | `NARR` |
 | ⏳ *Fase 4/6* | `DATA_SOURCES.md` | Citação oficial dos datasets da NASA, DOIs, resolução, período e limitações conhecidas. | `DADOS-1` + `NARR` |
 | ⏳ *Fase 6* | `README.md` | Documentação pública do repositório para os jurados da NASA (instruções de uso e reprodução). | `COORD` + `NARR` |

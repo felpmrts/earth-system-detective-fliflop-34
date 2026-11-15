@@ -897,14 +897,27 @@ def _fit_quadratic_acceleration(
     b1 = (sum(ui * (yi - mean_y) for ui, yi in zip(u, y_anomalies)) / sum_u_sq) if sum_u_sq > 1e-15 else 0.0
     b2 = sum(qi * (yi - mean_y) for qi, yi in zip(q, y_anomalies)) / sqq
 
-    # Residuals of the quadratic model
+    # Residuals of the quadratic model with AR(1) effective-df adjustment (Santer et al.)
     y_hat = [mean_y + b1 * ui + b2 * qi for ui, qi in zip(u, q)]
-    sse = sum((yi - yhi) ** 2 for yi, yhi in zip(y_anomalies, y_hat))
-    df = max(1, n - 3)
-    mse = sse / df
-    se_b2 = math.sqrt(mse / sqq) if sqq > 1e-15 else 0.0
+    res = [yi - yhi for yi, yhi in zip(y_anomalies, y_hat)]
+    sse = sum(ri * ri for ri in res)
+    df_raw = max(1, n - 3)
+    rho1 = 0.0
+    if len(res) >= 4:
+        r_prev = res[:-1]
+        r_next = res[1:]
+        m_p = sum(r_prev) / len(r_prev)
+        m_n = sum(r_next) / len(r_next)
+        num_r = sum((a - m_p) * (b - m_n) for a, b in zip(r_prev, r_next))
+        den_r = math.sqrt(sum((a - m_p) ** 2 for a in r_prev) * sum((b - m_n) ** 2 for b in r_next))
+        if den_r > 1e-15:
+            rho1 = max(-0.95, min(0.95, num_r / den_r))
+    # Clamp positive autocorrelation inflation factor while avoiding artificial tightening for rho1 < 0
+    df_eff = max(1.0, df_raw * (1.0 - max(0.0, rho1)) / (1.0 + max(0.0, rho1)))
+    mse_eff = sse / df_eff
+    se_b2 = math.sqrt(mse_eff / sqq) if sqq > 1e-15 else 0.0
     t_b2 = (b2 / se_b2) if se_b2 > 1e-15 else 0.0
-    p_b2 = _student_t_two_tailed_pvalue(t_b2, float(df))
+    p_b2 = _student_t_two_tailed_pvalue(t_b2, float(df_eff))
 
     return b2, p_b2
 
@@ -1412,7 +1425,24 @@ def analyze_single_series(
 analyze_region_series = analyze_single_series
 
 
-def _pearson_corr_pairs(pairs: Sequence[Tuple[float, float]]) -> Tuple[float, float]:
+def _lag1_autocorr_seq(vals: Sequence[float]) -> float:
+    """Computes lag-1 autocorrelation for paired correlation N_eff adjustment."""
+    if len(vals) < 4:
+        return 0.0
+    a = vals[:-1]
+    b = vals[1:]
+    ma = sum(a) / len(a)
+    mb = sum(b) / len(b)
+    den = math.sqrt(sum((x - ma) ** 2 for x in a) * sum((y - mb) ** 2 for y in b))
+    if den <= 1e-15:
+        return 0.0
+    return max(-0.95, min(0.95, sum((x - ma) * (y - mb) for x, y in zip(a, b)) / den))
+
+
+def _pearson_corr_pairs(
+    pairs: Sequence[Tuple[float, float]],
+    ar1_adjust: bool = False,
+) -> Tuple[float, float]:
     """Computes Pearson correlation r and two-tailed p-value over paired observations."""
     n = len(pairs)
     if n < 3:
@@ -1428,7 +1458,14 @@ def _pearson_corr_pairs(pairs: Sequence[Tuple[float, float]]) -> Tuple[float, fl
     r = max(-1.0, min(1.0, sxy / denom))
     if abs(r) >= 0.999999:
         return r, 0.0
-    df = float(n - 2)
+    if ar1_adjust and n >= 6:
+        rx = _lag1_autocorr_seq([p[0] for p in pairs])
+        ry = _lag1_autocorr_seq([p[1] for p in pairs])
+        prod = max(0.0, rx * ry)
+        n_eff = max(3.0, min(float(n), n * (1.0 - prod) / (1.0 + prod)))
+        df = max(1.0, n_eff - 2.0)
+    else:
+        df = float(n - 2)
     t_stat = r * math.sqrt(df / max(1e-15, 1.0 - r * r))
     p_val = _student_t_two_tailed_pvalue(t_stat, df)
     return round(r, 4), round(p_val, 8)
@@ -1495,8 +1532,8 @@ def compare_regions(
         # Detrended short-term residual: e(t) = Y'(t) - Y_hat_linear(t)
         detrended_pairs.append((float(anom_a) - float(lin_a), float(anom_b) - float(lin_b)))
 
-    r_secular, p_secular = _pearson_corr_pairs(secular_pairs)
-    r_detrended, p_detrended = _pearson_corr_pairs(detrended_pairs)
+    r_secular, p_secular = _pearson_corr_pairs(secular_pairs, ar1_adjust=True)
+    r_detrended, p_detrended = _pearson_corr_pairs(detrended_pairs, ar1_adjust=True)
 
     slope_a = float(analysis_a["regression"]["slope_per_decade_sen"])
     slope_b = float(analysis_b["regression"]["slope_per_decade_sen"])
