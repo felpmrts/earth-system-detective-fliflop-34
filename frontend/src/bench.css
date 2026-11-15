@@ -1477,8 +1477,10 @@ button:focus-visible, a:focus-visible, summary:focus-visible, input:focus-visibl
 
 /* ---------- Responsivo (375px) ---------- */
 @media (max-width: 720px) {
-  .segmented-group.view-mode-group { display: flex; flex-wrap: wrap; width: 100%; }
-  .segmented-group.view-mode-group button { flex: 1 1 calc(50% - 4px); white-space: normal; }
+  .controls-bar .segmented-group.view-mode-group,
+  .segmented-group.view-mode-group { display: flex; flex-wrap: wrap; width: 100%; gap: 4px; overflow: visible; }
+  .controls-bar .segmented-group.view-mode-group button,
+  .segmented-group.view-mode-group button { flex: 1 1 calc(50% - 4px); min-width: 0; white-space: normal; overflow-wrap: anywhere; padding: .42rem .55rem; }
   .chart-insight-strip { grid-template-columns: minmax(0, 1fr); grid-template-areas: 'badge' 'text' 'pills'; }
   .chart-insight-badge { padding-right: 0; padding-bottom: .5rem; border-right: 0; border-bottom: 1px dashed rgba(148, 163, 184, .3); }
 }
