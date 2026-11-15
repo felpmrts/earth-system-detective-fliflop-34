@@ -9,6 +9,9 @@ import { ScientificBench } from './bench/ScientificBench';
 import { MapWorkspace } from './map/MapWorkspace';
 import { getBackendCatalog, getRegionData } from './services/regionDataAdapter';
 import { loadPersistedSession, savePersistedSession } from './services/sessionState';
+import { saveTutorialOutcome, shouldAutoOpenTutorial, type TutorialCompletionStatus } from './services/tutorialState';
+import { TutorialOverlay } from './tutorial/TutorialOverlay';
+import { TUTORIAL_STEPS } from './tutorial/tutorialSteps';
 import './bench.css';
 
 const supportedVariables = new Set<string>(VARIABLE_LIST.map(variable => variable.variable_id));
@@ -43,6 +46,10 @@ export default function App() {
   const [trendMode, setTrendMode] = useState<TrendMode>(initialSession.trendMode);
   const [sidebarOpen, setSidebarOpen] = useState(initialSession.sidebarOpen);
   const [mobileDrawerOpen, setMobileDrawerOpen] = useState(false);
+  const [tutorialOpen, setTutorialOpen] = useState<boolean>(shouldAutoOpenTutorial);
+  const [tutorialStepIndex, setTutorialStepIndex] = useState(0);
+  const tutorialTriggerRef = useRef<HTMLButtonElement | null>(null);
+  const restoreFocusOnTutorialCloseRef = useRef(false);
 
   const metadataA = VARIABLE_LIST.find(variable => variable.variable_id === variableA);
   const metadataB = VARIABLE_LIST.find(variable => variable.variable_id === variableB);
@@ -118,6 +125,55 @@ export default function App() {
 
   useEffect(() => () => analysisControllerRef.current?.abort(), []);
 
+  const analysisRef = useRef<RegionAnalysisResponse | undefined>(analysis);
+  analysisRef.current = analysis;
+
+  useEffect(() => {
+    if (!tutorialOpen) return;
+    const step = TUTORIAL_STEPS[tutorialStepIndex];
+    if (!step) return;
+    const resolved = step.resolveTarget({ hasAnalysis: Boolean(analysisRef.current) });
+    if (resolved.requiredTab) {
+      setTab(resolved.requiredTab);
+    }
+    const isMobile =
+      typeof window !== 'undefined' && typeof window.matchMedia === 'function'
+        ? window.matchMedia('(max-width: 700px)').matches
+        : false;
+    if (isMobile) {
+      setMobileDrawerOpen(Boolean(resolved.requiresSidebar));
+    }
+  }, [tutorialOpen, tutorialStepIndex]);
+
+  const prevAnalysisForTutorialRef = useRef<RegionAnalysisResponse | undefined>(analysis);
+  useEffect(() => {
+    const previousAnalysis = prevAnalysisForTutorialRef.current;
+    prevAnalysisForTutorialRef.current = analysis;
+    if (!tutorialOpen || !analysis || analysis === previousAnalysis) return;
+    if (TUTORIAL_STEPS[tutorialStepIndex]?.id === 'run-analysis') {
+      const benchIndex = TUTORIAL_STEPS.findIndex(step => step.id === 'scientific-bench');
+      if (benchIndex >= 0) {
+        setTutorialStepIndex(benchIndex);
+      }
+    }
+  }, [tutorialOpen, tutorialStepIndex, analysis]);
+
+  function openTutorialFromStart() {
+    restoreFocusOnTutorialCloseRef.current = true;
+    setTutorialStepIndex(0);
+    setTutorialOpen(true);
+  }
+
+  function finishTutorial(status: TutorialCompletionStatus, lastStepId: string) {
+    saveTutorialOutcome(status, lastStepId);
+    setTutorialOpen(false);
+    setMobileDrawerOpen(false);
+    if (restoreFocusOnTutorialCloseRef.current) {
+      restoreFocusOnTutorialCloseRef.current = false;
+      requestAnimationFrame(() => tutorialTriggerRef.current?.focus({ preventScroll: true }));
+    }
+  }
+
   async function analyzeSelection() {
     if (!variableA || !variableB || !regionA || !regionB || !periodReady) return;
 
@@ -166,13 +222,29 @@ export default function App() {
     { label: 'Análise', complete: Boolean(analysis) },
   ];
 
+  const currentTutorialStep = tutorialOpen ? TUTORIAL_STEPS[tutorialStepIndex] : undefined;
+  const resolvedTutorialTarget = currentTutorialStep?.resolveTarget({ hasAnalysis: Boolean(analysis) });
+  const effectiveSidebarOpen = sidebarOpen || Boolean(tutorialOpen && resolvedTutorialTarget?.requiresSidebar);
+
   return (
     <main>
       <header className="brand-header">
         <img className="brand-logo" src="/flipflop-34-logo.jpeg" alt="" aria-hidden="true" />
         <h1>Project Flipflop 34</h1>
+        <button
+          ref={tutorialTriggerRef}
+          type="button"
+          className="tutorial-trigger"
+          aria-label="Tutorial interativo (?)"
+          aria-expanded={tutorialOpen}
+          title="Abrir tutorial guiado passo a passo"
+          onClick={openTutorialFromStart}
+        >
+          <span className="tutorial-trigger-mark" aria-hidden="true">?</span>
+          <span className="tutorial-trigger-label">Tutorial</span>
+        </button>
       </header>
-      <ol className="workflow-progress" aria-label="Etapas da investigação">
+      <ol className="workflow-progress" data-tour="workflow-progress" aria-label="Etapas da investigação">
         {workflowSteps.map((step, index) => (
           <li key={step.label} className={step.complete ? 'complete' : index === currentStep ? 'current' : ''}
             aria-current={index === currentStep && !step.complete ? 'step' : undefined}>
@@ -181,7 +253,7 @@ export default function App() {
           </li>
         ))}
       </ol>
-      <div className={`workspace ${sidebarOpen ? '' : 'sidebar-collapsed'}`}>
+      <div className={`workspace ${effectiveSidebarOpen ? '' : 'sidebar-collapsed'}`}>
         {mobileDrawerOpen && (
           <div
             className="drawer-backdrop"
@@ -191,6 +263,7 @@ export default function App() {
         )}
         <aside
           id="variables-sidebar"
+          data-tour="sidebar-controls"
           className={mobileDrawerOpen ? 'drawer-open' : ''}
           aria-label="Catálogo de variáveis e período"
         >
@@ -216,19 +289,19 @@ export default function App() {
               data={variableOptions} searchable clearable clearSectionMode="clear"
               clearButtonProps={{ 'aria-label': 'Limpar variável ' + slot }} nothingFoundMessage="Nenhuma variável encontrada"
               value={value || null} onChange={id => onChange(id ?? '')}
-              comboboxProps={{ width: 310, position: 'bottom-start', withinPortal: true, zIndex: 1100 }}
+              comboboxProps={{ width: 310, position: 'bottom-start', withinPortal: true, zIndex: tutorialOpen ? 1325 : 1100 }}
               maxDropdownHeight={340} />
           ))}
           <fieldset className="period-picker" disabled={!minimumMonth}>
             <legend>Período</legend>
             <MonthPickerInput className="variable-picker" classNames={{ input: 'selection-input' }} label="Mês inicial" placeholder="Selecione o mês"
               locale="pt-br" valueFormat="MMMM [de] YYYY" clearable disabled={!minimumMonth}
-              popoverProps={{ withinPortal: true, zIndex: 1100 }}
+              popoverProps={{ withinPortal: true, zIndex: tutorialOpen ? 1325 : 1100 }}
               minDate={minimumMonth ? minimumMonth + '-01' : undefined} maxDate={maximumMonth + '-01'}
               value={start ? start + '-01' : null} onChange={value => setStartMonth(value?.slice(0, 7) ?? '')} />
             <MonthPickerInput className="variable-picker" classNames={{ input: 'selection-input' }} label="Mês final" placeholder="Selecione o mês"
               locale="pt-br" valueFormat="MMMM [de] YYYY" clearable disabled={!minimumMonth}
-              popoverProps={{ withinPortal: true, zIndex: 1100 }}
+              popoverProps={{ withinPortal: true, zIndex: tutorialOpen ? 1325 : 1100 }}
               minDate={minimumMonth ? (start || minimumMonth) + '-01' : undefined} maxDate={maximumMonth + '-01'}
               value={end ? end + '-01' : null} onChange={value => setEndMonth(value?.slice(0, 7) ?? '')} />
           </fieldset>
@@ -254,7 +327,7 @@ export default function App() {
               Variáveis e período
             </button>
             <button type="button" aria-current={tab === 'map' ? 'page' : undefined} onClick={() => setTab('map')}>Mapa</button>
-            <button type="button" aria-current={tab === 'bench' ? 'page' : undefined} onClick={() => setTab('bench')}>Bancada científica</button>
+            <button type="button" data-tour="tab-bench" aria-current={tab === 'bench' ? 'page' : undefined} onClick={() => setTab('bench')}>Bancada científica</button>
           </nav>
           {tab === 'map' ? (
             <MapWorkspace
@@ -296,6 +369,26 @@ export default function App() {
           )}
         </div>
       </div>
+      <TutorialOverlay
+        open={tutorialOpen}
+        steps={TUTORIAL_STEPS}
+        stepIndex={tutorialStepIndex}
+        liveContext={{
+          hasAnalysis: Boolean(analysis),
+          variableA,
+          variableB,
+          startMonth: start,
+          endMonth: end,
+          periodReady,
+          regionACells: regionA?.cells.length ?? 0,
+          regionBCells: regionB?.cells.length ?? 0,
+          readyToAnalyze: Boolean(variableA && variableB && regionA && regionB && periodReady),
+          isAnalyzing,
+        }}
+        onStepChange={setTutorialStepIndex}
+        onComplete={lastStepId => finishTutorial('completed', lastStepId)}
+        onSkip={lastStepId => finishTutorial('skipped', lastStepId)}
+      />
     </main>
   );
 }

@@ -17,12 +17,13 @@ interface SessionSeed {
 async function seedSessionAndRoutes(
   page: Page,
   seed: SessionSeed,
-  options: { readonly mockAnalyzeOffline?: boolean } = {},
+  options: { readonly mockAnalyzeOffline?: boolean; readonly markTutorialSeen?: boolean } = {},
 ) {
   const unexpectedThirdPartyUrls: string[] = [];
+  const markTutorialSeen = options.markTutorialSeen ?? true;
 
   await page.addInitScript(
-    ({ variableA, variableB, startMonth, endMonth }) => {
+    ({ variableA, variableB, startMonth, endMonth, shouldMarkTutorialSeen }) => {
       localStorage.setItem(
         'flipflop34:session:v1',
         JSON.stringify({
@@ -40,8 +41,19 @@ async function seedSessionAndRoutes(
           sidebarOpen: true,
         }),
       );
+      if (shouldMarkTutorialSeen) {
+        localStorage.setItem(
+          'flipflop34:tutorial:v1',
+          JSON.stringify({
+            version: 1,
+            status: 'completed',
+            updatedAt: '2026-11-15T00:00:00.000Z',
+            lastStepId: 'scientific-bench',
+          }),
+        );
+      }
     },
-    seed,
+    { ...seed, shouldMarkTutorialSeen: markTutorialSeen },
   );
 
   await page.route('**/*', async route => {
@@ -260,5 +272,239 @@ test.describe('Earth System Trend Detective — Suite E2E (vite preview)', () =>
     expect(btnRect!.x + btnRect!.width).toBeLessThanOrEqual(375);
     expect(btnRect!.y).toBeGreaterThanOrEqual(0);
     expect(btnRect!.y + btnRect!.height).toBeLessThanOrEqual(812);
+  });
+
+  test('Tutorial primeira visita: abre automaticamente no Desktop, persiste conclusão e reabre pelo botão ?', async ({ page }) => {
+    await page.setViewportSize({ width: 1366, height: 768 });
+    await seedSessionAndRoutes(
+      page,
+      {
+        variableA: 'GWETTOP',
+        variableB: 'T2M_MAX',
+        startMonth: '2015-01',
+        endMonth: '2022-12',
+      },
+      { markTutorialSeen: false },
+    );
+
+    await page.goto('/');
+
+    const dialog = page.getByRole('dialog');
+    await expect(dialog).toBeVisible();
+    await expect(dialog).toContainText('Bem-vindo ao Earth System Trend Detective');
+    await expect(dialog.locator('.tutorial-step-counter')).toHaveText('1 / 8');
+
+    // Avança pelas etapas testando edição interativa dentro da área destacada
+    await dialog.getByRole('button', { name: 'Próximo' }).click();
+    await expect(dialog.locator('.tutorial-step-counter')).toHaveText('2 / 8');
+    await expect(page.locator('.tutorial-spotlight')).toBeVisible();
+
+    // Helper que verifica via elementFromPoint se ponto relativo do locator está livre (focado) ou bloqueado pelo scrim
+    const hitTagAndClass = async (locator: ReturnType<typeof page.locator>, rx = 0.5, ry = 0.5) => {
+      const box = await locator.boundingBox();
+      expect(box).not.toBeNull();
+      return page.evaluate(
+        ({ x, y }) => {
+          const hit = document.elementFromPoint(x, y);
+          return hit ? `${hit.tagName.toLowerCase()}.${typeof hit.className === 'string' ? hit.className : hit.getAttribute('class') ?? ''}` : null;
+        },
+        { x: box!.x + box!.width * rx, y: box!.y + box!.height * ry },
+      );
+    };
+
+    // Edita Variável A diretamente com o tutorial aberto (dropdown acima do scrim)
+    const varAInput = page.locator('#variables-sidebar input').first();
+    await varAInput.click();
+    await page.getByRole('option', { name: 'Temperatura Média do Ar (2m)', exact: true }).click();
+    await expect(dialog.locator('.tutorial-mission-readout')).toContainText('A: T2M');
+    expect(await hitTagAndClass(page.getByRole('button', { name: 'Extremo +' }))).toContain('tutorial-scrim-path');
+
+    // Avança para Missão 2/7 (Tendências Globais) -> apenas legenda + filtros de tendência em foco
+    await dialog.getByRole('button', { name: 'Próximo' }).click();
+    await expect(dialog.locator('.tutorial-step-counter')).toHaveText('3 / 8');
+    await expect(page.locator('.tutorial-spotlight')).toHaveCount(2);
+
+    const sigOnlyBtn = page.getByRole('button', { name: 'Só q < 0,05' });
+    await sigOnlyBtn.click();
+    await expect(sigOnlyBtn).toHaveAttribute('aria-pressed', 'true');
+    expect(await hitTagAndClass(page.getByRole('button', { name: 'Mesmo Local (A=B)' }))).toContain('tutorial-scrim-path');
+    expect(await hitTagAndClass(page.getByRole('button', { name: 'Extremo +' }))).toContain('tutorial-scrim-path');
+    expect(await hitTagAndClass(page.locator('.map-container'), 0.25, 0.25)).toContain('tutorial-scrim-path');
+
+    // Avança para Missão 3/7 (Hotspots) -> apenas Extremo + / Extremo - liberados
+    await dialog.getByRole('button', { name: 'Próximo' }).click();
+    await expect(dialog.locator('.tutorial-step-counter')).toHaveText('4 / 8');
+    await expect(page.locator('.tutorial-spotlight')).toHaveCount(1);
+    expect(await hitTagAndClass(page.locator('.map-container'), 0.25, 0.25)).toContain('tutorial-scrim-path');
+    expect(await hitTagAndClass(page.getByRole('button', { name: 'Mesmo Local (A=B)' }))).toContain('tutorial-scrim-path');
+
+    const expectCardDoesNotOverlap = async (selector: string) => {
+      const cardBox = await dialog.boundingBox();
+      const targetBox = await page.locator(selector).boundingBox();
+      expect(cardBox).not.toBeNull();
+      expect(targetBox).not.toBeNull();
+      const overlapX = Math.max(
+        0,
+        Math.min(cardBox!.x + cardBox!.width, targetBox!.x + targetBox!.width) - Math.max(cardBox!.x, targetBox!.x),
+      );
+      const overlapY = Math.max(
+        0,
+        Math.min(cardBox!.y + cardBox!.height, targetBox!.y + targetBox!.height) - Math.max(cardBox!.y, targetBox!.y),
+      );
+      expect(overlapX * overlapY, `card overlapped ${selector}`).toBe(0);
+    };
+
+    const expectNextButtonFullyVisible = async () => {
+      const cardBox = await dialog.boundingBox();
+      const nextBtn = dialog.getByRole('button', { name: /Próximo|Concluir treinamento/ });
+      const nextBox = await nextBtn.boundingBox();
+      expect(cardBox).not.toBeNull();
+      expect(nextBox).not.toBeNull();
+      expect(nextBox!.y).toBeGreaterThanOrEqual(cardBox!.y);
+      expect(nextBox!.y + nextBox!.height).toBeLessThanOrEqual(cardBox!.y + cardBox!.height + 1);
+    };
+
+    // Avança para Missão 4/7 (Seleção Espacial, passo 5 / 8)
+    await dialog.getByRole('button', { name: 'Próximo' }).click();
+    await expect(dialog.locator('.tutorial-step-counter')).toHaveText('5 / 8');
+    expect(await hitTagAndClass(page.getByRole('button', { name: 'Extremo +' }))).toContain('tutorial-scrim-path');
+    await expectCardDoesNotOverlap('[data-tour="map-selection-tools"]');
+    await expectCardDoesNotOverlap('[data-tour="map-nav-tools"]');
+    await expectNextButtonFullyVisible();
+
+    // Interage diretamente com os botões espaciais e o mapa através do recorte aberto
+    await page.getByRole('button', { name: 'Mesmo Local (A=B)' }).click();
+    await dialog.getByRole('button', { name: 'Minimizar card do tutorial' }).click();
+    await expect(dialog.locator('#tutorial-minimized-title')).toBeVisible();
+
+    const mapBox = await page.locator('.map-container').boundingBox();
+    expect(mapBox).not.toBeNull();
+    await page.mouse.click(mapBox!.x + mapBox!.width * 0.5, mapBox!.y + mapBox!.height * 0.5);
+    await expect(page.locator('.slot-switch button').nth(0)).toContainText('1/25');
+
+    await dialog.getByRole('button', { name: 'Expandir' }).click();
+    await expect(dialog.locator('.tutorial-mission-readout')).toContainText('Região A: 1 cél. · Região B: 1 cél.');
+
+    // Conclui as etapas restantes até 8 / 8
+    for (let step = 5; step < 8; step += 1) {
+      await dialog.getByRole('button', { name: 'Próximo' }).click();
+      await expect(dialog.locator('.tutorial-step-counter')).toHaveText(`${step + 1} / 8`);
+      await expect(page.locator('.tutorial-spotlight').first()).toBeVisible();
+      await expectNextButtonFullyVisible();
+      if (step === 6) {
+        await expectCardDoesNotOverlap('[data-tour="map-actions"]');
+        await expectCardDoesNotOverlap('[data-tour="query-summary"]');
+      }
+    }
+
+    await expect(dialog).toContainText('Explore a Bancada Científica e Exporte Provas');
+    await dialog.getByRole('button', { name: 'Concluir treinamento' }).click();
+    await expect(dialog).toHaveCount(0);
+
+    // Recarrega e confirma que não abre mais sozinho
+    await page.reload();
+    await expect(page.getByRole('heading', { name: 'Project Flipflop 34' })).toBeVisible();
+    await expect(page.getByRole('dialog')).toHaveCount(0);
+
+    // Reabre manualmente pelo botão '?'
+    await page.getByRole('button', { name: 'Tutorial interativo (?)' }).click();
+    await expect(page.getByRole('dialog')).toBeVisible();
+    await expect(page.getByRole('dialog').locator('.tutorial-step-counter')).toHaveText('1 / 8');
+  });
+
+  test('Mobile 375x812: tutorial abre pelo botão ?, sincroniza drawer de variáveis sem overflow e fecha com Esc', async ({ page }) => {
+    await page.setViewportSize({ width: 375, height: 812 });
+    await seedSessionAndRoutes(
+      page,
+      {
+        variableA: 'GWETTOP',
+        variableB: 'T2M_MAX',
+        startMonth: '2015-01',
+        endMonth: '2022-12',
+      },
+      { markTutorialSeen: true },
+    );
+
+    await page.goto('/');
+    await expect(page.getByRole('dialog')).toHaveCount(0);
+
+    await page.getByRole('button', { name: 'Tutorial interativo (?)' }).click();
+    const dialog = page.getByRole('dialog');
+    await expect(dialog).toBeVisible();
+
+    // Avança para Missão 1/7 (Variáveis e Período) -> abre automaticamente o drawer mobile
+    await dialog.getByRole('button', { name: 'Próximo' }).click();
+    await expect(dialog).toContainText('Escolha as Variáveis A/B e o Período');
+    await expect(page.locator('#variables-sidebar.drawer-open')).toBeVisible();
+
+    const stepOverflow = await page.evaluate(() => ({
+      scrollWidth: document.documentElement.scrollWidth,
+      innerWidth: window.innerWidth,
+    }));
+    expect(stepOverflow.scrollWidth).toBeLessThanOrEqual(stepOverflow.innerWidth);
+
+    // Avança para Missão 2/7 (Mapa/Legenda) -> fecha o drawer automaticamente
+    await dialog.getByRole('button', { name: 'Próximo' }).click();
+    await expect(page.locator('#variables-sidebar.drawer-open')).toHaveCount(0);
+
+    // Verifica que o card do tutorial permanece dentro da viewport mobile 375x812
+    const cardBox = await dialog.boundingBox();
+    expect(cardBox).not.toBeNull();
+    expect(cardBox!.x).toBeGreaterThanOrEqual(0);
+    expect(cardBox!.x + cardBox!.width).toBeLessThanOrEqual(375);
+    expect(cardBox!.y).toBeGreaterThanOrEqual(0);
+    expect(cardBox!.y + cardBox!.height).toBeLessThanOrEqual(812);
+
+    // Fecha via Escape
+    await page.keyboard.press('Escape');
+    await expect(page.getByRole('dialog')).toHaveCount(0);
+  });
+
+  test('Tutorial passo 7/8 -> 8/8: não pula 7/8 com análise anterior, avança ao rodar nova análise e ancora no canto inferior direito da Bancada', async ({ page }) => {
+    await page.setViewportSize({ width: 1366, height: 768 });
+    await seedSessionAndRoutes(
+      page,
+      {
+        variableA: 'GWETTOP',
+        variableB: 'T2M_MAX',
+        startMonth: '2000-01',
+        endMonth: '2009-12',
+      },
+      { markTutorialSeen: true, mockAnalyzeOffline: true },
+    );
+
+    await page.goto('/');
+    await page.getByRole('button', { name: 'Mesmo Local (A=B)' }).click();
+    const mapBox = await page.locator('.map-container').boundingBox();
+    expect(mapBox).not.toBeNull();
+    await page.mouse.click(mapBox!.x + mapBox!.width * 0.5, mapBox!.y + mapBox!.height * 0.5);
+    await page.getByRole('button', { name: 'Analisar seleção' }).click();
+    await expect(page.getByRole('heading', { name: 'Resumo da descoberta' })).toBeVisible();
+
+    // Reabre o tutorial pelo botão '?' com uma análise anterior já carregada
+    await page.getByRole('button', { name: 'Tutorial interativo (?)' }).click();
+    const dialog = page.getByRole('dialog');
+    await expect(dialog).toBeVisible();
+
+    for (let i = 0; i < 6; i += 1) {
+      await dialog.getByRole('button', { name: 'Próximo' }).click();
+    }
+
+    // Deve permanecer na etapa 7/8 (não pular automaticamente para 8/8 pela análise antiga)
+    await expect(dialog.locator('.tutorial-step-counter')).toHaveText('7 / 8');
+    await expect(dialog).toContainText('Confira o Resumo e Dispare a Análise');
+
+    // Dispara uma NOVA análise diretamente na etapa 7/8 -> avança automaticamente para 8/8 e abre a Bancada
+    await page.getByRole('button', { name: 'Analisar seleção' }).click();
+    await expect(dialog.locator('.tutorial-step-counter')).toHaveText('8 / 8');
+    await expect(page.getByRole('heading', { name: 'Resumo da descoberta' })).toBeVisible();
+    await expect(dialog).not.toHaveClass(/is-centered/);
+
+    const cardBox = await dialog.boundingBox();
+    expect(cardBox).not.toBeNull();
+    expect(cardBox!.x).toBeGreaterThan(600);
+    expect(cardBox!.y).toBeGreaterThan(300);
+    expect(cardBox!.x + cardBox!.width).toBeLessThanOrEqual(1366);
+    expect(cardBox!.y + cardBox!.height).toBeLessThanOrEqual(768);
   });
 });

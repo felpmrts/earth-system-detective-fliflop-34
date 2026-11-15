@@ -8,6 +8,27 @@ const isCi = Boolean(process.env.CI);
 const hasPrebuiltDist = fs.existsSync(path.resolve(__dirname, 'dist/index.html'));
 const previewCommand = 'node ./node_modules/vite/bin/vite.js preview --host 127.0.0.1 --port 4173 --strictPort';
 
+function resolveLocalBrowserChannel(): 'chrome' | 'msedge' | undefined {
+  if (isCi) return undefined;
+  if (process.env.PLAYWRIGHT_CHANNEL === 'msedge' || process.env.PLAYWRIGHT_CHANNEL === 'chrome') {
+    return process.env.PLAYWRIGHT_CHANNEL;
+  }
+  const chromePaths = [
+    process.env.LOCALAPPDATA ? path.join(process.env.LOCALAPPDATA, 'Google/Chrome/Application/chrome.exe') : '',
+    'C:\\Program Files\\Google\\Chrome\\Application\\chrome.exe',
+    'C:\\Program Files (x86)\\Google\\Chrome\\Application\\chrome.exe',
+  ].filter(Boolean);
+  if (chromePaths.some(candidate => fs.existsSync(candidate))) return 'chrome';
+
+  const edgePaths = [
+    'C:\\Program Files (x86)\\Microsoft\\Edge\\Application\\msedge.exe',
+    'C:\\Program Files\\Microsoft\\Edge\\Application\\msedge.exe',
+  ];
+  if (edgePaths.some(candidate => fs.existsSync(candidate))) return 'msedge';
+
+  return 'chrome';
+}
+
 export default defineConfig({
   testDir: './e2e',
   timeout: 30_000,
@@ -22,7 +43,7 @@ export default defineConfig({
   use: {
     ...devices['Desktop Chrome'],
     baseURL: 'http://127.0.0.1:4173',
-    channel: isCi ? undefined : 'chrome',
+    channel: resolveLocalBrowserChannel(),
     headless: true,
     launchOptions: {
       args: ['--no-sandbox', '--disable-gpu'],
