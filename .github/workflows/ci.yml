@@ -68,11 +68,11 @@ jobs:
       - name: Validate precomputed global grids
         run: npm run validate:grids
 
-      - name: Run unit tests (Vitest)
-        run: npm test
-
       - name: Build production bundle
         run: npm run build
+
+      - name: Run unit tests (Vitest)
+        run: npm test
 
       - name: Verify 100% offline bundle integrity
         run: npm run verify:offline
