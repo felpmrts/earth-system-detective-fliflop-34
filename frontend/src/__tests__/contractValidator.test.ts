@@ -1,7 +1,7 @@
 import { describe, expect, it } from 'vitest';
 import mockAnalysisJson from '../../public/data/mock_analysis.json';
 import t2mGridJson from '../../public/data/T2M_grid.json';
-import { getIntersectingDateBounds, VARIABLE_LIST } from '../contracts/catalog.ts';
+import { getIntersectingDateBounds, getVariableMetadata, VARIABLE_LIST } from '../contracts/catalog.ts';
 import { MAX_CELLS_PER_REGION } from '../geo/gridGeometry.ts';
 import {
   ContractValidationError,
@@ -10,13 +10,14 @@ import {
 } from '../contracts/contractValidator.ts';
 
 describe('catalog & contractValidator — blindagem dos 7 Invariantes', () => {
-  it('catálogo cobre todas as 42 variáveis (+ alias CLDTOT) e proíbe % em variáveis intervalares', () => {
+  it('catálogo cobre todas as 42 variáveis (+ alias CLDTOT), proíbe % em intervalares e em CLOUD_AMT', () => {
     expect(VARIABLE_LIST).toHaveLength(43);
     for (const v of VARIABLE_LIST) {
       if (v.scale_type === 'interval') {
         expect(v.allow_percentage_change).toBe(false);
       }
     }
+    expect(getVariableMetadata('CLOUD_AMT').allow_percentage_change).toBe(false);
   });
 
   it('calcula interseção temporal entre MERRA-2 (1981) e CERES (1984)', () => {
@@ -120,5 +121,43 @@ describe('catalog & contractValidator — blindagem dos 7 Invariantes', () => {
     };
     badComparisonP.comparison_pair.multiscale_correlation.long_term_p_value = -0.01;
     expect(() => validateAnalysisResponse(badComparisonP)).toThrow(ContractValidationError);
+  });
+
+  it('rejeita "%" em unit/trend_unit de variável intervalar e campos inválidos de regression/coupling/tier/outliers (AUD-10)', () => {
+    const pctUnit = structuredClone(mockAnalysisJson) as {
+      region_b_analysis: { unit: string };
+    };
+    pctUnit.region_b_analysis.unit = '%';
+    expect(() => validateAnalysisResponse(pctUnit)).toThrow(ContractValidationError);
+
+    const pctTrend = structuredClone(mockAnalysisJson) as {
+      region_b_analysis: { trend_unit: string };
+    };
+    pctTrend.region_b_analysis.trend_unit = '%/década';
+    expect(() => validateAnalysisResponse(pctTrend)).toThrow(ContractValidationError);
+
+    const badRegime = structuredClone(mockAnalysisJson) as {
+      region_a_analysis: { regression: { regime_shape: string } };
+    };
+    badRegime.region_a_analysis.regression.regime_shape = 'unknown_shape';
+    expect(() => validateAnalysisResponse(badRegime)).toThrow(ContractValidationError);
+
+    const badR2 = structuredClone(mockAnalysisJson) as {
+      region_a_analysis: { correlation_and_coupling: { r_squared: number } };
+    };
+    badR2.region_a_analysis.correlation_and_coupling.r_squared = 1.4;
+    expect(() => validateAnalysisResponse(badR2)).toThrow(ContractValidationError);
+
+    const badTier = structuredClone(mockAnalysisJson) as {
+      region_b_analysis: { significance: { confidence_tier: string } };
+    };
+    badTier.region_b_analysis.significance.confidence_tier = 'MAYBE';
+    expect(() => validateAnalysisResponse(badTier)).toThrow(ContractValidationError);
+
+    const badOutlier = structuredClone(mockAnalysisJson) as {
+      region_a_analysis: { outliers_mahalanobis: Array<{ mahalanobis_d: number }> };
+    };
+    badOutlier.region_a_analysis.outliers_mahalanobis[0]!.mahalanobis_d = Number.NaN;
+    expect(() => validateAnalysisResponse(badOutlier)).toThrow(ContractValidationError);
   });
 });

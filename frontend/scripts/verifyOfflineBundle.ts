@@ -3,6 +3,10 @@ import path from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { validateAnalysisResponse, validateGlobalGrid } from '../src/contracts/contractValidator.ts';
 import {
+  HOMOLOGATION_REQUIRED_GRIDS,
+  validateHomologatedGrid,
+} from '../src/contracts/globalGridHomologation.ts';
+import {
   auditCssOfflineSafety,
   auditHtmlOfflineSafety,
   auditJsBundleOfflineSafety,
@@ -22,7 +26,7 @@ function verifyDistOfflineBundle(): void {
     'index.html',
     'flipflop-34-logo.jpeg',
     'data/mock_analysis.json',
-    'data/T2M_grid.json',
+    ...HOMOLOGATION_REQUIRED_GRIDS.map(varId => `data/${varId}_grid.json`),
   ];
   for (const relPath of requiredFiles) {
     const absPath = path.join(distDir, relPath);
@@ -69,9 +73,15 @@ function verifyDistOfflineBundle(): void {
 
   const t2mRaw = JSON.parse(fs.readFileSync(path.join(distDir, 'data/T2M_grid.json'), 'utf-8')) as unknown;
   const t2mValidated = validateGlobalGrid(t2mRaw);
+  for (const varId of HOMOLOGATION_REQUIRED_GRIDS) {
+    const gridRaw = JSON.parse(
+      fs.readFileSync(path.join(distDir, `data/${varId}_grid.json`), 'utf-8'),
+    ) as unknown;
+    validateHomologatedGrid(varId, gridRaw, 100);
+  }
 
   console.log(
-    `OK [dist/ 100% offline]: ${jsFiles.length} JS, ${cssFiles.length} CSS, ${t2mValidated.points.length} pts em T2M_grid.json e mock_analysis (${mockValidated.region_a_analysis.series.dates.length} meses) sem CDNs externos.`,
+    `OK [dist/ 100% offline]: ${jsFiles.length} JS, ${cssFiles.length} CSS, ${HOMOLOGATION_REQUIRED_GRIDS.length} grades globais homologadas (${t2mValidated.points.length} pts em T2M_grid.json) e mock_analysis (${mockValidated.region_a_analysis.series.dates.length} meses) sem CDNs externos.`,
   );
 }
 

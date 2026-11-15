@@ -1,10 +1,12 @@
 import { describe, expect, it } from 'vitest';
 import {
+  buildCellBlock3x3,
   buildRegionSelection,
   clampLatLon,
   isAdjacent8,
   isConnectedComponent,
   MAX_CELLS_PER_REGION,
+  mirrorRegionSelection,
   selectCellsInBoundingBox,
   snapCoordToCell,
   toggleCellInSelection,
@@ -168,6 +170,13 @@ describe('gridGeometry — snapping de grade NASA e composição K <= 9', () => 
 
   it('normaliza coordenadas fora de faixa durante arraste livre sem lançar erro', () => {
     expect(clampLatLon(98, -210)).toEqual({ lat: 90, lon: -180 });
+    expect(clampLatLon(12, 195)).toEqual({ lat: 12, lon: 180 });
+    expect(clampLatLon(-120, 540)).toEqual({ lat: -90, lon: 180 });
+    expect(clampLatLon(Number.NaN, Number.POSITIVE_INFINITY)).toEqual({ lat: 0, lon: 0 });
+
+    const extreme = clampLatLon(-10, -245);
+    expect(() => snapCoordToCell(extreme.lat, extreme.lon, 'T2M')).not.toThrow();
+
     const clampedBox = selectCellsInBoundingBox(
       { lat: -95, lon: -185 },
       { lat: -88, lon: -178 },
@@ -176,5 +185,133 @@ describe('gridGeometry — snapping de grade NASA e composição K <= 9', () => 
     expect(clampedBox.cells.length).toBeGreaterThanOrEqual(1);
     expect(clampedBox.cells.length).toBeLessThanOrEqual(MAX_CELLS_PER_REGION);
     expect(isConnectedComponent(clampedBox.cells)).toBe(true);
+  });
+
+  it('AUD-07: preserva conexidade e teto MAX_CELLS_PER_REGION no re-snap côncavo (U-shape) entre CERES e MERRA-2/MODIS', () => {
+    // Monta seleção em formato U no CERES_SYN1deg (1.0° × 1.0°), com 16 células conexas e miolo vazio
+    const ceresU: GridCell[] = [
+      // Braço esquerdo (6 células: lat -5.5 .. -10.5, lon -60.5)
+      snapCoordToCell(-5.5, -60.5, 'ALLSKY_SFC_SW_DWN'),
+      snapCoordToCell(-6.5, -60.5, 'ALLSKY_SFC_SW_DWN'),
+      snapCoordToCell(-7.5, -60.5, 'ALLSKY_SFC_SW_DWN'),
+      snapCoordToCell(-8.5, -60.5, 'ALLSKY_SFC_SW_DWN'),
+      snapCoordToCell(-9.5, -60.5, 'ALLSKY_SFC_SW_DWN'),
+      snapCoordToCell(-10.5, -60.5, 'ALLSKY_SFC_SW_DWN'),
+      // Base horizontal (4 células: lat -10.5, lon -59.5 .. -56.5)
+      snapCoordToCell(-10.5, -59.5, 'ALLSKY_SFC_SW_DWN'),
+      snapCoordToCell(-10.5, -58.5, 'ALLSKY_SFC_SW_DWN'),
+      snapCoordToCell(-10.5, -57.5, 'ALLSKY_SFC_SW_DWN'),
+      snapCoordToCell(-10.5, -56.5, 'ALLSKY_SFC_SW_DWN'),
+      // Braço direito (6 células até -5.5, lon -56.5)
+      snapCoordToCell(-9.5, -56.5, 'ALLSKY_SFC_SW_DWN'),
+      snapCoordToCell(-8.5, -56.5, 'ALLSKY_SFC_SW_DWN'),
+      snapCoordToCell(-7.5, -56.5, 'ALLSKY_SFC_SW_DWN'),
+      snapCoordToCell(-6.5, -56.5, 'ALLSKY_SFC_SW_DWN'),
+      snapCoordToCell(-5.5, -56.5, 'ALLSKY_SFC_SW_DWN'),
+    ];
+    expect(isConnectedComponent(ceresU)).toBe(true);
+
+    const sourceRegion = buildRegionSelection('A', 'ALLSKY_SFC_SW_DWN', ceresU);
+    const mirroredMerra = mirrorRegionSelection(sourceRegion, 'B', 'T2M');
+    const mirroredModis = mirrorRegionSelection(sourceRegion, 'B', 'LST_Day_CMG');
+
+    expect(MAX_CELLS_PER_REGION).toBe(25);
+    expect(mirroredMerra.source_model).toBe('MERRA-2');
+    expect(mirroredMerra.cells).toHaveLength(MAX_CELLS_PER_REGION);
+    expect(isConnectedComponent(mirroredMerra.cells)).toBe(true);
+
+    expect(mirroredModis.source_model).toBe('MODIS_AppEEARS');
+    expect(mirroredModis.cells).toHaveLength(MAX_CELLS_PER_REGION);
+    expect(isConnectedComponent(mirroredModis.cells)).toBe(true);
+
+    // O centroide geométrico do U cai no vazio central, fora do contorno re-snapped
+    const avgLat = ceresU.reduce((s, c) => s + c.lat, 0) / ceresU.length;
+    const avgLon = ceresU.reduce((s, c) => s + c.lon, 0) / ceresU.length;
+    const emptyHoleMerra = snapCoordToCell(avgLat, avgLon, 'T2M');
+    const emptyHoleModis = snapCoordToCell(avgLat, avgLon, 'LST_Day_CMG');
+    expect(mirroredMerra.cells.some(c => c.cell_id === emptyHoleMerra.cell_id)).toBe(false);
+    expect(mirroredModis.cells.some(c => c.cell_id === emptyHoleModis.cell_id)).toBe(false);
+  });
+
+  it('buildCellBlock3x3 gera bloco conexo 3×3 (9 células) no centro sem duplicatas', () => {
+    const merraCenter = snapCoordToCell(-18.91, -48.27, 'T2M');
+    const merraBlock = buildCellBlock3x3(-18.91, -48.27, 'T2M');
+    expect(merraBlock).toHaveLength(9);
+    expect(new Set(merraBlock.map(c => c.cell_id)).size).toBe(9);
+    expect(merraBlock.some(c => c.cell_id === merraCenter.cell_id)).toBe(true);
+    expect(isConnectedComponent(merraBlock)).toBe(true);
+    expect(buildRegionSelection('A', 'T2M', merraBlock).cells).toHaveLength(9);
+
+    const ceresCenter = snapCoordToCell(-3.2, -60.4, 'ALLSKY_SFC_SW_DWN');
+    const ceresBlock = buildCellBlock3x3(-3.2, -60.4, 'ALLSKY_SFC_SW_DWN');
+    expect(ceresBlock).toHaveLength(9);
+    expect(new Set(ceresBlock.map(c => c.cell_id)).size).toBe(9);
+    expect(ceresBlock.some(c => c.cell_id === ceresCenter.cell_id)).toBe(true);
+    expect(isConnectedComponent(ceresBlock)).toBe(true);
+
+    const modisBlock = buildCellBlock3x3(-10.1, -55.2, '_1_km_monthly_NDVI');
+    expect(modisBlock).toHaveLength(9);
+    expect(isConnectedComponent(modisBlock)).toBe(true);
+  });
+
+  it('buildCellBlock3x3 respeita limites nos polos e antimeridiano (6 em bordas, 4 em cantos)', () => {
+    const checkValidDomain = (cells: readonly GridCell[], expectedLen: number) => {
+      expect(cells).toHaveLength(expectedLen);
+      expect(new Set(cells.map(c => c.cell_id)).size).toBe(expectedLen);
+      expect(isConnectedComponent(cells)).toBe(true);
+      for (const cell of cells) {
+        const [[south, west], [north, east]] = cell.bounds_leaflet;
+        expect(cell.lat).toBeGreaterThanOrEqual(-90);
+        expect(cell.lat).toBeLessThanOrEqual(90);
+        expect(cell.lon).toBeGreaterThanOrEqual(-180);
+        expect(cell.lon).toBeLessThanOrEqual(180);
+        expect(south).toBeGreaterThanOrEqual(-90);
+        expect(north).toBeLessThanOrEqual(90);
+        expect(west).toBeGreaterThanOrEqual(-180);
+        expect(east).toBeLessThanOrEqual(180);
+        expect(south).toBeLessThan(north);
+        expect(west).toBeLessThan(east);
+      }
+    };
+
+    // Polo Norte e Polo Sul (MERRA-2 e CERES) -> 6 células (2×3)
+    checkValidDomain(buildCellBlock3x3(90, 0, 'T2M'), 6);
+    checkValidDomain(buildCellBlock3x3(-90, 0, 'ALLSKY_SFC_SW_DWN'), 6);
+
+    // Bordas do Antimeridiano (-180 / +180) -> 6 células (3×2)
+    checkValidDomain(buildCellBlock3x3(0, -180, 'T2M'), 6);
+    checkValidDomain(buildCellBlock3x3(0, 180, 'CLOUD_AMT'), 6);
+
+    // Quinas extremas (Polo + Antimeridiano) -> 4 células (2×2)
+    checkValidDomain(buildCellBlock3x3(90, 180, 'T2M'), 4);
+    checkValidDomain(buildCellBlock3x3(-90, -180, 'ALLSKY_SFC_SW_DWN'), 4);
+
+    // Coordenadas inválidas continuam lançando erro
+    expect(() => buildCellBlock3x3(95, 0, 'T2M')).toThrow();
+    expect(() => buildCellBlock3x3(0, Number.NaN, 'T2M')).toThrow();
+  });
+
+  it('buildCellBlock3x3 opera entre grades heterogêneas (MERRA-2 <-> CERES_SYN1deg) com espelhamento A=B válido', () => {
+    const merraCells = buildCellBlock3x3(-12.3, -49.8, 'GWETTOP');
+    const ceresCells = buildCellBlock3x3(-12.3, -49.8, 'ALLSKY_SFC_SW_DWN');
+    expect(merraCells).toHaveLength(9);
+    expect(ceresCells).toHaveLength(9);
+
+    // Bloco 3×3 MERRA-2 cobre 1.5° × 1.875°, CERES cobre 3.0° × 3.0°
+    expect(ceresCells[8]!.lat - ceresCells[0]!.lat).toBeCloseTo(2.0, 4);
+    expect(merraCells[8]!.lat - merraCells[0]!.lat).toBeCloseTo(1.0, 4);
+
+    const regionA = buildRegionSelection('A', 'GWETTOP', merraCells);
+    const mirroredToCeres = mirrorRegionSelection(regionA, 'B', 'ALLSKY_SFC_SW_DWN');
+    expect(mirroredToCeres.source_model).toBe('CERES_SYN1deg');
+    expect(isConnectedComponent(mirroredToCeres.cells)).toBe(true);
+    expect(mirroredToCeres.cells.length).toBeGreaterThanOrEqual(1);
+    expect(mirroredToCeres.cells.length).toBeLessThanOrEqual(MAX_CELLS_PER_REGION);
+
+    const ceresRegionA = buildRegionSelection('A', 'ALLSKY_SFC_SW_DWN', ceresCells);
+    const mirroredToMerra = mirrorRegionSelection(ceresRegionA, 'B', 'T2M');
+    expect(mirroredToMerra.source_model).toBe('MERRA-2');
+    expect(isConnectedComponent(mirroredToMerra.cells)).toBe(true);
+    expect(mirroredToMerra.cells.length).toBeLessThanOrEqual(MAX_CELLS_PER_REGION);
   });
 });

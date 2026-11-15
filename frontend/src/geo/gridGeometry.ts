@@ -294,6 +294,27 @@ function bridgeSourceMidpoints(
   return deduplicateCells(bridged);
 }
 
+function coordDistSq(cell: GridCell, coord: { readonly lat: number; readonly lon: number }): number {
+  return (cell.lat - coord.lat) ** 2 + (cell.lon - coord.lon) ** 2;
+}
+
+/** Retorna a célula da coleção mais próxima de `coord`, ou `undefined` se vazia. */
+function findClosestCell(
+  cells: readonly GridCell[],
+  coord: { readonly lat: number; readonly lon: number },
+): GridCell | undefined {
+  let closest: GridCell | undefined;
+  let bestDist = Number.POSITIVE_INFINITY;
+  for (const cell of cells) {
+    const dist = coordDistSq(cell, coord);
+    if (dist < bestDist) {
+      bestDist = dist;
+      closest = cell;
+    }
+  }
+  return closest;
+}
+
 /** Constrói componente conexo até MAX_CELLS_PER_REGION priorizando células mais próximas do centroide. */
 function selectConnectedCore(
   candidates: readonly GridCell[],
@@ -301,12 +322,11 @@ function selectConnectedCore(
   seedCell: GridCell,
   maxCells = MAX_CELLS_PER_REGION,
 ): GridCell[] {
-  const distSq = (cell: GridCell) =>
-    (cell.lat - centroid.lat) ** 2 + (cell.lon - centroid.lon) ** 2;
-  const sortedPool = deduplicateCells([seedCell, ...candidates]).sort((a, b) => distSq(a) - distSq(b));
-  const seed = sortedPool[0] ?? seedCell;
-  const chosen: GridCell[] = [seed];
-  const chosenIds = new Set<string>([seed.cell_id]);
+  const sortedPool = deduplicateCells(candidates).sort(
+    (a, b) => coordDistSq(a, centroid) - coordDistSq(b, centroid),
+  );
+  const chosen: GridCell[] = [seedCell];
+  const chosenIds = new Set<string>([seedCell.cell_id]);
 
   while (chosen.length < maxCells) {
     const nextCell = sortedPool.find(
@@ -323,7 +343,7 @@ function selectConnectedCore(
 /**
  * Espelha uma seleção válida para outra variável/slot.
  * Se o modelo nativo diferir (ex.: MERRA-2 <-> CERES_SYN1deg), faz re-snap dos centroides
- * para a grade nativa da variável alvo com deduplicação e garantia de conexidade (K <= 9).
+ * para a grade nativa da variável alvo com deduplicação e garantia de conexidade (K <= MAX_CELLS_PER_REGION).
  */
 export function mirrorRegionSelection(
   sourceRegion: RegionSelection,
@@ -343,14 +363,15 @@ export function mirrorRegionSelection(
   }
 
   // Em CERES (1.0°) -> MERRA-2 (0.5°×0.625°), células adjacentes podem deixar lacunas de 1 passo;
-  // preenchemos pontos médios e garantimos componente conexo centrado até o teto K <= 9.
+  // preenchemos pontos médios e garantimos componente conexo enraizado em célula real de `bridged`.
   const bridged = bridgeSourceMidpoints(sourceRegion.cells, directSnapped, targetVariableId);
   if (bridged.length <= MAX_CELLS_PER_REGION && isConnectedComponent(bridged)) {
     return buildRegionSelection(targetSlot, targetVariableId, bridged);
   }
 
   const centroid = computeCentroid(sourceRegion.cells);
-  const seedCell = snapCoordToCell(centroid.lat, centroid.lon, targetVariableId);
+  const seedCell =
+    findClosestCell(bridged, centroid) ?? snapCoordToCell(centroid.lat, centroid.lon, targetVariableId);
   const core = selectConnectedCore(bridged, centroid, seedCell);
   return buildRegionSelection(targetSlot, targetVariableId, core);
 }
@@ -424,4 +445,42 @@ export function selectCellsInBoundingBox(
     totalInBox,
     wasClamped: true,
   };
+}
+
+/**
+ * Gera um bloco conexo 3×3 (`dr, dc ∈ {-1, 0, 1}`) ao redor da célula encaixada em `(lat, lon)`,
+ * validando limites geográficos/regionais do modelo e deduplicando `cell_id` (até 9 células válidas).
+ */
+export function buildCellBlock3x3(
+  lat: number,
+  lon: number,
+  variableId: VariableId,
+): GridCell[] {
+  const center = snapCoordToCell(lat, lon, variableId);
+  const meta = getVariableMetadata(variableId);
+  const minLat = meta.grid_origin.lat0;
+  const minLon = meta.grid_origin.lon0;
+  const block: GridCell[] = [];
+
+  for (let dr = -1; dr <= 1; dr += 1) {
+    for (let dc = -1; dc <= 1; dc += 1) {
+      const candidate = buildCellFromRowCol(center.row + dr, center.col + dc, variableId);
+      const [[south, west], [north, east]] = candidate.bounds_leaflet;
+      const withinModelDomain =
+        candidate.lat >= minLat &&
+        candidate.lat <= 90 &&
+        candidate.lon >= minLon &&
+        candidate.lon <= 180 &&
+        south >= -90 &&
+        north <= 90 &&
+        west >= -180 &&
+        east <= 180 &&
+        south < north &&
+        west < east;
+      if (!withinModelDomain) continue;
+      block.push(candidate);
+    }
+  }
+
+  return deduplicateCells(block);
 }

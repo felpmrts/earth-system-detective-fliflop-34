@@ -44,8 +44,8 @@ interface ScientificBenchProps {
   readonly onBackToMap: () => void;
 }
 
-function formatPointValue(val: number | null | undefined): string {
-  return val !== null && val !== undefined && Number.isFinite(val) ? val.toFixed(3) : '—';
+function formatPointValue(val: number | null | undefined, digits = 3): string {
+  return val !== null && val !== undefined && Number.isFinite(val) ? val.toFixed(digits) : '—';
 }
 
 function BenchExportActions({
@@ -98,8 +98,9 @@ function StatSummaryCard({
   readonly stats: VariableStatistics;
   readonly region: RegionSelection | null;
 }) {
-  const confidence = CONFIDENCE_LABELS[stats.significance.confidence_tier];
-  const regime = REGIME_LABELS[stats.regression.regime_shape];
+  const confidence =
+    CONFIDENCE_LABELS[stats.significance.confidence_tier] ?? CONFIDENCE_LABELS.INSUFFICIENT_SIGNAL;
+  const regime = REGIME_LABELS[stats.regression.regime_shape] ?? stats.regression.regime_shape ?? '—';
   const topOutlier = stats.outliers_mahalanobis[0];
 
   return (
@@ -140,7 +141,7 @@ function StatSummaryCard({
       </dl>
       {topOutlier && (
         <p className="discovery-outlier">
-          Extremo (D<sub>M</sub> = {topOutlier.mahalanobis_d.toFixed(2)}): {topOutlier.date} —{' '}
+          Extremo (D<sub>M</sub> = {formatPointValue(topOutlier.mahalanobis_d, 2)}): {topOutlier.date} —{' '}
           {topOutlier.diagnostic_hint}
         </p>
       )}
@@ -238,8 +239,10 @@ export function ScientificBench({
   const inRangeMonths = periodReady ? months.filter(month => month >= start && month <= end) : months;
   const firstMonth = inRangeMonths[0] ?? (periodReady ? start : undefined);
   const lastMonth = inRangeMonths.at(-1) ?? (periodReady ? end : undefined);
-  const firstDate = firstMonth ? `${firstMonth}-01` : undefined;
-  const lastDate = lastMonth
+  const isYearMonth = (val: string | undefined): val is string =>
+    Boolean(val && /^\d{4}-(0[1-9]|1[0-2])$/.test(val));
+  const firstDate = isYearMonth(firstMonth) ? `${firstMonth}-01` : undefined;
+  const lastDate = isYearMonth(lastMonth)
     ? new Date(Date.UTC(Number(lastMonth.slice(0, 4)), Number(lastMonth.slice(5, 7)), 0)).toISOString().slice(0, 10)
     : undefined;
   const hasPoints = inRangeMonths.length > 0;
@@ -339,8 +342,8 @@ export function ScientificBench({
         y: transformed.outliers.map(o => o.yPlot),
         customdata: transformed.outliers.map(o => [
           o.date,
-          o.observedDisplay.toFixed(3),
-          o.mahalanobisD.toFixed(2),
+          formatPointValue(o.observedDisplay, 3),
+          formatPointValue(o.mahalanobisD, 2),
           o.diagnosticHint,
         ]),
         name: `${region.slot} · Extremos (D_M > 2,5)`,
@@ -371,11 +374,14 @@ export function ScientificBench({
 
     const outlierHintsByDate = new Map<string, string>();
     for (const o of itemA.region.outliers_mahalanobis) {
-      outlierHintsByDate.set(o.date, `Outlier A (D_M=${o.mahalanobis_d.toFixed(2)}): ${o.diagnostic_hint}`);
+      outlierHintsByDate.set(
+        o.date,
+        `Outlier A (D_M=${formatPointValue(o.mahalanobis_d, 2)}): ${o.diagnostic_hint}`,
+      );
     }
     for (const o of itemB.region.outliers_mahalanobis) {
       const prev = outlierHintsByDate.get(o.date);
-      const msg = `Outlier B (D_M=${o.mahalanobis_d.toFixed(2)}): ${o.diagnostic_hint}`;
+      const msg = `Outlier B (D_M=${formatPointValue(o.mahalanobis_d, 2)}): ${o.diagnostic_hint}`;
       outlierHintsByDate.set(o.date, prev ? `${prev}<br>${msg}` : msg);
     }
 
@@ -465,15 +471,15 @@ export function ScientificBench({
   const secondaryUnitLabel = transformedByRegion[1]?.transformed.unitLabel ?? '';
 
   return (
-    <section className="bench-panel" aria-label="Séries temporais e diagnóstico">
-      <header className="discovery-header">
+    <section className="bench-panel" data-tour="bench-panel" aria-label="Séries temporais e diagnóstico">
+      <header className="discovery-header" data-tour="bench-discovery">
         <div className="discovery-title-row">
           <div>
             <h2>Resumo da descoberta</h2>
             <p className="discovery-subtitle">
               Período: <strong>{firstMonth ?? '—'}</strong> a <strong>{lastMonth ?? '—'}</strong>
               {regions[0] &&
-                ` · ${regions[0].period.n_observations} meses (N efetivo AR(1): ${regions[0].period.n_effective_ar1.toFixed(1)})`}
+                ` · ${regions[0].period.n_observations} meses (N efetivo AR(1): ${formatPointValue(regions[0].period.n_effective_ar1, 1)})`}
             </p>
           </div>
           <div className="bench-header-actions">
@@ -515,11 +521,11 @@ export function ScientificBench({
               </span>
               <span>
                 Correlação secular (r<sub>global</sub>):{' '}
-                <strong>{analysis.comparison_pair.multiscale_correlation.long_term_secular_r.toFixed(2)}</strong>
+                <strong>{formatSignedNumber(analysis.comparison_pair.multiscale_correlation.long_term_secular_r, 2)}</strong>
               </span>
               <span>
                 Curto prazo sem tendência (r<sub>detrended</sub>):{' '}
-                <strong>{analysis.comparison_pair.multiscale_correlation.short_term_detrended_r.toFixed(2)}</strong>
+                <strong>{formatSignedNumber(analysis.comparison_pair.multiscale_correlation.short_term_detrended_r, 2)}</strong>
               </span>
               {analysis.comparison_pair.spatial_divergence_detected && (
                 <span className="divergence-pill">Divergência espacial detectada</span>
@@ -544,7 +550,7 @@ export function ScientificBench({
         </aside>
       )}
 
-      <div className="controls-bar" aria-label="Controles do gráfico">
+      <div className="controls-bar" data-tour="bench-controls" aria-label="Controles do gráfico">
         <div className="segmented-group" role="group" aria-label="Normalização da série">
           <button
             type="button"
@@ -743,7 +749,7 @@ export function ScientificBench({
                   plot_bgcolor: '#121e30',
                   font: { color: '#e1edf8' },
                   hovermode: 'closest',
-                  margin: { l: 75, t: 28, r: 75, b: 95 },
+                  margin: { l: 48, t: 28, r: 44, b: 85 },
                   xaxis: {
                     type: 'date',
                     range: [firstDate, lastDate],
@@ -780,7 +786,7 @@ export function ScientificBench({
                   plot_bgcolor: '#121e30',
                   font: { color: '#e1edf8' },
                   hovermode: 'closest',
-                  margin: { l: 75, t: 42, r: 28, b: 85 },
+                  margin: { l: 48, t: 42, r: 20, b: 78 },
                   xaxis: { title: { text: scatterBundle.xTitle }, automargin: true },
                   yaxis: { title: { text: scatterBundle.yTitle }, automargin: true },
                   legend: { orientation: 'h', y: -0.24 },
@@ -792,7 +798,7 @@ export function ScientificBench({
       )}
 
       {showDiagnostics && (
-        <section className="diagnostic-drawer" aria-label="As 4 Respostas do Detetive e Diagnóstico Multiescala">
+        <section className="diagnostic-drawer" data-tour="bench-answers" aria-label="As 4 Respostas do Detetive e Diagnóstico Multiescala">
           <div className="diag-grid">
             <article className="diag-card">
               <h4>1. O QUE muda &amp; Regime Físico (GAM)</h4>
@@ -802,7 +808,7 @@ export function ScientificBench({
                   <strong>{region.variable_name}</strong>{' '}
                   <small>({region.variable_id} · {region.unit})</small>
                   <div className="diag-meta">
-                    Regime GAM: <b>{REGIME_LABELS[region.regression.regime_shape]}</b> · Aceleração B₂:{' '}
+                    Regime GAM: <b>{REGIME_LABELS[region.regression.regime_shape] ?? region.regression.regime_shape ?? '—'}</b> · Aceleração B₂:{' '}
                     <code>{formatSignedNumber(region.regression.quadratic_acceleration_B2, 5)}</code>
                   </div>
                 </div>
@@ -822,8 +828,8 @@ export function ScientificBench({
                     </small>
                   </div>
                   <div className="diag-meta">
-                    OLS: <b>{formatSignedNumber(region.regression.slope_per_decade_ols, 4)}</b> · A₀:{' '}
-                    <code>{region.regression.intercept_at_start_A0.toFixed(3)}</code> · Δ Modelo:{' '}
+                    OLS: <b>{formatSignedNumber(region.regression.slope_per_decade_ols, 4)} {region.trend_unit}</b> · A₀:{' '}
+                    <code>{formatPointValue(region.regression.intercept_at_start_A0)} {region.unit}</code> · Δ Modelo:{' '}
                     <b>{formatSignedNumber(region.regression.cumulative_model_change, 4)} {region.unit}</b>
                   </div>
                   {!region.allow_percentage_change && (
@@ -838,7 +844,8 @@ export function ScientificBench({
             <article className="diag-card">
               <h4>3. É SIGNIFICATIVO? (AR(1) + FDR + Acoplamento)</h4>
               {regions.map(region => {
-                const badge = CONFIDENCE_LABELS[region.significance.confidence_tier];
+                const badge =
+                  CONFIDENCE_LABELS[region.significance.confidence_tier] ?? CONFIDENCE_LABELS.INSUFFICIENT_SIGNAL;
                 return (
                   <div key={region.slot} className="diag-row">
                     <div className="badge-line">
@@ -847,7 +854,7 @@ export function ScientificBench({
                     </div>
                     <div className="diag-meta">
                       N<sub>bruto</sub> = <b>{region.period.n_observations}</b> → N<sub>efetivo</sub>(AR1) ={' '}
-                      <b>{region.period.n_effective_ar1.toFixed(1)}</b>
+                      <b>{formatPointValue(region.period.n_effective_ar1, 1)}</b>
                       <br />
                       p<sub>naive</sub> = <code>{formatPValue(region.significance.p_value_naive)}</code> · p<sub>AR1</sub> ={' '}
                       <code>{formatPValue(region.significance.p_value_ar1_corrected)}</code> · q<sub>FDR</sub> ={' '}
@@ -855,14 +862,14 @@ export function ScientificBench({
                       <br />
                       r = <b>{formatSignedNumber(region.correlation_and_coupling.pearson_r, 3)}</b> · τ ={' '}
                       <b>{formatSignedNumber(region.correlation_and_coupling.kendall_tau, 3)}</b> · R² ={' '}
-                      <b>{region.correlation_and_coupling.r_squared.toFixed(3)}</b> · Elipse ={' '}
-                      <b>{region.correlation_and_coupling.ellipse_aspect_ratio.toFixed(3)}</b>
+                      <b>{formatPointValue(region.correlation_and_coupling.r_squared, 3)}</b> · Elipse ={' '}
+                      <b>{formatPointValue(region.correlation_and_coupling.ellipse_aspect_ratio, 3)}</b>
                       <br />
                       Outliers Mahalanobis (D<sub>M</sub> &gt; 2,5): <b>{region.outliers_mahalanobis.length}</b>
                       {region.outliers_mahalanobis[0] && (
                         <>
                           {' '}— pico em <code>{region.outliers_mahalanobis[0].date}</code> (D<sub>M</sub>=
-                          {region.outliers_mahalanobis[0].mahalanobis_d.toFixed(2)})
+                          {formatPointValue(region.outliers_mahalanobis[0].mahalanobis_d, 2)})
                         </>
                       )}
                     </div>
@@ -894,7 +901,10 @@ export function ScientificBench({
                     {analysis.comparison_pair.slope_difference_per_decade !== null && (
                       <>
                         {' '}· Δ Declive (A − B) ={' '}
-                        <b>{formatSignedNumber(analysis.comparison_pair.slope_difference_per_decade, 4)}</b>
+                        <b>
+                          {formatSignedNumber(analysis.comparison_pair.slope_difference_per_decade, 4)}
+                          {regions[0]?.trend_unit ? ` ${regions[0].trend_unit}` : ''}
+                        </b>
                       </>
                     )}
                   </div>

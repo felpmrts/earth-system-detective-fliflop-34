@@ -8,15 +8,23 @@ import {
 import type { RegionSelection } from '../contracts/types';
 
 describe('benchMeta helpers', () => {
-  it('formats signed numbers with explicit + for positive slopes', () => {
+  it('formats signed numbers with explicit + for positive slopes and avoids -0.000', () => {
     expect(formatSignedNumber(0.3456)).toBe('+0.346');
     expect(formatSignedNumber(-0.028)).toBe('-0.028');
     expect(formatSignedNumber(0)).toBe('0.000');
+    expect(formatSignedNumber(-0.0002, 3)).toBe('0.000');
+    expect(formatSignedNumber(0.0002, 3)).toBe('0.000');
+    expect(formatSignedNumber(-0.000002, 5)).toBe('0.00000');
+    expect(formatSignedNumber(Number.NaN)).toBe('—');
+    expect(formatSignedNumber(Number.POSITIVE_INFINITY)).toBe('—');
   });
 
-  it('formats p-values in scientific notation below 0.0001', () => {
+  it('formats p-values in scientific notation below 0.0001 and guards invalid values', () => {
     expect(formatPValue(0.000012)).toBe('1.2e-5');
     expect(formatPValue(0.0041)).toBe('0.0041');
+    expect(formatPValue(0)).toBe('0.0000');
+    expect(formatPValue(-0.1)).toBe('—');
+    expect(formatPValue(Number.NaN)).toBe('—');
   });
 
   it('counts null and non-finite missing values', () => {
