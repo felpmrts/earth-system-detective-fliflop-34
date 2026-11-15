@@ -96,7 +96,7 @@ export default function App() {
         items: family.variables.map(variable => ({
           value: variable.code,
           label: variable.ui_name,
-          disabled: variable.connector_id !== 'nasa_power' || variable.mode !== 'realtime' || !isValidVariableId(variable.code),
+          disabled: !isValidVariableId(variable.code),
         })),
       }))))
       .catch(catalogRequestError => {
