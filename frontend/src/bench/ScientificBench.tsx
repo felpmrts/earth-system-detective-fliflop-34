@@ -10,6 +10,7 @@ import type {
   VariableStatistics,
 } from '../contracts/types';
 import { exportAnalysisAsCsv, exportAnalysisAsJson } from '../services/dataExporter';
+import { CopilotRichText } from './CopilotRichText';
 import { askStatisticalCopilot, buildClientCopilotResponse } from '../services/regionDataAdapter';
 import {
   computeMahalanobisContourAndFit,
@@ -50,6 +51,8 @@ interface ScientificBenchProps {
   readonly onTrendModeChange: (value: TrendMode) => void;
   readonly onBackToMap: () => void;
 }
+
+const COPILOT_CHIP_ICONS = ['∿', 'σ', '⇄', '⚑', '◎'] as const;
 
 function formatPointValue(val: number | null | undefined, digits = 3): string {
   return val !== null && val !== undefined && Number.isFinite(val) ? val.toFixed(digits) : '—';
@@ -289,6 +292,10 @@ export function ScientificBench({
     event.preventDefault();
     void submitCopilotQuestion(copilotQuestion);
   }
+
+  const isEn = copilotLang === 'en';
+  const copilotIsAi = copilotMeta?.mode === 'llm_gemini';
+  const copilotIsPython = copilotMeta?.mode === 'heuristic_fallback';
 
   const metricMode: MetricMode = useZScore ? 'zscore' : anomaly ? 'anomaly' : 'raw';
   const isZScore = metricMode === 'zscore';
@@ -577,10 +584,15 @@ export function ScientificBench({
             />
             <button
               type="button"
-              className={showCopilot ? 'glossary-toggle copilot-toggle-active' : 'glossary-toggle'}
+              className={
+                showCopilot
+                  ? 'glossary-toggle copilot-toggle copilot-toggle-active'
+                  : 'glossary-toggle copilot-toggle'
+              }
               aria-expanded={showCopilot}
               onClick={() => setShowCopilot(prev => !prev)}
             >
+              <span className="copilot-toggle-dot" aria-hidden="true" />
               {showCopilot ? 'Ocultar Co-Piloto IA' : 'Co-Piloto Estatístico'}
             </button>
             <button
@@ -946,6 +958,15 @@ export function ScientificBench({
                     <div className="badge-line">
                       <span className={`slot-tag slot-${region.slot.toLowerCase()}`}>Região {region.slot}</span>
                       <span className={`confidence-badge tone-${badge.tone}`}>{badge.label}</span>
+                      <span
+                        className={
+                          region.significance.is_significant_fdr05 ? 'fdr-chip fdr-pass' : 'fdr-chip fdr-fail'
+                        }
+                      >
+                        {region.significance.is_significant_fdr05
+                          ? 'q_FDR < 0,05'
+                          : 'q_FDR ≥ 0,05 · possível ruído natural'}
+                      </span>
                     </div>
                     <div className="diag-meta">
                       N<sub>bruto</sub> = <b>{region.period.n_observations}</b> → N<sub>efetivo</sub>(AR1) ={' '}
@@ -1018,19 +1039,57 @@ export function ScientificBench({
       {showCopilot && (
         <section className="copilot-drawer" aria-label="Co-Piloto Estatístico Interativo">
           <div className="copilot-header">
-            <div className="copilot-title-group">
-              <h3>{copilotLang === 'en' ? 'Statistical Co-Pilot' : 'Co-Piloto Estatístico'}</h3>
-              <span className="copilot-badge">
-                {copilotMeta?.mode === 'llm_gemini'
-                  ? `${copilotMeta.model} · Invariantes Auditados`
-                  : copilotMeta?.mode === 'heuristic_fallback'
-                    ? copilotLang === 'en'
-                      ? 'Backend Deterministic + Python Tools'
-                      : 'Motor Python + Engines Científicas'
-                    : copilotLang === 'en'
-                      ? 'Deterministic Engine · Zero Numeric Hallucination'
-                      : 'Motor Determinístico · Zero Alucinação Numérica'}
-              </span>
+            <div className="copilot-title-block">
+              <div className="copilot-title-group">
+                <span
+                  className={`copilot-status-dot ${copilotLoading ? 'is-busy' : copilotIsAi ? 'is-ai' : 'is-local'}`}
+                  aria-hidden="true"
+                />
+                <h3>{isEn ? 'Statistical Co-Pilot' : 'Co-Piloto Estatístico'}</h3>
+                <span
+                  className={`copilot-badge ${
+                    copilotIsAi ? 'copilot-badge-ai' : copilotIsPython ? 'copilot-badge-python' : 'copilot-badge-local'
+                  }`}
+                  title={copilotMeta ? `${copilotMeta.mode} · ${copilotMeta.model}` : undefined}
+                >
+                  {copilotIsAi
+                    ? isEn
+                      ? 'Generative AI + Function Calling'
+                      : 'IA Generativa + Function Calling'
+                    : copilotIsPython
+                      ? isEn
+                        ? 'Backend Deterministic + Python Tools'
+                        : 'Motor Python + Engines Científicas'
+                      : isEn
+                        ? 'Local Deterministic Engine · Zero Numeric Hallucination'
+                        : 'Motor Determinístico Local · Zero Alucinação Numérica'}
+                </span>
+              </div>
+              <div className="copilot-telemetry" role="list" aria-label={isEn ? 'Analysis context' : 'Contexto da análise'}>
+                <span role="listitem" className="copilot-telemetry-pill">
+                  {analysis.comparison_pair ? 'Local A vs B' : 'Local A'}
+                </span>
+                {regions.map(r => (
+                  <span
+                    key={r.slot}
+                    role="listitem"
+                    className={`copilot-telemetry-pill pill-${r.slot.toLowerCase()}`}
+                  >
+                    {r.slot} · {r.variable_id}
+                  </span>
+                ))}
+                <span role="listitem" className="copilot-telemetry-pill">
+                  {firstMonth ?? '—'} → {lastMonth ?? '—'}
+                </span>
+                <span role="listitem" className="copilot-telemetry-pill">
+                  {isEn ? '7 invariants audited' : '7 invariantes auditados'}
+                </span>
+                {copilotMeta && (
+                  <span role="listitem" className="copilot-telemetry-pill pill-model">
+                    {copilotMeta.model}
+                  </span>
+                )}
+              </div>
             </div>
             <div className="copilot-lang-switch" role="group" aria-label="Idioma do Co-Piloto">
               <button
@@ -1051,44 +1110,66 @@ export function ScientificBench({
               </button>
               <button
                 type="button"
+                className="copilot-clear"
                 disabled={copilotHistory.length === 0 || copilotLoading}
                 onClick={() => {
                   setCopilotHistory([]);
                   setCopilotMeta(null);
                 }}
               >
-                {copilotLang === 'en' ? 'Clear chat' : 'Limpar conversa'}
+                {isEn ? 'Clear chat' : 'Limpar conversa'}
               </button>
             </div>
           </div>
 
           <div className="copilot-synthesis-grid">
-            <article className="copilot-card">
-              <h4>{copilotLang === 'en' ? '1. Mathematical Evidence' : '1. Evidência Matemática'}</h4>
-              <p>{copilotSynthesis.synthesis.mathematical_evidence}</p>
+            <article className="copilot-card copilot-card-math">
+              <h4>
+                <span className="copilot-card-index" aria-hidden="true">
+                  01
+                </span>
+                {isEn ? 'Mathematical Evidence' : 'Evidência Matemática'}
+              </h4>
+              <CopilotRichText text={copilotSynthesis.synthesis.mathematical_evidence} />
             </article>
-            <article className="copilot-card">
-              <h4>{copilotLang === 'en' ? '2. Physical Meaning' : '2. Significado Físico'}</h4>
-              <p>{copilotSynthesis.synthesis.physical_meaning}</p>
+            <article className="copilot-card copilot-card-phys">
+              <h4>
+                <span className="copilot-card-index" aria-hidden="true">
+                  02
+                </span>
+                {isEn ? 'Physical Meaning' : 'Significado Físico'}
+              </h4>
+              <CopilotRichText text={copilotSynthesis.synthesis.physical_meaning} />
             </article>
             <article className="copilot-card copilot-card-risk">
-              <h4>{copilotLang === 'en' ? '3. Risk of False Conclusion' : '3. Risco de Falsa Conclusão'}</h4>
-              <p>{copilotSynthesis.synthesis.false_conclusion_risk}</p>
+              <h4>
+                <span className="copilot-card-index" aria-hidden="true">
+                  03
+                </span>
+                {isEn ? 'Risk of False Conclusion' : 'Risco de Falsa Conclusão'}
+              </h4>
+              <CopilotRichText text={copilotSynthesis.synthesis.false_conclusion_risk} />
             </article>
           </div>
 
-          <div className="copilot-chips" role="group" aria-label="Perguntas sugeridas ao Co-Piloto">
-            {copilotSynthesis.suggested_questions.map(suggested => (
-              <button
-                key={suggested}
-                type="button"
-                className="copilot-chip"
-                disabled={copilotLoading}
-                onClick={() => void submitCopilotQuestion(suggested)}
-              >
-                {suggested}
-              </button>
-            ))}
+          <div className="copilot-chips-block">
+            <span className="copilot-section-label">{isEn ? 'Quick investigations' : 'Investigações rápidas'}</span>
+            <div className="copilot-chips" role="group" aria-label="Perguntas sugeridas ao Co-Piloto">
+              {copilotSynthesis.suggested_questions.map((suggested, chipIdx) => (
+                <button
+                  key={suggested}
+                  type="button"
+                  className="copilot-chip"
+                  disabled={copilotLoading}
+                  onClick={() => void submitCopilotQuestion(suggested)}
+                >
+                  <span className="copilot-chip-icon" aria-hidden="true">
+                    {COPILOT_CHIP_ICONS[chipIdx % COPILOT_CHIP_ICONS.length]}
+                  </span>
+                  <span className="copilot-chip-text">{suggested}</span>
+                </button>
+              ))}
+            </div>
           </div>
 
           <div className="copilot-chat-box">
@@ -1104,23 +1185,28 @@ export function ScientificBench({
                     key={`${turn.role}-${idx}`}
                     className={`copilot-msg ${turn.role === 'user' ? 'copilot-msg-user' : 'copilot-msg-assistant'}`}
                   >
-                    <strong>
-                      {turn.role === 'user'
-                        ? copilotLang === 'en'
-                          ? 'You: '
-                          : 'Você: '
-                        : 'Co-Piloto: '}
+                    <strong className="copilot-msg-role">
+                      {turn.role === 'user' ? (isEn ? 'You: ' : 'Você: ') : 'Co-Piloto: '}
                     </strong>
-                    {turn.content}
+                    {turn.role === 'assistant' ? (
+                      <CopilotRichText text={turn.content} />
+                    ) : (
+                      <span className="copilot-msg-text">{turn.content}</span>
+                    )}
                     {turn.role === 'assistant' && turn.tools_used && turn.tools_used.length > 0 && (
                       <div className="copilot-tools-audit" aria-label="Engines científicas executadas">
+                        <span className="copilot-tools-title">{isEn ? 'Executed telemetry' : 'Telemetria executada'}</span>
                         {turn.tools_used.map((tool, tIdx) => (
                           <span
                             key={`${tool.name}-${tIdx}`}
                             className={`copilot-tool-pill copilot-tool-${tool.status}`}
                             title={`${tool.name} (${tool.duration_ms.toFixed(1)} ms)`}
                           >
-                            {tool.label} · {tool.summary} ({tool.duration_ms.toFixed(0)} ms)
+                            <span className="copilot-tool-name">{tool.name}</span>
+                            <span className="copilot-tool-label">
+                              {tool.label} · {tool.summary}
+                            </span>
+                            <span className="copilot-tool-ms">{tool.duration_ms.toFixed(0)} ms</span>
                           </span>
                         ))}
                       </div>
@@ -1134,37 +1220,43 @@ export function ScientificBench({
                       <span />
                       <span />
                     </span>
-                    <span className="copilot-thinking-text">
-                      {copilotLang === 'en'
-                        ? copilotElapsedSec < 5
-                          ? 'Reading statistical metrics and time series...'
-                          : copilotElapsedSec < 15
-                            ? 'Running scientific tools and consulting AI...'
-                            : 'Synthesizing diagnosis & validating invariants...'
-                        : copilotElapsedSec < 5
-                          ? 'Lendo séries e métricas estatísticas...'
-                          : copilotElapsedSec < 15
-                            ? 'Executando ferramentas científicas e consultando a IA...'
-                            : 'Refinando diagnóstico e validando invariantes...'}
+                    <span className="copilot-thinking-body">
+                      <span className="copilot-thinking-text">
+                        {isEn
+                          ? copilotElapsedSec < 5
+                            ? 'Reading statistical metrics and time series...'
+                            : copilotElapsedSec < 15
+                              ? 'Running scientific tools and consulting AI...'
+                              : 'Synthesizing diagnosis & validating invariants...'
+                          : copilotElapsedSec < 5
+                            ? 'Lendo séries e métricas estatísticas...'
+                            : copilotElapsedSec < 15
+                              ? 'Executando ferramentas científicas e consultando a IA...'
+                              : 'Refinando diagnóstico e validando invariantes...'}
+                      </span>
+                      <span className="copilot-scan" aria-hidden="true" />
                     </span>
-                    <span className="copilot-thinking-elapsed">{copilotElapsedSec}s</span>
+                    <span className="copilot-thinking-elapsed">T+{copilotElapsedSec}s</span>
                   </div>
                 )}
               </div>
             )}
 
             <form className="copilot-form" onSubmit={handleCopilotFormSubmit}>
+              <span className="copilot-prompt-glyph" aria-hidden="true">
+                ›_
+              </span>
               <input
                 type="text"
                 className="copilot-input"
                 value={copilotQuestion}
                 onChange={e => setCopilotQuestion(e.target.value)}
                 placeholder={
-                  copilotLang === 'en'
+                  isEn
                     ? 'Ask about trends, AR(1) significance, Mahalanobis extremes, or A vs B...'
                     : 'Pergunte sobre tendências, AR(1), extremos de Mahalanobis ou comparação A × B...'
                 }
-                aria-label={copilotLang === 'en' ? 'Ask the Statistical Co-Pilot' : 'Pergunte ao Co-Piloto Estatístico'}
+                aria-label={isEn ? 'Ask the Statistical Co-Pilot' : 'Pergunte ao Co-Piloto Estatístico'}
                 disabled={copilotLoading}
               />
               <button
@@ -1172,13 +1264,7 @@ export function ScientificBench({
                 className="copilot-submit"
                 disabled={copilotLoading || !copilotQuestion.trim()}
               >
-                {copilotLoading
-                  ? copilotLang === 'en'
-                    ? 'Thinking...'
-                    : 'Pensando...'
-                  : copilotLang === 'en'
-                    ? 'Ask'
-                    : 'Perguntar'}
+                {copilotLoading ? (isEn ? 'Thinking...' : 'Pensando...') : isEn ? 'Ask' : 'Perguntar'}
               </button>
             </form>
           </div>
