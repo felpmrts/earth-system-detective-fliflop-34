@@ -1,6 +1,7 @@
 import { isValidVariableId } from '../contracts/catalog';
 import type { RegionSelection } from '../contracts/types';
 import type { TrendMode } from '../bench/benchMeta';
+import { MAX_CELLS_PER_REGION } from '../geo/gridGeometry';
 
 export interface PersistedSession {
   readonly variableA: string;
@@ -44,7 +45,7 @@ function isValidRegion(value: unknown, expectedSlot: 'A' | 'B'): value is Region
     isValidVariableId(candidate.variable_id) &&
     Array.isArray(candidate.cells) &&
     candidate.cells.length > 0 &&
-    candidate.cells.length <= 9
+    candidate.cells.length <= MAX_CELLS_PER_REGION
   );
 }
 

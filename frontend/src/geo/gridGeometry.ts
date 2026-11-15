@@ -10,7 +10,7 @@ import type {
   VariableId,
 } from '../contracts/types.ts';
 
-export const MAX_CELLS_PER_REGION = 9;
+export const MAX_CELLS_PER_REGION = 25;
 
 export interface CellToggleResult {
   readonly ok: boolean;

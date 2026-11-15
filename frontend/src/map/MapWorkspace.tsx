@@ -6,6 +6,7 @@ import { getVariableMetadata } from '../contracts/catalog';
 import {
   buildRegionSelection,
   clampLatLon,
+  MAX_CELLS_PER_REGION,
   mirrorRegionSelection,
   selectCellsInBoundingBox,
   snapCoordToCell,
@@ -31,7 +32,7 @@ interface MapWorkspaceProps {
 }
 
 const selectionErrorMessages = {
-  MAX_CELLS_EXCEEDED: 'Cada região aceita até nove células.',
+  MAX_CELLS_EXCEEDED: `Cada região aceita até ${MAX_CELLS_PER_REGION} células.`,
   NOT_ADJACENT: 'A nova célula precisa tocar a região atual.',
   WOULD_DISCONNECT: 'Essa célula conecta partes da região e não pode ser removida agora.',
 } as const;
@@ -399,8 +400,8 @@ export function MapWorkspace({
         : '.';
       setNotice(
         current.sameLocation
-          ? `Mesmo Local (A=B): ${boxResult.cells.length}/9 célula(s) em A espelhadas em B${clampNote}`
-          : `Região ${finished.slot}: ${boxResult.cells.length}/9 célula(s) selecionada(s)${clampNote}`,
+          ? `Mesmo Local (A=B): ${boxResult.cells.length}/${MAX_CELLS_PER_REGION} célula(s) em A espelhadas em B${clampNote}`
+          : `Região ${finished.slot}: ${boxResult.cells.length}/${MAX_CELLS_PER_REGION} célula(s) selecionada(s)${clampNote}`,
       );
       setNoticeKind(boxResult.wasClamped ? 'info' : 'success');
     };
@@ -598,7 +599,7 @@ export function MapWorkspace({
               disabled={!variableA}
               onClick={() => setActiveSlot('A')}
             >
-              Selecionar A <span>{regionA?.cells.length ?? 0}/9</span>
+              Selecionar A <span>{regionA?.cells.length ?? 0}/{MAX_CELLS_PER_REGION}</span>
             </button>
             <button
               type="button"
@@ -606,7 +607,7 @@ export function MapWorkspace({
               disabled={!variableB || sameLocation}
               onClick={() => setActiveSlot('B')}
             >
-              Selecionar B <span>{regionB?.cells.length ?? 0}/9</span>
+              Selecionar B <span>{regionB?.cells.length ?? 0}/{MAX_CELLS_PER_REGION}</span>
             </button>
           </div>
           <button
@@ -623,7 +624,7 @@ export function MapWorkspace({
             className={`drag-select-toggle${dragSelectMode ? ' active' : ''}`}
             aria-pressed={dragSelectMode}
             disabled={!variableA && !variableB}
-            title="Arraste para selecionar até 9 células (atalho: Shift + Arrastar)"
+            title={`Arraste para selecionar até ${MAX_CELLS_PER_REGION} células (atalho: Shift + Arrastar)`}
             onClick={() => {
               setDragSelectMode(prev => {
                 const next = !prev;
@@ -662,7 +663,7 @@ export function MapWorkspace({
         {dragPreview && (
           <div className={`box-select-badge slot-${dragPreview.slot.toLowerCase()}`} aria-live="polite">
             <span>Local {dragPreview.slot} · </span>
-            <strong>{dragPreview.count}/9 células</strong>
+            <strong>{dragPreview.count}/{MAX_CELLS_PER_REGION} células</strong>
             {dragPreview.wasClamped && <small> (máx. 9)</small>}
           </div>
         )}
@@ -671,7 +672,7 @@ export function MapWorkspace({
           <span><i className="legend-swatch legend-a" aria-hidden="true">A</i> Região A (contorno sólido)</span>
           <span><i className="legend-swatch legend-b" aria-hidden="true">B</i> Região B (contorno tracejado)</span>
           <small>Grade ativa: {activeVariable ? `${getVariableMetadata(activeVariable).resolution.dLat}° × ${getVariableMetadata(activeVariable).resolution.dLon}°` : '—'}</small>
-          <small>Até 9 células conectadas</small>
+          <small>Até {MAX_CELLS_PER_REGION} células conectadas</small>
         </aside>
       </div>
       <div className="map-status" role="status" aria-live="polite">
