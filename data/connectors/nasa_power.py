@@ -44,6 +44,11 @@ def _parse_power_parameter_series(
             continue
         if variable == "PRECTOTCORR" and reported_unit == "mm/day":
             val *= calendar.monthrange(year, month)[1]
+        elif (
+            variable in {"ALLSKY_SFC_SW_DWN", "CLRSKY_SFC_SW_DWN", "ALLSKY_SFC_LW_DWN"}
+            and reported_unit == "W/m^2"
+        ):
+            val *= 0.0864
         cleaned[f"{year:04d}-{month:02d}"] = round(val, 4)
     return cleaned
 

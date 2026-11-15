@@ -27,6 +27,7 @@ import {
   shouldUseOfflineBasemapByDefault,
   TRANSPARENT_TILE_DATA_URI,
 } from './offlineBasemap';
+import { classifyExperimentArchetype, type StoryPreset } from '../story/storyPresets';
 
 interface MapWorkspaceProps {
   readonly variableA: VariableId | null;
@@ -38,6 +39,12 @@ interface MapWorkspaceProps {
   readonly regionB: RegionSelection | null;
   readonly onRegionAChange: (region: RegionSelection | null) => void;
   readonly onRegionBChange: (region: RegionSelection | null) => void;
+  readonly sameLocation?: boolean;
+  readonly onSameLocationChange?: (sameLocation: boolean) => void;
+  readonly activePreset?: StoryPreset | null;
+  readonly onClearPreset?: () => void;
+  readonly onOpenStory?: () => void;
+  readonly focusKey?: number;
   readonly isAnalyzing: boolean;
   readonly analysisError: string;
   readonly onAnalyze: () => void | Promise<void>;
@@ -114,6 +121,12 @@ export function MapWorkspace({
   regionB,
   onRegionAChange,
   onRegionBChange,
+  sameLocation: sameLocationProp,
+  onSameLocationChange,
+  activePreset = null,
+  onClearPreset,
+  onOpenStory,
+  focusKey = 0,
   isAnalyzing,
   analysisError,
   onAnalyze,
@@ -143,7 +156,15 @@ export function MapWorkspace({
   });
   const callbacksRef = useRef({ onRegionAChange, onRegionBChange });
   const [activeSlot, setActiveSlot] = useState<RegionSlot>('A');
-  const [sameLocation, setSameLocation] = useState(false);
+  const [internalSameLocation, setInternalSameLocation] = useState(false);
+  const sameLocation = sameLocationProp ?? internalSameLocation;
+  const updateSameLocation = (next: boolean) => {
+    if (onSameLocationChange) {
+      onSameLocationChange(next);
+    } else {
+      setInternalSameLocation(next);
+    }
+  };
   const [dragSelectMode, setDragSelectMode] = useState(false);
   const [blockSelectMode, setBlockSelectMode] = useState(false);
   const [dragPreview, setDragPreview] = useState<{
@@ -690,7 +711,7 @@ export function MapWorkspace({
   useEffect(() => {
     if (!sameLocation) return;
     if (!variableA || !variableB) {
-      setSameLocation(false);
+      updateSameLocation(false);
       return;
     }
     if (activeSlot !== 'A') setActiveSlot('A');
@@ -801,7 +822,27 @@ export function MapWorkspace({
     }
   }, [loadedGrid, showGlobalGrid, significantOnly]);
 
+  useEffect(() => {
+    if (focusKey === 0 && !activePreset) return;
+    const cells = [regionA, regionB].flatMap(region => region?.cells ?? []);
+    if (!mapRef.current || cells.length === 0) return;
+    const bounds = L.latLngBounds(
+      cells.flatMap(cell => [
+        [cell.bounds_leaflet[0][0], cell.bounds_leaflet[0][1]] as [number, number],
+        [cell.bounds_leaflet[1][0], cell.bounds_leaflet[1][1]] as [number, number],
+      ]),
+    );
+    mapRef.current.fitBounds(bounds.pad(0.38), { maxZoom: 6, animate: true });
+  }, [focusKey]);
+
   const readyToAnalyze = periodReady && Boolean(regionA && regionB);
+  const archetype = classifyExperimentArchetype({
+    variableA: variableA ?? '',
+    variableB: variableB ?? '',
+    regionA,
+    regionB,
+    sameLocation,
+  });
   const metadataA = variableA ? getVariableMetadata(variableA) : null;
   const metadataB = variableB ? getVariableMetadata(variableB) : null;
   const activeLegend = loadedGrid && showGlobalGrid ? buildMapLegendConfig(loadedGrid.grid.variable_id) : null;
@@ -928,26 +969,47 @@ export function MapWorkspace({
   };
 
   function handleToggleSameLocation() {
-    setSameLocation(prev => {
-      const next = !prev;
-      if (next) {
-        setActiveSlot('A');
-        setNotice(
-          regionA
-            ? 'Modo Mesmo Local (A=B) ativo: B espelhada na grade de referência.'
-            : 'Modo Mesmo Local (A=B) ativo: marque células em A para espelhar em B.',
-        );
-        setNoticeKind('info');
-      } else {
-        setNotice('Modo A=B desativado: edite Local A (azul) e Local B (laranja) separadamente.');
-        setNoticeKind('info');
-      }
-      return next;
-    });
+    const next = !sameLocation;
+    updateSameLocation(next);
+    if (next) {
+      setActiveSlot('A');
+      setNotice(
+        regionA
+          ? 'Modo Mesmo Local (A=B) ativo: B espelhada na grade de referência.'
+          : 'Modo Mesmo Local (A=B) ativo: marque células em A para espelhar em B.',
+      );
+      setNoticeKind('info');
+    } else {
+      setNotice('Modo A=B desativado: edite Local A (azul) e Local B (laranja) separadamente.');
+      setNoticeKind('info');
+    }
   }
 
   return (
     <section className="map-workspace" data-tour="map-workspace" aria-label="Seleção espacial">
+      {activePreset && (
+        <div className="case-briefing-bar" role="region" aria-label="Briefing do caso selecionado">
+          <div className="case-briefing-copy">
+            <span className="case-briefing-tag">
+              {activePreset.archetypeLabel} · <code>{activePreset.formula}</code>
+            </span>
+            <strong>{activePreset.title}</strong>
+            <p>{activePreset.question}</p>
+          </div>
+          <div className="case-briefing-actions">
+            {onOpenStory && (
+              <button type="button" className="briefing-btn-secondary" onClick={onOpenStory}>
+                ← Ver outros casos
+              </button>
+            )}
+            {onClearPreset && (
+              <button type="button" className="briefing-btn-secondary" onClick={onClearPreset}>
+                Liberar para Modo Livre
+              </button>
+            )}
+          </div>
+        </div>
+      )}
       <div className="map-toolbar">
         <div className="map-toolbar-group">
           <div className="map-selection-group" data-tour="map-selection-tools">
@@ -1067,6 +1129,10 @@ export function MapWorkspace({
         <div className="summary-region summary-a"><b>A</b><span><strong>{metadataA?.variable_name ?? 'Variável pendente'}</strong><small>{regionA?.cells.length ?? 0} célula(s) · {metadataA?.source_model ?? '—'}</small></span></div>
         <div className="summary-region summary-b"><b>B</b><span><strong>{metadataB?.variable_name ?? 'Variável pendente'}</strong><small>{regionB?.cells.length ?? 0} célula(s) · {metadataB?.source_model ?? '—'}</small></span></div>
         <div className="summary-period"><span>Período</span><strong>{formatMonth(startMonth)} — {formatMonth(endMonth)}</strong></div>
+        <div className="summary-archetype" title={archetype.summary}>
+          <span>{archetype.formula}</span>
+          <strong>{archetype.label}</strong>
+        </div>
       </div>
       {isAnalyzing && <div className="analysis-progress" role="status" aria-live="polite">
         <div><strong>Consultando duas regiões ({fullSourcesLabel})</strong><span>{elapsedSeconds}s</span></div>
@@ -1161,7 +1227,7 @@ export function MapWorkspace({
             <button type="button" disabled={!historyDepth} onClick={undoLastSelection}>Desfazer</button>
             <button type="button" disabled={!regionA && !regionB} onClick={clearAll}>Limpar tudo</button>
             {regionA && <button type="button" className="compact-clear" aria-label="Limpar região A" onClick={() => clearRegion('A')}>× A</button>}
-            {regionB && <button type="button" className="compact-clear" aria-label="Limpar região B" onClick={() => { if (sameLocation) setSameLocation(false); clearRegion('B'); }}>× B</button>}
+            {regionB && <button type="button" className="compact-clear" aria-label="Limpar região B" onClick={() => { if (sameLocation) updateSameLocation(false); clearRegion('B'); }}>× B</button>}
           </div>
         </div>
       </div>

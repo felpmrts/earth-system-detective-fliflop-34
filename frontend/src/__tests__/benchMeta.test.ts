@@ -1,10 +1,12 @@
 import { describe, expect, it } from 'vitest';
 import {
+  computeMahalanobisContourAndFit,
   countMissingValues,
   formatPValue,
   formatSignedNumber,
   summarizeRegionCoords,
 } from '../bench/benchMeta';
+import { VARIABLE_CATALOG } from '../contracts/catalog';
 import type { RegionSelection } from '../contracts/types';
 
 describe('benchMeta helpers', () => {
@@ -69,5 +71,19 @@ describe('benchMeta helpers', () => {
 
     expect(summarizeRegionCoords(region)).toBe('2 células · centro (-18.75°, -48.00°)');
     expect(summarizeRegionCoords(null)).toBe('Região não informada');
+  });
+
+  it('computes consistent robust Mahalanobis bivariate distances and clearsky radiation unit (M1 & C6)', () => {
+    const core = Array.from({ length: 30 }, (_, i) => ({
+      x: (i - 15) * 0.1,
+      y: (i - 15) * 0.1 + ((i % 3) - 1) * 0.05,
+    }));
+    const withOutlier = [...core, { x: 0.0, y: 12.0 }];
+    const geom = computeMahalanobisContourAndFit(withOutlier, 2.5);
+    expect(geom).not.toBeNull();
+    expect(geom!.outlierIndices).toEqual([30]);
+    expect(geom!.distances[30]).toBeGreaterThan(2.5);
+    expect(geom!.distances[0]).toBeLessThan(2.5);
+    expect(VARIABLE_CATALOG.CLRSKY_SFC_SW_DWN.unit).toBe('MJ/m²/dia');
   });
 });

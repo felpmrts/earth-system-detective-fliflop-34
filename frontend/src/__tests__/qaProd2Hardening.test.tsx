@@ -119,8 +119,9 @@ describe('PROD-2 QA Hardening (AUD-02, AUD-03, AUD-05, AUD-10, AUD-13, AUD-15)',
     const validRegionA = buildRegionSelection('A', 'GWETTOP', [validCell]);
 
     localStorage.setItem(
-      'flipflop34:session:v1',
+      'flipflop34:session:v2',
       JSON.stringify({
+        tab: 'map',
         variableA: 'GWETTOP',
         variableB: 'T2M_MAX',
         startMonth: '2020-99',
@@ -235,8 +236,9 @@ describe('PROD-2 QA Hardening (AUD-02, AUD-03, AUD-05, AUD-10, AUD-13, AUD-15)',
   it('AUD-02: aborta requisição em voo ao alterar seleção e ignora resposta tardia obsoleta', async () => {
     saveTutorialOutcome('completed', 'scientific-bench');
     localStorage.setItem(
-      'flipflop34:session:v1',
+      'flipflop34:session:v2',
       JSON.stringify({
+        tab: 'map',
         variableA: 'GWETTOP',
         variableB: 'T2M_MAX',
         startMonth: '2015-01',
@@ -284,6 +286,7 @@ describe('PROD-2 QA Hardening (AUD-02, AUD-03, AUD-05, AUD-10, AUD-13, AUD-15)',
       </MantineProvider>,
     );
 
+    fireEvent.click(screen.getByRole('button', { name: 'Mapa' }));
     fireEvent.click(screen.getByTestId('toggle-same-local'));
     expect(screen.getByTestId('toggle-same-local').textContent).toBe('A=B ativo');
 

@@ -25,7 +25,7 @@ async function seedSessionAndRoutes(
   await page.addInitScript(
     ({ variableA, variableB, startMonth, endMonth, shouldMarkTutorialSeen }) => {
       localStorage.setItem(
-        'flipflop34:session:v1',
+        'flipflop34:session:v2',
         JSON.stringify({
           variableA: variableA ?? 'GWETTOP',
           variableB: variableB ?? 'T2M_MAX',
@@ -108,7 +108,7 @@ test.describe('Earth System Trend Detective — Suite E2E (vite preview)', () =>
     });
 
     await page.goto('/');
-    await expect(page.getByRole('heading', { name: 'Project Flipflop 34' })).toBeVisible();
+    await expect(page.getByRole('heading', { name: 'Flipflop 34' })).toBeVisible();
 
     const overflow = await page.evaluate(() => ({
       scrollWidth: document.documentElement.scrollWidth,
@@ -223,7 +223,9 @@ test.describe('Earth System Trend Detective — Suite E2E (vite preview)', () =>
     const parsedJson = JSON.parse(fs.readFileSync(jsonPath!, 'utf-8')) as { schema_version?: string };
     expect(parsedJson.schema_version).toBe('1.0.0');
 
-    // AUD-11 / AUD-13: cards de diagnóstico sem estouro horizontal e exibindo unidades
+    // AUD-11 / AUD-13: expande as 4 Respostas via barra de seções e verifica cards sem estouro horizontal e exibindo unidades
+    await page.getByTestId('bench-section-pill-diagnostic').click();
+    await expect(page.locator('.diagnostic-drawer .diag-grid')).toBeVisible();
     const diagOverflow = await page.evaluate(() => {
       const cards = Array.from(document.querySelectorAll<HTMLElement>('.diag-card'));
       return cards.some(card => card.scrollWidth > card.clientWidth + 1);
@@ -364,6 +366,7 @@ test.describe('Earth System Trend Detective — Suite E2E (vite preview)', () =>
       return page.evaluate(
         ({ x, y }) => {
           const hit = document.elementFromPoint(x, y);
+          if (hit?.closest('.tutorial-overlay-root [role="dialog"]')) return 'tutorial-dialog';
           return hit ? `${hit.tagName.toLowerCase()}.${typeof hit.className === 'string' ? hit.className : hit.getAttribute('class') ?? ''}` : null;
         },
         { x: box!.x + box!.width * rx, y: box!.y + box!.height * ry },
@@ -382,18 +385,19 @@ test.describe('Earth System Trend Detective — Suite E2E (vite preview)', () =>
     await expect(dialog.locator('.tutorial-step-counter')).toHaveText('3 / 8');
     await expect(page.locator('.tutorial-spotlight')).toHaveCount(2);
 
+    expect(await hitTagAndClass(page.locator('[data-tour="map-legend"]'))).not.toContain('leaflet');
     const sigOnlyBtn = page.getByRole('button', { name: 'Só q < 0,05' });
     await sigOnlyBtn.click();
     await expect(sigOnlyBtn).toHaveAttribute('aria-pressed', 'true');
     expect(await hitTagAndClass(page.getByRole('button', { name: 'Mesmo Local (A=B)' }))).toContain('tutorial-scrim-path');
     expect(await hitTagAndClass(page.getByRole('button', { name: 'Extremo +' }))).toContain('tutorial-scrim-path');
-    expect(await hitTagAndClass(page.locator('.map-container'), 0.25, 0.25)).toContain('tutorial-scrim-path');
+    expect(await hitTagAndClass(page.locator('.map-container'), 0.5, 0.15)).toMatch(/tutorial-scrim-path|tutorial-dialog/);
 
     // Avança para Missão 3/7 (Hotspots) -> apenas Extremo + / Extremo - liberados
     await dialog.getByRole('button', { name: 'Próximo' }).click();
     await expect(dialog.locator('.tutorial-step-counter')).toHaveText('4 / 8');
     await expect(page.locator('.tutorial-spotlight')).toHaveCount(1);
-    expect(await hitTagAndClass(page.locator('.map-container'), 0.25, 0.25)).toContain('tutorial-scrim-path');
+    expect(await hitTagAndClass(page.locator('.map-container'), 0.5, 0.15)).toMatch(/tutorial-scrim-path|tutorial-dialog/);
     expect(await hitTagAndClass(page.getByRole('button', { name: 'Mesmo Local (A=B)' }))).toContain('tutorial-scrim-path');
 
     const expectCardDoesNotOverlap = async (selector: string) => {
@@ -461,7 +465,7 @@ test.describe('Earth System Trend Detective — Suite E2E (vite preview)', () =>
 
     // Recarrega e confirma que não abre mais sozinho
     await page.reload();
-    await expect(page.getByRole('heading', { name: 'Project Flipflop 34' })).toBeVisible();
+    await expect(page.getByRole('heading', { name: 'Flipflop 34' })).toBeVisible();
     await expect(page.getByRole('dialog')).toHaveCount(0);
 
     // Reabre manualmente pelo botão '?'
@@ -539,7 +543,8 @@ test.describe('Earth System Trend Detective — Suite E2E (vite preview)', () =>
     await page.getByRole('button', { name: 'Analisar seleção' }).click();
     await expect(page.getByRole('heading', { name: 'Resumo da descoberta' })).toBeVisible();
 
-    // Reabre o tutorial pelo botão '?' com uma análise anterior já carregada
+    // Volta ao Mapa e reabre o tutorial pelo botão '?' com uma análise anterior já carregada
+    await page.getByRole('button', { name: 'Mapa' }).click();
     await page.getByRole('button', { name: 'Tutorial interativo (?)' }).click();
     const dialog = page.getByRole('dialog');
     await expect(dialog).toBeVisible();

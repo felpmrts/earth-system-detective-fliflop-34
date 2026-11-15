@@ -136,13 +136,17 @@ describe('Tutorial Interativo — Estado, Roteiro e Integração com App', () =>
     expect(withAnalysis.selectors).toContain('[data-tour="bench-panel"]');
   });
 
-  it('abre automaticamente na primeira visita, percorre até o fim e não reabre após recarregar', async () => {
+  it('abre automaticamente na primeira visita ao mapa, percorre até o fim e não reabre após recarregar', async () => {
     render(
       <MantineProvider>
         <App />
       </MantineProvider>,
     );
 
+    expect(screen.queryByRole('dialog')).toBeNull();
+    expect(screen.queryByRole('button', { name: /Tutorial interativo/i })).toBeNull();
+    fireEvent.click(screen.getByRole('button', { name: 'Mapa' }));
+    expect(screen.getByRole('button', { name: /Tutorial interativo/i })).toBeTruthy();
     const dialog = await screen.findByRole('dialog');
     expect(dialog).toBeTruthy();
     expect(screen.getByText('Bem-vindo ao Earth System Trend Detective')).toBeTruthy();
@@ -298,6 +302,8 @@ describe('Tutorial Interativo — Estado, Roteiro e Integração com App', () =>
         <App />
       </MantineProvider>,
     );
+
+    fireEvent.click(screen.getByRole('button', { name: 'Mapa' }));
 
     // Fecha o tutorial inicial para recolher a barra lateral manualmente primeiro
     fireEvent.click(screen.getByRole('button', { name: 'Pular tutorial' }));

@@ -1,0 +1,61 @@
+"""Backend package for Earth System Trend Detective (NASA Space Apps 2026)."""
+
+from .copilot_engine import (
+    COPILOT_SYSTEM_PROMPT_EN,
+    COPILOT_SYSTEM_PROMPT_PT,
+    build_copilot_prompt,
+    generate_copilot_response,
+    generate_heuristic_synthesis,
+    sanitize_interval_scale_percentages,
+)
+from .copilot_tools import (
+    execute_copilot_tool,
+    get_gemini_tool_declarations,
+)
+from .stats_engine import (
+     SemanticContractError,
+    VARIABLE_CATALOG,
+    aggregate_cells_nanmean,
+    analyze_region_series,
+    analyze_request,
+    apply_spatial_fdr_bh,
+    build_global_grid_payload,
+    clean_nasa_power_monthly,
+    compare_regions,
+    compute_climatological_anomalies,
+    compute_correlation_and_coupling,
+    compute_gam_and_regime,
+    compute_ols_regression,
+    compute_significance_ar1,
+    compute_theil_sen_regression,
+    detect_mahalanobis_outliers,
+    get_intersecting_date_bounds,
+)
+
+__all__ = [
+    "COPILOT_SYSTEM_PROMPT_EN",
+    "COPILOT_SYSTEM_PROMPT_PT",
+    "execute_copilot_tool",
+    "get_gemini_tool_declarations",
+    "SemanticContractError",
+    "VARIABLE_CATALOG",
+    "aggregate_cells_nanmean",
+    "analyze_region_series",
+    "analyze_request",
+    "apply_spatial_fdr_bh",
+    "build_copilot_prompt",
+    "build_global_grid_payload",
+    "clean_nasa_power_monthly",
+    "compare_regions",
+    "compute_climatological_anomalies",
+    "compute_correlation_and_coupling",
+    "compute_gam_and_regime",
+    "compute_ols_regression",
+    "compute_significance_ar1",
+    "compute_theil_sen_regression",
+    "detect_mahalanobis_outliers",
+    "generate_copilot_response",
+    "generate_heuristic_synthesis",
+    "get_intersecting_date_bounds",
+    "sanitize_interval_scale_percentages",
+]

@@ -1,21 +1,13 @@
-# Credenciais e segredos locais (nunca commitar)
-.env
-**/.env
-!.env.example
-!**/.env.example
-
-# Ambientes e caches Python / dados temporários
 .venv/
+venv/
 __pycache__/
-*.pyc
-data/cache/storage/
-
-# Dependências e builds Node / Vite
+*.py[cod]
+*$py.class
+.pytest_cache/
+.coverage
 node_modules/
-**/node_modules/
 dist/
-**/dist/
-.vite/
-**/.vite/
-
-
+.DS_Store
+.env
+data/.env
+data/cache/storage/

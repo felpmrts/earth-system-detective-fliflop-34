@@ -20,7 +20,7 @@
 
 Implementar um tutorial guiado nativo em React/CSS (100% offline, sem bibliotecas externas) no formato de missões tático-científicas de jogo 2D, cobrindo o fluxo completo da aplicação em **8 etapas** (`BRIEFING INICIAL` + `MISSÃO 1 / 7` a `MISSÃO 7 / 7`):
 
-1. **Recepção única na primeira entrada:** abre automaticamente apenas quando `shouldAutoOpenTutorial()` retorna `true` (nenhum registro válido em `localStorage`).
+1. **Recepção única na primeira entrada no mapa livre:** a página Início continua sendo a entrada padrão. O tutorial abre ao acessar a aba `Mapa` sem um caso ativo e sem um registro válido em `localStorage`.
 2. **Reabertura sob demanda (`?`):** botão permanente **`Tutorial interativo (?)`** (`.tutorial-trigger`) no cabeçalho `.brand-header`, separado do botão contextual `Ajuda científica (?)` interno da Bancada Científica.
 3. **Foco e edição estritos por etapa:** em cada missão, apenas os seletores explicados naquela etapa recebem recorte iluminado e interação/edição ao vivo; controles ainda não explicados permanecem escurecidos e bloqueados atrás do scrim SVG.
 
