@@ -11,8 +11,13 @@ import {
   snapCoordToCell,
   toggleCellInSelection,
 } from '../geo/gridGeometry';
-import { getGlobalGrid, GlobalGridLoadError } from '../services/regionDataAdapter';
+import { getConfiguredDataMode, getGlobalGrid, GlobalGridLoadError } from '../services/regionDataAdapter';
 import { getGlobalPointStyle, getSelectedCellStyle } from './mapStyles';
+import {
+  createOfflineCartographicLayer,
+  shouldUseOfflineBasemapByDefault,
+  TRANSPARENT_TILE_DATA_URI,
+} from './offlineBasemap';
 
 interface MapWorkspaceProps {
   readonly variableA: VariableId | null;
@@ -85,6 +90,7 @@ export function MapWorkspace({
   const [elapsedSeconds, setElapsedSeconds] = useState(0);
   const [historyDepth, setHistoryDepth] = useState(0);
   const [gridNotice, setGridNotice] = useState('');
+  const [offlineTileNotice, setOfflineTileNotice] = useState('');
 
   stateRef.current = { variableA, variableB, regionA, regionB, periodReady, sameLocation, dragSelectMode };
   callbacksRef.current = { onRegionAChange, onRegionBChange };
@@ -126,20 +132,72 @@ export function MapWorkspace({
     });
     L.control.zoom({ position: 'topright' }).addTo(map);
 
+    // Camada vetorial local permanente abaixo dos tiles externos: garante mapa interativo mesmo offline.
+    const offlineBasePane = map.createPane('offlineBasePane');
+    offlineBasePane.style.zIndex = '150';
+    offlineBasePane.style.pointerEvents = 'none';
+    createOfflineCartographicLayer(L, 'offlineBasePane').addTo(map);
+
+    const tileOptionsBase = {
+      errorTileUrl: TRANSPARENT_TILE_DATA_URI,
+      crossOrigin: 'anonymous' as const,
+    };
+
     const nasaGibs = L.tileLayer(
       'https://gibs.earthdata.nasa.gov/wmts/epsg3857/best/BlueMarble_ShadedRelief_Bathymetry/default/GoogleMapsCompatible_Level8/{z}/{y}/{x}.jpeg',
-      { attribution: 'NASA Earthdata / GIBS — Blue Marble', maxNativeZoom: 8, maxZoom: 10 },
-    ).addTo(map);
+      {
+        ...tileOptionsBase,
+        attribution: 'NASA Earthdata / GIBS — Blue Marble',
+        maxNativeZoom: 8,
+        maxZoom: 10,
+      },
+    );
     const osm = L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
+      ...tileOptionsBase,
       attribution: '© OpenStreetMap contributors',
       maxZoom: 19,
     });
     const relief = L.tileLayer('https://{s}.tile.opentopomap.org/{z}/{x}/{y}.png', {
+      ...tileOptionsBase,
       attribution: '© OpenTopoMap (CC-BY-SA) · SRTM',
       maxZoom: 17,
     });
+    const offlineCartographyMode = L.layerGroup();
+
+    let tileFailures = 0;
+    const handleTileError = (event: L.TileErrorEvent) => {
+      if (event.tile) {
+        event.tile.style.visibility = 'hidden';
+      }
+      tileFailures += 1;
+      if (tileFailures >= 2) {
+        setOfflineTileNotice('Tiles externos indisponíveis (modo offline): cartografia vetorial local ativa.');
+      }
+    };
+    const handleTileLoad = () => {
+      tileFailures = 0;
+      setOfflineTileNotice('');
+    };
+    for (const tileLayer of [nasaGibs, osm, relief]) {
+      tileLayer.on('tileerror', handleTileError);
+      tileLayer.on('tileload', handleTileLoad);
+    }
+
+    const isNavigatorOnline = typeof navigator !== 'undefined' ? navigator.onLine !== false : true;
+    if (shouldUseOfflineBasemapByDefault(getConfiguredDataMode(), isNavigatorOnline)) {
+      offlineCartographyMode.addTo(map);
+      setOfflineTileNotice('Cartografia vetorial local ativa (modo offline).');
+    } else {
+      nasaGibs.addTo(map);
+    }
+
     const layersControl = L.control.layers(
-      { 'Satélite NASA': nasaGibs, 'Mapa de ruas': osm, 'Relevo': relief },
+      {
+        'Satélite NASA': nasaGibs,
+        'Mapa de ruas': osm,
+        'Relevo': relief,
+        'Cartografia Local (Offline)': offlineCartographyMode,
+      },
       undefined,
       { position: 'topright', collapsed: true },
     ).addTo(map);
@@ -148,6 +206,7 @@ export function MapWorkspace({
       'Satélite NASA': 'NASA Earthdata GIBS — Blue Marble Shaded Relief (Level 8)',
       'Mapa de ruas': 'OpenStreetMap — Cartografia vetorial padrão',
       'Relevo': 'OpenTopoMap — Curvas de nível e sombreamento topográfico (SRTM)',
+      'Cartografia Local (Offline)': 'Contornos continentais e retículo 100% locais (funciona sem internet)',
     };
     const controlEl = layersControl.getContainer();
     if (controlEl) {
@@ -413,10 +472,20 @@ export function MapWorkspace({
       }
     };
 
+    const onBrowserOffline = () => {
+      setOfflineTileNotice('Sem conexão: operando com cartografia vetorial local e dados em cache/offline.');
+    };
+    const onBrowserOnline = () => {
+      tileFailures = 0;
+      setOfflineTileNotice('');
+    };
+
     mapContainer.addEventListener('mousedown', onMouseDown, { capture: true });
     window.addEventListener('mousemove', onWindowMouseMove);
     window.addEventListener('mouseup', onWindowMouseUp);
     window.addEventListener('keydown', onWindowKeyDown);
+    window.addEventListener('offline', onBrowserOffline);
+    window.addEventListener('online', onBrowserOnline);
 
     const resizeObserver = new ResizeObserver(() => map.invalidateSize());
     resizeObserver.observe(containerRef.current);
@@ -427,6 +496,8 @@ export function MapWorkspace({
       window.removeEventListener('mousemove', onWindowMouseMove);
       window.removeEventListener('mouseup', onWindowMouseUp);
       window.removeEventListener('keydown', onWindowKeyDown);
+      window.removeEventListener('offline', onBrowserOffline);
+      window.removeEventListener('online', onBrowserOnline);
       resizeObserver.disconnect();
       map.remove();
       mapRef.current = null;
@@ -681,6 +752,7 @@ export function MapWorkspace({
         >
           {analysisError || notice}
           {!analysisError && gridNotice && <span className="map-grid-note"> · {gridNotice}</span>}
+          {!analysisError && offlineTileNotice && <span className="map-grid-note"> · {offlineTileNotice}</span>}
         </span>
         <div className="map-tools">
           <button type="button" disabled={!regionA} onClick={() => focusRegions([regionA])}>Ir para A</button>
