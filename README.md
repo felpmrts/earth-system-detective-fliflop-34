@@ -88,8 +88,8 @@ npm run preview
 cd frontend
 npm run typecheck         # Checagem estrita TypeScript (tsc --noEmit)
 npm run validate:grids    # Homologação estrutural e estatística das 12 grades globais
-npm test                  # Suíte unitária (Vitest)
 npm run build             # Build de produção em dist/
+npm test                  # Suíte unitária (Vitest; inclui auditoria de dist/)
 npm run verify:offline    # Auditoria de 0 CDNs externas e integridade offline em dist/
 npm run test:e2e          # Suíte Playwright em navegador real contra vite preview
 ```
