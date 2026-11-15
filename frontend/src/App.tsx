@@ -398,6 +398,7 @@ export default function App() {
       <button
         type="button"
         className={`sidebar-toggle desktop-only${effectiveSidebarOpen ? '' : ' is-collapsed-icon'}`}
+        data-tour="close-variables"
         aria-expanded={effectiveSidebarOpen}
         aria-controls="variables-sidebar"
         aria-label={effectiveSidebarOpen ? undefined : 'Abrir painel de variáveis'}

@@ -197,8 +197,29 @@ class TestCopilotTools(unittest.TestCase):
             self.assertEqual(res["status"], "OK")
             self.assertEqual(res["variable_id"], "PRECTOTCORR")
             self.assertEqual(res["scale_type"], "ratio")
+            self.assertTrue(res["allow_percentage_change"])
             self.assertIn("regression", res)
             self.assertIsNotNone(res["multiscale_vs_selected_region"])
+
+        gwet_fetch = {
+            "status": "OK",
+            "variable": "GWETTOP",
+            "source": "nasa_power_live",
+            "series": {dt: 0.45 for dt in dates},
+        }
+        with patch(
+            "backend.copilot_tools.fetch_location_single_variable",
+            return_value=gwet_fetch,
+        ):
+            res_gwet = fetch_additional_variable_analysis(
+                self.mock_analysis,
+                variable_id="GWETTOP",
+                target_slot="A",
+                lat=-18.91,
+                lon=-48.27,
+            )
+            self.assertEqual(res_gwet["status"], "OK")
+            self.assertFalse(res_gwet["allow_percentage_change"])
 
     def test_execute_copilot_tool_unknown(self) -> None:
         payload, meta = execute_copilot_tool(
@@ -479,6 +500,30 @@ class TestCopilotAgenticLoopAndCache(unittest.TestCase):
         self.assertNotIn("12%", sanitized)
         self.assertIn("IC 95%", sanitized)
         self.assertGreater(len(warns), 0)
+
+    def test_fractional_gwetprof_and_albedo_trend_unit(self) -> None:
+        """GWETPROF and ALLSKY_SRF_ALB must expose trend_unit='fração/década' and allow_percentage_change=False."""
+        analysis = _load_mock_analysis()
+        dates = _make_monthly_dates(2000, 20)
+        series = {ym: round(0.42 + 0.0005 * i, 4) for i, ym in enumerate(dates)}
+
+        for var_code in ("GWETPROF", "ALLSKY_SRF_ALB"):
+            with patch(
+                "backend.copilot_tools.fetch_location_single_variable",
+                return_value={"status": "OK", "unit": "Fração (0 a 1)", "series": series},
+            ):
+                res = fetch_additional_variable_analysis(
+                    analysis,
+                    variable_id=var_code,
+                    lat=-15.0,
+                    lon=-48.0,
+                    start_date="2000-01",
+                    end_date="2019-12",
+                )
+            self.assertEqual(res["status"], "OK")
+            self.assertEqual(res["unit"], "fração (0–1)")
+            self.assertEqual(res["trend_unit"], "fração/década")
+            self.assertFalse(res["allow_percentage_change"])
 
 
 if __name__ == "__main__":

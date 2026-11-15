@@ -678,12 +678,22 @@ def fetch_additional_variable_analysis(
 
     dates_sorted = sorted(filtered.keys())
     raw_values = [filtered[d] for d in dates_sorted]
-    unit = str(fetched.get("unit") or spec.unit)
     cat_meta = VARIABLE_CATALOG.get(var_code) or {}
+    raw_unit = str(fetched.get("unit") or spec.unit)
+    unit = str(
+        cat_meta.get("unit")
+        or ("fração (0–1)" if raw_unit.lower().startswith("fração") else raw_unit)
+    )
     trend_unit = str(
         fetched.get("trend_unit")
         or cat_meta.get("trend_unit")
-        or ("p.p./década" if unit == "%" else f"{unit}/década")
+        or (
+            "p.p./década"
+            if unit == "%"
+            else "fração/década"
+            if unit.lower().startswith("fração")
+            else f"{unit}/década"
+        )
     )
     allow_pct = bool(
         cat_meta["allow_percentage_change"]
@@ -723,7 +733,7 @@ def fetch_additional_variable_analysis(
         "scale_type": spec.scale_type,
         "unit": unit,
         "trend_unit": trend_unit,
-        "allow_percentage_change": bool(spec.allow_percentage_change),
+        "allow_percentage_change": allow_pct,
         "cache_hits": fetched.get("cache_hits", 0),
         "period": new_stats["period"],
         "regression": new_stats["regression"],

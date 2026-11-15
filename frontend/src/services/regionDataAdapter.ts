@@ -438,7 +438,7 @@ export function createRegionDataAdapter(overrides: Partial<AdapterConfig> = {}) 
       if (!res.ok) return null;
       const raw: unknown = await res.json();
       if (!raw || typeof raw !== 'object') return null;
-      const obj = raw as DiscoveryResponse;
+      const obj = normalizeDiscoveryPayload(raw as DiscoveryResponse);
       if (!obj.regime_and_gam_geometry || !obj.partial_teleconnections) return null;
       if (typeof obj.analysis_key === 'string' && obj.analysis_key.trim()) {
         cachedAnalysisKeys.set(params.analysis, obj.analysis_key.trim());
@@ -458,6 +458,77 @@ export function createRegionDataAdapter(overrides: Partial<AdapterConfig> = {}) 
     getBackendCatalog,
     askStatisticalCopilot,
     discoverDynamicPatterns,
+  };
+}
+
+interface LegacyNestedOutlierShape {
+  readonly date?: string;
+  readonly mahalanobis_d?: number;
+  readonly ocean_phase_tag?: string;
+  readonly nino34_ts_z?: number;
+  readonly atl_grad_ts_z?: number;
+  readonly diagnostic_hint?: string;
+  readonly ocean_state_z?: {
+    readonly pac_nino34_ts_z?: number;
+    readonly atl_meridional_grad_ts_z?: number;
+    readonly atl_ne_ts_z?: number;
+  };
+  readonly attributed_physical_drivers?: readonly string[];
+}
+
+function deriveOceanPhaseTag(ninoZ: number, atlGradZ: number, atlNeZ: number): string {
+  const fmtZ = (z: number) => `${z >= 0 ? '+' : ''}${z.toFixed(1)}σ`;
+  if (Math.abs(ninoZ) >= 1.5) {
+    return `${ninoZ > 0 ? 'EL_NINO_FORTE' : 'LA_NINA_FORTE'} (${fmtZ(ninoZ)})`;
+  }
+  if (Math.abs(ninoZ) >= 0.8) {
+    return `${ninoZ > 0 ? 'EL_NINO' : 'LA_NINA'} (${fmtZ(ninoZ)})`;
+  }
+  if (Math.abs(atlGradZ) >= 1.0) {
+    return `${atlGradZ > 0 ? 'DIPOLO_ATL_POS' : 'DIPOLO_ATL_NEG'} (${fmtZ(atlGradZ)})`;
+  }
+  if (Math.abs(atlNeZ) >= 1.0) {
+    return `${atlNeZ > 0 ? 'ATL_NE_POS' : 'ATL_NE_NEG'} (${fmtZ(atlNeZ)})`;
+  }
+  return 'REGIONAL / NEUTRO';
+}
+
+function normalizeDiscoveryPayload(raw: DiscoveryResponse): DiscoveryResponse {
+  if (!Array.isArray(raw.attributed_mahalanobis_outliers)) {
+    return raw;
+  }
+  const normalizedOutliers = (raw.attributed_mahalanobis_outliers as readonly LegacyNestedOutlierShape[]).map(
+    item => {
+      const ninoZ = Number.isFinite(item.nino34_ts_z)
+        ? (item.nino34_ts_z as number)
+        : (item.ocean_state_z?.pac_nino34_ts_z ?? 0);
+      const atlGradZ = Number.isFinite(item.atl_grad_ts_z)
+        ? (item.atl_grad_ts_z as number)
+        : (item.ocean_state_z?.atl_meridional_grad_ts_z ?? 0);
+      const atlNeZ = item.ocean_state_z?.atl_ne_ts_z ?? 0;
+      const phaseTag =
+        typeof item.ocean_phase_tag === 'string' && item.ocean_phase_tag.trim().length > 0
+          ? item.ocean_phase_tag
+          : deriveOceanPhaseTag(ninoZ, atlGradZ, atlNeZ);
+      const hint =
+        typeof item.diagnostic_hint === 'string' && item.diagnostic_hint.trim().length > 0
+          ? item.diagnostic_hint
+          : item.attributed_physical_drivers?.join(' · ');
+
+      return {
+        ...item,
+        date: String(item.date ?? ''),
+        mahalanobis_d: Number.isFinite(item.mahalanobis_d) ? (item.mahalanobis_d as number) : 0,
+        ocean_phase_tag: phaseTag,
+        nino34_ts_z: ninoZ,
+        atl_grad_ts_z: atlGradZ,
+        ...(hint ? { diagnostic_hint: hint } : {}),
+      };
+    },
+  );
+  return {
+    ...raw,
+    attributed_mahalanobis_outliers: normalizedOutliers,
   };
 }
 

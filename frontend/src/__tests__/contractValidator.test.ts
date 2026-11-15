@@ -10,7 +10,7 @@ import {
 } from '../contracts/contractValidator.ts';
 
 describe('catalog & contractValidator — blindagem dos 7 Invariantes', () => {
-  it('catálogo cobre todas as 42 variáveis (+ alias CLDTOT), proíbe % em intervalares e em CLOUD_AMT', () => {
+  it('catálogo cobre todas as 42 variáveis (+ alias CLDTOT), proíbe % em intervalares e em escalas limitadas (0–1 / %)', () => {
     expect(VARIABLE_LIST).toHaveLength(43);
     for (const v of VARIABLE_LIST) {
       if (v.scale_type === 'interval') {
@@ -18,6 +18,8 @@ describe('catalog & contractValidator — blindagem dos 7 Invariantes', () => {
       }
     }
     expect(getVariableMetadata('CLOUD_AMT').allow_percentage_change).toBe(false);
+    expect(getVariableMetadata('GWETPROF').allow_percentage_change).toBe(false);
+    expect(getVariableMetadata('ALLSKY_SRF_ALB').allow_percentage_change).toBe(false);
   });
 
   it('calcula interseção temporal entre MERRA-2 (1981) e CERES (1984)', () => {

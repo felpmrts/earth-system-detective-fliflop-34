@@ -1393,12 +1393,19 @@ def analyze_single_series(
     if variable_meta is not None:
         scale_type = str(variable_meta.get("scale_type") or "ratio")
         unit = str(variable_meta.get("unit") or "")
+        inferred_trend_unit = (
+            "p.p./década"
+            if unit == "%"
+            else "fração/década"
+            if unit.lower().startswith("fração")
+            else f"{unit}/década"
+        )
         meta: Dict[str, Any] = {
             "variable_id": str(variable_meta.get("variable_id") or variable_id),
             "variable_name": str(variable_meta.get("variable_name") or variable_id),
             "scale_type": scale_type,
             "unit": unit,
-            "trend_unit": str(variable_meta.get("trend_unit") or f"{unit}/década"),
+            "trend_unit": str(variable_meta.get("trend_unit") or inferred_trend_unit),
             "allow_percentage_change": bool(variable_meta.get("allow_percentage_change", scale_type == "ratio")),
         }
     elif variable_id in VARIABLE_CATALOG:

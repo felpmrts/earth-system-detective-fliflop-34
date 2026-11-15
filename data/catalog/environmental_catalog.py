@@ -19,6 +19,11 @@ class EnvironmentalFamily:
     investigation_focus: str
 
 
+BOUNDED_NON_PERCENT_VARIABLES: frozenset[str] = frozenset(
+    {"GWETTOP", "GWETROOT", "GWETPROF", "RH2M", "CLOUD_AMT", "CLDTOT", "ALLSKY_SRF_ALB"}
+)
+
+
 @dataclass(frozen=True)
 class VariableSpec:
     """Metadados operacionais, físicos e de roteamento de uma variável ambiental."""
@@ -39,8 +44,8 @@ class VariableSpec:
 
     @property
     def allow_percentage_change(self) -> bool:
-        """Variáveis em escala intervalar (ex.: °C, NDVI) não aceitam variação em %."""
-        return self.scale_type == "ratio"
+        """Variáveis intervalares (ex.: °C, NDVI) e escalas limitadas (0–1 / %) não aceitam variação em %."""
+        return self.scale_type == "ratio" and self.code not in BOUNDED_NON_PERCENT_VARIABLES
 
     def to_dict(self) -> dict[str, Any]:
         payload = asdict(self)

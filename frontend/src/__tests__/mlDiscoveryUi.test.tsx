@@ -248,4 +248,38 @@ describe('Hybrid ML Discovery Adapter & UI Integration', () => {
       expect(screen.getByText(/Ferramenta run_ml_dynamic_discovery respondeu/)).toBeTruthy();
     });
   });
+
+  it('normalizes legacy nested ocean_state_z outlier payloads in discoverDynamicPatterns adapter', async () => {
+    const adapter = createRegionDataAdapter({
+      mode: 'api',
+      apiBaseUrl: 'http://127.0.0.1:8000',
+      fetchFn: vi.fn().mockResolvedValue({
+        ok: true,
+        status: 200,
+        json: async () => ({
+          ...sampleDiscovery,
+          attributed_mahalanobis_outliers: [
+            {
+              date: '2016-01',
+              mahalanobis_d: 3.15,
+              ocean_state_z: {
+                pac_nino34_ts_z: 2.34,
+                atl_meridional_grad_ts_z: 0.72,
+                atl_ne_ts_z: 0.4,
+              },
+              attributed_physical_drivers: ['El Niño Forte (Niño 3.4 Z=+2.34σ)'],
+            },
+          ],
+        }),
+      }) as unknown as typeof fetch,
+    });
+
+    const normalized = await adapter.discoverDynamicPatterns({ analysis: mockAnalysis });
+    expect(normalized).not.toBeNull();
+    const first = normalized!.attributed_mahalanobis_outliers[0]!;
+    expect(first.ocean_phase_tag).toContain('EL_NINO_FORTE');
+    expect(first.nino34_ts_z).toBe(2.34);
+    expect(first.atl_grad_ts_z).toBe(0.72);
+    expect(first.diagnostic_hint).toContain('El Niño Forte');
+  });
 });

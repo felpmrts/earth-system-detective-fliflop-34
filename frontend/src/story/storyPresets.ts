@@ -313,14 +313,14 @@ export const STORY_PRESETS: readonly StoryPreset[] = [
     variableA: 'ALLSKY_SFC_SW_DWN',
     variableB: 'PRECTOTCORR',
     regionALabel: 'Amazônia Equatorial',
-    regionBLabel: 'Bacia do Paraná (RS/PR)',
+    regionBLabel: 'Bacia do Paraná (PR/MS)',
     coordsA: [
       { lat: -3.5, lon: -60.5 },
       { lat: -3.5, lon: -59.5 },
     ],
     coordsB: [
-      { lat: -29.5, lon: -55.0 },
-      { lat: -29.5, lon: -54.375 },
+      { lat: -25.5, lon: -54.375 },
+      { lat: -25.5, lon: -53.75 },
     ],
     sameLocation: false,
     startMonth: '1984-01',

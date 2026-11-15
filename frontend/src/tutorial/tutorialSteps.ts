@@ -221,7 +221,7 @@ export const TUTORIAL_STEPS: readonly TutorialStep[] = [
     badgeIcon: 'bench',
     title: 'Explore a Bancada Científica e Exporte Provas',
     summary:
-      'Após analisar, a Bancada abre séries Bruto / Anomalia / Z-Score (σ), escala Linear ou Symlog, retas OLS / Theil–Sen, curva GAM, Dispersão X vs Y com outliers (D_M > 2,5), os 4 cards de diagnóstico e exportação CSV/JSON.',
+      'Após analisar, a Bancada abre séries Bruto / Anomalia / Z-Score (σ), escala Linear ou Symlog, retas OLS / Theil–Sen, curva GAM, Dispersão X vs Y com outliers (D_M > 2,5), o painel "4 Respostas do Detetive", a barra PAINÉIS ANALÍTICOS e exportação CSV/JSON.',
     fieldTip:
       'Use "Ajuda científica (?)" no topo da Bancada para consultar o glossário de OLS, Theil–Sen, GAM, AR(1) e Mahalanobis.',
     interactiveHint: 'Apenas a Bancada científica está liberada nesta etapa',

@@ -86,6 +86,20 @@ _CONTRACT_METADATA_OVERRIDES: dict[str, dict[str, Any]] = {
         "allow_percentage_change": False,
         "min_year": 1981,
     },
+    "GWETPROF": {
+        "scale_type": "ratio",
+        "unit": "fração (0–1)",
+        "trend_unit": "fração/década",
+        "allow_percentage_change": False,
+        "min_year": 1981,
+    },
+    "ALLSKY_SRF_ALB": {
+        "scale_type": "ratio",
+        "unit": "fração (0–1)",
+        "trend_unit": "fração/década",
+        "allow_percentage_change": False,
+        "min_year": 1984,
+    },
     "ALLSKY_SFC_SW_DWN": {"min_year": 1984},
     "ALLSKY_SFC_LW_DWN": {"min_year": 1984},
 }
@@ -103,6 +117,8 @@ class ContractSemanticError(ValueError):
 def _trend_unit_from_unit(unit: str) -> str:
     if unit == "%":
         return "p.p./década"
+    if unit.lower().startswith("fração"):
+        return "fração/década"
     return f"{unit}/década" if unit else "unidade/década"
 
 
@@ -112,7 +128,15 @@ def _build_variable_meta(fetched: dict[str, Any], requested_var_id: str | None =
     unit = str(fetched.get("unit") or "")
     scale_type = str(fetched.get("scale_type") or "ratio")
     allow_pct = bool(fetched.get("allow_percentage_change", scale_type == "ratio"))
-    if scale_type == "interval" or var_id in {"GWETTOP", "GWETROOT", "RH2M", "CLDTOT"}:
+    if scale_type == "interval" or var_id in {
+        "GWETTOP",
+        "GWETROOT",
+        "GWETPROF",
+        "RH2M",
+        "CLDTOT",
+        "CLOUD_AMT",
+        "ALLSKY_SRF_ALB",
+    }:
         allow_pct = False
 
     meta: dict[str, Any] = {

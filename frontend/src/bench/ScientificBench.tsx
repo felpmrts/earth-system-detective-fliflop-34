@@ -1540,7 +1540,7 @@ export function ScientificBench({
                   hovermode: 'closest',
                   margin: { l: 54, t: 44, r: 24, b: 82 },
                   xaxis: {
-                    title: { text: 'Estação Climatológica (Trimestre Austral)' },
+                    title: { text: 'Estação Climatológica (DJF · MAM · JJA · SON)' },
                     automargin: true,
                   },
                   yaxis: {
@@ -1970,7 +1970,7 @@ export function ScientificBench({
                   {discoveryResult.attributed_mahalanobis_outliers.slice(0, 4).map(o => (
                     <li key={o.date}>
                       <code>{o.date}</code> (D_M={formatPointValue(o.mahalanobis_d, 2)}):{' '}
-                      <strong>{o.ocean_phase_tag}</strong> · Niño3.4 Z={formatSignedNumber(o.nino34_ts_z, 2)} · Atl Z=
+                      <strong>{o.ocean_phase_tag || 'REGIONAL / NEUTRO'}</strong> · Niño3.4 Z={formatSignedNumber(o.nino34_ts_z, 2)} · Atl Z=
                       {formatSignedNumber(o.atl_grad_ts_z, 2)}
                     </li>
                   ))}

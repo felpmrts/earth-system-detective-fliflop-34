@@ -363,6 +363,38 @@ class ContractAnalysisTests(unittest.TestCase):
             )
         self.assertAlmostEqual(monthly["2020-01"], 35.0, places=3)
 
+    def test_fractional_variables_gwetprof_and_albedo_trend_unit(self) -> None:
+        series_frac = _monthly_series(1984, 2023, 0.45, -0.002)
+        for var_code, grid in (("GWETPROF", merra_region([merra_cell(-15, -48)])), ("ALLSKY_SRF_ALB", ceres_region([ceres_cell(-15, -48)]))):
+            with patch("data.services.comparison_service.fetch_location_single_variable") as mock_fetch:
+                mock_fetch.return_value = {
+                    "status": "OK",
+                    "api_puxada": "NASA POWER",
+                    "endpoint_consultado": "https://power.larc.nasa.gov/api/temporal/monthly/point",
+                    "family_id": "solo" if var_code == "GWETPROF" else "radiacao",
+                    "variable": var_code,
+                    "ui_name": var_code,
+                    "unit": "Fração (0 a 1)",
+                    "scale_type": "ratio",
+                    "allow_percentage_change": False,
+                    "snapped_cells": [],
+                    "series": series_frac,
+                }
+                result = analyze_regions_contract(
+                    {
+                        "variable_a": var_code,
+                        "variable_b": None,
+                        "region_a": grid,
+                        "region_b": None,
+                        "start_date": "1984-01",
+                        "end_date": "2023-12",
+                    }
+                )
+            reg_a = result["region_a_analysis"]
+            self.assertEqual(reg_a["unit"], "fração (0–1)")
+            self.assertEqual(reg_a["trend_unit"], "fração/década")
+            self.assertFalse(reg_a["allow_percentage_change"])
+
 
 if __name__ == "__main__":
     unittest.main()

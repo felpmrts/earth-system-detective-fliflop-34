@@ -136,7 +136,7 @@ export const VARIABLE_CATALOG: Readonly<Record<VariableId, VariableMetadata>> = 
   GWETPROF: {
     variable_id: 'GWETPROF', variable_name: 'Umidade Profunda do Solo', domain: 'Solo e Seca',
     source_model: 'MERRA-2', resolution: MERRA2_RESOLUTION, grid_origin: MERRA2_ORIGIN, min_year: 1981,
-    scale_type: 'ratio', unit: 'fração (0–1)', trend_unit: 'fração/década', allow_percentage_change: true, land_only_mask: true,
+    scale_type: 'ratio', unit: 'fração (0–1)', trend_unit: 'fração/década', allow_percentage_change: false, land_only_mask: true,
     is_alias_of: 'GWETROOT',
   },
   Evap_tavg: {
@@ -276,7 +276,7 @@ export const VARIABLE_CATALOG: Readonly<Record<VariableId, VariableMetadata>> = 
   ALLSKY_SRF_ALB: {
     variable_id: 'ALLSKY_SRF_ALB', variable_name: 'Albedo da Superfície', domain: 'Vegetação e Uso da Terra',
     source_model: 'CERES_SYN1deg', resolution: CERES_RESOLUTION, grid_origin: CERES_ORIGIN, min_year: 1984,
-    scale_type: 'ratio', unit: 'fração (0–1)', trend_unit: 'fração/década', allow_percentage_change: true, land_only_mask: false,
+    scale_type: 'ratio', unit: 'fração (0–1)', trend_unit: 'fração/década', allow_percentage_change: false, land_only_mask: false,
     is_alias_of: 'ALLSKY_SFC_SW_DWN',
   },
   CLRSKY_SFC_SW_DWN: {

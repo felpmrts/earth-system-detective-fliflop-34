@@ -628,10 +628,10 @@ const SEASON_METADATA: Array<{
   label: string;
   months: Set<number>;
 }> = [
-  { code: 'DJF', label: 'DJF (Verão Austral / Dez–Fev)', months: new Set([12, 1, 2]) },
-  { code: 'MAM', label: 'MAM (Outono Austral / Mar–Mai)', months: new Set([3, 4, 5]) },
-  { code: 'JJA', label: 'JJA (Inverno Austral / Jun–Ago)', months: new Set([6, 7, 8]) },
-  { code: 'SON', label: 'SON (Primavera Austral / Set–Nov)', months: new Set([9, 10, 11]) },
+  { code: 'DJF', label: 'DJF (Dez–Fev)', months: new Set([12, 1, 2]) },
+  { code: 'MAM', label: 'MAM (Mar–Mai)', months: new Set([3, 4, 5]) },
+  { code: 'JJA', label: 'JJA (Jun–Ago)', months: new Set([6, 7, 8]) },
+  { code: 'SON', label: 'SON (Set–Nov)', months: new Set([9, 10, 11]) },
 ];
 
 function computeSingleRegionSeasonality(

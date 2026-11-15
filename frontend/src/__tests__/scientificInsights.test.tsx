@@ -187,6 +187,10 @@ describe('Scientific Insights Service & Bench Integration (Lag-Lead, Sazonal & 7
     expect(seasonalMock.region_a.seasons.JJA.p_value_ar1_corrected).toBeCloseTo(0.05203428, 4);
     expect(seasonalMock.region_a.seasons.DJF.slope_per_decade_sen).toBeCloseTo(-0.07908, 4);
     expect(seasonalMock.region_a.seasons.DJF.significant_fdr05).toBe(false);
+    expect(seasonalMock.region_a.seasons.DJF.season_label).toBe('DJF (Dez–Fev)');
+    expect(seasonalMock.region_a.seasons.MAM.season_label).toBe('MAM (Mar–Mai)');
+    expect(seasonalMock.region_a.seasons.JJA.season_label).toBe('JJA (Jun–Ago)');
+    expect(seasonalMock.region_a.seasons.SON.season_label).toBe('SON (Set–Nov)');
 
     // Construct an interval (°C) dataset with strong within-DJF raw baseline differences (Dec=12°C, Jan=26°C, Feb=19°C)
     // and verify seasonal regression is strictly invariant to raw_values (uses anomaly_values Y'_{a,m} only)
@@ -373,6 +377,7 @@ describe('Scientific Insights Service & Bench Integration (Lag-Lead, Sazonal & 7
     expect(seasonalText).toContain('MAM');
     expect(seasonalText).toContain('JJA');
     expect(seasonalText).toContain('SON');
+    expect(seasonalText).not.toMatch(/Austral/i);
     expect(seasonalText).toContain('°C/década');
 
     for (const code of ['DJF', 'MAM', 'JJA', 'SON'] as const) {

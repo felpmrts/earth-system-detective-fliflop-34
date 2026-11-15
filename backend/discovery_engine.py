@@ -931,13 +931,31 @@ def attribute_mahalanobis_outliers(
         if not drivers:
             drivers.append("Forçante Radiativa/Hidrometeorológica Regional ou Queimadas")
 
+        nino_rounded = round(float(nino_z), 2)
+        atl_grad_rounded = round(float(atl_grad_z), 2)
+        atl_ne_rounded = round(float(atl_ne_z), 2)
+
+        if abs(nino_z) >= 1.5:
+            ocean_phase_tag = f"{'EL_NINO_FORTE' if nino_z > 0 else 'LA_NINA_FORTE'} ({nino_z:+.1f}σ)"
+        elif abs(nino_z) >= 0.8:
+            ocean_phase_tag = f"{'EL_NINO' if nino_z > 0 else 'LA_NINA'} ({nino_z:+.1f}σ)"
+        elif abs(atl_grad_z) >= 1.0:
+            ocean_phase_tag = f"{'DIPOLO_ATL_POS' if atl_grad_z > 0 else 'DIPOLO_ATL_NEG'} ({atl_grad_z:+.1f}σ)"
+        elif abs(atl_ne_z) >= 1.0:
+            ocean_phase_tag = f"{'ATL_NE_POS' if atl_ne_z > 0 else 'ATL_NE_NEG'} ({atl_ne_z:+.1f}σ)"
+        else:
+            ocean_phase_tag = "REGIONAL / NEUTRO"
+
         enriched.append(
             {
                 **dict(item),
+                "ocean_phase_tag": ocean_phase_tag,
+                "nino34_ts_z": nino_rounded,
+                "atl_grad_ts_z": atl_grad_rounded,
                 "ocean_state_z": {
-                    "pac_nino34_ts_z": round(float(nino_z), 2),
-                    "atl_meridional_grad_ts_z": round(float(atl_grad_z), 2),
-                    "atl_ne_ts_z": round(float(atl_ne_z), 2),
+                    "pac_nino34_ts_z": nino_rounded,
+                    "atl_meridional_grad_ts_z": atl_grad_rounded,
+                    "atl_ne_ts_z": atl_ne_rounded,
                 },
                 "attributed_physical_drivers": drivers,
             }

@@ -169,6 +169,33 @@ class TestDiscoveryEngine(unittest.TestCase):
         self.assertTrue(attr["overall_model_significant"])
         self.assertLess(attr["p_value_f_ar1"], 0.01)
 
+    def test_attribute_mahalanobis_outliers_emits_flat_and_nested_schema(self) -> None:
+        """Ensures flat UI keys (`ocean_phase_tag`, `nino34_ts_z`, `atl_grad_ts_z`) match `ocean_state_z`."""
+        from backend.discovery_engine import attribute_mahalanobis_outliers
+
+        dates = [f"{2001 + i // 12:04d}-{(i % 12) + 1:02d}" for i in range(60)]
+        nino_series = {d: (0.1 if d != "2003-11" else 4.5) for d in dates}
+        atl_series = {d: (0.05 if d != "2003-11" else -2.5) for d in dates}
+        ocean_map = {
+            "pac_nino34": {"TS": nino_series},
+            "atl_meridional_grad": {"TS": atl_series},
+        }
+        outliers = [{"date": "2003-11", "mahalanobis_d": 3.4}]
+
+        enriched = attribute_mahalanobis_outliers(outliers, ocean_map)
+        self.assertEqual(len(enriched), 1)
+        row = enriched[0]
+        self.assertIn("EL_NINO_FORTE", row["ocean_phase_tag"])
+        self.assertGreater(row["nino34_ts_z"], 1.5)
+        self.assertLess(row["atl_grad_ts_z"], -1.5)
+        self.assertEqual(row["ocean_state_z"]["pac_nino34_ts_z"], row["nino34_ts_z"])
+        self.assertEqual(row["ocean_state_z"]["atl_meridional_grad_ts_z"], row["atl_grad_ts_z"])
+
+        neutral = attribute_mahalanobis_outliers(outliers, {})
+        self.assertEqual(neutral[0]["ocean_phase_tag"], "REGIONAL / NEUTRO")
+        self.assertEqual(neutral[0]["nino34_ts_z"], 0.0)
+        self.assertEqual(neutral[0]["atl_grad_ts_z"], 0.0)
+
 
 if __name__ == "__main__":
     unittest.main()
