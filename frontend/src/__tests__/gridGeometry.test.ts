@@ -66,7 +66,7 @@ describe('gridGeometry — snapping de grade NASA e composição K <= 9', () => 
     expect(farRes.reason).toBe('NOT_ADJACENT');
   });
 
-  it('bloqueia a 10ª célula (MAX_CELLS_EXCEEDED) e bloqueia remoção que desconecte o bloco (WOULD_DISCONNECT)', () => {
+  it('bloqueia a 26ª célula (MAX_CELLS_EXCEEDED) e bloqueia remoção que desconecte o bloco (WOULD_DISCONNECT)', () => {
     // Monta linha 1x3
     const c1 = snapCoordToCell(0.25, 0.3, 'T2M');
     const c2 = snapCoordToCell(0.25, 0.9, 'T2M');
@@ -83,17 +83,17 @@ describe('gridGeometry — snapping de grade NASA e composição K <= 9', () => 
     expect(removeTip.ok).toBe(true);
     expect(removeTip.cells).toHaveLength(2);
 
-    // Preenche 3x3 (9 células) e tenta adicionar a 10ª
-    const grid3x3: GridCell[] = [];
-    for (let r = 0; r < 3; r += 1) {
-      for (let c = 0; c < 3; c += 1) {
-        grid3x3.push(snapCoordToCell(0.25 + r * 0.5, 0.3 + c * 0.625, 'T2M'));
+    // Preenche 5x5 (25 células) e tenta adicionar a 26ª
+    const grid5x5: GridCell[] = [];
+    for (let r = 0; r < 5; r += 1) {
+      for (let c = 0; c < 5; c += 1) {
+        grid5x5.push(snapCoordToCell(0.25 + r * 0.5, 0.3 + c * 0.625, 'T2M'));
       }
     }
-    expect(grid3x3).toHaveLength(9);
+    expect(grid5x5).toHaveLength(MAX_CELLS_PER_REGION);
 
-    const tenth = snapCoordToCell(0.25, 0.3 + 3 * 0.625, 'T2M');
-    const overLimit = toggleCellInSelection(grid3x3, tenth);
+    const twentySixth = snapCoordToCell(0.25, 0.3 + 5 * 0.625, 'T2M');
+    const overLimit = toggleCellInSelection(grid5x5, twentySixth);
     expect(overLimit.ok).toBe(false);
     expect(overLimit.reason).toBe('MAX_CELLS_EXCEEDED');
   });
@@ -150,9 +150,9 @@ describe('gridGeometry — snapping de grade NASA e composição K <= 9', () => 
 
     // Nenhuma célula selecionada deve estar mais longe do ponto inicial do que o quadrado 3x3 esperado
     const region = buildRegionSelection('A', 'GWETTOP', clamped.cells);
-    expect(region.cells).toHaveLength(9);
+    expect(region.cells).toHaveLength(MAX_CELLS_PER_REGION);
 
-    // Caixa gigante em CERES também respeita K <= 9 e mantém ponto inicial
+    // Caixa gigante em CERES também respeita K <= MAX_CELLS_PER_REGION e mantém ponto inicial
     const ceresStart = { lat: -10.5, lon: -70.5 };
     const ceresClamped = selectCellsInBoundingBox(
       ceresStart,
@@ -160,7 +160,7 @@ describe('gridGeometry — snapping de grade NASA e composição K <= 9', () => 
       'ALLSKY_SFC_SW_DWN',
     );
     expect(ceresClamped.wasClamped).toBe(true);
-    expect(ceresClamped.cells).toHaveLength(9);
+    expect(ceresClamped.cells).toHaveLength(MAX_CELLS_PER_REGION);
     expect(isConnectedComponent(ceresClamped.cells)).toBe(true);
     const ceresAnchor = snapCoordToCell(ceresStart.lat, ceresStart.lon, 'ALLSKY_SFC_SW_DWN');
     expect(ceresClamped.cells.some(c => c.cell_id === ceresAnchor.cell_id)).toBe(true);
@@ -174,7 +174,7 @@ describe('gridGeometry — snapping de grade NASA e composição K <= 9', () => 
       'T2M',
     );
     expect(clampedBox.cells.length).toBeGreaterThanOrEqual(1);
-    expect(clampedBox.cells.length).toBeLessThanOrEqual(9);
+    expect(clampedBox.cells.length).toBeLessThanOrEqual(MAX_CELLS_PER_REGION);
     expect(isConnectedComponent(clampedBox.cells)).toBe(true);
   });
 });

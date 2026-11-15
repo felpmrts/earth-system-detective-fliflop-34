@@ -235,13 +235,19 @@ export function ScientificBench({
   const stacked = separate || (mixed && !effectiveDual);
 
   const months = regions.flatMap(region => region.series.dates).sort();
-  const firstMonth = periodReady ? start : months[0];
-  const lastMonth = periodReady ? end : months.at(-1);
+  const inRangeMonths = periodReady ? months.filter(month => month >= start && month <= end) : months;
+  const firstMonth = inRangeMonths[0] ?? (periodReady ? start : undefined);
+  const lastMonth = inRangeMonths.at(-1) ?? (periodReady ? end : undefined);
   const firstDate = firstMonth ? `${firstMonth}-01` : undefined;
   const lastDate = lastMonth
     ? new Date(Date.UTC(Number(lastMonth.slice(0, 4)), Number(lastMonth.slice(5, 7)), 0)).toISOString().slice(0, 10)
     : undefined;
-  const hasPoints = months.some(month => !periodReady || (month >= start && month <= end));
+  const hasPoints = inRangeMonths.length > 0;
+  const periodTrimmed = Boolean(
+    periodReady &&
+    hasPoints &&
+    ((firstMonth && firstMonth > start) || (lastMonth && lastMonth < end)),
+  );
   const isOfflineAnalysis = analysis.request_meta.source === 'offline_fallback';
 
   const showOls = trendMode === 'ols' || trendMode === 'both';
@@ -715,6 +721,12 @@ export function ScientificBench({
         <p className="note" role="status">O resultado atual não contém dados no período selecionado.</p>
       )}
 
+      {periodTrimmed && (
+        <p className="note" role="status">
+          Cobertura efetiva com dados: <strong>{firstMonth}</strong> a <strong>{lastMonth}</strong>{' '}
+          (recorte automático sobre o período selecionado de {start} a {end}).
+        </p>
+      )}
       {hasPoints && (
         <div className={viewMode === 'both' && scatterBundle ? 'charts-grid dual-charts' : 'charts-grid'}>
           {(viewMode === 'timeseries' || viewMode === 'both') && (

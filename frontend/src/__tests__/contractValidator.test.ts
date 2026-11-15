@@ -2,6 +2,7 @@ import { describe, expect, it } from 'vitest';
 import mockAnalysisJson from '../../public/data/mock_analysis.json';
 import t2mGridJson from '../../public/data/T2M_grid.json';
 import { getIntersectingDateBounds, VARIABLE_LIST } from '../contracts/catalog.ts';
+import { MAX_CELLS_PER_REGION } from '../geo/gridGeometry.ts';
 import {
   ContractValidationError,
   validateAnalysisResponse,
@@ -9,8 +10,8 @@ import {
 } from '../contracts/contractValidator.ts';
 
 describe('catalog & contractValidator — blindagem dos 7 Invariantes', () => {
-  it('catálogo cobre as variáveis NASA POWER em tempo real e proíbe % em variáveis intervalares', () => {
-    expect(VARIABLE_LIST).toHaveLength(23);
+  it('catálogo cobre todas as 42 variáveis (+ alias CLDTOT) e proíbe % em variáveis intervalares', () => {
+    expect(VARIABLE_LIST).toHaveLength(43);
     for (const v of VARIABLE_LIST) {
       if (v.scale_type === 'interval') {
         expect(v.allow_percentage_change).toBe(false);
@@ -91,7 +92,7 @@ describe('catalog & contractValidator — blindagem dos 7 Invariantes', () => {
     const overCellsB = structuredClone(mockAnalysisJson) as {
       request_meta: { cells_count_b: number };
     };
-    overCellsB.request_meta.cells_count_b = 10;
+    overCellsB.request_meta.cells_count_b = MAX_CELLS_PER_REGION + 1;
     expect(() => validateAnalysisResponse(overCellsB)).toThrow(ContractValidationError);
   });
 

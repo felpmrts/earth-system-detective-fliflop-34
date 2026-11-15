@@ -5,7 +5,7 @@ import type {
   RegionAnalysisResponse,
   VariableStatistics,
 } from './types.ts';
-import { assertValidLatLon } from '../geo/gridGeometry.ts';
+import { assertValidLatLon, MAX_CELLS_PER_REGION } from '../geo/gridGeometry.ts';
 
 export class ContractValidationError extends Error {
   readonly code = 'CONTRACT_VIOLATION' as const;
@@ -270,7 +270,7 @@ export function validateAnalysisResponse(data: unknown): RegionAnalysisResponse 
     throw new ContractValidationError('Bloco "request_meta" ausente na resposta.');
   }
 
-  assertNumberInRange(data.request_meta.cells_count_a, 1, 9, 'request_meta.cells_count_a');
+  assertNumberInRange(data.request_meta.cells_count_a, 1, MAX_CELLS_PER_REGION, 'request_meta.cells_count_a');
 
   const hasRegionBId =
     data.request_meta.region_b_id !== null && data.request_meta.region_b_id !== undefined;
@@ -279,14 +279,14 @@ export function validateAnalysisResponse(data: unknown): RegionAnalysisResponse 
 
   if (hasRegionBId) {
     assertNonEmptyString(data.request_meta.region_b_id, 'request_meta.region_b_id');
-    assertNumberInRange(data.request_meta.cells_count_b, 1, 9, 'request_meta.cells_count_b');
+    assertNumberInRange(data.request_meta.cells_count_b, 1, MAX_CELLS_PER_REGION, 'request_meta.cells_count_b');
     if (!hasRegionBAnalysis) {
       throw new ContractValidationError(
         'region_b_analysis é obrigatório quando request_meta.region_b_id está presente.',
       );
     }
   } else if (data.request_meta.cells_count_b !== undefined) {
-    assertNumberInRange(data.request_meta.cells_count_b, 0, 9, 'request_meta.cells_count_b');
+    assertNumberInRange(data.request_meta.cells_count_b, 0, MAX_CELLS_PER_REGION, 'request_meta.cells_count_b');
   }
 
   validateVariableStatistics(data.region_a_analysis, 'region_a_analysis');

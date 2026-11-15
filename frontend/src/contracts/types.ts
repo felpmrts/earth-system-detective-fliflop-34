@@ -1,30 +1,56 @@
-/** Variáveis NASA POWER em tempo real expostas pelo catálogo do backend de dados. */
+/** Variáveis das 7 Famílias Ambientais e 5 APIs expostas pelo catálogo do backend de dados. */
 export type VariableId =
   | 'T2M'
   | 'T2M_MAX'
   | 'T2M_MIN'
   | 'T2M_RANGE'
   | 'TS'
+  | 'LST_Day_CMG'
+  | 'LST_Night_CMG'
   | 'T2MDEW'
   | 'PRECTOTCORR'
-  | 'GWETTOP'
-  | 'GWETROOT'
-  | 'GWETPROF'
+  | 'GPM_3IMERGM'
   | 'RH2M'
   | 'QV2M'
   | 'TQV'
-  | 'WS2M'
-  | 'WS10M'
-  | 'WS50M'
-  | 'PS'
+  | 'GWETTOP'
+  | 'GWETROOT'
+  | 'GWETPROF'
+  | 'Evap_tavg'
+  | 'Qs_acc'
+  | 'river_discharge'
+  | 'river_discharge_mean'
+  | 'river_discharge_max'
+  | 'river_discharge_min'
+  | '_1_km_monthly_NDVI'
+  | '_1_km_monthly_EVI'
+  | 'Lai_500m'
   | 'ALLSKY_SRF_ALB'
   | 'ALLSKY_SFC_SW_DWN'
   | 'CLRSKY_SFC_SW_DWN'
   | 'CLDTOT'
   | 'CLOUD_AMT'
-  | 'ALLSKY_SFC_LW_DWN';
+  | 'ALLSKY_SFC_LW_DWN'
+  | 'WS2M'
+  | 'WS10M'
+  | 'WS50M'
+  | 'PS'
+  | 'AOD_550'
+  | 'PRCP'
+  | 'TAVG'
+  | 'TMAX'
+  | 'TMIN'
+  | 'SNOW'
+  | 'SNWD'
+  | 'AWND';
 
-export type SourceModel = 'MERRA-2' | 'CERES_SYN1deg';
+export type SourceModel =
+  | 'MERRA-2'
+  | 'CERES_SYN1deg'
+  | 'MODIS_AppEEARS'
+  | 'NASA_Giovanni'
+  | 'GloFAS'
+  | 'NOAA_CDO';
 export type ScaleType = 'interval' | 'ratio';
 export type RegionSlot = 'A' | 'B';
 export type DataMode = 'api' | 'offline';
