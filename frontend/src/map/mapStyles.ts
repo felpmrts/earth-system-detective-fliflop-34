@@ -146,3 +146,52 @@ export function getSelectedCellStyle(slot: RegionSlot): RegionPolygonVisualStyle
     dashArray: '6 4',
   };
 }
+
+export interface GlobalTrendHotspots {
+  readonly positive: GlobalGridPoint | null;
+  readonly negative: GlobalGridPoint | null;
+}
+
+function selectExtremeHotspot(
+  points: readonly GlobalGridPoint[],
+  direction: 'positive' | 'negative',
+): GlobalGridPoint | null {
+  const directional = points.filter(point =>
+    Number.isFinite(point.slope_sen_decade) &&
+    Number.isFinite(point.q_value_fdr) &&
+    (direction === 'positive' ? point.slope_sen_decade > 0 : point.slope_sen_decade < 0),
+  );
+  if (directional.length === 0) return null;
+
+  const significant = directional.filter(point => point.q_value_fdr < 0.05);
+  const pool = significant.length > 0 ? significant : directional;
+
+  let best = pool[0]!;
+  for (let i = 1; i < pool.length; i += 1) {
+    const candidate = pool[i]!;
+    const isStronger = direction === 'positive'
+      ? candidate.slope_sen_decade > best.slope_sen_decade
+      : candidate.slope_sen_decade < best.slope_sen_decade;
+    const isSameSlopeBetterSignificance =
+      candidate.slope_sen_decade === best.slope_sen_decade &&
+      candidate.q_value_fdr < best.q_value_fdr;
+    if (isStronger || isSameSlopeBetterSignificance) {
+      best = candidate;
+    }
+  }
+
+  return best;
+}
+
+/**
+ * Seleciona os hotspots globais de maior tendência positiva e negativa,
+ * priorizando pontos com significância estatística FDR (`q_value_fdr < 0.05`) quando disponíveis.
+ */
+export function findGlobalTrendHotspots(
+  points: readonly GlobalGridPoint[],
+): GlobalTrendHotspots {
+  return {
+    positive: selectExtremeHotspot(points, 'positive'),
+    negative: selectExtremeHotspot(points, 'negative'),
+  };
+}

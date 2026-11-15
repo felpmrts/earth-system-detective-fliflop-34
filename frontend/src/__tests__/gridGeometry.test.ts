@@ -1,5 +1,6 @@
 import { describe, expect, it } from 'vitest';
 import {
+  buildCellBlock3x3,
   buildRegionSelection,
   clampLatLon,
   isAdjacent8,
@@ -230,5 +231,87 @@ describe('gridGeometry — snapping de grade NASA e composição K <= 9', () => 
     const emptyHoleModis = snapCoordToCell(avgLat, avgLon, 'LST_Day_CMG');
     expect(mirroredMerra.cells.some(c => c.cell_id === emptyHoleMerra.cell_id)).toBe(false);
     expect(mirroredModis.cells.some(c => c.cell_id === emptyHoleModis.cell_id)).toBe(false);
+  });
+
+  it('buildCellBlock3x3 gera bloco conexo 3×3 (9 células) no centro sem duplicatas', () => {
+    const merraCenter = snapCoordToCell(-18.91, -48.27, 'T2M');
+    const merraBlock = buildCellBlock3x3(-18.91, -48.27, 'T2M');
+    expect(merraBlock).toHaveLength(9);
+    expect(new Set(merraBlock.map(c => c.cell_id)).size).toBe(9);
+    expect(merraBlock.some(c => c.cell_id === merraCenter.cell_id)).toBe(true);
+    expect(isConnectedComponent(merraBlock)).toBe(true);
+    expect(buildRegionSelection('A', 'T2M', merraBlock).cells).toHaveLength(9);
+
+    const ceresCenter = snapCoordToCell(-3.2, -60.4, 'ALLSKY_SFC_SW_DWN');
+    const ceresBlock = buildCellBlock3x3(-3.2, -60.4, 'ALLSKY_SFC_SW_DWN');
+    expect(ceresBlock).toHaveLength(9);
+    expect(new Set(ceresBlock.map(c => c.cell_id)).size).toBe(9);
+    expect(ceresBlock.some(c => c.cell_id === ceresCenter.cell_id)).toBe(true);
+    expect(isConnectedComponent(ceresBlock)).toBe(true);
+
+    const modisBlock = buildCellBlock3x3(-10.1, -55.2, '_1_km_monthly_NDVI');
+    expect(modisBlock).toHaveLength(9);
+    expect(isConnectedComponent(modisBlock)).toBe(true);
+  });
+
+  it('buildCellBlock3x3 respeita limites nos polos e antimeridiano (6 em bordas, 4 em cantos)', () => {
+    const checkValidDomain = (cells: readonly GridCell[], expectedLen: number) => {
+      expect(cells).toHaveLength(expectedLen);
+      expect(new Set(cells.map(c => c.cell_id)).size).toBe(expectedLen);
+      expect(isConnectedComponent(cells)).toBe(true);
+      for (const cell of cells) {
+        const [[south, west], [north, east]] = cell.bounds_leaflet;
+        expect(cell.lat).toBeGreaterThanOrEqual(-90);
+        expect(cell.lat).toBeLessThanOrEqual(90);
+        expect(cell.lon).toBeGreaterThanOrEqual(-180);
+        expect(cell.lon).toBeLessThanOrEqual(180);
+        expect(south).toBeGreaterThanOrEqual(-90);
+        expect(north).toBeLessThanOrEqual(90);
+        expect(west).toBeGreaterThanOrEqual(-180);
+        expect(east).toBeLessThanOrEqual(180);
+        expect(south).toBeLessThan(north);
+        expect(west).toBeLessThan(east);
+      }
+    };
+
+    // Polo Norte e Polo Sul (MERRA-2 e CERES) -> 6 células (2×3)
+    checkValidDomain(buildCellBlock3x3(90, 0, 'T2M'), 6);
+    checkValidDomain(buildCellBlock3x3(-90, 0, 'ALLSKY_SFC_SW_DWN'), 6);
+
+    // Bordas do Antimeridiano (-180 / +180) -> 6 células (3×2)
+    checkValidDomain(buildCellBlock3x3(0, -180, 'T2M'), 6);
+    checkValidDomain(buildCellBlock3x3(0, 180, 'CLOUD_AMT'), 6);
+
+    // Quinas extremas (Polo + Antimeridiano) -> 4 células (2×2)
+    checkValidDomain(buildCellBlock3x3(90, 180, 'T2M'), 4);
+    checkValidDomain(buildCellBlock3x3(-90, -180, 'ALLSKY_SFC_SW_DWN'), 4);
+
+    // Coordenadas inválidas continuam lançando erro
+    expect(() => buildCellBlock3x3(95, 0, 'T2M')).toThrow();
+    expect(() => buildCellBlock3x3(0, Number.NaN, 'T2M')).toThrow();
+  });
+
+  it('buildCellBlock3x3 opera entre grades heterogêneas (MERRA-2 <-> CERES_SYN1deg) com espelhamento A=B válido', () => {
+    const merraCells = buildCellBlock3x3(-12.3, -49.8, 'GWETTOP');
+    const ceresCells = buildCellBlock3x3(-12.3, -49.8, 'ALLSKY_SFC_SW_DWN');
+    expect(merraCells).toHaveLength(9);
+    expect(ceresCells).toHaveLength(9);
+
+    // Bloco 3×3 MERRA-2 cobre 1.5° × 1.875°, CERES cobre 3.0° × 3.0°
+    expect(ceresCells[8]!.lat - ceresCells[0]!.lat).toBeCloseTo(2.0, 4);
+    expect(merraCells[8]!.lat - merraCells[0]!.lat).toBeCloseTo(1.0, 4);
+
+    const regionA = buildRegionSelection('A', 'GWETTOP', merraCells);
+    const mirroredToCeres = mirrorRegionSelection(regionA, 'B', 'ALLSKY_SFC_SW_DWN');
+    expect(mirroredToCeres.source_model).toBe('CERES_SYN1deg');
+    expect(isConnectedComponent(mirroredToCeres.cells)).toBe(true);
+    expect(mirroredToCeres.cells.length).toBeGreaterThanOrEqual(1);
+    expect(mirroredToCeres.cells.length).toBeLessThanOrEqual(MAX_CELLS_PER_REGION);
+
+    const ceresRegionA = buildRegionSelection('A', 'ALLSKY_SFC_SW_DWN', ceresCells);
+    const mirroredToMerra = mirrorRegionSelection(ceresRegionA, 'B', 'T2M');
+    expect(mirroredToMerra.source_model).toBe('MERRA-2');
+    expect(isConnectedComponent(mirroredToMerra.cells)).toBe(true);
+    expect(mirroredToMerra.cells.length).toBeLessThanOrEqual(MAX_CELLS_PER_REGION);
   });
 });

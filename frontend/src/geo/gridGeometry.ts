@@ -446,3 +446,41 @@ export function selectCellsInBoundingBox(
     wasClamped: true,
   };
 }
+
+/**
+ * Gera um bloco conexo 3×3 (`dr, dc ∈ {-1, 0, 1}`) ao redor da célula encaixada em `(lat, lon)`,
+ * validando limites geográficos/regionais do modelo e deduplicando `cell_id` (até 9 células válidas).
+ */
+export function buildCellBlock3x3(
+  lat: number,
+  lon: number,
+  variableId: VariableId,
+): GridCell[] {
+  const center = snapCoordToCell(lat, lon, variableId);
+  const meta = getVariableMetadata(variableId);
+  const minLat = meta.grid_origin.lat0;
+  const minLon = meta.grid_origin.lon0;
+  const block: GridCell[] = [];
+
+  for (let dr = -1; dr <= 1; dr += 1) {
+    for (let dc = -1; dc <= 1; dc += 1) {
+      const candidate = buildCellFromRowCol(center.row + dr, center.col + dc, variableId);
+      const [[south, west], [north, east]] = candidate.bounds_leaflet;
+      const withinModelDomain =
+        candidate.lat >= minLat &&
+        candidate.lat <= 90 &&
+        candidate.lon >= minLon &&
+        candidate.lon <= 180 &&
+        south >= -90 &&
+        north <= 90 &&
+        west >= -180 &&
+        east <= 180 &&
+        south < north &&
+        west < east;
+      if (!withinModelDomain) continue;
+      block.push(candidate);
+    }
+  }
+
+  return deduplicateCells(block);
+}
