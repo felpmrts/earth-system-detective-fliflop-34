@@ -54,6 +54,9 @@ interface ScientificBenchProps {
   readonly end: string;
   readonly periodReady: boolean;
   readonly analyzedAt: string | null;
+  readonly isUpdating?: boolean;
+  readonly isJustUpdated?: boolean;
+  readonly updateSeq?: number;
   readonly anomaly: boolean;
   readonly separate: boolean;
   readonly dual: boolean;
@@ -233,6 +236,9 @@ export function ScientificBench({
   end,
   periodReady,
   analyzedAt,
+  isUpdating = false,
+  isJustUpdated = false,
+  updateSeq = 0,
   anomaly,
   separate,
   dual,
@@ -974,14 +980,33 @@ export function ScientificBench({
   return (
     <section
       ref={benchSectionRef}
-      className="bench-panel"
+      className={`bench-panel${isUpdating ? ' is-updating' : ''}${isJustUpdated ? ' is-just-updated' : ''}`}
       data-tour="bench-panel"
+      data-updated-seq={updateSeq > 0 ? updateSeq : undefined}
+      aria-busy={isUpdating || undefined}
       aria-label="Time series and diagnostics"
     >
+      {isJustUpdated && updateSeq > 0 && (
+        <div key={`sweep-${updateSeq}`} className="bench-update-sweep" aria-hidden="true" />
+      )}
       <header className="discovery-header" data-tour="bench-discovery">
         <div className="discovery-title-row">
           <div>
-            <h2>Discovery Summary</h2>
+            <div className="discovery-heading-line">
+              <h2>Discovery Summary</h2>
+              {isJustUpdated && updateSeq > 0 && (
+                <span
+                  key={`badge-${updateSeq}`}
+                  className="bench-updated-badge"
+                  data-testid="bench-updated-badge"
+                  role="status"
+                  aria-live="polite"
+                >
+                  <span className="bench-updated-dot" aria-hidden="true" />
+                  Bench updated
+                </span>
+              )}
+            </div>
             <p className="discovery-subtitle">
               Period: <strong>{firstMonth ?? '—'}</strong> to <strong>{lastMonth ?? '—'}</strong>
               {regions[0] &&

@@ -4,6 +4,7 @@ import { MonthPickerInput } from '@mantine/dates';
 import { useEffect, useRef, useState } from 'react';
 import type { RegionAnalysisResponse, RegionSelection, VariableId } from './contracts/types';
 import { isValidVariableId, VARIABLE_LIST } from './contracts/catalog';
+import { mirrorRegionSelection } from './geo/gridGeometry';
 import type { TrendMode } from './bench/benchMeta';
 import { ScientificBench } from './bench/ScientificBench';
 import { MapWorkspace } from './map/MapWorkspace';
@@ -45,10 +46,60 @@ function formatRegionCoordinates(region: RegionSelection | null): string {
   return `Longitude ${coordinateFormat.format(longitude)}° · Latitude ${coordinateFormat.format(latitude)}°`;
 }
 
+interface BenchAnalysisSnapshot {
+  readonly variableA: string;
+  readonly variableB: string;
+  readonly regionA: RegionSelection;
+  readonly regionB: RegionSelection;
+  readonly start: string;
+  readonly end: string;
+  readonly sameLocation: boolean;
+  readonly signature: string;
+}
+
+function serializeRegionSignature(region: RegionSelection | null): string {
+  if (!region || region.cells.length === 0) return '';
+  return region.cells.map(cell => `${cell.cell_id}:${cell.lat}:${cell.lon}`).join(',');
+}
+
+function buildBenchSignature(params: {
+  readonly variableA: string;
+  readonly variableB: string;
+  readonly start: string;
+  readonly end: string;
+  readonly sameLocation: boolean;
+  readonly regionA: RegionSelection | null;
+  readonly regionB: RegionSelection | null;
+}): string {
+  return [
+    params.variableA,
+    params.variableB,
+    params.start,
+    params.end,
+    params.sameLocation ? '1' : '0',
+    serializeRegionSignature(params.regionA),
+    serializeRegionSignature(params.regionB),
+  ].join('|');
+}
+
+function resnapRegionForVariable(
+  region: RegionSelection | null,
+  slot: 'A' | 'B',
+  nextVariableId: string,
+): RegionSelection | null {
+  if (!nextVariableId) return null;
+  if (!region || region.cells.length === 0) return region;
+  if (!isValidVariableId(nextVariableId)) return null;
+  return mirrorRegionSelection(region, slot, nextVariableId);
+}
+
 export default function App() {
   const [initialSession] = useState(loadPersistedSession);
   const [analysis, setAnalysis] = useState<RegionAnalysisResponse>();
+  const [analyzedSnapshot, setAnalyzedSnapshot] = useState<BenchAnalysisSnapshot | null>(null);
   const [analyzedAt, setAnalyzedAt] = useState<string | null>(null);
+  const [benchUpdateSeq, setBenchUpdateSeq] = useState(0);
+  const [benchJustUpdated, setBenchJustUpdated] = useState(false);
   const [variableOptions, setVariableOptions] = useState(fallbackVariableOptions);
   const [catalogError, setCatalogError] = useState('');
   const [tab, setTab] = useState<AppTab>(initialSession.tab);
@@ -92,17 +143,41 @@ export default function App() {
   const end = endMonth >= (start || minimumMonth) && endMonth <= maximumMonth ? endMonth : '';
   const periodReady = Boolean(minimumMonth && start && end);
 
-  const handleVariableAChange = (next: string) => {
-    if (next !== variableA) {
-      setRegionA(null);
+  const clampPeriodToVariableBounds = (nextVarA: string, nextVarB: string) => {
+    const nextMetaA = VARIABLE_LIST.find(variable => variable.variable_id === nextVarA);
+    const nextMetaB = VARIABLE_LIST.find(variable => variable.variable_id === nextVarB);
+    if (!nextMetaA || !nextMetaB) return;
+    const nextMinMonth = `${Math.max(nextMetaA.min_year, nextMetaB.min_year)}-01`;
+    if (startMonth && startMonth < nextMinMonth) {
+      setStartMonth(nextMinMonth);
     }
+    if (endMonth && endMonth < nextMinMonth) {
+      setEndMonth(nextMinMonth);
+    }
+  };
+
+  const handleVariableAChange = (next: string) => {
+    if (next === variableA) return;
+    const nextRegionA = resnapRegionForVariable(regionA, 'A', next);
+    setRegionA(nextRegionA);
+    if (!next) {
+      if (sameLocation) setSameLocation(false);
+    } else if (sameLocation && nextRegionA && variableB && isValidVariableId(variableB)) {
+      setRegionB(mirrorRegionSelection(nextRegionA, 'B', variableB));
+    }
+    clampPeriodToVariableBounds(next, variableB);
     setVariableA(next);
   };
 
   const handleVariableBChange = (next: string) => {
-    if (next !== variableB) {
-      setRegionB(null);
+    if (next === variableB) return;
+    const sourceForB = sameLocation && regionA ? regionA : regionB;
+    const nextRegionB = resnapRegionForVariable(sourceForB, 'B', next);
+    setRegionB(nextRegionB);
+    if (!next && sameLocation) {
+      setSameLocation(false);
     }
+    clampPeriodToVariableBounds(variableA, next);
     setVariableB(next);
   };
 
@@ -144,29 +219,41 @@ export default function App() {
     sidebarOpen,
   ]);
 
-  const selectionKey = `${variableA}|${variableB}|${start}|${end}|${regionA?.region_id ?? ''}|${regionB?.region_id ?? ''}`;
+  const effectiveRegionB =
+    sameLocation && regionA && regionA.cells.length > 0 && variableB && isValidVariableId(variableB)
+      ? regionB && regionB.variable_id === variableB && regionB.cells.length > 0
+        ? regionB
+        : mirrorRegionSelection(regionA, 'B', variableB)
+      : regionB;
 
-  // A query launched from a case preset already uses the selection key it applies.
+  const selectionKey = `${variableA}|${variableB}|${start}|${end}|${regionA?.region_id ?? ''}|${effectiveRegionB?.region_id ?? ''}`;
+
+  // Aborts an in-flight request if selection changes mid-query, preserving any loaded Bench analysis.
   useEffect(() => {
     if (analysisSelectionKeyRef.current === selectionKey) return;
     analysisSelectionKeyRef.current = '';
-    analysisControllerRef.current?.abort('Selection changed during query.');
-    setAnalysis(undefined);
-    setAnalyzedAt(null);
+    if (analysisControllerRef.current) {
+      analysisControllerRef.current.abort('Selection changed during query.');
+      analysisControllerRef.current = null;
+      setIsAnalyzing(false);
+    }
     setAnalysisError('');
   }, [selectionKey]);
 
   useEffect(() => {
     const controller = new AbortController();
     getBackendCatalog(controller.signal)
-      .then(catalog => setVariableOptions(catalog.families.map(family => ({
-        group: family.name,
-        items: family.variables.map(variable => ({
-          value: variable.code,
-          label: variable.ui_name,
-          disabled: !isValidVariableId(variable.code),
-        })),
-      }))))
+      .then(catalog => {
+        if (catalog.families.length === 0) return;
+        setVariableOptions(catalog.families.map(family => ({
+          group: family.name,
+          items: family.variables.map(variable => ({
+            value: variable.code,
+            label: variable.ui_name,
+            disabled: !isValidVariableId(variable.code),
+          })),
+        })));
+      })
       .catch(catalogRequestError => {
         if (!controller.signal.aborted) {
           setCatalogError(catalogRequestError instanceof Error ? catalogRequestError.message : 'Catalog unavailable.');
@@ -186,6 +273,12 @@ export default function App() {
   }, [mobileDrawerOpen, tutorialOpen]);
 
   useEffect(() => () => analysisControllerRef.current?.abort(), []);
+
+  useEffect(() => {
+    if (!benchJustUpdated) return;
+    const timer = window.setTimeout(() => setBenchJustUpdated(false), 2400);
+    return () => window.clearTimeout(timer);
+  }, [benchJustUpdated, benchUpdateSeq]);
 
   useEffect(() => {
     if (tab !== 'map') return;
@@ -262,6 +355,7 @@ export default function App() {
     readonly regionB: RegionSelection;
     readonly startDate: string;
     readonly endDate: string;
+    readonly sameLocation: boolean;
   }) {
     analysisSelectionKeyRef.current =
       `${params.variableA}|${params.variableB}|${params.startDate}|${params.endDate}|${params.regionA.region_id}|${params.regionB.region_id}`;
@@ -282,8 +376,23 @@ export default function App() {
         signal: controller.signal,
       });
       if (controller.signal.aborted) return;
+      const snapshotParams = {
+        variableA: params.variableA,
+        variableB: params.variableB,
+        regionA: params.regionA,
+        regionB: params.regionB,
+        start: params.startDate,
+        end: params.endDate,
+        sameLocation: params.sameLocation,
+      };
       setAnalysis(result);
       setAnalyzedAt(new Date().toLocaleString('en-US', { dateStyle: 'short', timeStyle: 'medium' }));
+      setAnalyzedSnapshot({
+        ...snapshotParams,
+        signature: buildBenchSignature(snapshotParams),
+      });
+      setBenchUpdateSeq(prev => prev + 1);
+      setBenchJustUpdated(true);
       setTab('bench');
     } catch (requestError) {
       if (!controller.signal.aborted) {
@@ -299,14 +408,17 @@ export default function App() {
   }
 
   async function analyzeSelection() {
-    if (!variableA || !variableB || !regionA || !regionB || !periodReady) return;
+    if (!variablesReady || !regionA || !effectiveRegionB || !hasValidSpatialSelection || !hasValidPeriodRange) {
+      return;
+    }
     await runAnalysisRequest({
       variableA,
       variableB,
       regionA,
-      regionB,
+      regionB: effectiveRegionB,
       startDate: start,
       endDate: end,
+      sameLocation,
     });
   }
 
@@ -372,6 +484,7 @@ export default function App() {
         regionB: materialized.regionB,
         startDate: materialized.startMonth,
         endDate: materialized.endMonth,
+        sameLocation: materialized.sameLocation,
       });
     }
   }
@@ -380,8 +493,33 @@ export default function App() {
     analysisControllerRef.current?.abort('Query canceled by user.');
   }
 
+  const cellsA = regionA?.cells ?? [];
+  const cellsB = effectiveRegionB?.cells ?? [];
   const variablesReady = Boolean(variableA && variableB);
-  const regionsReady = Boolean(regionA && regionB);
+  const hasValidSpatialSelection =
+    cellsA.length > 0 && (sameLocation || cellsB.length > 0);
+  const hasValidPeriodRange = Boolean(periodReady && start && end && start <= end);
+  const regionsReady = hasValidSpatialSelection && Boolean(regionA && effectiveRegionB);
+
+  const currentSignature = buildBenchSignature({
+    variableA,
+    variableB,
+    start,
+    end,
+    sameLocation,
+    regionA,
+    regionB: effectiveRegionB,
+  });
+
+  const hasPendingBenchChanges = Boolean(
+    analysis &&
+    analyzedSnapshot &&
+    hasValidSpatialSelection &&
+    variablesReady &&
+    hasValidPeriodRange &&
+    currentSignature !== analyzedSnapshot.signature,
+  );
+
   const currentStep = !variablesReady ? 0 : !periodReady ? 1 : !regionsReady ? 2 : 3;
   const workflowSteps = [
     { label: 'Variables', complete: variablesReady },
@@ -533,9 +671,9 @@ export default function App() {
                       <Select className={`variable-picker variable-picker-${slot.toLowerCase()}`}
                         classNames={{ input: 'selection-input', dropdown: 'selection-dropdown', option: 'selection-option' }}
                         label={<span className={`slot-label slot-${slot.toLowerCase()}`}>Variable {symbol}</span>} placeholder="Search variable"
-                        data={variableOptions} searchable clearable clearSectionMode="clear"
-                        clearButtonProps={{ 'aria-label': 'Clear variable ' + symbol }} nothingFoundMessage="No variables found"
-                        value={value || null} onChange={id => onChange(id ?? '')}
+                        data={variableOptions} searchable clearable={false} allowDeselect={false}
+                        nothingFoundMessage="No variables found"
+                        value={value || null} onChange={id => { if (id) onChange(id); }}
                         comboboxProps={{ width: 310, position: 'bottom-start', withinPortal: true, zIndex: tutorialOpen ? 1325 : 1300 }}
                         maxDropdownHeight={340} />
                       <TextInput
@@ -553,18 +691,46 @@ export default function App() {
                 <fieldset className="period-picker" disabled={!minimumMonth}>
                   <legend><span>Analysis period</span></legend>
                   <MonthPickerInput className="variable-picker" classNames={{ input: 'selection-input' }} label="Start month" placeholder="Select month"
-                    locale="en" valueFormat="MMMM YYYY" clearable disabled={!minimumMonth}
+                    locale="en" valueFormat="MMMM YYYY" clearable={false} disabled={!minimumMonth}
                     popoverProps={{ withinPortal: true, zIndex: tutorialOpen ? 1325 : 1300 }}
                     minDate={minimumMonth ? minimumMonth + '-01' : undefined} maxDate={maximumMonth + '-01'}
-                    value={start ? start + '-01' : null} onChange={value => setStartMonth(value?.slice(0, 7) ?? '')} />
+                    value={start ? start + '-01' : null} onChange={value => { if (value) setStartMonth(value.slice(0, 7)); }} />
                   <MonthPickerInput className="variable-picker" classNames={{ input: 'selection-input' }} label="End month" placeholder="Select month"
-                    locale="en" valueFormat="MMMM YYYY" clearable disabled={!minimumMonth}
+                    locale="en" valueFormat="MMMM YYYY" clearable={false} disabled={!minimumMonth}
                     popoverProps={{ withinPortal: true, zIndex: tutorialOpen ? 1325 : 1300 }}
                     minDate={minimumMonth ? (start || minimumMonth) + '-01' : undefined} maxDate={maximumMonth + '-01'}
-                    value={end ? end + '-01' : null} onChange={value => setEndMonth(value?.slice(0, 7) ?? '')} />
+                    value={end ? end + '-01' : null} onChange={value => { if (value) setEndMonth(value.slice(0, 7)); }} />
                 </fieldset>
               </div>
               {tab === 'map' && <div ref={setMapControlsTarget} className="sidebar-map-controls-host" />}
+              {tab === 'bench' && (
+                <div className="sidebar-bench-actions">
+                  {analysisError && (
+                    <p className="sidebar-bench-error" role="alert">
+                      {analysisError}
+                    </p>
+                  )}
+                  <button
+                    type="button"
+                    data-testid="sidebar-update-bench-btn"
+                    className={`sidebar-update-bench-btn${hasPendingBenchChanges ? ' is-pending' : ''}`}
+                    disabled={!hasPendingBenchChanges || isAnalyzing}
+                    onClick={() => void analyzeSelection()}
+                  >
+                    {isAnalyzing
+                      ? 'Updating bench...'
+                      : hasPendingBenchChanges
+                        ? 'Update Scientific Bench'
+                        : analysis
+                          ? !hasValidSpatialSelection
+                            ? 'Select regions on Map'
+                            : !variablesReady || !hasValidPeriodRange
+                              ? 'Set valid variables & period'
+                              : 'Bench synced'
+                          : 'Run analysis on Map first'}
+                  </button>
+                </div>
+              )}
             </aside>
             {!effectiveSidebarOpen && (
               <div className="sidebar-collapsed-rail desktop-only" data-tour="open-variables">
@@ -623,14 +789,17 @@ export default function App() {
               {tab === 'bench' && (
                 <ScientificBench
                   analysis={analysis}
-                  variableA={variableA}
-                  variableB={variableB}
-                  regionA={regionA}
-                  regionB={regionB}
-                  start={start}
-                  end={end}
-                  periodReady={periodReady}
+                  variableA={analyzedSnapshot?.variableA ?? variableA}
+                  variableB={analyzedSnapshot?.variableB ?? variableB}
+                  regionA={analyzedSnapshot?.regionA ?? regionA}
+                  regionB={analyzedSnapshot?.regionB ?? regionB}
+                  start={analyzedSnapshot?.start ?? start}
+                  end={analyzedSnapshot?.end ?? end}
+                  periodReady={analyzedSnapshot ? true : periodReady}
                   analyzedAt={analyzedAt}
+                  isUpdating={isAnalyzing}
+                  isJustUpdated={benchJustUpdated}
+                  updateSeq={benchUpdateSeq}
                   anomaly={anomaly}
                   separate={separate}
                   dual={dual}

@@ -24,8 +24,8 @@ vi.mock('../map/MapWorkspace', async () => {
   const { useState } = await import('react');
   return {
     MapWorkspace: (props: {
-      onRegionAChange: (region: ReturnType<typeof buildRegionSelection>) => void;
-      onRegionBChange: (region: ReturnType<typeof buildRegionSelection>) => void;
+      onRegionAChange: (region: ReturnType<typeof buildRegionSelection> | null) => void;
+      onRegionBChange: (region: ReturnType<typeof buildRegionSelection> | null) => void;
       onAnalyze: () => void;
     }) => {
       const [localSame, setLocalSame] = useState(false);
@@ -56,6 +56,13 @@ vi.mock('../map/MapWorkspace', async () => {
             }}
           >
             Alterar A
+          </button>
+          <button
+            type="button"
+            data-testid="clear-region-a-btn"
+            onClick={() => props.onRegionAChange(null)}
+          >
+            Limpar A
           </button>
           <button type="button" data-testid="trigger-analyze-btn" onClick={props.onAnalyze}>
             Analisar seleção
@@ -92,6 +99,9 @@ function installViewportStubs() {
       dispatchEvent: vi.fn(),
     })),
   });
+  if (typeof Element !== 'undefined') {
+    Element.prototype.scrollIntoView = vi.fn();
+  }
   if (typeof globalThis.ResizeObserver === 'undefined') {
     globalThis.ResizeObserver = class {
       observe() {}
@@ -296,5 +306,109 @@ describe('PROD-2 QA Hardening (AUD-02, AUD-03, AUD-05, AUD-10, AUD-13, AUD-15)',
     fireEvent.click(screen.getByRole('button', { name: 'Map' }));
     expect(document.querySelector('.map-tab-shell.is-hidden')).toBeNull();
     expect(screen.getByTestId('toggle-same-local').textContent).toBe('A=B ativo');
+  });
+
+  it('preserva Bancada ao trocar variável na sidebar (re-snap + min_year), desbloqueia sidebar-update-bench-btn e bloqueia após atualizar ou limpar região', async () => {
+    saveTutorialOutcome('completed', 'scientific-bench');
+    localStorage.setItem(
+      'flipflop34:session:v2',
+      JSON.stringify({
+        tab: 'map',
+        variableA: 'GWETTOP',
+        variableB: 'T2M_MAX',
+        startMonth: '1981-01',
+        endMonth: '2022-12',
+      }),
+    );
+
+    const firstPayload = structuredClone(mockAnalysisJson) as unknown as RegionAnalysisResponse;
+    const secondPayload = structuredClone(mockAnalysisJson) as unknown as RegionAnalysisResponse & {
+      region_a_analysis: { variable_id: string; variable_name: string; unit: string; trend_unit: string };
+    };
+    secondPayload.region_a_analysis.variable_id = 'ALLSKY_SFC_SW_DWN';
+    secondPayload.region_a_analysis.variable_name = 'All-Sky Surface Shortwave Downward Irradiance';
+    secondPayload.region_a_analysis.unit = 'MJ/m²/day';
+    secondPayload.region_a_analysis.trend_unit = 'MJ/m²/day/decade';
+
+    let resolveSecond!: (value: RegionAnalysisResponse) => void;
+    mockGetRegionData
+      .mockResolvedValueOnce(firstPayload)
+      .mockImplementationOnce(
+        () =>
+          new Promise<RegionAnalysisResponse>(resolve => {
+            resolveSecond = resolve;
+          }),
+      );
+
+    render(
+      <MantineProvider>
+        <App />
+      </MantineProvider>,
+    );
+
+    fireEvent.click(screen.getByTestId('seed-regions-btn'));
+    fireEvent.click(screen.getByTestId('trigger-analyze-btn'));
+
+    await waitFor(() => expect(screen.getByRole('heading', { name: 'Discovery Summary' })).toBeTruthy());
+
+    // 1. Estado inicial na Bancada: botão sincronizado, sem botão 'x' de remoção em variáveis/tempo
+    const updateBtn = screen.getByTestId('sidebar-update-bench-btn') as HTMLButtonElement;
+    expect(updateBtn.disabled).toBe(true);
+    expect(updateBtn.textContent).toBe('Bench synced');
+    expect(screen.queryByRole('button', { name: 'Clear variable X' })).toBeNull();
+    expect(screen.queryByRole('button', { name: 'Clear variable Y' })).toBeNull();
+    expect(document.querySelector('#variables-sidebar .period-picker button[aria-label*="Clear"]')).toBeNull();
+
+    // 2. Troca Variable X de GWETTOP (MERRA-2, 1981) -> ALLSKY_SFC_SW_DWN (CERES, 1984) na sidebar
+    const selectVarX = async (optionName: string) => {
+      const varXInput = document.querySelector('#variables-sidebar .variable-picker-a input') as HTMLInputElement;
+      expect(varXInput).not.toBeNull();
+      fireEvent.change(varXInput, { target: { value: optionName } });
+    };
+    await selectVarX('All-Sky Surface Shortwave Downward Irradiance');
+
+    // Bancada NÃO cai no empty state e o botão desbloqueia
+    expect(screen.getByRole('heading', { name: 'Discovery Summary' })).toBeTruthy();
+    expect(screen.queryByText('No analysis run yet')).toBeNull();
+    expect(updateBtn.disabled).toBe(false);
+    expect(updateBtn.textContent).toBe('Update Scientific Bench');
+
+    // 3. Dispara reanálise pelo botão lateral mantendo a Bancada montada durante loading (com classe is-updating)
+    fireEvent.click(updateBtn);
+    await waitFor(() => expect(mockGetRegionData).toHaveBeenCalledTimes(2));
+    expect(updateBtn.disabled).toBe(true);
+    expect(updateBtn.textContent).toBe('Updating bench...');
+    expect(screen.getByRole('heading', { name: 'Discovery Summary' })).toBeTruthy();
+    expect(document.querySelector('.bench-panel.is-updating')).not.toBeNull();
+
+    const secondCallParams = mockGetRegionData.mock.calls[1]![0] as {
+      variable: string;
+      startDate: string;
+      region: ReturnType<typeof buildRegionSelection>;
+    };
+    expect(secondCallParams.variable).toBe('ALLSKY_SFC_SW_DWN');
+    expect(secondCallParams.startDate).toBe('1984-01');
+    expect(secondCallParams.region.source_model).toBe('CERES_SYN1deg');
+    expect(secondCallParams.region.cells.length).toBeGreaterThan(0);
+
+    // Conclui atualização in-place: anima atualização (.is-just-updated + sweep + badge) e bloqueia o botão
+    resolveSecond(secondPayload);
+    await waitFor(() => {
+      expect(document.querySelector('.bench-panel')?.textContent).toContain(
+        'All-Sky Surface Shortwave Downward Irradiance',
+      );
+      expect(updateBtn.disabled).toBe(true);
+      expect(document.querySelector('.bench-panel.is-just-updated')).not.toBeNull();
+      expect(document.querySelector('.bench-update-sweep')).not.toBeNull();
+      expect(screen.getByTestId('bench-updated-badge').textContent).toContain('Bench updated');
+    });
+    expect(updateBtn.textContent).toBe('Bench synced');
+
+    // 4. Se o usuário excluir a Região A, Bancada permanece segura e o botão continua bloqueado
+    fireEvent.click(screen.getByTestId('clear-region-a-btn'));
+    await selectVarX('Mean Air Temperature (2m)');
+    expect(screen.getByRole('heading', { name: 'Discovery Summary' })).toBeTruthy();
+    expect(updateBtn.disabled).toBe(true);
+    expect(updateBtn.textContent).toBe('Select regions on Map');
   });
 });

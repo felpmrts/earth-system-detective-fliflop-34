@@ -2377,3 +2377,189 @@ main.story-mode section {
   .map-tools-label { font-size: .65rem; }
   .map-status .map-tools-group { width: 100%; }
 }
+
+/* Botao e status de atualizacao da Bancada no painel lateral */
+#variables-sidebar .sidebar-bench-actions {
+  margin-top: auto;
+  padding-top: .75rem;
+  border-top: 1px solid rgba(71, 101, 135, .5);
+  display: grid;
+  grid-template-columns: minmax(0, 1fr);
+  gap: .42rem;
+  width: 100%;
+}
+#variables-sidebar .sidebar-bench-error {
+  margin: 0;
+  padding: .42rem .56rem;
+  border-radius: 8px;
+  border: 1px solid rgba(248, 113, 113, .45);
+  background: rgba(127, 29, 29, .32);
+  color: #fecaca;
+  font-size: .76rem;
+  line-height: 1.35;
+}
+#variables-sidebar .sidebar-update-bench-btn {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: .45rem;
+  min-height: 2.9rem;
+  width: 100%;
+  padding: .66rem .85rem;
+  border-radius: 9px;
+  font: inherit;
+  font-size: .9rem;
+  font-weight: 700;
+  letter-spacing: .01em;
+  border: 1px solid #35506f;
+  color: #8fb4d4;
+  background: rgba(15, 28, 46, .78);
+  cursor: pointer;
+  transition: border-color .16s ease, background .16s ease, color .16s ease, box-shadow .16s ease, transform .16s ease;
+}
+#variables-sidebar .sidebar-update-bench-btn:disabled {
+  opacity: .56;
+  cursor: not-allowed;
+  box-shadow: none;
+}
+#variables-sidebar .sidebar-update-bench-btn.is-pending:not(:disabled) {
+  color: #f2fdff;
+  border-color: #22d3ee;
+  background: linear-gradient(135deg, #0891b2, #0e7490);
+  box-shadow: 0 0 0 1px rgba(34, 211, 238, .28), 0 6px 18px rgba(8, 145, 178, .32), inset 0 1px 0 rgba(255, 255, 255, .18);
+}
+#variables-sidebar .sidebar-update-bench-btn.is-pending:not(:disabled):hover {
+  transform: translateY(-1px);
+  border-color: #67e8f9;
+  filter: brightness(1.06);
+  box-shadow: 0 0 0 1px rgba(103, 232, 249, .45), 0 8px 22px rgba(8, 145, 178, .42), inset 0 1px 0 rgba(255, 255, 255, .22);
+}
+#variables-sidebar .sidebar-update-bench-btn:focus-visible {
+  outline: 2px solid #67e8f9;
+  outline-offset: 2px;
+}
+
+/* Animacao de telemetria ao atualizar a Bancada Cientifica */
+.bench-panel {
+  position: relative;
+  transition: opacity .2s ease;
+}
+.bench-panel.is-updating {
+  opacity: .72;
+}
+.bench-update-sweep {
+  position: absolute;
+  inset: 0;
+  pointer-events: none;
+  z-index: 2;
+  border-radius: 12px;
+  overflow: hidden;
+}
+.bench-update-sweep::before {
+  content: '';
+  position: absolute;
+  inset: -40% 0 auto;
+  height: 44%;
+  background: linear-gradient(
+    180deg,
+    rgba(34, 211, 238, 0) 0%,
+    rgba(34, 211, 238, .18) 52%,
+    rgba(103, 232, 249, .32) 78%,
+    rgba(34, 211, 238, 0) 100%
+  );
+  animation: benchScanSweep .95s cubic-bezier(.22, 1, .36, 1) forwards;
+}
+.discovery-heading-line {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: .5rem;
+}
+.bench-updated-badge {
+  display: inline-flex;
+  align-items: center;
+  gap: .35rem;
+  padding: .16rem .55rem;
+  border-radius: 999px;
+  font-size: .72rem;
+  font-weight: 700;
+  letter-spacing: .02em;
+  color: #ecfeff;
+  background: rgba(8, 145, 178, .32);
+  border: 1px solid rgba(34, 211, 238, .68);
+  box-shadow: 0 0 12px rgba(34, 211, 238, .28);
+  animation: benchUpdatedBadgeIn .35s cubic-bezier(.22, 1, .36, 1);
+}
+.bench-updated-dot {
+  width: .45rem;
+  height: .45rem;
+  border-radius: 999px;
+  background: #22d3ee;
+  box-shadow: 0 0 8px #22d3ee;
+  animation: mt-pulse 1.2s ease-out infinite;
+}
+.bench-panel.is-just-updated .discovery-header {
+  animation: benchSurfacePulse 1.25s cubic-bezier(.22, 1, .36, 1);
+}
+.bench-panel.is-just-updated .discovery-card {
+  animation: benchCardPulse 1.25s cubic-bezier(.22, 1, .36, 1);
+}
+.bench-panel.is-just-updated .chart-box {
+  animation: benchSurfacePulse 1.25s cubic-bezier(.22, 1, .36, 1);
+}
+@keyframes benchScanSweep {
+  0% {
+    opacity: .95;
+    transform: translateY(-20%);
+  }
+  100% {
+    opacity: 0;
+    transform: translateY(320%);
+  }
+}
+@keyframes benchSurfacePulse {
+  0% {
+    border-color: #67e8f9;
+    box-shadow: 0 0 0 1px rgba(103, 232, 249, .55), 0 0 24px rgba(34, 211, 238, .24);
+  }
+  100% {
+    border-color: #2a3c54;
+    box-shadow: 0 0 0 0 rgba(34, 211, 238, 0);
+  }
+}
+@keyframes benchCardPulse {
+  0% {
+    transform: translateY(-2px);
+    box-shadow: 0 0 0 1px rgba(34, 211, 238, .42), 0 8px 20px rgba(8, 145, 178, .2);
+  }
+  100% {
+    transform: translateY(0);
+    box-shadow: 0 0 0 0 rgba(8, 145, 178, 0);
+  }
+}
+@keyframes benchUpdatedBadgeIn {
+  from {
+    opacity: 0;
+    transform: translateY(-3px) scale(.94);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0) scale(1);
+  }
+}
+@media (prefers-reduced-motion: reduce) {
+  .bench-panel {
+    transition: none;
+  }
+  .bench-update-sweep,
+  .bench-updated-dot,
+  .bench-updated-badge,
+  .bench-panel.is-just-updated .discovery-header,
+  .bench-panel.is-just-updated .discovery-card,
+  .bench-panel.is-just-updated .chart-box {
+    animation: none !important;
+  }
+  .bench-update-sweep::before {
+    display: none;
+  }
+}
