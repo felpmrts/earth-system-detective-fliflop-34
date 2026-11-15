@@ -186,6 +186,19 @@ export function ScientificBench({
   const [copilotLang, setCopilotLang] = useState<'pt' | 'en'>('pt');
   const [copilotQuestion, setCopilotQuestion] = useState('');
   const [copilotLoading, setCopilotLoading] = useState(false);
+  const [copilotElapsedSec, setCopilotElapsedSec] = useState(0);
+
+  useEffect(() => {
+    if (!copilotLoading) {
+      setCopilotElapsedSec(0);
+      return;
+    }
+    setCopilotElapsedSec(0);
+    const timer = window.setInterval(() => {
+      setCopilotElapsedSec(prev => prev + 1);
+    }, 1000);
+    return () => window.clearInterval(timer);
+  }, [copilotLoading]);
   const [copilotHistory, setCopilotHistory] = useState<readonly CopilotHistoryTurn[]>([]);
   const [copilotMeta, setCopilotMeta] = useState<{
     readonly mode: CopilotResponse['mode'];
@@ -1105,8 +1118,26 @@ export function ScientificBench({
                   </div>
                 ))}
                 {copilotLoading && (
-                  <div className="copilot-msg copilot-msg-assistant" role="status">
-                    {copilotLang === 'en' ? 'Auditing statistical evidence...' : 'Auditando evidências estatísticas...'}
+                  <div className="copilot-msg copilot-msg-assistant copilot-msg-thinking" role="status" aria-live="polite">
+                    <span className="copilot-typing-dots" aria-hidden="true">
+                      <span />
+                      <span />
+                      <span />
+                    </span>
+                    <span className="copilot-thinking-text">
+                      {copilotLang === 'en'
+                        ? copilotElapsedSec < 5
+                          ? 'Reading statistical metrics and time series...'
+                          : copilotElapsedSec < 15
+                            ? 'Running scientific tools and consulting AI...'
+                            : 'Synthesizing diagnosis & validating invariants...'
+                        : copilotElapsedSec < 5
+                          ? 'Lendo séries e métricas estatísticas...'
+                          : copilotElapsedSec < 15
+                            ? 'Executando ferramentas científicas e consultando a IA...'
+                            : 'Refinando diagnóstico e validando invariantes...'}
+                    </span>
+                    <span className="copilot-thinking-elapsed">{copilotElapsedSec}s</span>
                   </div>
                 )}
               </div>
@@ -1131,7 +1162,13 @@ export function ScientificBench({
                 className="copilot-submit"
                 disabled={copilotLoading || !copilotQuestion.trim()}
               >
-                {copilotLang === 'en' ? 'Ask' : 'Perguntar'}
+                {copilotLoading
+                  ? copilotLang === 'en'
+                    ? 'Thinking...'
+                    : 'Pensando...'
+                  : copilotLang === 'en'
+                    ? 'Ask'
+                    : 'Perguntar'}
               </button>
             </form>
           </div>

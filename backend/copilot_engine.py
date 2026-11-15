@@ -1180,6 +1180,129 @@ def _call_gemini_copilot(
     raise ValueError("Limite de rodadas de Function Calling excedido na API Gemini.")
 
 
+def _default_openrouter_http_post(
+    url: str,
+    payload: Dict[str, Any],
+    headers: Dict[str, str],
+    timeout: float,
+) -> Dict[str, Any]:
+    req = urllib.request.Request(
+        url,
+        data=json.dumps(payload, ensure_ascii=False).encode("utf-8"),
+        headers=headers,
+        method="POST",
+    )
+    with urllib.request.urlopen(req, timeout=timeout) as resp:
+        return json.loads(resp.read().decode("utf-8"))
+
+
+def _call_openrouter_copilot(
+    system_prompt: str,
+    user_prompt: str,
+    api_key: str,
+    analysis: Dict[str, Any],
+    *,
+    history: Optional[List[Dict[str, str]]] = None,
+    cache: Optional[CellCacheStore] = None,
+    language: str = "pt",
+    http_post_fn: Optional[Callable[[str, Dict[str, Any], float], Dict[str, Any]]] = None,
+) -> Tuple[str, List[Dict[str, Any]]]:
+    model = os.environ.get("OPENROUTER_COPILOT_MODEL", "deepseek/deepseek-chat").strip() or "deepseek/deepseek-chat"
+    timeout_seconds = float(
+        os.environ.get("OPENROUTER_COPILOT_TIMEOUT", os.environ.get("GEMINI_COPILOT_TIMEOUT", "15.0"))
+    )
+    url = "https://openrouter.ai/api/v1/chat/completions"
+    headers = {
+        "Content-Type": "application/json",
+        "Authorization": f"Bearer {api_key}",
+        "HTTP-Referer": "http://localhost:5173",
+        "X-Title": "Earth System Trend Detective",
+    }
+
+    messages: List[Dict[str, Any]] = [{"role": "system", "content": system_prompt}]
+    if history:
+        for turn in history[-6:]:
+            role = "assistant" if turn.get("role") == "assistant" else "user"
+            text = str(turn.get("content") or "").strip()
+            if text:
+                messages.append({"role": role, "content": text})
+    messages.append({"role": "user", "content": user_prompt})
+
+    declarations = get_gemini_tool_declarations()
+    openai_tools = [
+        {
+            "type": "function",
+            "function": {
+                "name": decl["name"],
+                "description": decl["description"],
+                "parameters": decl["parameters"],
+            },
+        }
+        for decl in declarations
+    ]
+    tools_used: List[Dict[str, Any]] = []
+
+    for _round in range(MAX_TOOL_ROUNDS + 1):
+        payload: Dict[str, Any] = {
+            "model": model,
+            "messages": messages,
+            "tools": openai_tools,
+            "tool_choice": "auto",
+            "temperature": 0.2,
+            "max_tokens": 1200,
+        }
+        if http_post_fn is not None:
+            data = http_post_fn(url, payload, timeout_seconds)
+        else:
+            data = _default_openrouter_http_post(url, payload, headers, timeout_seconds)
+
+        choices = data.get("choices") or []
+        message = (choices[0].get("message") or {}) if choices else {}
+        tool_calls = message.get("tool_calls") or []
+
+        if tool_calls and _round < MAX_TOOL_ROUNDS:
+            messages.append(
+                {
+                    "role": "assistant",
+                    "content": message.get("content") or "",
+                    "tool_calls": tool_calls,
+                }
+            )
+            for call in tool_calls:
+                fn_obj = call.get("function") or {}
+                fn_name = str(fn_obj.get("name") or "")
+                raw_args = fn_obj.get("arguments")
+                if isinstance(raw_args, str):
+                    try:
+                        fn_args = json.loads(raw_args) if raw_args.strip() else {}
+                    except json.JSONDecodeError:
+                        fn_args = {}
+                elif isinstance(raw_args, dict):
+                    fn_args = raw_args
+                else:
+                    fn_args = {}
+
+                tool_result, tool_meta = execute_copilot_tool(
+                    fn_name, fn_args, analysis, cache=cache, language=language
+                )
+                tools_used.append(tool_meta)
+                messages.append(
+                    {
+                        "role": "tool",
+                        "tool_call_id": str(call.get("id") or fn_name),
+                        "content": json.dumps(tool_result, ensure_ascii=False),
+                    }
+                )
+            continue
+
+        text = str(message.get("content") or "").strip()
+        if not text:
+            raise ValueError("Resposta vazia da API OpenRouter.")
+        return text, tools_used
+
+    raise ValueError("Limite de rodadas de Function Calling excedido na API OpenRouter.")
+
+
 def _apply_invariant_guardrails(
     response: Dict[str, Any],
     analysis: Dict[str, Any],
@@ -1239,29 +1362,45 @@ def generate_copilot_response(
     _ensure_env_loaded()
     lang = _normalize_language(language)
     heuristic = generate_heuristic_synthesis(analysis, question=question, language=lang, cache=cache)
-    api_key = os.environ.get("GEMINI_API_KEY", "").strip()
+    gemini_key = os.environ.get("GEMINI_API_KEY", "").strip()
+    openrouter_key = os.environ.get("OPENROUTER_API_KEY", "").strip()
 
-    if not use_llm or not api_key:
+    if not use_llm or (not gemini_key and not openrouter_key):
         return heuristic
 
     system_prompt = COPILOT_SYSTEM_PROMPT_EN if lang == "en" else COPILOT_SYSTEM_PROMPT_PT
     user_prompt = build_copilot_prompt(analysis, question=question, language=lang)
 
     try:
-        llm_raw, tools_used = _call_gemini_copilot(
-            system_prompt,
-            user_prompt,
-            api_key,
-            analysis,
-            history=history,
-            cache=cache,
-            language=lang,
-            http_post_fn=http_post_fn,
-        )
+        if gemini_key:
+            llm_raw, tools_used = _call_gemini_copilot(
+                system_prompt,
+                user_prompt,
+                gemini_key,
+                analysis,
+                history=history,
+                cache=cache,
+                language=lang,
+                http_post_fn=http_post_fn,
+            )
+            active_model = os.environ.get("GEMINI_COPILOT_MODEL", "gemini-2.5-flash")
+        else:
+            llm_raw, tools_used = _call_openrouter_copilot(
+                system_prompt,
+                user_prompt,
+                openrouter_key,
+                analysis,
+                history=history,
+                cache=cache,
+                language=lang,
+                http_post_fn=http_post_fn,
+            )
+            active_model = os.environ.get("OPENROUTER_COPILOT_MODEL", "deepseek/deepseek-chat")
+
         structured = _parse_structured_llm_output(llm_raw)
         merged = dict(heuristic)
         merged["mode"] = "llm_gemini"
-        merged["model"] = os.environ.get("GEMINI_COPILOT_MODEL", "gemini-2.5-flash")
+        merged["model"] = active_model
         merged["tools_used"] = tools_used
 
         if structured:

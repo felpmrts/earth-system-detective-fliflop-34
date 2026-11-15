@@ -357,6 +357,82 @@ class TestCopilotAgenticLoopAndCache(unittest.TestCase):
         self.assertEqual(status_miss, 404)
         self.assertEqual(resp_miss["code"], "ANALYSIS_CACHE_MISS")
 
+    def test_mocked_openrouter_multi_turn_tool_calls(self) -> None:
+        captured_bodies: list[dict] = []
+
+        def fake_http_post(url: str, body: dict, timeout: float) -> dict:
+            captured_bodies.append(body)
+            if len(captured_bodies) == 1:
+                return {
+                    "choices": [
+                        {
+                            "message": {
+                                "role": "assistant",
+                                "content": "",
+                                "tool_calls": [
+                                    {
+                                        "id": "call_1",
+                                        "type": "function",
+                                        "function": {
+                                            "name": "inspect_quantiles_and_extremes",
+                                            "arguments": json.dumps({"slot": "A", "top_k": 3}),
+                                        },
+                                    }
+                                ],
+                            }
+                        }
+                    ]
+                }
+
+            llm_json = {
+                "synthesis": {
+                    "mathematical_evidence": "P10 caiu entre as metades.",
+                    "physical_meaning": "Deslocamento da cauda seca.",
+                    "false_conclusion_risk": "Não confundir 2015-11 com tendência.",
+                },
+                "four_answers": {
+                    "what": "GWETTOP em queda.",
+                    "where": "Região A.",
+                    "how_much": "-0.0363/década.",
+                    "is_significant": "CONFIRMED_HIGH.",
+                },
+                "reply_markdown": "Outlier 2015-11 e deslocamento em P10 confirmados.",
+                "suggested_questions": ["Comparar com PRECTOTCORR?"],
+            }
+            return {
+                "choices": [
+                    {
+                        "message": {
+                            "role": "assistant",
+                            "content": json.dumps(llm_json, ensure_ascii=False),
+                        }
+                    }
+                ]
+            }
+
+        with patch.dict(
+            os.environ,
+            {
+                "GEMINI_API_KEY": "",
+                "OPENROUTER_API_KEY": "sk-or-v1-mock-test",
+                "OPENROUTER_COPILOT_MODEL": "deepseek/deepseek-chat",
+            },
+        ):
+            resp = generate_copilot_response(
+                self.mock_analysis,
+                question="Inspecione quantis e extremos",
+                language="pt",
+                use_llm=True,
+                http_post_fn=fake_http_post,
+            )
+
+        self.assertEqual(len(captured_bodies), 2)
+        self.assertEqual(captured_bodies[0]["model"], "deepseek/deepseek-chat")
+        self.assertEqual(resp["mode"], "llm_gemini")
+        self.assertEqual(resp["model"], "deepseek/deepseek-chat")
+        self.assertEqual(resp["tools_used"][0]["name"], "inspect_quantiles_and_extremes")
+        self.assertIn("2015-11", resp["reply_markdown"])
+
 
 if __name__ == "__main__":
     unittest.main()

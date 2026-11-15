@@ -351,7 +351,7 @@ export function createRegionDataAdapter(overrides: Partial<AdapterConfig> = {}) 
       content: turn.content,
     }));
     const knownKey = cachedAnalysisKeys.get(params.analysis);
-    const { controller, cleanup } = createLinkedController(params.signal, 15000);
+    const { controller, cleanup } = createLinkedController(params.signal, 90000);
 
     const postCopilot = async (includeFullAnalysis: boolean) => {
       const payload =
