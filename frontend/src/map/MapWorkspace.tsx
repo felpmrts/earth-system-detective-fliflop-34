@@ -42,6 +42,31 @@ const selectionErrorMessages = {
   WOULD_DISCONNECT: 'Essa célula conecta partes da região e não pode ser removida agora.',
 } as const;
 
+const SOURCE_MODEL_LABELS: Record<string, { readonly short: string; readonly full: string }> = {
+  'MERRA-2': { short: 'MERRA-2', full: 'NASA POWER · MERRA-2' },
+  CERES_SYN1deg: { short: 'CERES', full: 'NASA POWER · CERES' },
+  MODIS_AppEEARS: { short: 'MODIS', full: 'NASA MODIS (AppEEARS)' },
+  NASA_Giovanni: { short: 'Giovanni', full: 'NASA Giovanni' },
+  GloFAS: { short: 'GloFAS', full: 'GloFAS (Copernicus)' },
+  NOAA_CDO: { short: 'NOAA CDO', full: 'NOAA CDO' },
+};
+
+function formatActiveSources(models: readonly (string | undefined)[], variant: 'short' | 'full'): string {
+  const labels = Array.from(
+    new Set(
+      models
+        .filter((model): model is string => Boolean(model))
+        .map(model => SOURCE_MODEL_LABELS[model]?.[variant] ?? model),
+    ),
+  );
+  return labels.length > 0 ? labels.join(' + ') : 'fontes climáticas';
+}
+
+function snapSafeCoord(lat: number, lon: number, variableId: VariableId) {
+  const clamped = clampLatLon(lat, lon);
+  return snapCoordToCell(clamped.lat, clamped.lon, variableId);
+}
+
 export function MapWorkspace({
   variableA,
   variableB,
@@ -179,7 +204,8 @@ export function MapWorkspace({
       tileFailures = 0;
       setOfflineTileNotice('');
     };
-    for (const tileLayer of [nasaGibs, osm, relief]) {
+    const tileLayers = [nasaGibs, osm, relief];
+    for (const tileLayer of tileLayers) {
       tileLayer.on('tileerror', handleTileError);
       tileLayer.on('tileload', handleTileLoad);
     }
@@ -252,7 +278,7 @@ export function MapWorkspace({
         return;
       }
 
-      const target = snapCoordToCell(latlng.lat, latlng.lng, variable);
+      const target = snapSafeCoord(latlng.lat, latlng.lng, variable);
       const result = toggleCellInSelection(region?.cells ?? [], target);
       if (!result.ok) {
         setNotice(result.reason ? selectionErrorMessages[result.reason] : 'Seleção inválida.');
@@ -275,7 +301,7 @@ export function MapWorkspace({
       const slot: RegionSlot = current.sameLocation ? 'A' : activeSlotRef.current;
       const variable = slot === 'A' ? current.variableA : current.variableB;
       if (!variable) return;
-      const cell = snapCoordToCell(latlng.lat, latlng.lng, variable);
+      const cell = snapSafeCoord(latlng.lat, latlng.lng, variable);
       if (previewCellIdRef.current === `${slot}:${cell.cell_id}`) return;
       previewLayerRef.current?.remove();
       const selectedStyle = getSelectedCellStyle(slot);
@@ -415,6 +441,15 @@ export function MapWorkspace({
       }
     };
 
+    let suppressClickTimer: number | null = null;
+
+    const cancelActiveDrag = () => {
+      if (!activeDrag) return;
+      activeDrag = null;
+      clearBoxDragVisuals();
+      restorePanIfNeeded();
+    };
+
     const onWindowMouseUp = (event: MouseEvent) => {
       if (!activeDrag) return;
       const finished = activeDrag;
@@ -428,8 +463,12 @@ export function MapWorkspace({
 
       // Evita que o evento `click` disparado após `mouseup` alterne uma célula extra.
       suppressNextClickRef.current = true;
-      window.setTimeout(() => {
+      if (suppressClickTimer !== null) {
+        window.clearTimeout(suppressClickTimer);
+      }
+      suppressClickTimer = window.setTimeout(() => {
         suppressNextClickRef.current = false;
+        suppressClickTimer = null;
       }, 60);
 
       const current = stateRef.current;
@@ -455,7 +494,7 @@ export function MapWorkspace({
       updateRegion(buildRegionSelection(finished.slot, finished.variable, boxResult.cells));
 
       const clampNote = boxResult.wasClamped
-        ? ' (limitado às 9 mais próximas do início do arraste).'
+        ? ` (limitado às ${MAX_CELLS_PER_REGION} mais próximas do início do arraste).`
         : '.';
       setNotice(
         current.sameLocation
@@ -466,10 +505,8 @@ export function MapWorkspace({
     };
 
     const onWindowKeyDown = (event: KeyboardEvent) => {
-      if (event.key === 'Escape' && activeDrag) {
-        activeDrag = null;
-        clearBoxDragVisuals();
-        restorePanIfNeeded();
+      if (event.key === 'Escape') {
+        cancelActiveDrag();
       }
     };
 
@@ -485,20 +522,32 @@ export function MapWorkspace({
     window.addEventListener('mousemove', onWindowMouseMove);
     window.addEventListener('mouseup', onWindowMouseUp);
     window.addEventListener('keydown', onWindowKeyDown);
+    window.addEventListener('blur', cancelActiveDrag);
+    window.addEventListener('contextmenu', cancelActiveDrag);
     window.addEventListener('offline', onBrowserOffline);
     window.addEventListener('online', onBrowserOnline);
 
     const resizeObserver = new ResizeObserver(() => map.invalidateSize());
     resizeObserver.observe(containerRef.current);
-    setTimeout(() => map.invalidateSize(), 0);
+    const invalidateTimer = window.setTimeout(() => map.invalidateSize(), 0);
 
     return () => {
       mapContainer.removeEventListener('mousedown', onMouseDown, { capture: true });
       window.removeEventListener('mousemove', onWindowMouseMove);
       window.removeEventListener('mouseup', onWindowMouseUp);
       window.removeEventListener('keydown', onWindowKeyDown);
+      window.removeEventListener('blur', cancelActiveDrag);
+      window.removeEventListener('contextmenu', cancelActiveDrag);
       window.removeEventListener('offline', onBrowserOffline);
       window.removeEventListener('online', onBrowserOnline);
+      if (suppressClickTimer !== null) {
+        window.clearTimeout(suppressClickTimer);
+      }
+      window.clearTimeout(invalidateTimer);
+      for (const tileLayer of tileLayers) {
+        tileLayer.off('tileerror', handleTileError);
+        tileLayer.off('tileload', handleTileLoad);
+      }
       resizeObserver.disconnect();
       map.remove();
       mapRef.current = null;
@@ -521,13 +570,16 @@ export function MapWorkspace({
 
   useEffect(() => {
     if (!sameLocation) return;
+    if (!variableA || !variableB) {
+      setSameLocation(false);
+      return;
+    }
     if (activeSlot !== 'A') setActiveSlot('A');
 
     if (!regionA) {
       if (regionB !== null) callbacksRef.current.onRegionBChange(null);
       return;
     }
-    if (!variableB) return;
 
     const mirroredB = mirrorRegionSelection(regionA, 'B', variableB);
     const alreadySynced =
@@ -538,7 +590,7 @@ export function MapWorkspace({
     if (!alreadySynced) {
       callbacksRef.current.onRegionBChange(mirroredB);
     }
-  }, [sameLocation, activeSlot, regionA, regionB, variableB]);
+  }, [sameLocation, activeSlot, regionA, regionB, variableA, variableB]);
 
   useEffect(() => {
     const layer = selectionsLayerRef.current;
@@ -596,6 +648,8 @@ export function MapWorkspace({
   const readyToAnalyze = periodReady && Boolean(regionA && regionB);
   const metadataA = variableA ? getVariableMetadata(variableA) : null;
   const metadataB = variableB ? getVariableMetadata(variableB) : null;
+  const shortSourcesLabel = formatActiveSources([metadataA?.source_model, metadataB?.source_model], 'short');
+  const fullSourcesLabel = formatActiveSources([metadataA?.source_model, metadataB?.source_model], 'full');
   const formatMonth = (month: string) => month
     ? new Intl.DateTimeFormat('pt-BR', { month: 'short', year: 'numeric', timeZone: 'UTC' })
       .format(new Date(`${month}-01T00:00:00Z`)).replace('.', '')
@@ -685,7 +739,7 @@ export function MapWorkspace({
             type="button"
             className={`same-location-toggle${sameLocation ? ' active' : ''}`}
             aria-pressed={sameLocation}
-            disabled={!variableA || !variableB}
+            disabled={!sameLocation && (!variableA || !variableB)}
             onClick={handleToggleSameLocation}
           >
             Mesmo Local (A=B)
@@ -715,7 +769,7 @@ export function MapWorkspace({
         <div className="map-actions">
           {isAnalyzing && <button type="button" className="cancel-button" onClick={onCancel}>Cancelar</button>}
           <button type="button" className="analyze-button" disabled={!readyToAnalyze || isAnalyzing} onClick={onAnalyze}>
-            {isAnalyzing ? 'Consultando NASA POWER…' : 'Analisar seleção'}
+            {isAnalyzing ? `Consultando ${shortSourcesLabel}…` : 'Analisar seleção'}
           </button>
         </div>
       </div>
@@ -725,7 +779,7 @@ export function MapWorkspace({
         <div className="summary-period"><span>Período</span><strong>{formatMonth(startMonth)} — {formatMonth(endMonth)}</strong></div>
       </div>
       {isAnalyzing && <div className="analysis-progress" role="status" aria-live="polite">
-        <div><strong>Consultando duas regiões na NASA POWER</strong><span>{elapsedSeconds}s</span></div>
+        <div><strong>Consultando duas regiões ({fullSourcesLabel})</strong><span>{elapsedSeconds}s</span></div>
         <div className="progress-track"><span /></div>
         <small>A primeira consulta pode levar mais tempo enquanto o cache é preenchido.</small>
       </div>}
@@ -735,7 +789,7 @@ export function MapWorkspace({
           <div className={`box-select-badge slot-${dragPreview.slot.toLowerCase()}`} aria-live="polite">
             <span>Local {dragPreview.slot} · </span>
             <strong>{dragPreview.count}/{MAX_CELLS_PER_REGION} células</strong>
-            {dragPreview.wasClamped && <small> (máx. 9)</small>}
+            {dragPreview.wasClamped && <small> (máx. {MAX_CELLS_PER_REGION})</small>}
           </div>
         )}
         <aside className="map-legend" aria-label="Legenda do mapa">
