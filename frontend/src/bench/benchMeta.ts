@@ -217,39 +217,100 @@ export function transformRegionSeries(
   };
 }
 
+function medianOf(sortedVals: readonly number[]): number {
+  const n = sortedVals.length;
+  if (n === 0) return 0;
+  const mid = Math.floor(n / 2);
+  if (n % 2 === 0) {
+    return 0.5 * ((sortedVals[mid - 1] ?? 0) + (sortedVals[mid] ?? 0));
+  }
+  return sortedVals[mid] ?? 0;
+}
+
 export function computeMahalanobisContourAndFit(
   pairs: readonly { readonly x: number; readonly y: number }[],
   threshold = 2.5,
-): { ellipseX: number[]; ellipseY: number[]; fitX: number[]; fitY: number[] } | null {
+): {
+  ellipseX: number[];
+  ellipseY: number[];
+  fitX: number[];
+  fitY: number[];
+  distances: number[];
+  outlierIndices: number[];
+} | null {
   const n = pairs.length;
   if (n < 3) return null;
 
+  let xMin = Infinity;
+  let xMax = -Infinity;
+  const xs: number[] = [];
+  const ys: number[] = [];
+  for (const p of pairs) {
+    xs.push(p.x);
+    ys.push(p.y);
+    if (p.x < xMin) xMin = p.x;
+    if (p.x > xMax) xMax = p.x;
+  }
+
+  // Robust 1-step Reweighted MCD center & covariance so single extremes cannot inflate the ellipse (M1)
+  const xsSorted = [...xs].sort((a, b) => a - b);
+  const ysSorted = [...ys].sort((a, b) => a - b);
+  const medX = medianOf(xsSorted);
+  const medY = medianOf(ysSorted);
+  const madX = 1.4826 * medianOf(xs.map(v => Math.abs(v - medX)).sort((a, b) => a - b));
+  const madY = 1.4826 * medianOf(ys.map(v => Math.abs(v - medY)).sort((a, b) => a - b));
+
+  const corePairs: { x: number; y: number }[] = [];
+  if (n >= 6 && madX > 1e-12 && madY > 1e-12) {
+    const gate = Math.max(3.0, threshold * 1.25);
+    for (const p of pairs) {
+      const z0 = Math.hypot((p.x - medX) / madX, (p.y - medY) / madY);
+      if (z0 <= gate) {
+        corePairs.push(p);
+      }
+    }
+  }
+  const active = corePairs.length >= Math.max(4, Math.ceil(0.5 * n)) ? corePairs : pairs;
+  const m = active.length;
+
   let mx = 0;
   let my = 0;
-  for (const p of pairs) {
+  for (const p of active) {
     mx += p.x;
     my += p.y;
   }
-  mx /= n;
-  my /= n;
+  mx /= m;
+  my /= m;
 
   let sxx = 0;
   let syy = 0;
   let sxy = 0;
-  let xMin = Infinity;
-  let xMax = -Infinity;
-  for (const p of pairs) {
+  for (const p of active) {
     const dx = p.x - mx;
     const dy = p.y - my;
     sxx += dx * dx;
     syy += dy * dy;
     sxy += dx * dy;
-    if (p.x < xMin) xMin = p.x;
-    if (p.x > xMax) xMax = p.x;
   }
-  sxx /= n - 1;
-  syy /= n - 1;
-  sxy /= n - 1;
+  sxx = Math.max(1e-12, sxx / Math.max(1, m - 1));
+  syy = Math.max(1e-12, syy / Math.max(1, m - 1));
+  sxy /= Math.max(1, m - 1);
+
+  const det = Math.max(1e-18, sxx * syy - sxy * sxy);
+  const distances: number[] = [];
+  const outlierIndices: number[] = [];
+  for (let i = 0; i < n; i += 1) {
+    const pair = pairs[i];
+    if (!pair) continue;
+    const dx = pair.x - mx;
+    const dy = pair.y - my;
+    const d2 = (syy * dx * dx - 2 * sxy * dx * dy + sxx * dy * dy) / det;
+    const dm = Math.sqrt(Math.max(0, d2));
+    distances.push(dm);
+    if (dm > threshold) {
+      outlierIndices.push(i);
+    }
+  }
 
   const trace = sxx + syy;
   const disc = Math.sqrt(Math.max(0, (sxx - syy) ** 2 + 4 * sxy * sxy));
@@ -277,5 +338,7 @@ export function computeMahalanobisContourAndFit(
     ellipseY,
     fitX: [xMin, xMax],
     fitY: [intercept + slope * xMin, intercept + slope * xMax],
+    distances,
+    outlierIndices,
   };
 }

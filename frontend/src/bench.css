@@ -1863,3 +1863,141 @@ main.story-mode section {
 @media (prefers-reduced-motion: reduce) {
   .bench-section-pill { transition: none; }
 }
+
+/* =====================================================================
+   Motor ML Camada 2 integrado na bancada (.ml-discovery-bench-panel)
+   ===================================================================== */
+.ml-discovery-bench-panel {
+  display: grid;
+  gap: 0.75rem;
+  padding: 0.9rem 1rem;
+  border-radius: 12px;
+  background: linear-gradient(155deg, rgba(14, 29, 50, 0.94) 0%, rgba(10, 21, 38, 0.96) 100%);
+  border: 1px solid rgba(56, 189, 248, 0.28);
+  box-shadow: 0 8px 24px rgba(2, 8, 20, 0.35);
+}
+.ml-bench-header {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: space-between;
+  gap: 0.65rem;
+}
+.ml-bench-title-group {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 0.55rem;
+}
+.ml-bench-kicker {
+  font-family: var(--cp-mono, ui-monospace, monospace);
+  font-size: 0.68rem;
+  font-weight: 700;
+  letter-spacing: 0.08em;
+  color: #38bdf8;
+  padding: 0.16rem 0.45rem;
+  border-radius: 999px;
+  background: rgba(56, 189, 248, 0.12);
+  border: 1px solid rgba(56, 189, 248, 0.3);
+}
+.ml-bench-title-group h3 {
+  margin: 0;
+  font-size: 1rem;
+  color: #e2f1ff;
+}
+.ml-bench-timing-pill {
+  font-family: var(--cp-mono, ui-monospace, monospace);
+  font-size: 0.72rem;
+  color: #7dd3fc;
+  background: rgba(15, 39, 68, 0.85);
+  border: 1px solid rgba(56, 189, 248, 0.26);
+  border-radius: 999px;
+  padding: 0.16rem 0.55rem;
+}
+.ml-bench-actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.45rem;
+  align-items: center;
+}
+.ml-copilot-cta {
+  cursor: pointer;
+  border-radius: 999px;
+  border: 1px solid rgba(34, 211, 238, 0.48);
+  background: linear-gradient(135deg, rgba(14, 116, 144, 0.72), rgba(8, 145, 178, 0.85));
+  color: #ecfeff;
+  font-size: 0.78rem;
+  font-weight: 600;
+  padding: 0.38rem 0.82rem;
+  transition: filter 140ms ease, transform 140ms ease;
+}
+.ml-copilot-cta:hover:not(:disabled) {
+  filter: brightness(1.12);
+  transform: translateY(-1px);
+}
+.ml-copilot-cta:disabled {
+  opacity: 0.5;
+  cursor: not-allowed;
+}
+.ml-bench-empty-note {
+  margin: 0;
+  font-size: 0.8rem;
+  color: #9fb8d0;
+}
+.ml-bench-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(260px, 1fr));
+  gap: 0.7rem;
+}
+.ml-bench-card {
+  background: rgba(9, 19, 34, 0.82);
+  border: 1px solid rgba(56, 189, 248, 0.2);
+  border-radius: 10px;
+  padding: 0.72rem 0.82rem;
+  display: grid;
+  gap: 0.42rem;
+  align-content: start;
+}
+.ml-bench-card h4 {
+  margin: 0 0 0.15rem;
+  font-size: 0.82rem;
+  color: #7dd3fc;
+  letter-spacing: 0.02em;
+}
+.ml-metric-row {
+  display: flex;
+  justify-content: space-between;
+  gap: 0.5rem;
+  font-size: 0.78rem;
+  color: #cbd5e1;
+  border-bottom: 1px dashed rgba(148, 163, 184, 0.14);
+  padding-bottom: 0.22rem;
+}
+.ml-bench-table {
+  width: 100%;
+  border-collapse: collapse;
+  font-size: 0.75rem;
+  color: #cbd5e1;
+}
+.ml-bench-table th,
+.ml-bench-table td {
+  padding: 0.22rem 0.28rem;
+  text-align: left;
+  border-bottom: 1px solid rgba(148, 163, 184, 0.14);
+}
+.ml-bench-table th {
+  color: #93c5fd;
+  font-weight: 600;
+}
+.ml-fdr-sig {
+  color: #34d399;
+  font-weight: 700;
+}
+.ml-outlier-tags {
+  margin: 0;
+  padding-left: 1rem;
+  display: grid;
+  gap: 0.26rem;
+  font-size: 0.76rem;
+  color: #cbd5e1;
+}

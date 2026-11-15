@@ -47,7 +47,12 @@ from scipy import stats as sps
 from sklearn.ensemble import HistGradientBoostingRegressor, RandomForestRegressor
 from sklearn.inspection import permutation_importance
 from sklearn.linear_model import RidgeCV
-from sklearn.metrics import mean_absolute_error, mean_squared_error, r2_score
+from sklearn.metrics import (
+    explained_variance_score,
+    mean_absolute_error,
+    mean_squared_error,
+    r2_score,
+)
 from sklearn.pipeline import make_pipeline
 from sklearn.preprocessing import SplineTransformer, StandardScaler
 from sklearn.tree import DecisionTreeRegressor
@@ -992,6 +997,57 @@ def _compute_local_multiscale_coupling(
     }
 
 
+def _cusum_2stage_ar1(
+    resid: np.ndarray,
+    min_segment_months: int,
+    *,
+    is_detrended: bool,
+) -> tuple[bool, int, float, float]:
+    """2-stage mean-demeaned AR(1) CUSUM skipping break boundary pair in rho1 estimation.
+
+    Uses c_0.05^(2) = 0.880 (Ploberger & Kramer, 1992) on linearly detrended residuals and
+    1.3581 on raw level residuals, rescaling p-values coherently so peak_stat == crit <-> p == 0.05.
+    """
+    n = len(resid)
+    centered = resid - float(np.mean(resid))
+    prelim_cs = np.cumsum(centered)
+    interior_pre = np.abs(prelim_cs[min_segment_months : n - min_segment_months])
+    k_star = int(np.argmax(interior_pre)) + min_segment_months
+
+    pre = resid[:k_star] - float(np.mean(resid[:k_star]))
+    post = resid[k_star:] - float(np.mean(resid[k_star:]))
+    pooled = np.concatenate([pre, post])
+    sigma_2s = max(1e-9, float(np.std(pooled)))
+
+    # Boundary-skipping lag-1 autocorrelation across non-crossing adjacent pairs
+    if n >= 6:
+        idx_l = [i for i in range(n - 1) if (i + 1) != k_star]
+        if len(idx_l) >= 4:
+            x0 = pooled[idx_l]
+            x1 = pooled[[i + 1 for i in idx_l]]
+            if float(np.std(x0)) > 1e-12 and float(np.std(x1)) > 1e-12:
+                rho1 = float(np.clip(np.corrcoef(x0, x1)[0, 1], -0.95, 0.95))
+                if not math.isfinite(rho1):
+                    rho1 = 0.0
+            else:
+                rho1 = 0.0
+        else:
+            rho1 = 0.0
+    else:
+        rho1 = 0.0
+
+    ar1_inflation = math.sqrt((1.0 + max(0.0, rho1)) / max(1e-6, 1.0 - max(0.0, rho1)))
+    eff_sigma = sigma_2s * ar1_inflation
+    cusum = prelim_cs / (eff_sigma * math.sqrt(float(n)))
+    interior = np.abs(cusum[min_segment_months : n - min_segment_months])
+    rel_idx = int(np.argmax(interior)) + min_segment_months
+    peak_stat = float(abs(cusum[rel_idx]))
+    crit = 0.880 if is_detrended else 1.3581
+    eff_stat_ks = peak_stat * (1.3581 / crit)
+    p_val = min(1.0, max(0.0, 2.0 * math.exp(-2.0 * eff_stat_ks * eff_stat_ks)))
+    return bool(peak_stat >= crit), rel_idx, peak_stat, p_val
+
+
 def detect_temporal_regime_break(
     dates: Sequence[str],
     y_anom: Sequence[float | None],
@@ -999,7 +1055,7 @@ def detect_temporal_regime_break(
     *,
     min_segment_months: int = 24,
 ) -> dict[str, Any]:
-    """Detects structural regime break date t*_regime via standardized CUSUM on (Y'_t - Y_hat_Sen(t))."""
+    """Detects structural regime break date t*_regime via 2-stage AR(1) CUSUM on (Y'_t - Y_hat_Sen(t))."""
     valid = [
         (d, float(a) - float(s), float(a))
         for d, a, s in zip(dates, y_anom, sen_fit)
@@ -1013,18 +1069,11 @@ def detect_temporal_regime_break(
     resid = np.asarray([item[1] for item in valid], dtype=np.float64)
     anom = np.asarray([item[2] for item in valid], dtype=np.float64)
 
-    sigma = max(1e-9, float(np.std(resid)))
-    rho1 = _lag1_autocorr(resid)
-    ar1_inflation = math.sqrt((1.0 + max(0.0, rho1)) / max(1e-6, 1.0 - max(0.0, rho1)))
-    eff_sigma = sigma * ar1_inflation
-
-    centered = resid - float(np.mean(resid))
-    cusum = np.cumsum(centered) / (eff_sigma * math.sqrt(float(n)))
-    interior = np.abs(cusum[min_segment_months : n - min_segment_months])
-    rel_idx = int(np.argmax(interior)) + min_segment_months
-    peak_stat = float(abs(cusum[rel_idx]))
-    # Asymptotic Kolmogorov-Smirnov / Brownian bridge two-sided p-value approximation
-    p_val = min(1.0, max(0.0, 2.0 * math.exp(-2.0 * peak_stat * peak_stat)))
+    detected, rel_idx, peak_stat, p_val = _cusum_2stage_ar1(
+        resid,
+        min_segment_months,
+        is_detrended=True,
+    )
 
     pre_anom = anom[:rel_idx]
     post_anom = anom[rel_idx:]
@@ -1034,7 +1083,7 @@ def detect_temporal_regime_break(
     slope_post = float(sps.theilslopes(post_anom, t_post).slope) if len(post_anom) >= 12 else 0.0
 
     return {
-        "detected": bool(peak_stat >= 1.358),  # alpha = 0.05 Brownian bridge critical threshold
+        "detected": detected,
         "break_date": v_dates[rel_idx],
         "cusum_max_stat": round(peak_stat, 4),
         "p_value_ar1_bridge": round(p_val, 6),
@@ -1051,6 +1100,7 @@ def detect_physical_coupling_break(
     y_pred: np.ndarray,
     *,
     min_segment_months: int = 24,
+    detrended_regime: bool = False,
 ) -> dict[str, Any]:
     """Detects physical attribution decoupling date t*_coupling on Mode B out-of-fold residuals."""
     n = len(dates)
@@ -1058,21 +1108,16 @@ def detect_physical_coupling_break(
         return {"detected": False, "break_date": None}
 
     resid = y_true - y_pred
-    sigma = max(1e-9, float(np.std(resid)))
-    rho1 = _lag1_autocorr(resid)
-    eff_sigma = sigma * math.sqrt((1.0 + max(0.0, rho1)) / max(1e-6, 1.0 - max(0.0, rho1)))
-
-    centered = resid - float(np.mean(resid))
-    cusum = np.cumsum(centered) / (eff_sigma * math.sqrt(float(n)))
-    interior = np.abs(cusum[min_segment_months : n - min_segment_months])
-    rel_idx = int(np.argmax(interior)) + min_segment_months
-    peak_stat = float(abs(cusum[rel_idx]))
-    p_val = min(1.0, max(0.0, 2.0 * math.exp(-2.0 * peak_stat * peak_stat)))
+    detected, rel_idx, peak_stat, p_val = _cusum_2stage_ar1(
+        resid,
+        min_segment_months,
+        is_detrended=detrended_regime,
+    )
     break_date = dates[rel_idx]
 
     diag = _regime_shift_error_diagnostics(dates, y_true, y_pred, break_date)
     return {
-        "detected": bool(peak_stat >= 1.358),
+        "detected": detected,
         "break_date": break_date,
         "cusum_max_stat": round(peak_stat, 4),
         "p_value_ar1_bridge": round(p_val, 6),
@@ -1848,7 +1893,10 @@ def evaluate_models_for_watershed(
                     oof_y_true[val_idx] = y_work[val_idx]
                     oof_y_pred[val_idx] = preds
 
-                    fold_r2 = float(r2_score(y_work[val_idx], preds))
+                    fold_ev = float(explained_variance_score(y_work[val_idx], preds))
+                    fold_r2_raw = float(r2_score(y_work[val_idx], preds))
+                    # Under in-fold detrending, fold mean offsets from trend extrapolation punish raw r2_score (C4.1)
+                    fold_r2 = fold_ev if detrend_flag else fold_r2_raw
                     fold_mae = float(mean_absolute_error(y_work[val_idx], preds))
                     fold_rmse = float(math.sqrt(mean_squared_error(y_work[val_idx], preds)))
                     fold_metrics.append(
@@ -1858,6 +1906,8 @@ def evaluate_models_for_watershed(
                             "n_train": int(len(train_idx)),
                             "n_val": int(len(val_idx)),
                             "r2": round(fold_r2, 4),
+                            "explained_variance": round(fold_ev, 4),
+                            "r2_raw": round(fold_r2_raw, 4),
                             "mae": round(fold_mae, 4),
                             "rmse": round(fold_rmse, 4),
                         }
@@ -1869,7 +1919,7 @@ def evaluate_models_for_watershed(
                         y_work[val_idx],
                         n_repeats=5,
                         random_state=42 + fold_idx,
-                        scoring="r2",
+                        scoring="explained_variance" if detrend_flag else "r2",
                     )
                     for cname, imp_val in zip(col_names, perm.importances_mean):
                         perm_by_feature.setdefault(cname, []).append(float(imp_val))
@@ -1878,7 +1928,8 @@ def evaluate_models_for_watershed(
                 fold_mean_r2 = float(np.mean(fold_r2_vals))
                 fold_median_r2 = float(np.median(fold_r2_vals))
                 fold_min_r2 = float(np.min(fold_r2_vals))
-                oof_r2 = float(r2_score(oof_y_true, oof_y_pred))
+                oof_ev = float(explained_variance_score(oof_y_true, oof_y_pred))
+                oof_r2 = float(oof_ev if detrend_flag else r2_score(oof_y_true, oof_y_pred))
                 oof_mae = float(mean_absolute_error(oof_y_true, oof_y_pred))
                 oof_rmse = float(math.sqrt(mean_squared_error(oof_y_true, oof_y_pred)))
 
@@ -1909,6 +1960,7 @@ def evaluate_models_for_watershed(
                     "fold_median_r2": round(fold_median_r2, 4),
                     "fold_min_r2": round(fold_min_r2, 4),
                     "cv_oof_r2": round(oof_r2, 4),
+                    "cv_oof_explained_variance": round(oof_ev, 4),
                     "cv_oof_mae": round(oof_mae, 4),
                     "cv_oof_rmse": round(oof_rmse, 4),
                     "folds": fold_metrics,
@@ -1917,7 +1969,7 @@ def evaluate_models_for_watershed(
                         valid_dates, oof_y_true, oof_y_pred, "2020-01"
                     ),
                     "cusum_coupling_break": detect_physical_coupling_break(
-                        valid_dates, oof_y_true, y_pred_cusum
+                        valid_dates, oof_y_true, y_pred_cusum, detrended_regime=detrend_flag
                     ),
                 }
 
@@ -1926,7 +1978,13 @@ def evaluate_models_for_watershed(
                     and model_name == "HistGradientBoostingRegressor"
                 ):
                     stable_cols = [c for c in rmeta["cols"] if c in oof_feat_map]
-                    X_oof_mat = np.column_stack([oof_feat_map[c] for c in stable_cols])
+                    # Apply symmetric detrending to X_oof_mat and quartile predictors when detrend_flag=True (C4.2)
+                    X_oof_mat = np.column_stack(
+                        [
+                            _detrend_linear(oof_feat_map[c]) if detrend_flag else oof_feat_map[c]
+                            for c in stable_cols
+                        ]
+                    )
                     y_oof_vec = _detrend_linear(oof_y_deseas) if detrend_flag else oof_y_deseas
                     regime_out["bootstrap_threshold_stability"] = _bootstrap_regime_thresholds(
                         X_oof_mat, stable_cols, y_oof_vec
@@ -1937,7 +1995,11 @@ def evaluate_models_for_watershed(
                         if item["feature"] in oof_feat_map
                     ][:3]
                     regime_out["top_feature_quartile_profiles"] = [
-                        _quantile_regime_profile(oof_feat_map[cname], y_oof_vec, cname)
+                        _quantile_regime_profile(
+                            _detrend_linear(oof_feat_map[cname]) if detrend_flag else oof_feat_map[cname],
+                            y_oof_vec,
+                            cname,
+                        )
                         for cname in top3_cols
                     ]
 

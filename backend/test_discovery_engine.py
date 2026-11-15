@@ -135,6 +135,40 @@ class TestDiscoveryEngine(unittest.TestCase):
             self.assertEqual(status_err, 400)
             self.assertEqual(payload_err["code"], "CONTRACT_VIOLATION")
 
+    def test_post_audit_cusum_c2_date_alignment_c3_and_f_test_m6(self) -> None:
+        """Regression tests for C2 (0.880/2-stage p-value coherence), C3 (date alignment), M6 (purged CV & F-test)."""
+        import math
+        import numpy as np
+        from backend.discovery_engine import (
+            compute_fast_gcv_physical_attribution,
+            detect_regime_and_gam_geometry,
+        )
+
+        # C2 coherence: detected == (p_value_ar1_bridge <= 0.05) on clean noisy regime step in detrended series
+        dates = [f"{2001 + i // 12:04d}-{(i % 12) + 1:02d}" for i in range(240)]
+        rng = np.random.default_rng(7)
+        y_anom = np.array([-1.0 if i < 120 else 1.0 for i in range(240)], dtype=np.float64) + rng.normal(0.0, 0.35, 240)
+        # Subtract linear fit over the step so Perron AR(1) inflation is tested cleanly
+        t = np.arange(240, dtype=np.float64)
+        sl, ic = np.polyfit(t, y_anom, 1)
+        sen_fit = sl * t + ic
+        geom = detect_regime_and_gam_geometry(dates, y_anom.tolist(), sen_fit.tolist(), y_anom.tolist())
+        self.assertTrue(geom["cusum_break_detected"])
+        self.assertLessEqual(geom["p_value_ar1_bridge"], 0.05)
+        self.assertIn("PERSISTENT", geom["forensic_regime_diagnosis"])
+
+        # C3 date-keyed alignment + M6 purged CV & Bretherton F-test
+        pred_signal = [math.sin(2.0 * math.pi * i / 17.0) for i in range(240)]
+        # Offset dates by dropping first 12 months from target while passing mapping predictor
+        sub_dates = dates[12:]
+        sub_y = [2.0 * pred_signal[i] for i in range(12, 240)]
+        date_map_pred = {d: v for d, v in zip(dates, pred_signal)}
+        attr = compute_fast_gcv_physical_attribution(sub_dates, sub_y, {"X_LAG": date_map_pred})
+        self.assertEqual(attr["status"], "OK")
+        self.assertGreater(attr["detrended_purged_cv_r2"], 0.85)
+        self.assertTrue(attr["overall_model_significant"])
+        self.assertLess(attr["p_value_f_ar1"], 0.01)
+
 
 if __name__ == "__main__":
     unittest.main()

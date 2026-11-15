@@ -321,3 +321,90 @@ export interface CopilotResponse {
   readonly tools_used?: readonly CopilotToolExecution[];
   readonly analysis_key?: string;
 }
+
+export interface DiscoveryRegimeGeometry {
+  readonly cusum_break_detected: boolean;
+  readonly break_date: string | null;
+  readonly forensic_regime_diagnosis: string;
+  readonly cusum_max_stat?: number;
+  readonly p_value_ar1_bridge?: number;
+  readonly quadratic_b2_p_ar1?: number;
+  readonly hinge_p_ar1?: number;
+  readonly pre_break_mean_anom?: number;
+  readonly post_break_mean_anom?: number;
+  readonly pre_break_gam_slope_decade?: number;
+  readonly post_break_gam_slope_decade?: number;
+}
+
+export interface PartialTeleconnectionRow {
+  readonly ocean_box_id: string;
+  readonly ocean_var: string;
+  readonly lag_months: number;
+  readonly n_pairs: number;
+  readonly conditioning_set?: readonly string[];
+  readonly anomaly_r: number;
+  readonly detrended_r: number;
+  readonly partial_r: number;
+  readonly detrended_fdr_q: number;
+  readonly partial_fdr_q: number;
+  readonly is_detrended_sig_fdr05: boolean;
+  readonly is_partial_sig_fdr05: boolean;
+  readonly is_strictly_coupled_fdr05: boolean;
+}
+
+export interface PartialTeleconnectionsSummary {
+  readonly status: string;
+  readonly total_tests: number;
+  readonly significant_partial_fdr05_count: number;
+  readonly significant_strict_both_fdr05_count?: number;
+  readonly top_teleconnections: readonly PartialTeleconnectionRow[];
+}
+
+export interface AttributionDriverRow {
+  readonly predictor: string;
+  readonly standardized_beta: number;
+  readonly abs_importance_rank_weight: number;
+  readonly quartile_jump_q4_minus_q1: number;
+}
+
+export interface FastGcvPhysicalAttribution {
+  readonly status: string;
+  readonly n_samples?: number;
+  readonly best_ridge_alpha?: number;
+  readonly detrended_gcv_r2?: number;
+  readonly detrended_purged_cv_r2?: number;
+  readonly detrended_in_sample_r2?: number;
+  readonly n_effective_ar1?: number;
+  readonly p_value_f_ar1?: number;
+  readonly overall_model_significant?: boolean;
+  readonly drivers_ranked?: readonly AttributionDriverRow[];
+  readonly coupling_break_cusum?: {
+    readonly detected: boolean;
+    readonly break_date: string | null;
+    readonly cusum_max_stat: number;
+    readonly p_value_ar1_bridge: number;
+  };
+}
+
+export interface AttributedMahalanobisOutlier {
+  readonly date: string;
+  readonly mahalanobis_d: number;
+  readonly ocean_phase_tag: string;
+  readonly nino34_ts_z: number;
+  readonly atl_grad_ts_z: number;
+  readonly diagnostic_hint?: string;
+}
+
+export interface DiscoveryResponse {
+  readonly discovery_meta: {
+    readonly engine: string;
+    readonly variable_id: string;
+    readonly period: VariableStatistics['period'] | null;
+    readonly execution_time_ms: number;
+  };
+  readonly regime_and_gam_geometry: DiscoveryRegimeGeometry;
+  readonly partial_teleconnections: PartialTeleconnectionsSummary;
+  readonly fast_gcv_physical_attribution: FastGcvPhysicalAttribution;
+  readonly attributed_mahalanobis_outliers: readonly AttributedMahalanobisOutlier[];
+  readonly analysis_key?: string;
+}

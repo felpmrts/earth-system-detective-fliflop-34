@@ -180,12 +180,13 @@ describe('Scientific Insights Service & Bench Integration (Lag-Lead, Sazonal & 7
   });
 
   it('computes seasonal DJF-SON strictly from deseasonalized monthly anomalies with exact AR(1) p-values and zero % on °C', () => {
-    // Parity check against Python compute_seasonal_stratified_trends on mock_analysis.json
+    // Parity check against Python compute_seasonal_stratified_trends (M3 annual season-year + BH-FDR) on mock_analysis.json
     const seasonalMock = computeClientSeasonalStratifiedTrends(mockAnalysis);
     expect(seasonalMock.uses_deseasonalized_anomalies).toBe(true);
-    expect(seasonalMock.region_a.seasons.DJF.p_value_ar1_corrected).toBeCloseTo(0.0007782, 5);
-    expect(seasonalMock.region_a.seasons.JJA.p_value_ar1_corrected).toBeCloseTo(0.03836365, 5);
-    expect(seasonalMock.region_a.seasons.DJF.slope_per_decade_sen).toBeCloseTo(-0.07906, 4);
+    expect(seasonalMock.region_a.seasons.DJF.p_value_ar1_corrected).toBeCloseTo(0.05180925, 4);
+    expect(seasonalMock.region_a.seasons.JJA.p_value_ar1_corrected).toBeCloseTo(0.05203428, 4);
+    expect(seasonalMock.region_a.seasons.DJF.slope_per_decade_sen).toBeCloseTo(-0.07908, 4);
+    expect(seasonalMock.region_a.seasons.DJF.significant_fdr05).toBe(false);
 
     // Construct an interval (°C) dataset with strong within-DJF raw baseline differences (Dec=12°C, Jan=26°C, Feb=19°C)
     // and verify seasonal regression is strictly invariant to raw_values (uses anomaly_values Y'_{a,m} only)

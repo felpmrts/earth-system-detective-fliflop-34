@@ -13,10 +13,14 @@ import statistics
 import time
 from typing import Any, Callable, Dict, List, Mapping, Optional, Sequence, Tuple
 
+from backend.discovery_engine import DEFAULT_CACHE_DIR, discover_from_analysis
 from backend.stats_engine import (
+    VARIABLE_CATALOG,
     _date_to_fractional_year,
     _pearson_corr_pairs,
     analyze_single_series,
+    apply_spatial_fdr_bh,
+    classify_confidence_tier,
     compare_regions,
     compute_correlation_and_coupling,
     compute_gam_and_regime,
@@ -85,11 +89,13 @@ def _extract_valid_points(
 def _evaluate_regression_slice(
     points: Sequence[Tuple[int, str, float, float, float]],
     base_block: Mapping[str, Any],
+    *,
+    step_months: int = 1,
 ) -> Dict[str, Any]:
     """Roda OLS, Theil-Sen, GAM e significância AR(1) em uma fatia de anomalias válidas."""
     if len(points) < 6:
         raise ValueError(
-            f"Amostra insuficiente para re-estimação robusta ({len(points)} meses válidos; mínimo 6)."
+            f"Amostra insuficiente para re-estimação robusta ({len(points)} observações válidas; mínimo 6)."
         )
 
     dates = [p[1] for p in points]
@@ -112,6 +118,8 @@ def _evaluate_regression_slice(
         residuals=ols["residuals"],
         fdr_q_value=None,
         y_anomalies=y_anom,
+        valid_dates=dates,
+        step_months=step_months,
     )
     gam = compute_gam_and_regime(x_decades, y_anom, sen["slope_per_decade_sen"])
 
@@ -254,24 +262,74 @@ def run_sensitivity_without_outliers(
     }
 
 
+_SEASON_REP_MONTH: Dict[str, int] = {
+    "DJF": 1,
+    "MAM": 4,
+    "JJA": 7,
+    "SON": 10,
+}
+
+
 def compute_seasonal_stratified_trends(
     analysis: Mapping[str, Any],
     *,
     slot: str = "A",
 ) -> Dict[str, Any]:
-    """Calcula tendências climatológicas estratificadas por trimestre (DJF, MAM, JJA, SON)."""
+    """Calcula tendências estratificadas por trimestre com agregação anual sazonal e BH-FDR (M3)."""
     resolved_slot, block = _select_slot_block(analysis, slot)
     points = _extract_valid_points(block)
     if len(points) < 12:
         raise ValueError("Série insuficiente para estratificação sazonal (< 12 meses).")
 
     seasons_out: Dict[str, Dict[str, Any]] = {}
+    ok_keys: List[str] = []
+    ok_pvals: List[float] = []
+    ok_same_sign: List[bool] = []
+
     for season_name, month_tuple in _SEASON_MONTHS.items():
-        s_pts = [p for p in points if int(p[1].split("-")[1]) in month_tuple]
-        if len(s_pts) < 6:
-            seasons_out[season_name] = {"status": "INSUFFICIENT_DATA", "n_observations": len(s_pts)}
+        # Group into meteorological season-years (Dec Y-1 -> Jan/Feb Y) to avoid pseudo-replication
+        by_year: Dict[int, List[Tuple[int, str, float, float, float]]] = {}
+        for pt in points:
+            parts = pt[1].split("-")
+            yr = int(parts[0])
+            mo = int(parts[1])
+            if mo not in month_tuple:
+                continue
+            s_year = yr + (1 if (season_name == "DJF" and mo == 12) else 0)
+            by_year.setdefault(s_year, []).append(pt)
+
+        rep_mo = _SEASON_REP_MONTH[season_name]
+        # Prefer complete seasons (>= 2 months); fall back to >= 1 only if needed on boundary years
+        s_pts_ann = [
+            (
+                idx,
+                f"{s_yr:04d}-{rep_mo:02d}",
+                sum(x[2] for x in grp) / len(grp),
+                sum(x[3] for x in grp) / len(grp),
+                sum(x[4] for x in grp) / len(grp),
+            )
+            for idx, (s_yr, grp) in enumerate(sorted(by_year.items()))
+            if len(grp) >= 2
+        ]
+        if len(s_pts_ann) < 6:
+            s_pts_ann = [
+                (
+                    idx,
+                    f"{s_yr:04d}-{rep_mo:02d}",
+                    sum(x[2] for x in grp) / len(grp),
+                    sum(x[3] for x in grp) / len(grp),
+                    sum(x[4] for x in grp) / len(grp),
+                )
+                for idx, (s_yr, grp) in enumerate(sorted(by_year.items()))
+            ]
+
+        if len(s_pts_ann) < 6:
+            seasons_out[season_name] = {"status": "INSUFFICIENT_DATA", "n_observations": len(s_pts_ann)}
             continue
-        eval_res = _evaluate_regression_slice(s_pts, block)
+
+        eval_res = _evaluate_regression_slice(s_pts_ann, block, step_months=12)
+        p_ar1 = float(eval_res["p_value_ar1_corrected"])
+        same_sign = (float(eval_res["slope_per_decade_ols"]) * float(eval_res["slope_per_decade_sen"])) > 0
         seasons_out[season_name] = {
             "status": "OK",
             "n_observations": eval_res["n_observations"],
@@ -280,9 +338,23 @@ def compute_seasonal_stratified_trends(
             "slope_ci95_low": eval_res["slope_ci95_low"],
             "slope_ci95_high": eval_res["slope_ci95_high"],
             "slope_per_decade_ols": eval_res["slope_per_decade_ols"],
-            "p_value_ar1_corrected": eval_res["p_value_ar1_corrected"],
+            "p_value_ar1_corrected": p_ar1,
             "confidence_tier": eval_res["confidence_tier"],
         }
+        ok_keys.append(season_name)
+        ok_pvals.append(p_ar1)
+        ok_same_sign.append(same_sign)
+
+    if ok_pvals:
+        q_vals, sig_flags = apply_spatial_fdr_bh(ok_pvals, alpha=0.05)
+        for s_key, p_ar1, q_val, is_sig, same_sign in zip(
+            ok_keys, ok_pvals, q_vals, sig_flags, ok_same_sign
+        ):
+            seasons_out[s_key]["fdr_q_value"] = round(float(q_val), 6)
+            seasons_out[s_key]["is_significant_fdr05"] = bool(is_sig)
+            seasons_out[s_key]["confidence_tier"] = classify_confidence_tier(
+                p_ar1, bool(is_sig), same_sign
+            )
 
     ok_seasons = [(k, v) for k, v in seasons_out.items() if v.get("status") == "OK"]
     dominant = (
@@ -362,10 +434,28 @@ def compute_lagged_crosscorrelation_ar1(
     if not lag_rows:
         raise ValueError("Não há pares suficientes em nenhum lag para calcular correlação cruzada.")
 
+    # Benjamini-Hochberg FDR across all 2*max_lag+1 tested lags (M4)
+    q_raw_list, sig_raw_list = apply_spatial_fdr_bh(
+        [float(r["p_raw_ar1"]) for r in lag_rows], alpha=0.05
+    )
+    q_det_list, sig_det_list = apply_spatial_fdr_bh(
+        [float(r["p_detrended_ar1"]) for r in lag_rows], alpha=0.05
+    )
+    for row, qr, sr, qd, sd in zip(lag_rows, q_raw_list, sig_raw_list, q_det_list, sig_det_list):
+        row["q_raw_fdr"] = round(float(qr), 6)
+        row["is_raw_sig_fdr05"] = bool(sr)
+        row["q_detrended_fdr"] = round(float(qd), 6)
+        row["is_detrended_sig_fdr05"] = bool(sd)
+
     best_raw = max(lag_rows, key=lambda row: abs(float(row["r_raw_anomalies"])))
     best_det = max(lag_rows, key=lambda row: abs(float(row["r_detrended"])))
     det_lag = int(best_det["lag_months"])
-    if det_lag > 0:
+    if not bool(best_det["is_detrended_sig_fdr05"]):
+        precedence = (
+            f"Sem precedência estatisticamente significativa após FDR "
+            f"({len(lag_rows)} lags, q_FDR={best_det['q_detrended_fdr']:.4f} >= 0.05)"
+        )
+    elif det_lag > 0:
         precedence = f"A ({reg_a.get('variable_id')}) precede B ({reg_b.get('variable_id')}) em +{det_lag} mês(es)"
     elif det_lag < 0:
         precedence = f"B ({reg_b.get('variable_id')}) precede A ({reg_a.get('variable_id')}) em +{abs(det_lag)} mês(es)"
@@ -589,14 +679,24 @@ def fetch_additional_variable_analysis(
     dates_sorted = sorted(filtered.keys())
     raw_values = [filtered[d] for d in dates_sorted]
     unit = str(fetched.get("unit") or spec.unit)
-    trend_unit = f"{unit}/década"
+    cat_meta = VARIABLE_CATALOG.get(var_code) or {}
+    trend_unit = str(
+        fetched.get("trend_unit")
+        or cat_meta.get("trend_unit")
+        or ("p.p./década" if unit == "%" else f"{unit}/década")
+    )
+    allow_pct = bool(
+        cat_meta["allow_percentage_change"]
+        if "allow_percentage_change" in cat_meta
+        else spec.allow_percentage_change
+    )
     meta = {
         "variable_id": var_code,
         "variable_name": spec.ui_name,
         "scale_type": spec.scale_type,
         "unit": unit,
         "trend_unit": trend_unit,
-        "allow_percentage_change": bool(spec.allow_percentage_change),
+        "allow_percentage_change": allow_pct,
     }
     new_stats = analyze_single_series(
         var_code, dates_sorted, raw_values, fdr_q_value=None, variable_meta=meta
@@ -634,6 +734,54 @@ def fetch_additional_variable_analysis(
     }
 
 
+def run_ml_dynamic_discovery(
+    analysis: Mapping[str, Any],
+    *,
+    slot: str = "A",
+    cache: Optional[CellCacheStore] = None,
+) -> Dict[str, Any]:
+    """Executa o Motor ML Camada 2 (`discover_from_analysis`) para quebra CUSUM, teleconexões parciais ENSO/Atlântico e atribuição Ridge GCV."""
+    resolved_slot, primary_block = _select_slot_block(analysis, slot)
+    other_key = "region_b_analysis" if resolved_slot == "A" else "region_a_analysis"
+    other_block = analysis.get(other_key)
+    secondary: Dict[str, Mapping[str, Any]] = {}
+    if isinstance(other_block, Mapping) and "variable_id" in other_block:
+        o_var = str(other_block["variable_id"])
+        if o_var == str(primary_block.get("variable_id")):
+            o_var = f"{o_var}_region_{'b' if resolved_slot == 'A' else 'a'}"
+        secondary[o_var] = other_block
+
+    cache_dir = cache.cache_dir if cache is not None else DEFAULT_CACHE_DIR
+    raw_disc = discover_from_analysis(
+        primary_block,
+        secondary_analyses=secondary or None,
+        cache_dir=cache_dir,
+    )
+    tel = raw_disc.get("partial_teleconnections") or {}
+    attr = raw_disc.get("fast_gcv_physical_attribution") or {}
+    outliers = raw_disc.get("attributed_mahalanobis_outliers") or []
+
+    return {
+        "tool": "run_ml_dynamic_discovery",
+        "status": "OK",
+        "slot": resolved_slot,
+        "discovery_meta": raw_disc.get("discovery_meta"),
+        "regime_and_gam_geometry": raw_disc.get("regime_and_gam_geometry"),
+        "partial_teleconnections": {
+            "status": tel.get("status"),
+            "total_tests": tel.get("total_tests", 0),
+            "significant_partial_fdr05_count": tel.get("significant_partial_fdr05_count", 0),
+            "significant_strict_both_fdr05_count": tel.get("significant_strict_both_fdr05_count", 0),
+            "top_teleconnections": (tel.get("top_teleconnections") or [])[:5],
+        },
+        "fast_gcv_physical_attribution": {
+            **attr,
+            "drivers_ranked": (attr.get("drivers_ranked") or [])[:6],
+        },
+        "attributed_mahalanobis_outliers": outliers[:6],
+    }
+
+
 _TOOL_REGISTRY: Dict[str, Dict[str, Any]] = {
     "run_subperiod_or_regime_split": {
         "fn": run_subperiod_or_regime_split,
@@ -664,6 +812,11 @@ _TOOL_REGISTRY: Dict[str, Dict[str, Any]] = {
         "fn": fetch_additional_variable_analysis,
         "label_pt": "Busca ao Vivo de Nova Variável",
         "label_en": "Live Additional Variable Fetch",
+    },
+    "run_ml_dynamic_discovery": {
+        "fn": run_ml_dynamic_discovery,
+        "label_pt": "Descoberta ML (CUSUM, Teleconexões & Ridge GCV)",
+        "label_en": "ML Discovery (CUSUM, Teleconnections & Ridge GCV)",
     },
 }
 
@@ -785,6 +938,20 @@ def get_gemini_tool_declarations() -> List[Dict[str, Any]]:
                 "required": ["variable_id"],
             },
         },
+        {
+            "name": "run_ml_dynamic_discovery",
+            "description": (
+                "Run Layer 2 dynamic ML discovery (<50ms): 2-stage AR(1)-adjusted CUSUM regime break detection "
+                "and hinge/curvature forensics, partial ocean teleconnection scan (ENSO/Atlantic with BH-FDR), "
+                "detrended Ridge GCV + purged CV driver attribution, and ocean-phase tagging of Mahalanobis extremes."
+            ),
+            "parameters": {
+                "type": "OBJECT",
+                "properties": {
+                    "slot": {"type": "STRING", "description": "Target region slot: 'A' or 'B'."},
+                },
+            },
+        },
     ]
 
 
@@ -835,6 +1002,15 @@ def _summarize_tool_execution(
         reg = result.get("regression") or {}
         return f"{result.get('variable_id')}: Sen={float(reg.get('slope_per_decade_sen', 0)):+.3f}"
 
+    if name == "run_ml_dynamic_discovery":
+        geom = result.get("regime_and_gam_geometry") or {}
+        tel = result.get("partial_teleconnections") or {}
+        brk = geom.get("break_date") if geom.get("cusum_break_detected") else "sem quebra"
+        return (
+            f"{geom.get('forensic_regime_diagnosis', 'OK')} (CUSUM={brk}) · "
+            f"FDR tel={tel.get('significant_strict_both_fdr05_count', 0)}"
+        )
+
     return "OK"
 
 
@@ -864,7 +1040,7 @@ def execute_copilot_tool(
     t_start = time.perf_counter()
     fn: Callable[..., Dict[str, Any]] = entry["fn"]
     try:
-        if name == "fetch_additional_variable_analysis":
+        if name in {"fetch_additional_variable_analysis", "run_ml_dynamic_discovery"}:
             clean_args["cache"] = cache
         result = fn(analysis, **clean_args)
         duration_ms = round((time.perf_counter() - t_start) * 1000.0, 2)
