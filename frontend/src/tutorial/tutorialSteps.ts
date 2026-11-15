@@ -221,7 +221,7 @@ export const TUTORIAL_STEPS: readonly TutorialStep[] = [
     badgeIcon: 'bench',
     title: 'Explore the Scientific Workbench and Export Evidence',
     summary:
-      'Após analisar, a Bancada abre séries Bruto / Anomalia / Z-Score (σ), escala Linear ou Symlog, retas OLS / Theil–Sen, curva GAM, Dispersão X vs Y com outliers (D_M > 2,5), o painel "4 Respostas do Detetive", a barra PAINÉIS ANALÍTICOS e exportação CSV/JSON.',
+      'After running an analysis, the Scientific Workbench opens Raw / Anomaly / Z-Score (σ) series, Linear or Symlog scales, OLS / Theil–Sen slopes, GAM curve, Scatter X vs Y with Mahalanobis outliers (D_M > 2.5), the "4 Detective Answers" panel, the ANALYTICAL PANELS toolbar, AI Statistical Co-Pilot, 7/7 Audited Invariants, and CSV/JSON reproducibility export.',
     fieldTip:
       'Use "Scientific help (?)" at the top of the Workbench to consult the glossary for OLS, Theil–Sen, GAM, AR(1), and Mahalanobis.',
     interactiveHint: 'Only the Scientific Workbench is unlocked in this step',

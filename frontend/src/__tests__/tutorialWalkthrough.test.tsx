@@ -158,6 +158,8 @@ describe('Tutorial Interativo — Estado, Roteiro e Integração com App', () =>
     }
 
     expect(screen.getByText('Explore the Scientific Workbench and Export Evidence')).toBeTruthy();
+    expect(screen.getByText(/ANALYTICAL PANELS toolbar/)).toBeTruthy();
+    expect(screen.queryByText(/Após analisar/)).toBeNull();
     expect(screen.getByLabelText('Preview of what unlocks in the Scientific Workbench')).toBeTruthy();
 
     fireEvent.click(screen.getByRole('button', { name: 'Finish training' }));

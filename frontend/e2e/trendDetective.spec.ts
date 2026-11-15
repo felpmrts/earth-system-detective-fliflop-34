@@ -588,6 +588,8 @@ test.describe('Earth System Trend Detective — Suite E2E (vite preview)', () =>
     }
 
     await expect(dialog).toContainText('Explore the Scientific Workbench and Export Evidence');
+    await expect(dialog).toContainText('ANALYTICAL PANELS toolbar');
+    await expect(dialog).not.toContainText('Após analisar');
     await dialog.getByRole('button', { name: 'Finish training' }).click();
     await expect(dialog).toHaveCount(0);
 
