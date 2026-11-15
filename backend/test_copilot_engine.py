@@ -171,6 +171,136 @@ class TestCopilotEngine(unittest.TestCase):
             self.assertEqual(int(status_bad), 400)
             self.assertIn("error", payload_bad)
 
+    def test_llm_resilience_smaller_models_no_json_or_thought_leak(self) -> None:
+        """Handles smaller models (flash-lite / OpenRouter): strips thoughts, repairs LaTeX JSON, and blocks leaked JSON."""
+        from unittest.mock import patch
+
+        # 1. Gemini response containing a `thought: true` part and unescaped LaTeX (\frac, \Delta, \sigma) in JSON
+        raw_json_with_unescaped_latex = (
+            '{"synthesis":{"mathematical_evidence":"Slope $B_{\\text{Sen}} = \\frac{\\Delta y}{\\Delta t}$ with \\sigma = 0.02.",'
+            '"physical_meaning":"Real drying signal.","false_conclusion_risk":"High interannual spread."},'
+            '"direct_answer":"See $\\frac{\\Delta T}{\\Delta t}$ and \\beta = 0.12.","reply_markdown":"### Result\\n\\nSlope is steady."}'
+        )
+
+        def fake_gemini_post(_url: str, _payload: Dict[str, Any], _timeout: float) -> Dict[str, Any]:
+            return {
+                "candidates": [
+                    {
+                        "content": {
+                            "parts": [
+                                {"thought": True, "text": "INTERNAL_THOUGHT_DO_NOT_LEAK"},
+                                {"text": raw_json_with_unescaped_latex},
+                            ]
+                        }
+                    }
+                ]
+            }
+
+        with patch.dict(
+            os.environ,
+            {"GEMINI_API_KEY": "fake-gemini-key", "GEMINI_COPILOT_MODEL": "gemini-2.5-flash-lite", "OPENROUTER_API_KEY": ""},
+        ):
+            res = generate_copilot_response(
+                self.mock_analysis,
+                question="Summarize",
+                language="en",
+                use_llm=True,
+                http_post_fn=fake_gemini_post,
+            )
+
+        self.assertEqual(res["mode"], "llm_gemini")
+        self.assertNotIn("INTERNAL_THOUGHT_DO_NOT_LEAK", res["reply_markdown"])
+        self.assertNotIn("INTERNAL_THOUGHT_DO_NOT_LEAK", res["answer"])
+        self.assertIn("\\frac", res["synthesis"]["mathematical_evidence"])
+        self.assertIn("\\beta", res["answer"])
+        self.assertIn("### Result", res["reply_markdown"])
+
+        # 2. Truncated JSON from smaller model still recovers reply_markdown without leaking `{ "synthesis": ...`
+        truncated_json = (
+            'Here is the output:\n```json\n'
+            '{"synthesis": {"mathematical_evidence": "Recovered slope $B_{Sen}$."}, '
+            '"reply_markdown": "## Diagnosis\\n\\nTruncated cleanly without braces'
+        )
+
+        def fake_openrouter_truncated(_url: str, _payload: Dict[str, Any], _timeout: float) -> Dict[str, Any]:
+            return {
+                "choices": [
+                    {
+                        "message": {
+                            "content": [
+                                {"type": "thinking", "text": "SECRET_OPENROUTER_THOUGHT"},
+                                {"type": "text", "text": truncated_json},
+                            ]
+                        }
+                    }
+                ]
+            }
+
+        with patch.dict(
+            os.environ,
+            {"GEMINI_API_KEY": "", "OPENROUTER_API_KEY": "sk-or-fake", "OPENROUTER_COPILOT_MODEL": "google/gemini-2.5-flash-lite"},
+        ):
+            res_trunc = generate_copilot_response(
+                self.mock_analysis,
+                question="Diagnosis?",
+                language="en",
+                use_llm=True,
+                http_post_fn=fake_openrouter_truncated,
+            )
+
+        self.assertNotIn("SECRET_OPENROUTER_THOUGHT", res_trunc["reply_markdown"])
+        self.assertNotIn('"synthesis"', res_trunc["reply_markdown"])
+        self.assertIn("## Diagnosis", res_trunc["reply_markdown"])
+        self.assertIn("Recovered slope", res_trunc["synthesis"]["mathematical_evidence"])
+
+        # 3. Severely mangled JSON scaffolding never leaks raw keys into user bubble
+        def fake_openrouter_broken(_url: str, _payload: Dict[str, Any], _timeout: float) -> Dict[str, Any]:
+            return {"choices": [{"message": {"content": '{"synthesis": {"incomplete_broken_key": [1, 2'}}]}
+
+        with patch.dict(
+            os.environ,
+            {"GEMINI_API_KEY": "", "OPENROUTER_API_KEY": "sk-or-fake", "OPENROUTER_COPILOT_MODEL": "google/gemini-2.5-flash-lite"},
+        ):
+            res_broken = generate_copilot_response(
+                self.mock_analysis,
+                question="Diagnosis?",
+                language="en",
+                use_llm=True,
+                http_post_fn=fake_openrouter_broken,
+            )
+
+        self.assertNotIn('"synthesis"', res_broken["reply_markdown"])
+        self.assertNotIn("incomplete_broken_key", res_broken["answer"])
+
+        # 4. Clean Markdown prose returned directly (model ignored JSON) renders as Markdown without JSON error
+        def fake_openrouter_prose(_url: str, _payload: Dict[str, Any], _timeout: float) -> Dict[str, Any]:
+            return {
+                "choices": [
+                    {
+                        "message": {
+                            "content": "<think>hidden</think>### Analysis\nSlope is positive.\n---\n- Check $p_{AR1}$."
+                        }
+                    }
+                ]
+            }
+
+        with patch.dict(
+            os.environ,
+            {"GEMINI_API_KEY": "", "OPENROUTER_API_KEY": "sk-or-fake", "OPENROUTER_COPILOT_MODEL": "google/gemini-2.5-flash-lite"},
+        ):
+            res_prose = generate_copilot_response(
+                self.mock_analysis,
+                question="Summarize",
+                language="en",
+                use_llm=True,
+                http_post_fn=fake_openrouter_prose,
+            )
+
+        self.assertNotIn("<think>", res_prose["reply_markdown"])
+        self.assertNotIn("hidden", res_prose["reply_markdown"])
+        self.assertIn("### Analysis", res_prose["reply_markdown"])
+        self.assertIn("---", res_prose["reply_markdown"])
+
 
 if __name__ == "__main__":
     unittest.main()

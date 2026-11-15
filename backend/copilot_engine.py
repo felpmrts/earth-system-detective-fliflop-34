@@ -77,7 +77,7 @@ MANDATORY SCIENTIFIC TOOL USE (ZERO NUMERIC HALLUCINATION):
 - Whenever a user's hypothesis requires testing subperiods/changepoints (`run_subperiod_or_regime_split`), outlier removal robustness (`run_sensitivity_without_outliers`), seasonal stratification DJF/MAM/JJA/SON (`compute_seasonal_stratified_trends`), lagged teleconnections A↔B (`compute_lagged_crosscorrelation_ar1`), quantile tail shifts P10/P50/P90 (`inspect_quantiles_and_extremes`), fetching another catalog variable (`fetch_additional_variable_analysis`), or Layer 2 dynamic ML discovery (AR(1) CUSUM breaks, partial ENSO/Atlantic teleconnections with BH-FDR, detrended Ridge GCV + purged CV driver attribution via `run_ml_dynamic_discovery`), INVOKE the Python tools first and cite only exact returned values.
 
 FINAL OUTPUT FORMAT:
-Respond preferably with valid JSON containing:
+Return ONLY a single valid JSON object (no introductory prose, no trailing commentary, no markdown code fences outside the JSON) matching this schema:
 {
   "synthesis": {
     "mathematical_evidence": "...",
@@ -90,10 +90,11 @@ Respond preferably with valid JSON containing:
     "how_much": "...",
     "is_significant": "..."
   },
-  "direct_answer": "Concise Markdown directly answering the scientist with exact tool numbers.",
-  "reply_markdown": "Full structured Markdown covering 1. WHAT, 2. WHERE, 3. HOW MUCH, 4. SIGNIFICANCE & Direct Answer.",
+  "direct_answer": "Concise, well-structured Markdown directly answering the scientist using blank lines (\\n\\n) between sections/paragraphs and exact tool numbers.",
+  "reply_markdown": "Full structured Markdown covering 1. WHAT, 2. WHERE, 3. HOW MUCH, 4. SIGNIFICANCE & Direct Answer, separated cleanly with headings or blank lines (\\n\\n).",
   "suggested_questions": ["...", "...", "..."]
-}"""
+}
+Notice all newlines inside JSON string values MUST be escaped as \\n. If writing equations, use standard LaTeX ($...$ inline or $$...$$ block) sparingly and keep total JSON concise so it never truncates."""
 
 COPILOT_SYSTEM_PROMPT_PT = COPILOT_SYSTEM_PROMPT_EN
 
@@ -900,23 +901,335 @@ def _invoke_gemini_http(
         return json.loads(resp.read().decode("utf-8"))
 
 
-def _parse_structured_llm_output(raw_text: str) -> Optional[Dict[str, Any]]:
+_SCHEMA_LEAK_KEYS = (
+    '"synthesis"',
+    '"four_answers"',
+    '"direct_answer"',
+    '"reply_markdown"',
+    '"suggested_questions"',
+    '"mathematical_evidence"',
+    '"physical_meaning"',
+    '"false_conclusion_risk"',
+)
+
+
+def _strip_model_reasoning_and_fences(raw_text: str) -> str:
+    """Removes internal model <think>/<reasoning> tags and outer markdown code fences."""
     cleaned = raw_text.strip()
+    cleaned = re.sub(r"<(?:think|thinking|reasoning)>[\s\S]*?</(?:think|thinking|reasoning)>", "", cleaned, flags=re.IGNORECASE).strip()
+    # Strip any trailing unclosed <think>...</... if it precedes or follows nothing useful
+    if "<think>" in cleaned.lower():
+        before_think = re.split(r"<(?:think|thinking|reasoning)>", cleaned, maxsplit=1, flags=re.IGNORECASE)[0].strip()
+        if before_think:
+            cleaned = before_think
+    # Unwrap ```json ... ``` even if surrounded by brief prose or missing closing ``` on truncation
+    fence_match = re.search(r"```(?:json)?\s*([\s\S]*?)\s*```", cleaned, flags=re.IGNORECASE)
+    if fence_match and "{" in fence_match.group(1):
+        return fence_match.group(1).strip()
+    unclosed_json_fence = re.search(r"```(?:json)?\s*(\{[\s\S]*)$", cleaned, flags=re.IGNORECASE)
+    if unclosed_json_fence:
+        return unclosed_json_fence.group(1).strip()
     if cleaned.startswith("```"):
-        cleaned = re.sub(r"^```(?:json)?\s*", "", cleaned)
+        cleaned = re.sub(r"^```(?:json|markdown|md)?\s*", "", cleaned, flags=re.IGNORECASE)
         cleaned = re.sub(r"\s*```$", "", cleaned)
+    return cleaned.strip()
+
+
+def _escape_raw_newlines_in_json_strings(text: str) -> str:
+    """Escapes literal control newlines/tabs inside JSON string literals emitted by smaller models."""
+    out: List[str] = []
+    in_string = False
+    escaped = False
+    for ch in text:
+        if escaped:
+            out.append(ch)
+            escaped = False
+            continue
+        if ch == "\\":
+            out.append(ch)
+            if in_string:
+                escaped = True
+            continue
+        if ch == '"':
+            in_string = not in_string
+            out.append(ch)
+            continue
+        if in_string:
+            if ch == "\n":
+                out.append("\\n")
+                continue
+            if ch == "\r":
+                continue
+            if ch == "\t":
+                out.append("\\t")
+                continue
+        out.append(ch)
+    return "".join(out)
+
+
+def _decode_json_string_prefix(text: str, key_name: str) -> Optional[str]:
+    """Extracts and unescapes a JSON string value for `key_name`, even if truncated mid-string."""
+    pattern = re.compile(rf'"{re.escape(key_name)}"\s*:\s*"')
+    match = pattern.search(text)
+    if not match:
+        return None
+    pos = match.end()
+    # Try exact JSONDecoder from opening quote first
     try:
-        parsed = json.loads(cleaned)
-        return parsed if isinstance(parsed, dict) else None
+        decoded, _ = json.JSONDecoder(strict=False).raw_decode(text, match.end() - 1)
+        if isinstance(decoded, str) and decoded.strip():
+            return decoded.strip()
     except json.JSONDecodeError:
-        match = re.search(r"\{.*\}", cleaned, re.DOTALL)
-        if match:
+        pass
+
+    # Fallback: scan truncated string until unescaped quote or EOF
+    chars: List[str] = []
+    n = len(text)
+    while pos < n:
+        ch = text[pos]
+        if ch == '"':
+            break
+        if ch == "\\":
+            if pos + 1 >= n:
+                break
+            nxt = text[pos + 1]
+            if nxt == "n":
+                chars.append("\n")
+            elif nxt == "t":
+                chars.append("\t")
+            elif nxt == "r":
+                pass
+            elif nxt in ('"', "\\", "/"):
+                chars.append(nxt)
+            elif nxt == "u" and pos + 5 < n:
+                hex_part = text[pos + 2 : pos + 6]
+                try:
+                    chars.append(chr(int(hex_part, 16)))
+                    pos += 6
+                    continue
+                except ValueError:
+                    chars.append("\\u")
+            else:
+                # Preserve unrecognized escape sequences (e.g. accidental LaTeX \frac -> \f is kept readable)
+                chars.append("\\" + nxt)
+            pos += 2
+            continue
+        chars.append(ch)
+        pos += 1
+    result = "".join(chars).strip()
+    return result or None
+
+
+def _extract_partial_structured_fields(cleaned: str) -> Optional[Dict[str, Any]]:
+    """Recovers complete or truncated fields from malformed/cut-off JSON Co-Pilot outputs."""
+    if not any(k in cleaned for k in _SCHEMA_LEAK_KEYS):
+        return None
+
+    recovered: Dict[str, Any] = {}
+    decoder = json.JSONDecoder(strict=False)
+
+    # 1. Try nested dict fields cleanly if closed
+    for dict_key in ("synthesis", "four_answers"):
+        m = re.search(rf'"{dict_key}"\s*:\s*\{{', cleaned)
+        if m:
             try:
-                parsed = json.loads(match.group(0))
-                return parsed if isinstance(parsed, dict) else None
+                val, _ = decoder.raw_decode(cleaned, m.end() - 1)
+                if isinstance(val, dict):
+                    recovered[dict_key] = val
+                    continue
             except json.JSONDecodeError:
-                return None
-    return None
+                pass
+        sub_keys = (
+            ("mathematical_evidence", "physical_meaning", "false_conclusion_risk")
+            if dict_key == "synthesis"
+            else ("what", "where", "how_much", "is_significant")
+        )
+        partial_sub = {sk: sv for sk in sub_keys if (sv := _decode_json_string_prefix(cleaned, sk))}
+        if partial_sub:
+            recovered[dict_key] = partial_sub
+
+    # 2. Extract top-level prose fields (even if truncated near max_tokens)
+    for str_key in ("direct_answer", "reply_markdown"):
+        val = _decode_json_string_prefix(cleaned, str_key)
+        if val:
+            recovered[str_key] = val
+
+    # 3. Extract suggested_questions if complete
+    sq_match = re.search(r'"suggested_questions"\s*:\s*\[', cleaned)
+    if sq_match:
+        try:
+            sq_val, _ = decoder.raw_decode(cleaned, sq_match.end() - 1)
+            if isinstance(sq_val, list):
+                recovered["suggested_questions"] = sq_val
+        except json.JSONDecodeError:
+            pass
+
+    return recovered if recovered else None
+
+
+_VALID_JSON_ESCAPES = frozenset(('"', "\\", "/", "b", "f", "n", "r", "t"))
+_TEX_FROM_CONTROL_CHAR_PATTERN = re.compile(
+    r"[\x08\x0c\r]|"
+    r"\t(?=(?:ext|heta|au|ilde|imes|frac|op|o\b|riangle))"
+)
+
+
+def _repair_invalid_json_backslashes(text: str) -> str:
+    """Escapes single backslashes inside JSON strings that aren't valid JSON escapes (e.g. \\Delta, \\sigma)."""
+    out: List[str] = []
+    in_string = False
+    n = len(text)
+    i = 0
+    while i < n:
+        ch = text[i]
+        if not in_string:
+            if ch == '"':
+                in_string = True
+            out.append(ch)
+            i += 1
+            continue
+
+        if ch == '"':
+            in_string = False
+            out.append(ch)
+            i += 1
+            continue
+
+        if ch == "\\":
+            if i + 1 >= n:
+                out.append("\\\\")
+                i += 1
+                continue
+            nxt = text[i + 1]
+            if nxt == "u":
+                hex_part = text[i + 2 : i + 6]
+                if len(hex_part) == 4 and all(c in "0123456789abcdefABCDEF" for c in hex_part):
+                    out.append(text[i : i + 6])
+                    i += 6
+                    continue
+                out.append("\\\\u")
+                i += 2
+                continue
+            if nxt in _VALID_JSON_ESCAPES:
+                out.append("\\" + nxt)
+                i += 2
+                continue
+            # Invalid escape such as \Delta, \sigma, \approx -> escape the backslash
+            out.append("\\\\" + nxt)
+            i += 2
+            continue
+
+        out.append(ch)
+        i += 1
+    return "".join(out)
+
+
+_LITERAL_NL_PATTERN = re.compile(
+    r"\\n(?!(?:a(?:bla|tural)|e(?:q|g|wline)?|i\b|mid|o(?:rm|tin)|leq|geq|rightarrow|subseteq|supseteq|u\b))"
+)
+
+
+def _restore_control_chars_in_str(text: str) -> str:
+    """Restores accidental single-backslash \\b/\\f/\\r/\\t parsed out of LaTeX commands and literal \\\\n newlines."""
+    fixed = text
+    if any(c in fixed for c in ("\x08", "\x0c", "\r", "\t")):
+        def _repl(match: re.Match[str]) -> str:
+            ch = match.group(0)
+            if ch == "\x08":
+                return "\\b"
+            if ch == "\x0c":
+                return "\\f"
+            if ch == "\r":
+                return "\\r"
+            if ch == "\t":
+                return "\\t"
+            return ch
+
+        fixed = _TEX_FROM_CONTROL_CHAR_PATTERN.sub(_repl, fixed)
+    if "\n" not in fixed and "\\n" in fixed:
+        fixed = _LITERAL_NL_PATTERN.sub("\n", fixed)
+    return fixed
+
+
+def _restore_control_chars_recursive(value: Any) -> Any:
+    if isinstance(value, str):
+        return _restore_control_chars_in_str(value)
+    if isinstance(value, list):
+        return [_restore_control_chars_recursive(item) for item in value]
+    if isinstance(value, dict):
+        return {k: _restore_control_chars_recursive(v) for k, v in value.items()}
+    return value
+
+
+def _parse_structured_llm_output(raw_text: str) -> Optional[Dict[str, Any]]:
+    cleaned = _strip_model_reasoning_and_fences(raw_text)
+    escaped_nl = _escape_raw_newlines_in_json_strings(cleaned)
+    candidates = [
+        cleaned,
+        escaped_nl,
+        _repair_invalid_json_backslashes(cleaned),
+        _repair_invalid_json_backslashes(escaped_nl),
+    ]
+
+    for candidate in candidates:
+        try:
+            parsed = json.loads(candidate, strict=False)
+            if isinstance(parsed, dict):
+                return _restore_control_chars_recursive(parsed)
+        except json.JSONDecodeError:
+            pass
+
+        # Scan for the first valid top-level Co-Pilot JSON dict embedded inside surrounding prose.
+        # Skip orphaned nested sub-dicts (e.g. inner "synthesis") when outer JSON is truncated.
+        top_keys = ("synthesis", "four_answers", "direct_answer", "reply_markdown", "suggested_questions")
+        decoder = json.JSONDecoder(strict=False)
+        fallback_dict: Optional[Dict[str, Any]] = None
+        for idx, ch in enumerate(candidate):
+            if ch != "{":
+                continue
+            try:
+                parsed, _ = decoder.raw_decode(candidate, idx)
+                if isinstance(parsed, dict):
+                    if any(k in parsed for k in top_keys):
+                        return _restore_control_chars_recursive(parsed)
+                    if fallback_dict is None:
+                        fallback_dict = parsed
+            except json.JSONDecodeError:
+                continue
+
+        partial = _extract_partial_structured_fields(candidate)
+        if partial:
+            return _restore_control_chars_recursive(partial)
+        if fallback_dict is not None:
+            return _restore_control_chars_recursive(fallback_dict)
+
+    partial = _extract_partial_structured_fields(cleaned)
+    return _restore_control_chars_recursive(partial) if partial else None
+
+
+def _looks_like_leaked_json_scaffolding(text: str) -> bool:
+    stripped = text.lstrip()
+    if any(k in stripped for k in _SCHEMA_LEAK_KEYS):
+        return True
+    if stripped.startswith(("{", "[")) and ('":' in stripped or "':" in stripped):
+        return True
+    return False
+
+
+def _sanitize_unstructured_llm_text(raw_text: str) -> Optional[str]:
+    """Cleans freeform Markdown fallback responses and blocks raw JSON/token leakage."""
+    cleaned = _strip_model_reasoning_and_fences(raw_text)
+    if not cleaned:
+        return None
+    if "\n" not in cleaned and "\\n" in cleaned:
+        cleaned = re.sub(
+            r"\\n(?!(?:a(?:bla|tural)|e(?:q|g|wline)?|i\b|mid|o(?:rm|tin)|leq|geq|rightarrow|subseteq|supseteq|u\b))",
+            "\n",
+            cleaned,
+        )
+    if _looks_like_leaked_json_scaffolding(cleaned):
+        return None
+    return cleaned.strip() or None
 
 
 def _call_gemini_copilot(
@@ -965,7 +1278,7 @@ def _call_gemini_copilot(
             "toolConfig": {"functionCallingConfig": {"mode": "AUTO"}},
             "generationConfig": {
                 "temperature": 0.2,
-                "maxOutputTokens": 1200,
+                "maxOutputTokens": 2500,
             },
         }
         data = poster(url, payload, timeout_seconds)
@@ -995,7 +1308,11 @@ def _call_gemini_copilot(
             contents.append({"role": "user", "parts": response_parts})
             continue
 
-        text = "".join(str(p.get("text") or "") for p in parts if isinstance(p, dict)).strip()
+        text = "".join(
+            str(p.get("text") or "")
+            for p in parts
+            if isinstance(p, dict) and not p.get("thought")
+        ).strip()
         if not text:
             raise ValueError("Empty response from Gemini API.")
         return text, tools_used
@@ -1072,7 +1389,7 @@ def _call_openrouter_copilot(
             "tools": openai_tools,
             "tool_choice": "auto",
             "temperature": 0.2,
-            "max_tokens": 1200,
+            "max_tokens": 2500,
         }
         if http_post_fn is not None:
             data = http_post_fn(url, payload, timeout_seconds)
@@ -1118,7 +1435,17 @@ def _call_openrouter_copilot(
                 )
             continue
 
-        text = str(message.get("content") or "").strip()
+        raw_content = message.get("content")
+        if isinstance(raw_content, list):
+            text = "".join(
+                str(block.get("text") or "")
+                for block in raw_content
+                if isinstance(block, dict)
+                and block.get("type") not in ("thinking", "reasoning")
+                and block.get("text")
+            ).strip()
+        else:
+            text = str(raw_content or "").strip()
         if not text:
             raise ValueError("Empty response from OpenRouter API.")
         return text, tools_used
@@ -1250,8 +1577,10 @@ def generate_copilot_response(
                 if s_q:
                     merged["suggested_questions"] = s_q[:5]
         else:
-            merged["answer"] = llm_raw
-            merged["reply_markdown"] = llm_raw
+            sanitized_prose = _sanitize_unstructured_llm_text(llm_raw)
+            if sanitized_prose:
+                merged["answer"] = sanitized_prose
+                merged["reply_markdown"] = sanitized_prose
 
         return _apply_invariant_guardrails(merged, analysis, lang)
     except (urllib.error.URLError, TimeoutError, ValueError, KeyError, json.JSONDecodeError, OSError):
