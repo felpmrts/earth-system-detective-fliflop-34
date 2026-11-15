@@ -271,3 +271,53 @@ export type SemanticErrorCode =
   | 'INVALID_DATE_INTERSECTION'
   | 'CONTRACT_VIOLATION'
   | 'BACKEND_UNAVAILABLE';
+
+export interface CopilotToolExecution {
+  readonly name: string;
+  readonly label: string;
+  readonly summary: string;
+  readonly status: 'ok' | 'unavailable' | 'error';
+  readonly duration_ms: number;
+}
+
+export interface CopilotHistoryTurn {
+  readonly role: 'user' | 'assistant';
+  readonly content: string;
+  readonly tools_used?: readonly CopilotToolExecution[];
+}
+
+export interface CopilotRequest {
+  readonly analysis?: RegionAnalysisResponse;
+  readonly analysis_key?: string;
+  readonly question?: string;
+  readonly language?: 'pt' | 'en';
+  readonly history?: readonly CopilotHistoryTurn[];
+}
+
+export interface CopilotSynthesisSections {
+  readonly mathematical_evidence: string;
+  readonly physical_meaning: string;
+  readonly false_conclusion_risk: string;
+}
+
+export interface CopilotFourAnswers {
+  readonly what: string;
+  readonly where: string;
+  readonly how_much: string;
+  readonly is_significant: string;
+}
+
+export interface CopilotResponse {
+  readonly synthesis: CopilotSynthesisSections;
+  readonly answer: string | null;
+  readonly reply_markdown: string;
+  readonly language: 'pt' | 'en';
+  readonly mode: 'llm_gemini' | 'heuristic_fallback' | 'client_deterministic';
+  readonly model: string;
+  readonly four_answers?: CopilotFourAnswers;
+  readonly suggested_questions: readonly string[];
+  readonly guardrails_applied: readonly string[];
+  readonly invariant_warnings?: readonly string[];
+  readonly tools_used?: readonly CopilotToolExecution[];
+  readonly analysis_key?: string;
+}

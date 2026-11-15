@@ -1,9 +1,16 @@
-import { type ComponentProps, useState } from 'react';
+import { type ComponentProps, type FormEvent, useEffect, useState } from 'react';
 import createPlotlyComponent from 'react-plotly.js/factory';
 import Plotly from 'plotly.js-basic-dist-min';
 import { getVariableMetadata, VARIABLE_LIST } from '../contracts/catalog';
-import type { RegionAnalysisResponse, RegionSelection, VariableStatistics } from '../contracts/types';
+import type {
+  CopilotHistoryTurn,
+  CopilotResponse,
+  RegionAnalysisResponse,
+  RegionSelection,
+  VariableStatistics,
+} from '../contracts/types';
 import { exportAnalysisAsCsv, exportAnalysisAsJson } from '../services/dataExporter';
+import { askStatisticalCopilot, buildClientCopilotResponse } from '../services/regionDataAdapter';
 import {
   computeMahalanobisContourAndFit,
   CONFIDENCE_LABELS,
@@ -176,6 +183,35 @@ export function ScientificBench({
   const [showGam, setShowGam] = useState(true);
   const [showMahalanobis, setShowMahalanobis] = useState(true);
   const [showDiagnostics, setShowDiagnostics] = useState(true);
+  const [showCopilot, setShowCopilot] = useState(true);
+  const [copilotLang, setCopilotLang] = useState<'pt' | 'en'>('pt');
+  const [copilotQuestion, setCopilotQuestion] = useState('');
+  const [copilotLoading, setCopilotLoading] = useState(false);
+  const [copilotElapsedSec, setCopilotElapsedSec] = useState(0);
+
+  useEffect(() => {
+    if (!copilotLoading) {
+      setCopilotElapsedSec(0);
+      return;
+    }
+    setCopilotElapsedSec(0);
+    const timer = window.setInterval(() => {
+      setCopilotElapsedSec(prev => prev + 1);
+    }, 1000);
+    return () => window.clearInterval(timer);
+  }, [copilotLoading]);
+  const [copilotHistory, setCopilotHistory] = useState<readonly CopilotHistoryTurn[]>([]);
+  const [copilotMeta, setCopilotMeta] = useState<{
+    readonly mode: CopilotResponse['mode'];
+    readonly model: string;
+    readonly warnings?: readonly string[];
+  } | null>(null);
+
+  useEffect(() => {
+    setCopilotHistory([]);
+    setCopilotQuestion('');
+    setCopilotMeta(null);
+  }, [analysis]);
 
   const exportOptions = {
     regionA,
@@ -201,6 +237,57 @@ export function ScientificBench({
         </div>
       </section>
     );
+  }
+
+  const copilotSynthesis = buildClientCopilotResponse({ analysis, language: copilotLang });
+
+  async function submitCopilotQuestion(rawQuestion: string) {
+    const trimmed = rawQuestion.trim();
+    if (!trimmed || copilotLoading || !analysis) return;
+
+    const nextHistory: CopilotHistoryTurn[] = [...copilotHistory, { role: 'user', content: trimmed }];
+    setCopilotHistory(nextHistory);
+    setCopilotQuestion('');
+    setCopilotLoading(true);
+    try {
+      const response = await askStatisticalCopilot({
+        analysis,
+        question: trimmed,
+        language: copilotLang,
+        history: nextHistory,
+      });
+      setCopilotMeta({
+        mode: response.mode,
+        model: response.model,
+        warnings: response.invariant_warnings,
+      });
+      setCopilotHistory(prev => [
+        ...prev,
+        {
+          role: 'assistant',
+          content: response.answer ?? response.reply_markdown,
+          tools_used: response.tools_used,
+        },
+      ]);
+    } catch {
+      const fallback = buildClientCopilotResponse({
+        analysis,
+        question: trimmed,
+        language: copilotLang,
+      });
+      setCopilotMeta({ mode: fallback.mode, model: fallback.model });
+      setCopilotHistory(prev => [
+        ...prev,
+        { role: 'assistant', content: fallback.answer ?? fallback.reply_markdown },
+      ]);
+    } finally {
+      setCopilotLoading(false);
+    }
+  }
+
+  function handleCopilotFormSubmit(event: FormEvent<HTMLFormElement>) {
+    event.preventDefault();
+    void submitCopilotQuestion(copilotQuestion);
   }
 
   const metricMode: MetricMode = useZScore ? 'zscore' : anomaly ? 'anomaly' : 'raw';
@@ -488,6 +575,14 @@ export function ScientificBench({
               onExportCsv={() => exportAnalysisAsCsv(analysis, exportOptions)}
               onExportJson={() => exportAnalysisAsJson(analysis, exportOptions)}
             />
+            <button
+              type="button"
+              className={showCopilot ? 'glossary-toggle copilot-toggle-active' : 'glossary-toggle'}
+              aria-expanded={showCopilot}
+              onClick={() => setShowCopilot(prev => !prev)}
+            >
+              {showCopilot ? 'Ocultar Co-Piloto IA' : 'Co-Piloto Estatístico'}
+            </button>
             <button
               type="button"
               className="glossary-toggle"
@@ -916,6 +1011,176 @@ export function ScientificBench({
                 </p>
               )}
             </article>
+          </div>
+        </section>
+      )}
+
+      {showCopilot && (
+        <section className="copilot-drawer" aria-label="Co-Piloto Estatístico Interativo">
+          <div className="copilot-header">
+            <div className="copilot-title-group">
+              <h3>{copilotLang === 'en' ? 'Statistical Co-Pilot' : 'Co-Piloto Estatístico'}</h3>
+              <span className="copilot-badge">
+                {copilotMeta?.mode === 'llm_gemini'
+                  ? `${copilotMeta.model} · Invariantes Auditados`
+                  : copilotMeta?.mode === 'heuristic_fallback'
+                    ? copilotLang === 'en'
+                      ? 'Backend Deterministic + Python Tools'
+                      : 'Motor Python + Engines Científicas'
+                    : copilotLang === 'en'
+                      ? 'Deterministic Engine · Zero Numeric Hallucination'
+                      : 'Motor Determinístico · Zero Alucinação Numérica'}
+              </span>
+            </div>
+            <div className="copilot-lang-switch" role="group" aria-label="Idioma do Co-Piloto">
+              <button
+                type="button"
+                className={copilotLang === 'pt' ? 'active' : ''}
+                aria-pressed={copilotLang === 'pt'}
+                onClick={() => setCopilotLang('pt')}
+              >
+                PT
+              </button>
+              <button
+                type="button"
+                className={copilotLang === 'en' ? 'active' : ''}
+                aria-pressed={copilotLang === 'en'}
+                onClick={() => setCopilotLang('en')}
+              >
+                EN
+              </button>
+              <button
+                type="button"
+                disabled={copilotHistory.length === 0 || copilotLoading}
+                onClick={() => {
+                  setCopilotHistory([]);
+                  setCopilotMeta(null);
+                }}
+              >
+                {copilotLang === 'en' ? 'Clear chat' : 'Limpar conversa'}
+              </button>
+            </div>
+          </div>
+
+          <div className="copilot-synthesis-grid">
+            <article className="copilot-card">
+              <h4>{copilotLang === 'en' ? '1. Mathematical Evidence' : '1. Evidência Matemática'}</h4>
+              <p>{copilotSynthesis.synthesis.mathematical_evidence}</p>
+            </article>
+            <article className="copilot-card">
+              <h4>{copilotLang === 'en' ? '2. Physical Meaning' : '2. Significado Físico'}</h4>
+              <p>{copilotSynthesis.synthesis.physical_meaning}</p>
+            </article>
+            <article className="copilot-card copilot-card-risk">
+              <h4>{copilotLang === 'en' ? '3. Risk of False Conclusion' : '3. Risco de Falsa Conclusão'}</h4>
+              <p>{copilotSynthesis.synthesis.false_conclusion_risk}</p>
+            </article>
+          </div>
+
+          <div className="copilot-chips" role="group" aria-label="Perguntas sugeridas ao Co-Piloto">
+            {copilotSynthesis.suggested_questions.map(suggested => (
+              <button
+                key={suggested}
+                type="button"
+                className="copilot-chip"
+                disabled={copilotLoading}
+                onClick={() => void submitCopilotQuestion(suggested)}
+              >
+                {suggested}
+              </button>
+            ))}
+          </div>
+
+          <div className="copilot-chat-box">
+            {copilotMeta?.warnings && copilotMeta.warnings.length > 0 && (
+              <p className="copilot-invariant-alert" role="status">
+                {copilotMeta.warnings.join(' · ')}
+              </p>
+            )}
+            {copilotHistory.length > 0 && (
+              <div className="copilot-messages" aria-live="polite">
+                {copilotHistory.map((turn, idx) => (
+                  <div
+                    key={`${turn.role}-${idx}`}
+                    className={`copilot-msg ${turn.role === 'user' ? 'copilot-msg-user' : 'copilot-msg-assistant'}`}
+                  >
+                    <strong>
+                      {turn.role === 'user'
+                        ? copilotLang === 'en'
+                          ? 'You: '
+                          : 'Você: '
+                        : 'Co-Piloto: '}
+                    </strong>
+                    {turn.content}
+                    {turn.role === 'assistant' && turn.tools_used && turn.tools_used.length > 0 && (
+                      <div className="copilot-tools-audit" aria-label="Engines científicas executadas">
+                        {turn.tools_used.map((tool, tIdx) => (
+                          <span
+                            key={`${tool.name}-${tIdx}`}
+                            className={`copilot-tool-pill copilot-tool-${tool.status}`}
+                            title={`${tool.name} (${tool.duration_ms.toFixed(1)} ms)`}
+                          >
+                            {tool.label} · {tool.summary} ({tool.duration_ms.toFixed(0)} ms)
+                          </span>
+                        ))}
+                      </div>
+                    )}
+                  </div>
+                ))}
+                {copilotLoading && (
+                  <div className="copilot-msg copilot-msg-assistant copilot-msg-thinking" role="status" aria-live="polite">
+                    <span className="copilot-typing-dots" aria-hidden="true">
+                      <span />
+                      <span />
+                      <span />
+                    </span>
+                    <span className="copilot-thinking-text">
+                      {copilotLang === 'en'
+                        ? copilotElapsedSec < 5
+                          ? 'Reading statistical metrics and time series...'
+                          : copilotElapsedSec < 15
+                            ? 'Running scientific tools and consulting AI...'
+                            : 'Synthesizing diagnosis & validating invariants...'
+                        : copilotElapsedSec < 5
+                          ? 'Lendo séries e métricas estatísticas...'
+                          : copilotElapsedSec < 15
+                            ? 'Executando ferramentas científicas e consultando a IA...'
+                            : 'Refinando diagnóstico e validando invariantes...'}
+                    </span>
+                    <span className="copilot-thinking-elapsed">{copilotElapsedSec}s</span>
+                  </div>
+                )}
+              </div>
+            )}
+
+            <form className="copilot-form" onSubmit={handleCopilotFormSubmit}>
+              <input
+                type="text"
+                className="copilot-input"
+                value={copilotQuestion}
+                onChange={e => setCopilotQuestion(e.target.value)}
+                placeholder={
+                  copilotLang === 'en'
+                    ? 'Ask about trends, AR(1) significance, Mahalanobis extremes, or A vs B...'
+                    : 'Pergunte sobre tendências, AR(1), extremos de Mahalanobis ou comparação A × B...'
+                }
+                aria-label={copilotLang === 'en' ? 'Ask the Statistical Co-Pilot' : 'Pergunte ao Co-Piloto Estatístico'}
+                disabled={copilotLoading}
+              />
+              <button
+                type="submit"
+                className="copilot-submit"
+                disabled={copilotLoading || !copilotQuestion.trim()}
+              >
+                {copilotLoading
+                  ? copilotLang === 'en'
+                    ? 'Thinking...'
+                    : 'Pensando...'
+                  : copilotLang === 'en'
+                    ? 'Ask'
+                    : 'Perguntar'}
+              </button>
+            </form>
           </div>
         </section>
       )}

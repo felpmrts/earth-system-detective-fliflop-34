@@ -61,16 +61,16 @@ vi.mock('react-plotly.js/factory', () => ({
     },
 }));
 
-vi.mock('../services/regionDataAdapter', () => ({
-  getConfiguredDataMode: () => 'offline',
-  getBackendCatalog: vi.fn().mockResolvedValue({ total_variables: 42, families: [] }),
-  getGlobalGrid: vi.fn().mockResolvedValue({ variable_id: 'GWETTOP', trend_unit: 'fração/década', points: [] }),
-  getRegionData: vi.fn(),
-  GlobalGridLoadError: class extends Error {
-    readonly status = 404;
-    readonly gridVariableId = 'GWETTOP';
-  },
-}));
+vi.mock('../services/regionDataAdapter', async importOriginal => {
+  const actual = await importOriginal<typeof import('../services/regionDataAdapter')>();
+  return {
+    ...actual,
+    getConfiguredDataMode: () => 'offline',
+    getBackendCatalog: vi.fn().mockResolvedValue({ total_variables: 42, families: [] }),
+    getGlobalGrid: vi.fn().mockResolvedValue({ variable_id: 'GWETTOP', trend_unit: 'fração/década', points: [] }),
+    getRegionData: vi.fn(),
+  };
+});
 
 import App from '../App';
 import { VARIABLE_LIST } from '../contracts/catalog';

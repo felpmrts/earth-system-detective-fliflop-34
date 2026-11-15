@@ -23,10 +23,20 @@ jobs:
         with:
           python-version: '3.12'
 
+      - name: Install backend Python dependencies (when present)
+        run: |
+          if [ -f "backend/requirements.txt" ]; then
+            python3 -m pip install --upgrade pip
+            pip install -r backend/requirements.txt
+          elif [ -d "backend" ]; then
+            python3 -m pip install --upgrade pip
+            pip install numpy scipy scikit-learn
+          fi
+
       - name: Run data/ contract & ingestion tests (when present)
         run: |
           if [ -d "data/tests" ]; then
-            python3 -B -m unittest discover -s data/tests -p "test_*.py" -v
+            PYTHONPATH=. python3 -B -m unittest discover -s data/tests -p "test_*.py" -v
           elif [ -d "data" ]; then
             python3 -B -m compileall -q data
             echo "data/tests/ absent in this branch — Python syntax check passed."
@@ -37,7 +47,7 @@ jobs:
       - name: Run backend/ statistical & copilot tests (when present)
         run: |
           if [ -d "backend" ]; then
-            python3 -B -m unittest discover -s backend -p "test_*.py" -v
+            PYTHONPATH=. python3 -B -m unittest discover -s backend -p "test_*.py" -v
           else
             echo "backend/ absent in this branch — skipping backend tests."
           fi
