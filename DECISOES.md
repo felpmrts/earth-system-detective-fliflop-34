@@ -1,0 +1,6 @@
+# Log Cronológico de Decisões de Arquitetura e Escopo (`DECISOES.md`)
+
+| Data/Hora (BRT) | Frente | Decisão e Motivo Técnico |
+| :--- | :--- | :--- |
+| 2026-11-14 18:18 | `PROD-1` | **Toggle `"Mesmo Local (A=B)"` com *re-snap* automático entre grades (`MERRA-2` 0.5°×0.625° $\leftrightarrow$ `CERES_SYN1deg` 1.0°×1.0°):** Ao espelhar `regionA` em `regionB` com `source_model` distintos (`mirrorRegionSelection` em `frontend/src/geo/gridGeometry.ts`), os centroides de `regionA.cells` são re-encaixados na grade nativa de `variableB` com deduplicação por `cell_id`, preenchimento de pontos médios para lacunas de resolução e recorte conexo em 8-vizinhos limitado a $K \le 9$ células — evitando rejeições por `CONTRACT_VIOLATION`/`NOT_ADJACENT` no backend ao cruzar variáveis de modelos diferentes no mesmo local. |
+| 2026-11-14 18:18 | `PROD-1` | **Alias `CLOUD_AMT` $\to$ `CLDTOT_grid.json` e homologação estrita das 12 grades globais:** `CLOUD_AMT` usa `is_alias_of: 'CLDTOT'` em `frontend/src/contracts/catalog.ts` via `resolveGridVariableId()` sem aviso falso de fallback; a entrega dos 12 `{var_id}_grid.json` reais em `frontend/public/data/` é validada via `npm run validate:grids -- --strict` em `frontend/` (`validateGlobalGrid` + verificação de `points >= 100`, `variable_id`, `trend_unit` e alias). |
