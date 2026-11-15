@@ -56,6 +56,7 @@ Renderizada via `Canvas` no Leaflet como panorama global e fallback offline gara
   1. **Direção:** sinal de `slope_sen_decade` (`> 0` vs `< 0`).
   2. **Magnitude:** proporcional a `Math.abs(slope_sen_decade)`.
   3. **Significância:** controlada exclusivamente por `is_sig` / `q_value_fdr < 0.05`. Nunca misturar magnitude com significância.
+- **Alias e Homologação em `frontend/`:** `CLOUD_AMT` resolve via `is_alias_of: 'CLDTOT'` para `CLDTOT_grid.json` sem disparar fallback falso. Os 12 arquivos `{var_id}_grid.json` reais são homologados antes do deploy com `npm run validate:grids -- --strict` em `frontend/` (checando schema em `validateGlobalGrid`, alinhamento de `variable_id`/`trend_unit`, `points >= 100` e resolução do alias).
 
 ---
 
@@ -68,6 +69,7 @@ Ao clicar no mapa, o frontend faz o *snapping* para a célula nativa da variáve
 2. Ao adicionar célula (quando `cells.length >= 1`), a nova célula deve ser 8-vizinha de pelo menos uma célula já selecionada (`|row_a - row_b| <= 1 && |col_a - col_b| <= 1`).
 3. Ao remover célula, o conjunto restante deve permanecer um único componente conexo em 8-vizinhos (impedindo "ilhas" desconexas).
 4. `region_id` é determinístico: células ordenadas lexicograficamente por `cell_id`, garantindo mesma chave de cache em IndexedDB independentemente da ordem dos cliques.
+5. **Espelhamento `"Mesmo Local (A=B)"` entre grades distintas (`mirrorRegionSelection`):** quando `variable_a` e `variable_b` pertencem ao mesmo `source_model`, `region_b` espelha exatamente `region_a.cells`; quando cruzam modelos nativos distintos (`MERRA-2` `0.5°×0.625°` $\leftrightarrow$ `CERES_SYN1deg` `1.0°×1.0°`), os centroides de `region_a.cells` passam por *re-snap* automático na grade nativa de `variable_b` com deduplicação por `cell_id`, preenchimento de pontos médios se houver lacuna de passo e seleção de núcleo conexo em 8-vizinhos até $K \le 9$, mantendo conformidade integral com a validação de grade do backend.
 
 ### 3.2 Request do Frontend (`POST /api/analyze`)
 

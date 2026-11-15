@@ -69,8 +69,8 @@ A plataforma oferece **liberdade combinatória total** sobre a matriz $(A, X) \t
 flowchart TD
     subgraph Matrix["Matriz Combinatória Completa (A, X) x (B, Y)"]
         direction TB
-        C1["1. A ≠ B e X = Y\n(Contraste Espacial / Dipolos Climáticos)\nEx: GWETTOP em Uberlândia vs. Manaus ou Saara"]
-        C2["2. A = B e X ≠ Y\n(Causa e Efeito Local / Acoplamento Físico)\nEx: T2M_MAX vs. GWETTOP em Minas Gerais"]
+        C1["1. A ≠ B e X = Y\n(Contraste Espacial / Dipolos Climáticos)\nEx: mesma variável física em duas regiões distintas"]
+        C2["2. A = B e X ≠ Y\n(Causa e Efeito Local / Acoplamento Físico)\nEx: T2M_MAX vs. GWETTOP na mesma região"]
         C3["3. A ≠ B e X ≠ Y\n(Teleconexões Físicas Cruzadas à Distância)\nEx: Radiação/TS em A afetando Chuva/Solo em B"]
         C4["4. A = B e X = Y\n(Análise Univariada Profunda Local)\nTendência Secular vs. Ruído Natural"]
     end
@@ -83,10 +83,10 @@ flowchart TD
 ```
 
 1. **$A \neq B$ e $X = Y$ (Mesma variável em lugares diferentes — Contraste Espacial / Dipolos Climáticos):**
-   - *Exemplo Real:* Umidade do Solo Superficial (`GWETTOP`) comparando Uberlândia (Cerrado brasileiro, dessecação acelerada) contra Manaus (Amazônia central) ou o Deserto do Saara nas últimas 4 décadas.
+   - *Exemplo de Aplicação:* Comparar Umidade do Solo Superficial (`GWETTOP`) ou Temperatura (`T2M`) entre duas bacias ou biomas distintos selecionados livremente no mapa ao longo das últimas 4 décadas.
    - *Objetivo Científico:* Identificar divergências espaciais e assimetrias regionais sob o mesmo forçante secular.
 2. **$A = B$ e $X \neq Y$ (Variáveis diferentes no mesmo lugar — Causa e Efeito Local / Acoplamento Físico):**
-   - *Exemplo Real:* Cruzar Temperatura Máxima (`T2M_MAX`) com Umidade do Solo (`GWETTOP`) na mesma célula geográfica (ex.: Norte de Minas Gerais).
+   - *Exemplo de Aplicação:* Cruzar Temperatura Máxima (`T2M_MAX`) com Umidade do Solo (`GWETTOP`) na mesma célula ou bloco geográfico selecionado no mapa.
    - *Objetivo Científico:* Quantificar como picos térmicos aceleram a evapotranspiração e drenam a água superficial.
 3. **$A \neq B$ e $X \neq Y$ (Variáveis diferentes em lugares diferentes — Teleconexões Físicas Cruzadas):**
    - *Exemplo Real:* Temperatura da Superfície (`TS`) ou Radiação Solar (`ALLSKY_SFC_SW_DWN`) em uma região geradora $A$ (ex.: Atlântico Tropical ou Pacífico Equatorial) cruzada com a Precipitação (`PRECTOTCORR`) ou Umidade do Solo em uma bacia agrícola distante $B$.
@@ -96,7 +96,7 @@ flowchart TD
    - *Objetivo Científico:* Avaliar a magnitude da tendência decadal secular ($B_{\text{Sen}}$), identificar o regime físico via GAM (linear, aceleração ou platô) e determinar se o sinal supera o ruído estocástico local.
 
 > [!IMPORTANT]
-> **Natureza Transversal da Validação Estatística:** O teste de **Tendência Real vs. Ruído Natural** via autocorrelação $\text{AR}(1)$ ($N_{\text{efetivo}}$ de Santer/Hamed-Rao) e controle de taxa de falsas descobertas (FDR de Benjamini-Hochberg, $p_{\text{adj}} < 0{,}05$) **não é um modo separado**, mas uma camada matemática aplicada transversal e compulsoriamente a **qualquer uma das 4 combinações** da matriz. Os "3 Casos Clássicos" frequentemente citados no projeto representam destaques científicos e *Story Presets* (atalhos de demonstração rápida) configurados para o pitch de 240 segundos, e nunca uma restrição de produto.
+> **Natureza Transversal da Validação Estatística:** O teste de **Tendência Real vs. Ruído Natural** via autocorrelação $\text{AR}(1)$ ($N_{\text{efetivo}}$ de Santer/Hamed-Rao) e controle de taxa de falsas descobertas (FDR de Benjamini-Hochberg, $p_{\text{adj}} < 0{,}05$) **não é um modo separado**, mas uma camada matemática aplicada transversal e compulsoriamente a **qualquer uma das 4 combinações** da matriz durante a exploração livre no mapa interativo ou no pipeline de descoberta científica (ML).
 
 > [!NOTE]
 > **Escopo do MVP para o Walking Skeleton (Fases 1–3):** Para simplificar a entrega ponta a ponta do *Walking Skeleton*, o **MVP (Fases 1–3) inicia com 1 variável por área (`variable_x` / `variable_y`)**, viabilizando testes ágeis e determinísticos de contraste univariado ($X=Y$) e bivariado ($X \neq Y$). A expansão para múltiplas variáveis por área (agrupadas por família ambiental ou seleção livre multivariada) ocorrerá em ciclos posteriores pós-MVP.
@@ -325,7 +325,7 @@ Para maximizar a eficiência em uma maratona de 39 horas sem gerar sobrecargas i
 | **`DADOS-2`** | **Rhyan, Fred** | Desenvolvimento do Motor Estatístico (`stats_engine.py`: anomalias mensais dessazonalizadas, OLS e Theil-Sen por década, curva não-linear GAM, distância de Mahalanobis $D_M > 2{,}5$, correção serial $\text{AR}(1)$ com $N_{\text{efetivo}}$, $p_{\text{adj}}$ por FDR, correlações e regressões $X \text{ vs. } Y$), Chatbot Co-Piloto Estatístico (definição de LLM + prompt) e modelo de Machine Learning do *Sistema de Descoberta Científica*. | `stats_engine.py` testado, agente conversacional do Co-Piloto e algoritmo de mineração do Módulo 2. |
 | **`PROD-1`** | **Renan, Fred** | Construção do Mapa 2D interativo (Leaflet Canvas + React + TypeScript + Vite), renderização da grade adaptativa no clique ($0{,}5^\circ \times 0{,}625^\circ$ vs. $1{,}0^\circ \times 1{,}0^\circ$), controle de seleção Local A / Local B e implementação da ordem oficial de interação: `1º Variável -> 2º Onde (Local A/B + quadrados 1x1, 2x2, 3x3 adaptados à resolução da variável) -> 3º Tempo`. | Componente de mapa interativo, renderizador de malha física da NASA e painel de seleção geoespacial. |
 | **`PROD-2`** | **Kaio** *(com apoio de PROD-1)* | Construção da Bancada Científica de Gráficos (curvas juntas ou separadas, Tripla Normalização com Eixo Y Duplo e $Z\text{-Score}$, Dado Bruto vs. Anomalia, escala Linear vs. Logarítmica/Symlog, camadas OLS/Sen/GAM/Mahalanobis, dispersão $X \text{ vs. } Y$ e interface visual do Chatbot Co-Piloto). | Bancada de séries temporais reativa, componentes de alternância (toggles) e painel bivariado. |
-| **`NARR`** | **Rhyan, Felipe** | Condução da pesquisa no *Gemini Deep Research* e *Google Scholar* para guiar o *Sistema de Descoberta Científica*, mapeamento de lacunas da literatura, preparação dos casos reais de demonstração (Story Presets), redação do roteiro, captação de áudio, gravação de tela, edição e legendagem do vídeo de pitch (240s). | Dossiê de literatura, roteiro cronometrado, vídeo MP4 1080p final e textos de submissão. |
+| **`NARR`** | **Rhyan, Felipe** | Condução da pesquisa no *Gemini Deep Research* e *Google Scholar* para guiar o *Sistema de Descoberta Científica*, mapeamento de lacunas da literatura, curadoria dos achados minerados pelo pipeline de ML para demonstração, redação do roteiro, captação de áudio, gravação de tela, edição e legendagem do vídeo de pitch (240s). | Dossiê de literatura, roteiro cronometrado, vídeo MP4 1080p final e textos de submissão. |
 
 ---
 
@@ -365,7 +365,7 @@ flowchart TD
 
     subgraph F4["Fase 4: Bancada Completa + Pesquisa de Literatura (Sáb 16:00 - 21:30)"]
         direction TB
-        M1_Full["DADOS-1 + PROD-1 + PROD-2 (Kaio, Renan, Fred, Felipe):\nMatriz 2x2 Completa + Grid 1x1/2x2/3x3 + Painel X vs Y + Presets"]
+        M1_Full["DADOS-1 + PROD-1 + PROD-2 (Kaio, Renan, Fred, Felipe):\nMatriz 2x2 Completa + Grid 1x1/2x2/3x3 + Painel X vs Y + Mapa Interativo"]
         M2_Res["DADOS-2 + NARR (Rhyan, Fred, Felipe):\nAnálise Deep Research + ML de Mineração + Co-Piloto"]
     end
 
@@ -433,8 +433,8 @@ flowchart TD
 - **`PROD-2` (Kaio, com apoio de PROD-1 — Bancada de Gráficos sobre Mock):**
   - Construir a bancada gráfica conectada ao `mock_analysis.json`: Eixo Y Duplo, padronização em $Z\text{-Score}$ universal ($\sigma$), alternador Série Bruta vs. Anomalia e Linear vs. Symlog;
   - Integrar camadas analíticas (toggles): retas OLS e Theil-Sen por década, curva GAM e elipse de Mahalanobis.
-- **`NARR` (Rhyan, Felipe — Literatura e Casos do Pitch):**
-  - Sintetizar os primeiros achados do *Gemini Deep Research* e *Google Scholar*, levantando as coordenadas exatas dos casos de alto impacto (ex.: Cerrado vs. Amazônia/Saara, ondas térmicas em Minas Gerais, teleconexões) para alimentar os Story Presets.
+- **`NARR` (Rhyan, Felipe — Literatura e Descoberta Científica):**
+  - Sintetizar os primeiros achados do *Gemini Deep Research* e *Google Scholar*, levantando hipóteses climáticas e regiões candidatas para validar o pipeline de descoberta científica (ML) e a exploração livre no mapa interativo.
 - **`COORD` (Rhyan, Felipe — Governança e 1º Deploy):**
   - Publicar o 1º deploy público da aplicação exibindo a casca visual funcional conectada ao Mock em URL acessível via internet (Vercel/GitHub Pages).
 - **Portão 1 (Sábado 12:30 — Hard Gate):**
@@ -459,7 +459,7 @@ flowchart TD
 - **Frente Módulo 1 (Kaio, Renan, Fred, Felipe):**
   - Finalizar a **Matriz Combinatória Completa $(A, X) \times (B, Y)$**: permitir selecionar Local A (com Variável X) e Local B (com Variável Y) cobrindo os 4 modos combinatórios;
   - Implementar a **Tripla Normalização** (Eixo Y Duplo, $Z\text{-Score}$ e corte automático de datas coincidentes);
-  - Integrar os botões de atalho (*Story Presets*) para os casos de demonstração do pitch;
+  - Garantir exploração livre fluida no mapa interativo integrada ao painel de descoberta científica (ML);
   - Conectar a interface do **Chatbot Co-Piloto Estatístico** na bancada de gráficos.
 - **Frente Módulo 2 & Chatbot (Rhyan, Fred, Felipe):**
   - Conduzir o levantamento com *Gemini Deep Research* e *Google Scholar* sobre os campos e debates mais em voga na literatura climática recente;
@@ -496,7 +496,7 @@ flowchart TD
 - **06:30 – 07:00:** Café e alinhamento ágil das prioridades da manhã conduzido por `COORD`.
 - **07:00 – 13:00 (Execução Focada):**
   - `DADOS-2` (Rhyan, Fred) + `PROD-2` (Kaio): Finalizar a integração visual do Módulo 2 (Descoberta Científica via ML) e calibrar as respostas do Chatbot Co-Piloto;
-  - `PROD-1` (Renan, Fred) + `PROD-2` (Kaio): Polimento de interface, contraste visual para captura de vídeo em 1080p, inclusão de tooltips e botões de atalho dos Story Presets;
+  - `PROD-1` (Renan, Fred) + `PROD-2` (Kaio): Polimento de interface, contraste visual para captura de vídeo em 1080p, inclusão de tooltips e refinamento da exploração livre no mapa;
   - `DADOS-1` (Kaio, Renan, Felipe): Assegurar que os dados pré-consultados estejam gravados no Cache Local (IndexedDB) para navegação offline sem qualquer latência;
   - `COORD` + `NARR` (Rhyan, Felipe): Redação final do roteiro de 240 segundos do vídeo de pitch e elaboração dos textos de submissão da NASA.
 - **Portão 3 (Domingo 13:00 — Feature Freeze Absoluto):**
@@ -545,7 +545,7 @@ flowchart TD
 | **Sáb 21:30–23:30** | 5. Portão Módulo 2 & Colheita | **Portão Módulo 2 (21:30):** Decisão Generalista vs Especializado | **IF** Módulo 1 apresentar qualquer instabilidade $\to$ **THEN** implementar Módulo 2 estritamente como Especializado no caso de maior impacto. |
 | **Sáb 23:30–06:30** | Pausa Obrigatória | Sono Sincronizado (~6h30) | **IF** membro insistir em varar a madrugada $\to$ **THEN** `COORD` bloqueia commits na `main` para preservar a lucidez da equipe no domingo. |
 | **Dom 06:30–13:00** | 6. Finalização & Feature Freeze | **Portão 3 (13:00):** *Feature Freeze* Absoluto | **IF** funcionalidade secundária estiver incompleta às 13:00 $\to$ **THEN** ocultar imediatamente da interface (`git stash`/flag) e congelar o código. |
-| **Dom 13:30–19:00** | 7. Vídeo de Pitch | **Portão 4 (19:00):** Vídeo exportado e legendado | **IF** gravação passar das 17:00 $\to$ **THEN** usar os botões de *Story Preset* para gravar a demonstração em tomadas diretas sem erro de clique. |
+| **Dom 13:30–19:00** | 7. Vídeo de Pitch | **Portão 4 (19:00):** Vídeo exportado e legendado | **IF** gravação passar das 17:00 $\to$ **THEN** gravar a exploração direta no mapa interativo e os achados do pipeline de ML em tomadas contínuas sem erro de clique. |
 | **Dom 19:00–22:30** | 8. Submissão & Testes Cegos | **Portão 5 (22:30):** Submissão salva e auditada em 4G | **IF** portal da NASA apresentar lentidão após as 21:00 $\to$ **THEN** submeter dados básicos de imediato e refinar apenas links até 22:30. |
 
 ---
@@ -566,7 +566,7 @@ flowchart TD
 
 ### SHOULD (Desejável se os Portões 1 e 2 passarem com folga)
 - **Módulo 2 — Sistema de Descoberta Científica via ML:** Mineração automática de pontos de inflexão e correlações excepcionais a partir do mapeamento no *Gemini Deep Research*.
-- **Botões de "Story Presets" no Topo da UI:** Carregamento em 1 clique dos casos reais do vídeo de pitch.
+- **Exploração Livre no Mapa + Painel de Descoberta Científica (ML):** Seleção direta de regiões no mapa interativo integrada aos achados minerados pelo pipeline de ML.
 - **Exportação Direta de Dados:** Download da análise em CSV e captura do gráfico em PNG de alta resolução para relatórios.
 
 ### COULD (Apenas se sobrar tempo no domingo de manhã)
@@ -593,7 +593,7 @@ flowchart TD
 | **R4** | **Incompatibilidade Temporal de Datas Iniciais (ex.: 1981 vs. 1984)** | Regressão falhando por tamanhos de vetores divergentes | A rotina de **Interseção Automática de Datas** trunca as duas séries para a janela temporal comum antes de alimentar o motor estatístico. |
 | **R5** | **Erro Conceitual Estatístico no Código ou no Pitch** | Código gerando taxa por $Y_{\text{fim}} - Y_{\text{início}}$ ou porcentagem em $^\circ\text{C}$ | `DADOS-2` mantém travas estritas no código (`allow_percentage: false`) e o Chatbot Co-Piloto emite alerta explícito se detectar violação dos 7 Invariantes. |
 | **R6** | **Complexidade Excessiva no Módulo 2 de Descoberta Científica** | Modelo de ML não convergindo até as 22:30 de sábado | Aplicar a regra do **Portão de Sábado 21:30**: fixar o Módulo 2 como **Especializado**, focando na descoberta de maior impacto do levantamento da literatura. |
-| **R7** | **Atraso na Gravação e Edição do Vídeo no Domingo** | Captura de tela não concluída até as 16:30 de domingo | Gravar a demonstração da bancada utilizando os **Botões de Story Preset**, capturando tomadas contínuas de 30 segundos sem navegação manual arrastada. |
+| **R7** | **Atraso na Gravação e Edição do Vídeo no Domingo** | Captura de tela não concluída até as 16:30 de domingo | Gravar a demonstração da bancada diretamente sobre a exploração livre no **mapa interativo** e o **pipeline de descoberta científica (ML)**, capturando tomadas contínuas de 30 segundos. |
 
 ---
 
@@ -630,7 +630,7 @@ flowchart TD
   - Significância corrigida para persistência $\text{AR}(1)$ ($N_{\text{efetivo}}$) e FDR ($p_{\text{adj}} < 0{,}05$).
 - [ ] **Chatbot Co-Piloto Integrado:** O assistente consome o JSON estatístico em tempo real e responde às perguntas do cientista com clareza e rigor metodológico?
 - [ ] **Módulo 2 de Descoberta Científica:** A descoberta minerada pelo modelo com embasamento no *Gemini Deep Research* está claramente demonstrada e contextualizada?
-- [ ] **Story Presets Ativos:** Os botões de atalho na interface carregam imediatamente os casos canônicos do pitch?
+- [ ] **Exploração Livre & Descoberta ML:** A seleção livre no mapa interativo e os resultados do pipeline de descoberta científica (ML) carregam e respondem imediatamente na bancada?
 - [ ] **Atribuição Formal à NASA:** Os modelos e missões (MERRA-2, CERES SYN1deg, NASA POWER) estão formalmente creditados na interface e na documentação do projeto?
 - [ ] **Testes Cegos 4G:** A página web pública abre em menos de 2 segundos no celular/rede móvel e o vídeo de pitch roda em 1080p com legendas claras e áudio limpo?
 - [ ] **Submissão Enviada até 22:30:** Formulário oficial da NASA Space Apps submetido e validado com 90 minutos de antecedência em relação ao prazo final das 24:00.
