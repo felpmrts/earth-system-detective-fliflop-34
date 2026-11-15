@@ -79,6 +79,7 @@ vi.mock('../services/regionDataAdapter', async importOriginal => {
 import App from '../App';
 import { VARIABLE_LIST } from '../contracts/catalog';
 import { getRegionData } from '../services/regionDataAdapter';
+import { MapEngineeringShowcase, projectShowcaseLonLat } from '../story/StoryShowcases';
 
 describe('StoryHub & fluxo narrativo em App', () => {
   beforeEach(() => {
@@ -274,5 +275,43 @@ describe('StoryHub & fluxo narrativo em App', () => {
     expect(screen.getByText(/Cobertura Espacial 100% do Globo/i)).toBeTruthy();
     expect(screen.getByText(/Três armadilhas estatísticas que o sistema bloqueia para você/i)).toBeTruthy();
     expect(screen.queryByRole('button', { name: /Entendi/i })).toBeNull();
+  });
+
+  it('alinha grades da Amazônia, Cerrado e Equador às coordenadas geográficas reais na prévia Blue Marble', () => {
+    render(
+      <MantineProvider forceColorScheme="dark">
+        <MapEngineeringShowcase onOpenFreeMap={() => {}} />
+      </MantineProvider>,
+    );
+
+    const equator = screen.getByTestId('showcase-equator-line');
+    expect(Number(equator.getAttribute('y1'))).toBe(projectShowcaseLonLat(0, 0).y);
+
+    const amazoniaRect = screen.getByTestId('showcase-grid-amazonia');
+    const cerradoRect = screen.getByTestId('showcase-grid-cerrado');
+    const amazonCenter = projectShowcaseLonLat(-60, -4);
+    const cerradoCenter = projectShowcaseLonLat(-48.125, -19);
+
+    const amzCx = Number(amazoniaRect.getAttribute('x')) + Number(amazoniaRect.getAttribute('width')) / 2;
+    const amzCy = Number(amazoniaRect.getAttribute('y')) + Number(amazoniaRect.getAttribute('height')) / 2;
+    const cerCx = Number(cerradoRect.getAttribute('x')) + Number(cerradoRect.getAttribute('width')) / 2;
+    const cerCy = Number(cerradoRect.getAttribute('y')) + Number(cerradoRect.getAttribute('height')) / 2;
+
+    expect(Math.abs(amzCx - amazonCenter.x)).toBeLessThan(1);
+    expect(Math.abs(amzCy - amazonCenter.y)).toBeLessThan(1);
+    expect(Math.abs(cerCx - cerradoCenter.x)).toBeLessThan(1);
+    expect(Math.abs(cerCy - cerradoCenter.y)).toBeLessThan(1);
+    expect(amzCx).toBeLessThan(cerCx);
+    expect(amzCy).toBeLessThan(cerCy);
+
+    fireEvent.click(screen.getByRole('tab', { name: /Shift \+ Arrastar/i }));
+    const shiftRect = screen.getByTestId('showcase-grid-shift-drag');
+    expect(Number(shiftRect.getAttribute('x'))).toBeGreaterThan(242);
+    expect(Number(shiftRect.getAttribute('x')) + Number(shiftRect.getAttribute('width'))).toBeLessThan(500);
+
+    fireEvent.click(screen.getByRole('tab', { name: /Mesmo Local/i }));
+    const sameRect = screen.getByTestId('showcase-grid-same-location');
+    expect(Number(sameRect.getAttribute('x'))).toBeGreaterThan(242);
+    expect(Number(sameRect.getAttribute('x')) + Number(sameRect.getAttribute('width'))).toBeLessThan(500);
   });
 });

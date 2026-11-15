@@ -441,11 +441,96 @@ export function BenchDeepDiveShowcase({
   );
 }
 
+/**
+ * Exact Plate Carrée (equirectangular) projection constants matching
+ * <image href="/earth-blue-marble.jpg" x="-120" y="-190" width="1560" height="860" preserveAspectRatio="xMidYMid slice" />
+ * where the 2:1 (2048x1024) bitmap scales to 1720x860 centered at (660, 240).
+ */
+export const SHOWCASE_MAP_FRAME = {
+  imageX: -120,
+  imageY: -190,
+  imageWidth: 1560,
+  imageHeight: 860,
+  originX: 660,
+  originY: 240,
+  pxPerDeg: 1720 / 360,
+  cellLonDeg: 4.5,
+  cellLatDeg: 4.0,
+} as const;
+
+export function projectShowcaseLonLat(
+  lon: number,
+  lat: number,
+): { readonly x: number; readonly y: number } {
+  return {
+    x: Number((SHOWCASE_MAP_FRAME.originX + lon * SHOWCASE_MAP_FRAME.pxPerDeg).toFixed(2)),
+    y: Number((SHOWCASE_MAP_FRAME.originY - lat * SHOWCASE_MAP_FRAME.pxPerDeg).toFixed(2)),
+  };
+}
+
+function projectShowcaseBounds(
+  westLon: number,
+  eastLon: number,
+  northLat: number,
+  southLat: number,
+): {
+  readonly x: number;
+  readonly y: number;
+  readonly width: number;
+  readonly height: number;
+  readonly cx: number;
+  readonly cy: number;
+} {
+  const nw = projectShowcaseLonLat(westLon, northLat);
+  const se = projectShowcaseLonLat(eastLon, southLat);
+  const width = Number((se.x - nw.x).toFixed(2));
+  const height = Number((se.y - nw.y).toFixed(2));
+  return {
+    x: nw.x,
+    y: nw.y,
+    width,
+    height,
+    cx: Number((nw.x + width / 2).toFixed(2)),
+    cy: Number((nw.y + height / 2).toFixed(2)),
+  };
+}
+
 export function MapEngineeringShowcase({
   onOpenFreeMap,
 }: Pick<StoryShowcasesProps, 'onOpenFreeMap'>) {
   const [activeLayer, setActiveLayer] = useState<MapLayerPreviewId>('nasa_gibs');
   const [selectionDemo, setSelectionDemo] = useState<MapSelectionDemoId>('dipole_grid');
+
+  const cellW = Number((SHOWCASE_MAP_FRAME.cellLonDeg * SHOWCASE_MAP_FRAME.pxPerDeg).toFixed(2));
+  const cellH = Number((SHOWCASE_MAP_FRAME.cellLatDeg * SHOWCASE_MAP_FRAME.pxPerDeg).toFixed(2));
+  const equatorY = projectShowcaseLonLat(0, 0).y;
+
+  // Região B · Amazônia Central (~ -4°, -60°) e Região A · Cerrado Triângulo Mineiro (-19.00°, -48.13°)
+  const amazoniaBox = projectShowcaseBounds(-64.5, -55.5, 0, -8);
+  const cerradoBox = projectShowcaseBounds(-52.625, -43.625, -15.0, -23.0);
+  const shiftDragBox = projectShowcaseBounds(-56.5, -43.0, -13.0, -21.0);
+  const sameLocationBox = projectShowcaseBounds(-52.0, -43.0, -14.5, -22.5);
+
+  const andesRidge = [
+    projectShowcaseLonLat(-77, 8),
+    projectShowcaseLonLat(-71, -14),
+    projectShowcaseLonLat(-70, -35),
+  ];
+  const brazilPlanalto = [
+    projectShowcaseLonLat(-50, -11),
+    projectShowcaseLonLat(-46, -17),
+    projectShowcaseLonLat(-43, -23),
+  ];
+  const belemSpAxis = [
+    projectShowcaseLonLat(-48.5, -1.4),
+    projectShowcaseLonLat(-47.9, -15.8),
+    projectShowcaseLonLat(-46.6, -23.5),
+  ];
+  const amazonCerradoAxis = [
+    projectShowcaseLonLat(-60.0, -3.1),
+    projectShowcaseLonLat(-52.0, -10.5),
+    projectShowcaseLonLat(-48.13, -19.0),
+  ];
 
   const layerLabels: Record<MapLayerPreviewId, { readonly title: string; readonly subtitle: string }> = {
     nasa_gibs: {
@@ -532,9 +617,16 @@ export function MapEngineeringShowcase({
           aria-label={`Prévia interativa do mapa científico na camada ${layerLabels[activeLayer].title}`}
         >
           <defs>
-            <pattern id="mapNativeGrid" width="40" height="34" patternUnits="userSpaceOnUse">
+            <pattern
+              id="mapNativeGrid"
+              x={SHOWCASE_MAP_FRAME.originX}
+              y={SHOWCASE_MAP_FRAME.originY}
+              width={cellW}
+              height={cellH}
+              patternUnits="userSpaceOnUse"
+            >
               <path
-                d="M 40 0 L 0 0 0 34"
+                d={`M ${cellW} 0 L 0 0 0 ${cellH}`}
                 fill="none"
                 stroke={
                   activeLayer === 'offline_vector'
@@ -556,10 +648,10 @@ export function MapEngineeringShowcase({
           <rect x="0" y="0" width="1120" height="470" fill="#061226" />
           <image
             href="/earth-blue-marble.jpg"
-            x="-120"
-            y="-190"
-            width="1560"
-            height="860"
+            x={SHOWCASE_MAP_FRAME.imageX}
+            y={SHOWCASE_MAP_FRAME.imageY}
+            width={SHOWCASE_MAP_FRAME.imageWidth}
+            height={SHOWCASE_MAP_FRAME.imageHeight}
             preserveAspectRatio="xMidYMid slice"
             opacity={
               activeLayer === 'nasa_gibs'
@@ -577,9 +669,15 @@ export function MapEngineeringShowcase({
             <g>
               <rect x="0" y="0" width="1120" height="470" fill="rgba(120, 78, 28, 0.22)" />
               <g stroke="rgba(251, 191, 36, 0.35)" fill="none" strokeWidth="1.2">
-                <path d="M 320 60 Q 380 180, 410 380" />
-                <path d="M 350 75 Q 410 190, 440 365" />
-                <path d="M 480 140 Q 560 190, 610 290" />
+                <path
+                  d={`M ${andesRidge[0]!.x} ${andesRidge[0]!.y} Q ${andesRidge[1]!.x} ${andesRidge[1]!.y}, ${andesRidge[2]!.x} ${andesRidge[2]!.y}`}
+                />
+                <path
+                  d={`M ${andesRidge[0]!.x + 12} ${andesRidge[0]!.y + 6} Q ${andesRidge[1]!.x + 12} ${andesRidge[1]!.y}, ${andesRidge[2]!.x + 12} ${andesRidge[2]!.y - 8}`}
+                />
+                <path
+                  d={`M ${brazilPlanalto[0]!.x} ${brazilPlanalto[0]!.y} Q ${brazilPlanalto[1]!.x} ${brazilPlanalto[1]!.y}, ${brazilPlanalto[2]!.x} ${brazilPlanalto[2]!.y}`}
+                />
               </g>
             </g>
           )}
@@ -587,8 +685,12 @@ export function MapEngineeringShowcase({
             <g>
               <rect x="0" y="0" width="1120" height="470" fill="rgba(15, 23, 42, 0.48)" />
               <g stroke="rgba(125, 211, 252, 0.34)" fill="none" strokeWidth="1.2" strokeDasharray="4 3">
-                <path d="M 340 110 L 580 165 L 520 330" />
-                <path d="M 430 65 L 495 275 L 450 400" />
+                <path
+                  d={`M ${belemSpAxis[0]!.x} ${belemSpAxis[0]!.y} L ${belemSpAxis[1]!.x} ${belemSpAxis[1]!.y} L ${belemSpAxis[2]!.x} ${belemSpAxis[2]!.y}`}
+                />
+                <path
+                  d={`M ${amazonCerradoAxis[0]!.x} ${amazonCerradoAxis[0]!.y} L ${amazonCerradoAxis[1]!.x} ${amazonCerradoAxis[1]!.y} L ${amazonCerradoAxis[2]!.x} ${amazonCerradoAxis[2]!.y}`}
+                />
               </g>
             </g>
           )}
@@ -597,9 +699,17 @@ export function MapEngineeringShowcase({
           <rect x="0" y="0" width="1120" height="470" fill="url(#mapNativeGrid)" />
           <rect x="0" y="0" width="1120" height="470" fill="url(#mapVignette)" />
 
-          {/* Linha do Equador */}
-          <line x1="250" y1="170" x2="1120" y2="170" stroke="rgba(94, 234, 212, 0.42)" strokeDasharray="6 5" />
-          <text x="268" y="161" fill="#5eead4" fontSize="11" fontWeight="700">
+          {/* Linha do Equador (lat = 0°) */}
+          <line
+            data-testid="showcase-equator-line"
+            x1="250"
+            y1={equatorY}
+            x2="1120"
+            y2={equatorY}
+            stroke="rgba(94, 234, 212, 0.42)"
+            strokeDasharray="6 5"
+          />
+          <text x="488" y={equatorY + 15} fill="#5eead4" fontSize="11" fontWeight="700">
             0° Equador · Grade Orbital NASA (0.5° × 0.625°)
           </text>
 
@@ -664,50 +774,94 @@ export function MapEngineeringShowcase({
           {/* MODO 1: Dipolo A != B com arco de conexão */}
           {selectionDemo === 'dipole_grid' && (
             <g>
-              {/* Região B na Amazônia */}
+              {/* Região B na Amazônia Central (-4°, -60°) */}
               <rect
-                x="440"
-                y="170"
-                width="80"
-                height="68"
+                data-testid="showcase-grid-amazonia"
+                x={amazoniaBox.x}
+                y={amazoniaBox.y}
+                width={amazoniaBox.width}
+                height={amazoniaBox.height}
                 fill="rgba(251, 146, 60, 0.30)"
                 stroke="#fb923c"
                 strokeWidth="2.6"
                 strokeDasharray="6 4"
               />
-              <line x1="480" y1="170" x2="480" y2="238" stroke="rgba(251, 146, 60, 0.65)" />
-              <line x1="440" y1="204" x2="520" y2="204" stroke="rgba(251, 146, 60, 0.65)" />
-              <rect x="432" y="136" width="154" height="26" rx="8" fill="rgba(7, 11, 26, 0.90)" stroke="#fb923c" />
-              <text x="509" y="153" textAnchor="middle" fill="#fdba74" fontSize="11" fontWeight="700">
+              <line
+                x1={amazoniaBox.cx}
+                y1={amazoniaBox.y}
+                x2={amazoniaBox.cx}
+                y2={amazoniaBox.y + amazoniaBox.height}
+                stroke="rgba(251, 146, 60, 0.65)"
+              />
+              <line
+                x1={amazoniaBox.x}
+                y1={amazoniaBox.cy}
+                x2={amazoniaBox.x + amazoniaBox.width}
+                y2={amazoniaBox.cy}
+                stroke="rgba(251, 146, 60, 0.65)"
+              />
+              <line
+                x1={amazoniaBox.x + amazoniaBox.width}
+                y1={amazoniaBox.y + 8}
+                x2={416}
+                y2={204}
+                stroke="#fb923c"
+                strokeWidth="1.4"
+                strokeDasharray="3 2"
+              />
+              <rect x="416" y="186" width="174" height="26" rx="8" fill="rgba(7, 11, 26, 0.90)" stroke="#fb923c" />
+              <text x="503" y="203" textAnchor="middle" fill="#fdba74" fontSize="11" fontWeight="700">
                 Região B · Amazônia (4 cél.)
               </text>
 
-              {/* Arco conectando B e A */}
+              {/* Arco conectando B (Amazônia) e A (Cerrado) */}
               <path
-                d="M 520 204 Q 610 175, 640 272"
+                d={`M ${amazoniaBox.x + amazoniaBox.width} ${amazoniaBox.cy + 4} Q ${cerradoBox.cx + 20} ${(amazoniaBox.cy + cerradoBox.y) / 2}, ${cerradoBox.cx} ${cerradoBox.y}`}
                 fill="none"
                 stroke="#5eead4"
                 strokeWidth="2.4"
                 strokeDasharray="6 5"
               />
 
-              {/* Região A no Cerrado */}
+              {/* Região A no Cerrado / Triângulo Mineiro (-19.00°, -48.13°) */}
               <rect
-                x="600"
-                y="272"
-                width="80"
-                height="68"
+                data-testid="showcase-grid-cerrado"
+                x={cerradoBox.x}
+                y={cerradoBox.y}
+                width={cerradoBox.width}
+                height={cerradoBox.height}
                 fill="rgba(34, 211, 238, 0.32)"
                 stroke="#22d3ee"
                 strokeWidth="2.8"
               />
-              <line x1="640" y1="272" x2="640" y2="340" stroke="rgba(34, 211, 238, 0.65)" />
-              <line x1="600" y1="306" x2="680" y2="306" stroke="rgba(34, 211, 238, 0.65)" />
+              <line
+                x1={cerradoBox.cx}
+                y1={cerradoBox.y}
+                x2={cerradoBox.cx}
+                y2={cerradoBox.y + cerradoBox.height}
+                stroke="rgba(34, 211, 238, 0.65)"
+              />
+              <line
+                x1={cerradoBox.x}
+                y1={cerradoBox.cy}
+                x2={cerradoBox.x + cerradoBox.width}
+                y2={cerradoBox.cy}
+                stroke="rgba(34, 211, 238, 0.65)"
+              />
+              <line
+                x1={cerradoBox.x + cerradoBox.width}
+                y1={cerradoBox.cy}
+                x2={492}
+                y2={cerradoBox.y + 23}
+                stroke="#22d3ee"
+                strokeWidth="1.4"
+                strokeDasharray="3 2"
+              />
 
               {/* HUD de célula */}
               <rect
-                x="700"
-                y="274"
+                x="492"
+                y={cerradoBox.y - 6}
                 width="268"
                 height="58"
                 rx="12"
@@ -715,83 +869,133 @@ export function MapEngineeringShowcase({
                 stroke="#22d3ee"
                 strokeWidth="1.5"
               />
-              <text x="716" y="297" fill="#67e8f9" fontSize="11.5" fontWeight="700">
+              <text x="508" y={cerradoBox.y + 17} fill="#67e8f9" fontSize="11.5" fontWeight="700">
                 Região A · Cerrado (-19.00°, -48.13°)
               </text>
-              <text x="716" y="317" fill="#cbd5e1" fontSize="10.5">
+              <text x="508" y={cerradoBox.y + 37} fill="#cbd5e1" fontSize="10.5">
                 4 células selecionadas · Clique para expandir
               </text>
             </g>
           )}
 
-          {/* MODO 2: Shift + Arrastar selecionando múltiplas células */}
+          {/* MODO 2: Shift + Arrastar selecionando múltiplas células no Cerrado */}
           {selectionDemo === 'shift_drag' && (
             <g>
               <rect
-                x="520"
-                y="204"
-                width="120"
-                height="68"
+                data-testid="showcase-grid-shift-drag"
+                x={shiftDragBox.x}
+                y={shiftDragBox.y}
+                width={shiftDragBox.width}
+                height={shiftDragBox.height}
                 fill="rgba(34, 211, 238, 0.28)"
                 stroke="#22d3ee"
                 strokeWidth="2.8"
                 strokeDasharray="7 4"
               />
-              <line x1="560" y1="204" x2="560" y2="272" stroke="rgba(34, 211, 238, 0.6)" />
-              <line x1="600" y1="204" x2="600" y2="272" stroke="rgba(34, 211, 238, 0.6)" />
-              <line x1="520" y1="238" x2="640" y2="238" stroke="rgba(34, 211, 238, 0.6)" />
+              <line
+                x1={shiftDragBox.x + cellW}
+                y1={shiftDragBox.y}
+                x2={shiftDragBox.x + cellW}
+                y2={shiftDragBox.y + shiftDragBox.height}
+                stroke="rgba(34, 211, 238, 0.6)"
+              />
+              <line
+                x1={shiftDragBox.x + cellW * 2}
+                y1={shiftDragBox.y}
+                x2={shiftDragBox.x + cellW * 2}
+                y2={shiftDragBox.y + shiftDragBox.height}
+                stroke="rgba(34, 211, 238, 0.6)"
+              />
+              <line
+                x1={shiftDragBox.x}
+                y1={shiftDragBox.y + cellH}
+                x2={shiftDragBox.x + shiftDragBox.width}
+                y2={shiftDragBox.y + cellH}
+                stroke="rgba(34, 211, 238, 0.6)"
+              />
+              <line
+                x1={shiftDragBox.x + shiftDragBox.width}
+                y1={shiftDragBox.cy}
+                x2={492}
+                y2={shiftDragBox.cy}
+                stroke="#22d3ee"
+                strokeWidth="1.4"
+                strokeDasharray="3 2"
+              />
 
               <rect
-                x="456"
-                y="152"
-                width="256"
+                x="492"
+                y={shiftDragBox.cy - 17}
+                width="264"
                 height="34"
                 rx="17"
                 fill="rgba(7, 11, 26, 0.94)"
                 stroke="#22d3ee"
                 strokeWidth="1.6"
               />
-              <text x="584" y="173" textAnchor="middle" fill="#67e8f9" fontSize="11.5" fontWeight="700">
+              <text x="624" y={shiftDragBox.cy + 4} textAnchor="middle" fill="#67e8f9" fontSize="11.5" fontWeight="700">
                 Shift + Arrastar · Local A: 6/{MAX_CELLS_PER_REGION} células
               </text>
             </g>
           )}
 
-          {/* MODO 3: Mesmo Local (A = B) */}
+          {/* MODO 3: Mesmo Local (A = B) no Cerrado / Minas Gerais */}
           {selectionDemo === 'same_location' && (
             <g>
               <rect
-                x="560"
-                y="238"
-                width="80"
-                height="68"
+                data-testid="showcase-grid-same-location"
+                x={sameLocationBox.x}
+                y={sameLocationBox.y}
+                width={sameLocationBox.width}
+                height={sameLocationBox.height}
                 fill="rgba(94, 234, 212, 0.28)"
                 stroke="#22d3ee"
                 strokeWidth="3"
               />
               <rect
-                x="560"
-                y="238"
-                width="80"
-                height="68"
+                x={sameLocationBox.x}
+                y={sameLocationBox.y}
+                width={sameLocationBox.width}
+                height={sameLocationBox.height}
                 fill="none"
                 stroke="#fb923c"
                 strokeWidth="2.6"
                 strokeDasharray="6 4"
               />
-              <line x1="600" y1="238" x2="600" y2="306" stroke="rgba(255, 255, 255, 0.45)" />
-              <line x1="560" y1="272" x2="640" y2="272" stroke="rgba(255, 255, 255, 0.45)" />
+              <line
+                x1={sameLocationBox.cx}
+                y1={sameLocationBox.y}
+                x2={sameLocationBox.cx}
+                y2={sameLocationBox.y + sameLocationBox.height}
+                stroke="rgba(255, 255, 255, 0.45)"
+              />
+              <line
+                x1={sameLocationBox.x}
+                y1={sameLocationBox.cy}
+                x2={sameLocationBox.x + sameLocationBox.width}
+                y2={sameLocationBox.cy}
+                stroke="rgba(255, 255, 255, 0.45)"
+              />
+              <line
+                x1={sameLocationBox.x + sameLocationBox.width}
+                y1={sameLocationBox.cy}
+                x2={492}
+                y2={sameLocationBox.cy}
+                stroke="#5eead4"
+                strokeWidth="1.4"
+                strokeDasharray="3 2"
+              />
 
               <rect
-                x="466"
-                y="182"
-                width="276"
+                x="492"
+                y={sameLocationBox.cy - 19}
+                width="322"
                 height="38"
                 rx="12"
                 fill="rgba(7, 11, 26, 0.94)"
                 stroke="rgba(94, 234, 212, 0.7)"
               />
-              <text x="604" y="205" textAnchor="middle" fill="#5eead4" fontSize="11.5" fontWeight="700">
+              <text x="653" y={sameLocationBox.cy + 4} textAnchor="middle" fill="#5eead4" fontSize="11.5" fontWeight="700">
                 Modo Mesmo Local (A = B) · 2 Variáveis na mesma área
               </text>
             </g>

@@ -1,4 +1,4 @@
-﻿:root { font-family: "Segoe UI Variable Text", "Aptos", Inter, system-ui, sans-serif; background: #07111f; color: #e1edf8; color-scheme: dark; }
+:root { font-family: "Segoe UI Variable Text", "Aptos", Inter, system-ui, sans-serif; background: #07111f; color: #e1edf8; color-scheme: dark; }
 body { margin: 0; min-height: 100dvh; background: radial-gradient(circle at 8% 0%, rgba(14, 165, 233, .15), transparent 30rem), radial-gradient(circle at 92% 8%, rgba(34, 211, 238, .09), transparent 28rem), radial-gradient(circle at 72% 100%, rgba(251, 146, 60, .055), transparent 32rem), linear-gradient(145deg, #07111f 0%, #0a1728 48%, #081321 100%); background-attachment: fixed; }
 main { box-sizing: border-box; height: 100dvh; display: grid; grid-template-rows: auto minmax(0, 1fr); gap: .55rem; padding: .6rem .75rem .5rem; }
 main.story-mode { height: auto; min-height: 100dvh; display: flex; flex-direction: column; gap: 1rem; padding: .85rem clamp(.75rem, 2.5vw, 1.75rem) 2rem; }
@@ -388,7 +388,7 @@ main.story-mode section {
   border: 1.5px solid rgba(34, 211, 238, .92);
   box-shadow: 0 0 0 1px rgba(103, 232, 249, .45), 0 0 28px rgba(34, 211, 238, .3);
   pointer-events: none;
-  transition: left .18s ease, top .18s ease, width .18s ease, height .18s ease, box-shadow .18s ease;
+  transition: border-color .18s ease, box-shadow .18s ease;
 }
 .tutorial-spotlight.is-pinged {
   border-color: #fb923c;
@@ -513,6 +513,10 @@ main.story-mode section {
   flex: 1 1 auto;
   min-height: 0;
   overflow-y: auto;
+  overscroll-behavior: contain;
+  padding-right: .2rem;
+  scrollbar-width: thin;
+  scrollbar-color: rgba(103, 232, 249, .38) rgba(15, 31, 52, .45);
   align-content: start;
 }
 .tutorial-hud-body h2 { margin: 0; font-size: .96rem; line-height: 1.24; color: #f0f9ff; }

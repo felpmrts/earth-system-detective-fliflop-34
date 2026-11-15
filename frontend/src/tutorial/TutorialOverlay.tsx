@@ -141,6 +141,46 @@ function resolveStepElements(
   return resolveAllVisibleElements(fallbackSelectors);
 }
 
+function getScrollableAncestors(el: HTMLElement): HTMLElement[] {
+  const ancestors: HTMLElement[] = [];
+  let cursor = el.parentElement;
+  while (cursor && cursor !== document.body && cursor !== document.documentElement) {
+    const style = window.getComputedStyle(cursor);
+    const overflowY = style.overflowY;
+    const overflowX = style.overflowX;
+    const isScrollY = (overflowY === 'auto' || overflowY === 'scroll') && cursor.scrollHeight > cursor.clientHeight;
+    const isScrollX = (overflowX === 'auto' || overflowX === 'scroll') && cursor.scrollWidth > cursor.clientWidth;
+    if (isScrollY || isScrollX) {
+      ancestors.push(cursor);
+    }
+    cursor = cursor.parentElement;
+  }
+  return ancestors;
+}
+
+function isTargetClippedOrOutside(el: HTMLElement, vw: number, vh: number): boolean {
+  const rect = el.getBoundingClientRect();
+  if (rect.width <= 0 || rect.height <= 0) return false;
+
+  const fitsVertically = rect.height >= vh - VIEWPORT_MARGIN * 2;
+  const outsideViewportY = fitsVertically
+    ? rect.bottom <= VIEWPORT_MARGIN || rect.top >= vh - VIEWPORT_MARGIN
+    : rect.top < VIEWPORT_MARGIN || rect.bottom > vh - VIEWPORT_MARGIN;
+  const outsideViewportX = rect.left < VIEWPORT_MARGIN || rect.right > vw - VIEWPORT_MARGIN;
+  if (outsideViewportY || outsideViewportX) return true;
+
+  for (const container of getScrollableAncestors(el)) {
+    const cRect = container.getBoundingClientRect();
+    if (cRect.width <= 0 || cRect.height <= 0) continue;
+    const containerTall = rect.height >= cRect.height - 8;
+    const clippedY = containerTall
+      ? rect.bottom <= cRect.top + 4 || rect.top >= cRect.bottom - 4
+      : rect.top < cRect.top + 4 || rect.bottom > cRect.bottom - 4;
+    if (clippedY) return true;
+  }
+  return false;
+}
+
 function toPaddedViewportRect(
   el: HTMLElement,
   padding: number,
@@ -150,10 +190,24 @@ function toPaddedViewportRect(
   const rect = el.getBoundingClientRect();
   if (rect.width <= 0 || rect.height <= 0) return null;
 
-  const left = Math.max(2, Math.round(rect.left - padding));
-  const top = Math.max(2, Math.round(rect.top - padding));
-  const right = Math.min(vw - 2, Math.round(rect.right + padding));
-  const bottom = Math.min(vh - 2, Math.round(rect.bottom + padding));
+  let minLeft = 2;
+  let minTop = 2;
+  let maxRight = vw - 2;
+  let maxBottom = vh - 2;
+
+  for (const container of getScrollableAncestors(el)) {
+    const cRect = container.getBoundingClientRect();
+    if (cRect.width <= 0 || cRect.height <= 0) continue;
+    minLeft = Math.max(minLeft, Math.round(cRect.left));
+    minTop = Math.max(minTop, Math.round(cRect.top));
+    maxRight = Math.min(maxRight, Math.round(cRect.right));
+    maxBottom = Math.min(maxBottom, Math.round(cRect.bottom));
+  }
+
+  const left = Math.max(minLeft, Math.round(rect.left - padding));
+  const top = Math.max(minTop, Math.round(rect.top - padding));
+  const right = Math.min(maxRight, Math.round(rect.right + padding));
+  const bottom = Math.min(maxBottom, Math.round(rect.bottom + padding));
   if (right <= left || bottom <= top) return null;
 
   return {
@@ -563,8 +617,10 @@ export function TutorialOverlay({
   });
 
   const cardRef = useRef<HTMLDivElement | null>(null);
+  const bodyRef = useRef<HTMLDivElement | null>(null);
   const primaryActionRef = useRef<HTMLButtonElement | null>(null);
   const pulseTimerRef = useRef<number | null>(null);
+  const scrolledStepKeyRef = useRef<string>('');
 
   const triggerAttentionPulse = useCallback(() => {
     setAttentionPulse(true);
@@ -605,18 +661,54 @@ export function TutorialOverlay({
   }, [open, currentStep, resolved, isMinimized]);
 
   useEffect(() => {
-    if (!open || !currentStep) return;
-    const targets = resolveStepElements(resolved.selectors, resolved.fallbackSelectors);
-    const primaryTarget = targets[0];
-    if (primaryTarget && typeof primaryTarget.scrollIntoView === 'function') {
-      const rect = primaryTarget.getBoundingClientRect();
+    if (!open || isMinimized) return;
+    if (bodyRef.current) {
+      bodyRef.current.scrollTop = 0;
+    }
+  }, [open, safeIndex, isMinimized]);
+
+  useEffect(() => {
+    if (!open || !currentStep) {
+      scrolledStepKeyRef.current = '';
+      return;
+    }
+    const stepKey = `${safeIndex}:${currentStep.id}:${resolved.selectors.join(',')}`;
+    if (scrolledStepKeyRef.current === stepKey) return;
+
+    const tryScrollTargetIntoView = (): boolean => {
+      if (scrolledStepKeyRef.current === stepKey) return true;
+      const targets = resolveStepElements(resolved.selectors, resolved.fallbackSelectors);
+      const primaryTarget = targets[0];
+      if (!primaryTarget) return false;
+      scrolledStepKeyRef.current = stepKey;
+      if (typeof primaryTarget.scrollIntoView !== 'function') return true;
+
       const vw = window.innerWidth;
       const vh = window.innerHeight;
-      if (rect.top < 0 || rect.bottom > vh || rect.left < 0 || rect.right > vw) {
-        primaryTarget.scrollIntoView({ block: 'nearest', inline: 'nearest' });
+      if (isTargetClippedOrOutside(primaryTarget, vw, vh)) {
+        const rect = primaryTarget.getBoundingClientRect();
+        primaryTarget.scrollIntoView({
+          behavior: 'smooth',
+          block: rect.height > vh * 0.65 ? 'nearest' : 'center',
+          inline: 'nearest',
+        });
       }
-    }
-  }, [open, currentStep, resolved.selectors, resolved.fallbackSelectors]);
+      return true;
+    };
+
+    if (tryScrollTargetIntoView()) return;
+
+    const rafId = requestAnimationFrame(() => {
+      tryScrollTargetIntoView();
+    });
+    const retryTimer = window.setTimeout(() => {
+      tryScrollTargetIntoView();
+    }, 90);
+    return () => {
+      cancelAnimationFrame(rafId);
+      window.clearTimeout(retryTimer);
+    };
+  }, [open, safeIndex, currentStep, resolved.selectors, resolved.fallbackSelectors]);
 
   useLayoutEffect(() => {
     if (!open || !currentStep) return;
@@ -663,23 +755,32 @@ export function TutorialOverlay({
       mountObserver.observe(rootTarget, { childList: true, subtree: true });
     }
 
+    const visualViewport = typeof window !== 'undefined' ? window.visualViewport : null;
     window.addEventListener('resize', scheduleMeasure);
-    window.addEventListener('scroll', scheduleMeasure, true);
+    window.addEventListener('scroll', scheduleMeasure, { capture: true, passive: true });
+    window.addEventListener('scrollend', scheduleMeasure, true);
     window.addEventListener('transitionend', scheduleMeasure, true);
+    visualViewport?.addEventListener('resize', scheduleMeasure);
+    visualViewport?.addEventListener('scroll', scheduleMeasure);
 
     const settleTimerA = window.setTimeout(scheduleMeasure, 65);
     const settleTimerB = window.setTimeout(scheduleMeasure, 240);
+    const settleTimerC = window.setTimeout(scheduleMeasure, 480);
 
     return () => {
       cancelAnimationFrame(rafId);
       clearTimeout(settleTimerA);
       clearTimeout(settleTimerB);
+      clearTimeout(settleTimerC);
       resizeObserver?.disconnect();
       mutationObserver?.disconnect();
       mountObserver?.disconnect();
       window.removeEventListener('resize', scheduleMeasure);
       window.removeEventListener('scroll', scheduleMeasure, true);
+      window.removeEventListener('scrollend', scheduleMeasure, true);
       window.removeEventListener('transitionend', scheduleMeasure, true);
+      visualViewport?.removeEventListener('resize', scheduleMeasure);
+      visualViewport?.removeEventListener('scroll', scheduleMeasure);
     };
   }, [open, currentStep, resolved, isMinimized, measureAndPosition]);
 
@@ -887,7 +988,7 @@ export function TutorialOverlay({
             ))}
           </ol>
 
-          <div className="tutorial-hud-body">
+          <div ref={bodyRef} className="tutorial-hud-body">
             <h2 id="tutorial-step-title">{currentStep.title}</h2>
             <p id="tutorial-step-summary">{currentStep.summary}</p>
 

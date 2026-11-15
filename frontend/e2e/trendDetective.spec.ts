@@ -8,6 +8,7 @@ const __dirname = path.dirname(__filename);
 const MOCK_ANALYSIS_PATH = path.resolve(__dirname, '../public/data/mock_analysis.json');
 
 interface SessionSeed {
+  readonly tab?: 'story' | 'info' | 'map' | 'bench';
   readonly variableA?: string;
   readonly variableB?: string;
   readonly startMonth?: string;
@@ -23,7 +24,7 @@ async function seedSessionAndRoutes(
   const markTutorialSeen = options.markTutorialSeen ?? true;
 
   await page.addInitScript(
-    ({ variableA, variableB, startMonth, endMonth, shouldMarkTutorialSeen }) => {
+    ({ tab, variableA, variableB, startMonth, endMonth, shouldMarkTutorialSeen }) => {
       localStorage.setItem(
         'flipflop34:session:v2',
         JSON.stringify({
@@ -33,7 +34,7 @@ async function seedSessionAndRoutes(
           endMonth: endMonth ?? '2022-12',
           regionA: null,
           regionB: null,
-          tab: 'map',
+          tab: tab ?? 'map',
           anomaly: false,
           separate: false,
           dual: true,
@@ -696,5 +697,66 @@ test.describe('Earth System Trend Detective — Suite E2E (vite preview)', () =>
     expect(cardBox!.y).toBeGreaterThan(300);
     expect(cardBox!.x + cardBox!.width).toBeLessThanOrEqual(1366);
     expect(cardBox!.y + cardBox!.height).toBeLessThanOrEqual(768);
+  });
+
+  test('Tutorial: scroll interno reseta ao trocar de etapa em tela baixa e acompanha scroll da barra lateral', async ({ page }) => {
+    await page.setViewportSize({ width: 1024, height: 340 });
+    await seedSessionAndRoutes(
+      page,
+      { tab: 'map' },
+      { markTutorialSeen: false },
+    );
+
+    await page.goto('/');
+    const dialog = page.getByRole('dialog');
+    await expect(dialog).toBeVisible();
+
+    const body = dialog.locator('.tutorial-hud-body');
+    const scrollable = await body.evaluate(el => {
+      const style = window.getComputedStyle(el);
+      return {
+        overflowY: style.overflowY,
+        overscrollBehavior: style.overscrollBehavior,
+        scrollHeight: el.scrollHeight,
+        clientHeight: el.clientHeight,
+      };
+    });
+    expect(scrollable.overflowY).toBe('auto');
+    expect(scrollable.overscrollBehavior).toContain('contain');
+    expect(scrollable.scrollHeight).toBeGreaterThan(scrollable.clientHeight);
+
+    await body.evaluate(el => {
+      el.scrollTop = 90;
+    });
+    expect(await body.evaluate(el => el.scrollTop)).toBeGreaterThan(0);
+
+    // Cabeçalho e botões de ação permanecem visíveis dentro da viewport 340px
+    const actionsBox = await dialog.locator('.tutorial-hud-actions').boundingBox();
+    expect(actionsBox).not.toBeNull();
+    expect(actionsBox!.y + actionsBox!.height).toBeLessThanOrEqual(340);
+
+    // Ao clicar em Próximo (etapa 2/8 -> destaque [data-tour="sidebar-controls"] dentro de #variables-sidebar), scrollTop do corpo reseta para 0
+    await dialog.getByRole('button', { name: 'Próximo' }).click();
+    await expect(dialog.locator('.tutorial-step-counter')).toHaveText('2 / 8');
+    await expect.poll(async () => body.evaluate(el => el.scrollTop)).toBe(0);
+
+    // Recalcula posição do spotlight ao rolar a barra lateral #variables-sidebar com overflow
+    await page.waitForTimeout(250);
+    const spotBefore = await page.locator('.tutorial-spotlight').first().boundingBox();
+    expect(spotBefore).not.toBeNull();
+    const scrolled = await page.evaluate(() => {
+      const scroller = document.getElementById('variables-sidebar');
+      if (!scroller) return 0;
+      const maxScroll = Math.max(0, scroller.scrollHeight - scroller.clientHeight);
+      const nextTop = scroller.scrollTop > 35 ? scroller.scrollTop - 35 : Math.min(maxScroll, scroller.scrollTop + 45);
+      const delta = nextTop - scroller.scrollTop;
+      scroller.scrollTop = nextTop;
+      return delta;
+    });
+    expect(Math.abs(scrolled)).toBeGreaterThan(10);
+    await expect.poll(async () => {
+      const spotAfter = await page.locator('.tutorial-spotlight').first().boundingBox();
+      return Math.abs((spotAfter?.y ?? spotBefore!.y) - spotBefore!.y);
+    }).toBeGreaterThan(5);
   });
 });

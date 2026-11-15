@@ -328,4 +328,111 @@ describe('Tutorial Interativo — Estado, Roteiro e Integração com App', () =>
       expect(document.querySelector('.workspace.sidebar-collapsed')).not.toBeNull();
     });
   });
+
+  it('reinicia scrollTop do corpo ao trocar de etapa, rola até alvos fora da viewport e recalcula spotlight no scroll/resize', async () => {
+    const scrollIntoViewMock = vi.fn();
+    let targetTop = 980;
+    const offscreenTarget = document.createElement('div');
+    offscreenTarget.setAttribute('data-tour', 'hotspot-actions');
+    offscreenTarget.scrollIntoView = scrollIntoViewMock;
+    offscreenTarget.getBoundingClientRect = () =>
+      ({
+        left: 220,
+        top: targetTop,
+        width: 180,
+        height: 44,
+        right: 400,
+        bottom: targetTop + 44,
+        x: 220,
+        y: targetTop,
+        toJSON: () => ({}),
+      }) as DOMRect;
+    document.body.appendChild(offscreenTarget);
+
+    const inViewTarget = document.createElement('div');
+    inViewTarget.setAttribute('data-tour', 'map-selection-tools');
+    inViewTarget.getBoundingClientRect = () =>
+      ({
+        left: 240,
+        top: 120,
+        width: 240,
+        height: 40,
+        right: 480,
+        bottom: 160,
+        x: 240,
+        y: 120,
+        toJSON: () => ({}),
+      }) as DOMRect;
+    document.body.appendChild(inViewTarget);
+
+    const onStepChange = vi.fn();
+    const { container, rerender } = render(
+      <TutorialOverlay
+        open
+        steps={TUTORIAL_STEPS}
+        stepIndex={3}
+        liveContext={{
+          hasAnalysis: false,
+          variableA: 'GWETTOP',
+          variableB: 'T2M_MAX',
+          startMonth: '2015-01',
+          endMonth: '2022-12',
+          periodReady: true,
+          regionACells: 0,
+          regionBCells: 0,
+          readyToAnalyze: false,
+          isAnalyzing: false,
+        }}
+        onStepChange={onStepChange}
+        onComplete={vi.fn()}
+        onSkip={vi.fn()}
+      />,
+    );
+
+    expect(scrollIntoViewMock).toHaveBeenCalledWith({
+      behavior: 'smooth',
+      block: 'center',
+      inline: 'nearest',
+    });
+
+    const cardBody = container.querySelector('.tutorial-hud-body') as HTMLElement;
+    expect(cardBody).not.toBeNull();
+    cardBody.scrollTop = 140;
+
+    // Simula scroll da página trazendo o alvo para dentro da viewport e confirma recálculo do spotlight
+    targetTop = 210;
+    fireEvent.scroll(window);
+    await waitFor(() => {
+      const spotlight = container.querySelector('.tutorial-spotlight') as HTMLElement | null;
+      expect(spotlight?.style.top).toBe('205px');
+    });
+
+    rerender(
+      <TutorialOverlay
+        open
+        steps={TUTORIAL_STEPS}
+        stepIndex={4}
+        liveContext={{
+          hasAnalysis: false,
+          variableA: 'GWETTOP',
+          variableB: 'T2M_MAX',
+          startMonth: '2015-01',
+          endMonth: '2022-12',
+          periodReady: true,
+          regionACells: 0,
+          regionBCells: 0,
+          readyToAnalyze: false,
+          isAnalyzing: false,
+        }}
+        onStepChange={onStepChange}
+        onComplete={vi.fn()}
+        onSkip={vi.fn()}
+      />,
+    );
+
+    expect(cardBody.scrollTop).toBe(0);
+
+    offscreenTarget.remove();
+    inViewTarget.remove();
+  });
 });
