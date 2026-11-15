@@ -282,7 +282,7 @@ export const VARIABLE_CATALOG: Readonly<Record<VariableId, VariableMetadata>> = 
   CLRSKY_SFC_SW_DWN: {
     variable_id: 'CLRSKY_SFC_SW_DWN', variable_name: 'Radiação Solar de Céu Limpo', domain: 'Radiação e Nuvens',
     source_model: 'CERES_SYN1deg', resolution: CERES_RESOLUTION, grid_origin: CERES_ORIGIN, min_year: 1984,
-    scale_type: 'ratio', unit: 'kW-hr/m²/dia', trend_unit: 'kW-hr/m²/dia/década', allow_percentage_change: true, land_only_mask: false,
+    scale_type: 'ratio', unit: 'MJ/m²/dia', trend_unit: 'MJ/m²/dia/década', allow_percentage_change: true, land_only_mask: false,
     is_alias_of: 'ALLSKY_SFC_SW_DWN',
   },
   CLDTOT: {

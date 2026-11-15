@@ -46,6 +46,7 @@ export interface SeasonTrendMetrics {
   season_label: string;
   status: 'OK' | 'INSUFFICIENT_DATA';
   n_months: number;
+  n_seasons?: number;
   n_effective_ar1: number;
   mean_raw: number;
   mean_anomaly: number;
@@ -55,6 +56,8 @@ export interface SeasonTrendMetrics {
   slope_per_decade_ols: number;
   r1_autocorrelation: number;
   p_value_ar1_corrected: number;
+  q_fdr?: number;
+  significant_fdr05?: boolean;
   significant_ar1: boolean;
 }
 
@@ -137,9 +140,26 @@ function pearsonCorrelation(x: readonly number[], y: readonly number[]): number 
   return Math.max(-1, Math.min(1, num / den));
 }
 
-function computeLag1Autocorrelation(arr: readonly number[]): number {
+function computeLag1Autocorrelation(
+  arr: readonly number[],
+  timeSteps?: readonly number[],
+  expectedStep = 1
+): number {
   if (arr.length < 4) return 0;
-  const r1 = pearsonCorrelation(arr.slice(0, -1), arr.slice(1));
+  if (!timeSteps || timeSteps.length !== arr.length) {
+    const r1 = pearsonCorrelation(arr.slice(0, -1), arr.slice(1));
+    return Math.max(-0.95, Math.min(0.95, r1));
+  }
+  const prev: number[] = [];
+  const curr: number[] = [];
+  for (let i = 1; i < arr.length; i += 1) {
+    if (Math.round((timeSteps[i] ?? 0) - (timeSteps[i - 1] ?? 0)) === expectedStep) {
+      prev.push(arr[i - 1] ?? 0);
+      curr.push(arr[i] ?? 0);
+    }
+  }
+  if (prev.length < 3) return 0;
+  const r1 = pearsonCorrelation(prev, curr);
   return Math.max(-0.95, Math.min(0.95, r1));
 }
 
@@ -282,7 +302,9 @@ export function applyBenjaminiHochbergFdr(
 
 function pearsonPairsWithAr1(
   x: readonly number[],
-  y: readonly number[]
+  y: readonly number[],
+  timeSteps?: readonly number[],
+  expectedStep = 1
 ): { r: number; nEff: number; pAr1: number; ci95: number } {
   const n = Math.min(x.length, y.length);
   if (n < 3) {
@@ -291,8 +313,8 @@ function pearsonPairsWithAr1(
   const r = pearsonCorrelation(x, y);
   let nEff = n;
   if (n >= 6) {
-    const rx = computeLag1Autocorrelation(x);
-    const ry = computeLag1Autocorrelation(y);
+    const rx = computeLag1Autocorrelation(x, timeSteps, expectedStep);
+    const ry = computeLag1Autocorrelation(y, timeSteps, expectedStep);
     const prod = Math.max(0, rx * ry);
     nEff = Math.max(3, Math.min(n, (n * (1 - prod)) / (1 + prod)));
   }
@@ -449,9 +471,8 @@ export function computeClientLaggedCrossCorrelation(
   const prepA = prepareDetrendedAnomalySeries(regionA);
   const prepB = prepareDetrendedAnomalySeries(regionB);
 
-  const commonIdx = Array.from(prepA.byMonthIdx.keys())
-    .filter(t => prepB.byMonthIdx.has(t))
-    .sort((a, b) => a - b);
+  const allMonthIdxA = Array.from(prepA.byMonthIdx.keys()).sort((a, b) => a - b);
+  const commonIdx = allMonthIdxA.filter(t => prepB.byMonthIdx.has(t));
 
   const commonDetA: number[] = [];
   const commonDetB: number[] = [];
@@ -464,8 +485,8 @@ export function computeClientLaggedCrossCorrelation(
     }
   }
 
-  const r1A = computeLag1Autocorrelation(commonDetA);
-  const r1B = computeLag1Autocorrelation(commonDetB);
+  const r1A = computeLag1Autocorrelation(commonDetA, commonIdx, 1);
+  const r1B = computeLag1Autocorrelation(commonDetB, commonIdx, 1);
   const commonProd = Math.max(0, r1A * r1B);
   const overallScaleFactor = Math.max(
     0.05,
@@ -475,15 +496,17 @@ export function computeClientLaggedCrossCorrelation(
   const rawRows: Array<Omit<LagCorrelationRow, 'q_fdr' | 'significant_fdr05'>> = [];
 
   for (let lag = -maxLag; lag <= maxLag; lag += 1) {
+    const pairSteps: number[] = [];
     const rawX: number[] = [];
     const rawY: number[] = [];
     const detX: number[] = [];
     const detY: number[] = [];
 
-    for (const t of commonIdx) {
+    for (const t of allMonthIdxA) {
       const ptA = prepA.byMonthIdx.get(t);
       const ptB = prepB.byMonthIdx.get(t + lag);
       if (ptA && ptB) {
+        pairSteps.push(t);
         rawX.push(ptA.rawAnom);
         rawY.push(ptB.rawAnom);
         detX.push(ptA.detrended);
@@ -492,8 +515,8 @@ export function computeClientLaggedCrossCorrelation(
     }
 
     const nOverlap = detX.length;
-    const rawStats = pearsonPairsWithAr1(rawX, rawY);
-    const detStats = pearsonPairsWithAr1(detX, detY);
+    const rawStats = pearsonPairsWithAr1(rawX, rawY, pairSteps, 1);
+    const detStats = pearsonPairsWithAr1(detX, detY, pairSteps, 1);
 
     rawRows.push({
       lag_months: lag,
@@ -612,101 +635,139 @@ const SEASON_METADATA: Array<{
 ];
 
 function computeSingleRegionSeasonality(
-  region: VariableStatistics
+  analysis: VariableStatistics
 ): RegionSeasonalBreakdown {
   const seasonsRecord = {} as Record<SeasonCode, SeasonTrendMetrics>;
   const safeTrendUnit =
-    region.scale_type === 'interval'
-      ? `${region.unit}/década`
-      : region.trend_unit;
+    analysis.scale_type === 'interval'
+      ? `${analysis.unit}/década`
+      : analysis.trend_unit;
+  const repMonthByCode: Record<SeasonCode, number> = {
+    DJF: 1,
+    MAM: 4,
+    JJA: 7,
+    SON: 10,
+  };
+  const okCodes: SeasonCode[] = [];
+  const okPvals: number[] = [];
+  const okSameSign: boolean[] = [];
 
   for (const meta of SEASON_METADATA) {
-    const slicePts: Array<{
-      monthIdx: number;
-      fy: number;
-      anom: number;
-      raw: number | null;
-    }> = [];
+    const bySeasonYear = new Map<
+      number,
+      Array<{ anom: number; raw: number | null }>
+    >();
+    let nMonthsCount = 0;
 
-    for (let i = 0; i < region.series.dates.length; i += 1) {
-      const ym = region.series.dates[i];
+    for (let i = 0; i < analysis.series.dates.length; i += 1) {
+      const ym = analysis.series.dates[i];
       if (!ym) continue;
-      const month = Number(ym.split('-')[1]);
-      // Strictly use deseasonalized monthly anomalies Y'(a,m), never raw values, because DJF/MAM/JJA/SON months differ climatologically
-      const anom = region.series.anomaly_values[i];
-      const raw = region.series.raw_values[i];
-      const monthIdx = ymToMonthIndex(ym);
+      const parts = ym.split('-');
+      const year = Number(parts[0]);
+      const month = Number(parts[1]);
+      // Strictly use deseasonalized monthly anomalies Y'(a,m), never raw values
+      const anom = analysis.series.anomaly_values[i];
+      const raw = analysis.series.raw_values[i];
       if (
         meta.months.has(month) &&
-        monthIdx !== null &&
+        Number.isFinite(year) &&
         typeof anom === 'number' &&
         Number.isFinite(anom)
       ) {
-        slicePts.push({
-          monthIdx,
-          fy: parseFractionalYear(ym),
+        nMonthsCount += 1;
+        // Group into meteorological season-years (Dec Y-1 -> Jan/Feb Y) to avoid pseudo-replication (M3)
+        const sYear = meta.code === 'DJF' && month === 12 ? year + 1 : year;
+        const arr = bySeasonYear.get(sYear) ?? [];
+        arr.push({
           anom,
           raw: typeof raw === 'number' && Number.isFinite(raw) ? raw : null,
         });
+        bySeasonYear.set(sYear, arr);
       }
     }
 
-    slicePts.sort((a, b) => a.monthIdx - b.monthIdx);
+    const repMonth = repMonthByCode[meta.code];
+    const sortedEntries = Array.from(bySeasonYear.entries()).sort(
+      (a, b) => a[0] - b[0]
+    );
+    const toSeasonPts = (minMonths: number) =>
+      sortedEntries
+        .filter(([, grp]) => grp.length >= minMonths)
+        .map(([sYear, grp]) => {
+          const rawsGrp = grp
+            .map(g => g.raw)
+            .filter((v): v is number => v !== null);
+          return {
+            sYear,
+            fy: sYear + (repMonth - 0.5) / 12,
+            anom: mean(grp.map(g => g.anom)),
+            raw: rawsGrp.length > 0 ? mean(rawsGrp) : null,
+          };
+        });
 
-    const n = slicePts.length;
-    if (n < 6) {
-      const raws = slicePts
+    let seasonPts = toSeasonPts(2);
+    if (seasonPts.length < 6) {
+      seasonPts = toSeasonPts(1);
+    }
+
+    const nSeasons = seasonPts.length;
+    if (nSeasons < 6) {
+      const raws = seasonPts
         .map(p => p.raw)
         .filter((v): v is number => v !== null);
       seasonsRecord[meta.code] = {
         season: meta.code,
         season_label: meta.label,
         status: 'INSUFFICIENT_DATA',
-        n_months: n,
-        n_effective_ar1: n,
+        n_months: nMonthsCount,
+        n_seasons: nSeasons,
+        n_effective_ar1: nSeasons,
         mean_raw: round(mean(raws), 3),
-        mean_anomaly: round(mean(slicePts.map(p => p.anom)), 3),
+        mean_anomaly: round(mean(seasonPts.map(p => p.anom)), 3),
         slope_per_decade_sen: 0,
         slope_ci95_low: 0,
         slope_ci95_high: 0,
         slope_per_decade_ols: 0,
         r1_autocorrelation: 0,
         p_value_ar1_corrected: 1,
+        q_fdr: 1,
+        significant_fdr05: false,
         significant_ar1: false,
       };
       continue;
     }
 
-    const t0 = slicePts[0]?.fy ?? 2000;
-    const tYears = slicePts.map(p => p.fy);
-    const xDecades = slicePts.map(p => (p.fy - t0) / 10);
-    const anoms = slicePts.map(p => p.anom);
-    const raws = slicePts
+    const t0 = seasonPts[0]?.fy ?? 2000;
+    const tYears = seasonPts.map(p => p.fy);
+    const sYearSteps = seasonPts.map(p => p.sYear);
+    const xDecades = seasonPts.map(p => (p.fy - t0) / 10);
+    const anoms = seasonPts.map(p => p.anom);
+    const raws = seasonPts
       .map(p => p.raw)
       .filter((v): v is number => v !== null);
 
     const { slopeSen, ciLow, ciHigh } = theilSenSlopeAndCi95(xDecades, anoms);
     const olsFit = olsDetrend(tYears, anoms);
     const slopeOlsDecade = round(olsFit.slopePerDecade, 5);
-    const rho1 = computeLag1Autocorrelation(olsFit.residuals);
+    const rho1 = computeLag1Autocorrelation(olsFit.residuals, sYearSteps, 1);
 
-    // Santer et al. (2000) / compute_significance_ar1 in backend/stats_engine.py
+    // Santer et al. (2000) across annual meteorological season-years
     const nEffRaw =
       rho1 > 0
-        ? Math.max(3, Math.min(n, (n * (1 - rho1)) / (1 + rho1)))
-        : n;
+        ? Math.max(3, Math.min(nSeasons, (nSeasons * (1 - rho1)) / (1 + rho1)))
+        : nSeasons;
     const nEff = round(nEffRaw, 2);
 
     let pAr1: number;
     if (olsFit.seSlopeDecade <= 1e-15) {
       pAr1 = Math.abs(olsFit.slopePerDecade) <= 1e-12 ? 1 : 0;
     } else {
-      const dfNaive = Math.max(1, n - 2);
+      const dfNaive = Math.max(1, nSeasons - 2);
       const tNaive = olsFit.slopePerDecade / olsFit.seSlopeDecade;
       const pNaive = studentTTwoTailedPValue(tNaive, dfNaive);
 
       const dfEff = Math.max(1, nEffRaw - 2);
-      const inflation = Math.sqrt(Math.max(1, n - 2) / dfEff);
+      const inflation = Math.sqrt(Math.max(1, nSeasons - 2) / dfEff);
       const seAr1 = olsFit.seSlopeDecade * inflation;
       const tAr1 = seAr1 > 1e-15 ? olsFit.slopePerDecade / seAr1 : 0;
       const pSanter = studentTTwoTailedPValue(tAr1, dfEff);
@@ -714,12 +775,16 @@ function computeSingleRegionSeasonality(
     }
 
     const sameSign = olsFit.slopePerDecade * slopeSen >= 0;
+    okCodes.push(meta.code);
+    okPvals.push(pAr1);
+    okSameSign.push(sameSign);
 
     seasonsRecord[meta.code] = {
       season: meta.code,
       season_label: meta.label,
       status: 'OK',
-      n_months: n,
+      n_months: nMonthsCount,
+      n_seasons: nSeasons,
       n_effective_ar1: nEff,
       mean_raw: round(mean(raws), 3),
       mean_anomaly: round(mean(anoms), 3),
@@ -729,8 +794,28 @@ function computeSingleRegionSeasonality(
       slope_per_decade_ols: slopeOlsDecade,
       r1_autocorrelation: round(rho1, 4),
       p_value_ar1_corrected: pAr1,
+      q_fdr: 1,
+      significant_fdr05: false,
       significant_ar1: pAr1 < 0.05 && sameSign,
     };
+  }
+
+  if (okPvals.length > 0) {
+    const fdrRes = applyBenjaminiHochbergFdr(okPvals, 0.05);
+    for (let i = 0; i < okCodes.length; i += 1) {
+      const code = okCodes[i];
+      if (!code) continue;
+      const q = fdrRes.qValues[i] ?? 1;
+      const isFdr = fdrRes.significantFlags[i] ?? false;
+      const pVal = okPvals[i] ?? 1;
+      const sameSign = okSameSign[i] ?? false;
+      seasonsRecord[code] = {
+        ...seasonsRecord[code],
+        q_fdr: round(q, 6),
+        significant_fdr05: isFdr,
+        significant_ar1: pVal < 0.05 && isFdr && sameSign,
+      };
+    }
   }
 
   const orderedCodes: SeasonCode[] = ['DJF', 'MAM', 'JJA', 'SON'];
@@ -752,8 +837,8 @@ function computeSingleRegionSeasonality(
   }
 
   return {
-    variable_id: region.variable_id,
-    scale_type: region.scale_type,
+    variable_id: analysis.variable_id,
+    scale_type: analysis.scale_type,
     trend_unit: safeTrendUnit,
     dominant_season: dominantSeason,
     dominant_slope_sen: seasonsRecord[dominantSeason].slope_per_decade_sen,

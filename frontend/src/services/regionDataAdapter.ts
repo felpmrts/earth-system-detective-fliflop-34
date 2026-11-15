@@ -9,6 +9,7 @@ import type {
   CopilotResponse,
   CopilotToolExecution,
   DataMode,
+  DiscoveryResponse,
   GlobalGridFile,
   RegionAnalysisRequest,
   RegionAnalysisResponse,
@@ -308,6 +309,12 @@ export function createRegionDataAdapter(overrides: Partial<AdapterConfig> = {}) 
 
       const raw: unknown = await res.json();
       const validated = validateAnalysisResponse(raw);
+      if (raw && typeof raw === 'object') {
+        const rawKey = (raw as { analysis_key?: unknown }).analysis_key;
+        if (typeof rawKey === 'string' && rawKey.trim()) {
+          cachedAnalysisKeys.set(validated, rawKey.trim());
+        }
+      }
       await config.cache.set(cacheKey, validated);
       return validated;
     } catch (err) {
@@ -398,11 +405,59 @@ export function createRegionDataAdapter(overrides: Partial<AdapterConfig> = {}) 
     }
   }
 
+  async function discoverDynamicPatterns(params: {
+    readonly analysis: RegionAnalysisResponse;
+    readonly signal?: AbortSignal;
+  }): Promise<DiscoveryResponse | null> {
+    if (config.mode === 'offline') {
+      return null;
+    }
+    const knownKey = cachedAnalysisKeys.get(params.analysis);
+    const { controller, cleanup } = createLinkedController(params.signal, 15000);
+    const postDiscover = async (includeFullAnalysis: boolean) => {
+      const payload =
+        !includeFullAnalysis && knownKey
+          ? { analysis_key: knownKey }
+          : {
+              analysis: params.analysis,
+              ...(knownKey ? { analysis_key: knownKey } : {}),
+            };
+      return config.fetchFn(`${config.apiBaseUrl}/api/discover`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(payload),
+        signal: controller.signal,
+      });
+    };
+
+    try {
+      let res = await postDiscover(!knownKey);
+      if (res.status === 404 && knownKey) {
+        res = await postDiscover(true);
+      }
+      if (!res.ok) return null;
+      const raw: unknown = await res.json();
+      if (!raw || typeof raw !== 'object') return null;
+      const obj = raw as DiscoveryResponse;
+      if (!obj.regime_and_gam_geometry || !obj.partial_teleconnections) return null;
+      if (typeof obj.analysis_key === 'string' && obj.analysis_key.trim()) {
+        cachedAnalysisKeys.set(params.analysis, obj.analysis_key.trim());
+      }
+      return obj;
+    } catch (err) {
+      if (params.signal?.aborted) throw err;
+      return null;
+    } finally {
+      cleanup();
+    }
+  }
+
   return {
     getGlobalGrid,
     getRegionData,
     getBackendCatalog,
     askStatisticalCopilot,
+    discoverDynamicPatterns,
   };
 }
 
@@ -848,3 +903,4 @@ export const getGlobalGrid = defaultAdapter.getGlobalGrid;
 export const getRegionData = defaultAdapter.getRegionData;
 export const getBackendCatalog = defaultAdapter.getBackendCatalog;
 export const askStatisticalCopilot = defaultAdapter.askStatisticalCopilot;
+export const discoverDynamicPatterns = defaultAdapter.discoverDynamicPatterns;

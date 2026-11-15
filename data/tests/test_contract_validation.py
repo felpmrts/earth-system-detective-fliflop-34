@@ -317,6 +317,52 @@ class ContractAnalysisTests(unittest.TestCase):
             self.assertEqual(modis_vs_giovanni["region_a_analysis"]["period"]["n_observations"], 288)
             self.assertEqual(modis_vs_giovanni["region_b_analysis"]["period"]["n_observations"], 288)
 
+    def test_post_audit_units_c6_and_noaa_prcp_sum_b3(self) -> None:
+        """Regression tests for C6 (ALLSKY_SFC_LW_DWN MJ/m2/day) and B3 (NOAA PRCP monthly sum vs TAVG mean)."""
+        from data.catalog.environmental_catalog import get_variable_spec
+        from data.connectors.nasa_power import _parse_power_parameter_series
+        from data.connectors import noaa_cdo
+
+        lw_spec = get_variable_spec("ALLSKY_SFC_LW_DWN")
+        self.assertEqual(lw_spec.unit, "MJ/m²/dia")
+
+        # If POWER reports W/m^2, _parse_power_parameter_series converts to MJ/m^2/day (* 0.0864)
+        parsed = _parse_power_parameter_series(
+            "ALLSKY_SFC_LW_DWN",
+            {"202001": 400.0},
+            reported_unit="W/m^2",
+        )
+        self.assertAlmostEqual(parsed["2020-01"], 400.0 * 0.0864, places=3)
+
+        # B3: NOAA PRCP must sum daily mm rather than average daily mm
+        import json
+
+        fake_prcp = {
+            "ok": True,
+            "status_code": 200,
+            "elapsed_s": 0.01,
+            "headers": {},
+            "body": json.dumps(
+                {
+                    "results": [
+                        {"date": "2020-01-01T00:00:00", "datatype": "PRCP", "value": 10.0},
+                        {"date": "2020-01-02T00:00:00", "datatype": "PRCP", "value": 25.0},
+                    ]
+                }
+            ),
+            "error": None,
+        }
+        with patch("data.connectors.noaa_cdo.http_request", return_value=fake_prcp):
+            monthly, _, _ = noaa_cdo._fetch_ghcnd_monthly_series(
+                "https://example.test",
+                "tok",
+                "GHCND:TEST",
+                "PRCP",
+                2020,
+                2020,
+            )
+        self.assertAlmostEqual(monthly["2020-01"], 35.0, places=3)
+
 
 if __name__ == "__main__":
     unittest.main()

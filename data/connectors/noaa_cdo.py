@@ -201,8 +201,9 @@ def _fetch_ghcnd_monthly_series(
         if idx == 0 and matched == 0:
             break
 
+    is_cumulative = variable.upper() in {"PRCP", "SNOW"}
     monthly = {
-        ym: round(statistics.fmean(vals), 4)
+        ym: round(sum(vals) if is_cumulative else statistics.fmean(vals), 4)
         for ym, vals in sorted(buckets.items())
         if vals
     }

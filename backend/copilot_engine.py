@@ -74,7 +74,7 @@ REGRAS ESTATÍSTICAS INVIOLÁVEIS (7 INVARIANTES):
 
 USO OBRIGATÓRIO DE FERRAMENTAS CIENTÍFICAS (ZERO ALUCINAÇÃO NUMÉRICA):
 - Você NÃO recebe os vetores brutos de centenas de meses no prompt e NUNCA deve fazer contas aproximadas de cabeça ou inventar números.
-- Sempre que a pergunta do cientista exigir testar uma hipótese além do resumo inicial — ex.: quebra de regime pré/pós ano-pivô (`run_subperiod_or_regime_split`), robustez removendo extremos de El Niño/Mahalanobis (`run_sensitivity_without_outliers`), sazonalidade DJF/MAM/JJA/SON (`compute_seasonal_stratified_trends`), defasagem física com lag A↔B (`compute_lagged_crosscorrelation_ar1`), mudança nas caudas P10/P50/P90 (`inspect_quantiles_and_extremes`), ou buscar uma nova variável complementar do catálogo (`fetch_additional_variable_analysis`) — CHAME as ferramentas Python correspondentes primeiro e cite exclusivamente os valores exatos retornados por elas.
+- Sempre que a pergunta do cientista exigir testar uma hipótese além do resumo inicial — ex.: quebra de regime pré/pós ano-pivô (`run_subperiod_or_regime_split`), robustez removendo extremos de El Niño/Mahalanobis (`run_sensitivity_without_outliers`), sazonalidade DJF/MAM/JJA/SON (`compute_seasonal_stratified_trends`), defasagem física com lag A↔B (`compute_lagged_crosscorrelation_ar1`), mudança nas caudas P10/P50/P90 (`inspect_quantiles_and_extremes`), busca de uma nova variável do catálogo (`fetch_additional_variable_analysis`), ou descoberta dinâmica ML Camada 2 (quebra CUSUM AR(1), teleconexões oceânicas parciais ENSO/Atlântico com FDR e atribuição Ridge GCV/Purged CV via `run_ml_dynamic_discovery`) — CHAME as ferramentas Python correspondentes primeiro e cite exclusivamente os valores exatos retornados por elas.
 
 FORMATO DE SAÍDA FINAL:
 Responda preferencialmente em JSON válido contendo as chaves:
@@ -110,7 +110,7 @@ INVIOLABLE STATISTICAL RULES (7 INVARIANTS):
 
 MANDATORY SCIENTIFIC TOOL USE (ZERO NUMERIC HALLUCINATION):
 - Never estimate or invent numbers in your head.
-- Whenever a user's hypothesis requires testing subperiods/changepoints (`run_subperiod_or_regime_split`), outlier removal robustness (`run_sensitivity_without_outliers`), seasonal stratification DJF/MAM/JJA/SON (`compute_seasonal_stratified_trends`), lagged teleconnections A↔B (`compute_lagged_crosscorrelation_ar1`), quantile tail shifts P10/P50/P90 (`inspect_quantiles_and_extremes`), or fetching another catalog variable (`fetch_additional_variable_analysis`), INVOKE the Python tools first and cite only exact returned values.
+- Whenever a user's hypothesis requires testing subperiods/changepoints (`run_subperiod_or_regime_split`), outlier removal robustness (`run_sensitivity_without_outliers`), seasonal stratification DJF/MAM/JJA/SON (`compute_seasonal_stratified_trends`), lagged teleconnections A↔B (`compute_lagged_crosscorrelation_ar1`), quantile tail shifts P10/P50/P90 (`inspect_quantiles_and_extremes`), fetching another catalog variable (`fetch_additional_variable_analysis`), or Layer 2 dynamic ML discovery (AR(1) CUSUM breaks, partial ENSO/Atlantic teleconnections with BH-FDR, detrended Ridge GCV + purged CV driver attribution via `run_ml_dynamic_discovery`), INVOKE the Python tools first and cite only exact returned values.
 
 FINAL OUTPUT FORMAT:
 Respond preferably with valid JSON containing:
@@ -339,7 +339,14 @@ def _find_interval_regions(analysis: Dict[str, Any]) -> List[Dict[str, Any]]:
     regions: List[Dict[str, Any]] = []
     for key in ("region_a_analysis", "region_b_analysis"):
         block = analysis.get(key)
-        if isinstance(block, dict) and block.get("scale_type") == "interval":
+        if not isinstance(block, dict):
+            continue
+        is_interval = block.get("scale_type") == "interval"
+        bounded_non_pct = (
+            block.get("allow_percentage_change") is False
+            and str(block.get("unit") or "").strip() != "%"
+        )
+        if is_interval or bounded_non_pct:
             regions.append(block)
     return regions
 
@@ -671,6 +678,81 @@ def _maybe_run_heuristic_tool(
                     f"`p_AR1 = {_fmt_num(sig['p_value_ar1_corrected'], 4)}` (`{sig['confidence_tier']}`)."
                 )
                 return msg, tools_used
+
+    # 1b) Motor ML Dinâmico Camada 2 (CUSUM AR(1), teleconexões oceânicas parciais e atribuição Ridge)
+    if any(
+        tok in q_lower
+        for tok in (
+            "descoberta",
+            "discover",
+            "ml",
+            "cusum",
+            "atlântico",
+            "atlantic",
+            "forçante",
+            "forcante",
+            "driver",
+            "atribui",
+            "ridge",
+            "gcv",
+            "teleconex",
+            "fase oceân",
+            "ocean phase",
+        )
+    ):
+        res, meta = execute_copilot_tool(
+            "run_ml_dynamic_discovery", {"slot": slot}, analysis, cache=cache, language=lang
+        )
+        if meta["status"] == "ok":
+            tools_used.append(meta)
+            geom = res.get("regime_and_gam_geometry") or {}
+            tel = res.get("partial_teleconnections") or {}
+            attr = res.get("fast_gcv_physical_attribution") or {}
+            top_tel = (tel.get("top_teleconnections") or [])[:2]
+            top_drv = (attr.get("drivers_ranked") or [])[:2]
+            brk_txt = (
+                f"`{geom.get('break_date')}` (`CUSUM={geom.get('cusum_max_stat')}`, `p_bridge={geom.get('p_value_ar1_bridge')}`)"
+                if geom.get("cusum_break_detected")
+                else f"none (`CUSUM={geom.get('cusum_max_stat')}`, `p_bridge={geom.get('p_value_ar1_bridge')}`)"
+                if lang == "en"
+                else f"ausente (`CUSUM={geom.get('cusum_max_stat')}`, `p_bridge={geom.get('p_value_ar1_bridge')}`)"
+            )
+            tel_txt = (
+                ", ".join(
+                    f"`{t['ocean_box_id']}.{t['ocean_var']}` (lag `{t['lag_months']}m`, `r_part={t['partial_r']:+.3f}`, `q_FDR={t['partial_fdr_q']:.4f}`)"
+                    for t in top_tel
+                )
+                or ("none overlapping in cache" if lang == "en" else "sem sobreposição oceânica em cache")
+            )
+            drv_txt = (
+                ", ".join(
+                    f"`{d.get('predictor')}` (`β={d.get('standardized_beta', 0):+.3f}`, `ΔQ4-Q1={d.get('quartile_jump_q4_minus_q1', 0):+.3f}`)"
+                    for d in top_drv
+                )
+                or ("no local predictor available" if lang == "en" else "sem preditor secundário ativo")
+            )
+            purged_r2 = attr.get("detrended_purged_cv_r2")
+            p_f_ar1 = attr.get("p_value_f_ar1")
+            attr_summary = (
+                f"`purged_CV_R²={purged_r2}`, `p_F_AR1={p_f_ar1}` ({drv_txt})"
+                if purged_r2 is not None
+                else drv_txt
+            )
+            if lang == "en":
+                text = (
+                    f"Dynamic ML Discovery on Region {slot} (`{res['discovery_meta']['variable_id']}`): "
+                    f"Forensic regime `{geom.get('forensic_regime_diagnosis')}` | AR(1) CUSUM break: {brk_txt}. "
+                    f"Partial ocean teleconnections (`{tel.get('significant_strict_both_fdr05_count', 0)}` strictly coupled at FDR 5%): {tel_txt}. "
+                    f"Detrended Ridge attribution: {attr_summary}."
+                )
+            else:
+                text = (
+                    f"Descoberta Dinâmica ML na Região {slot} (`{res['discovery_meta']['variable_id']}`): "
+                    f"Regime forense `{geom.get('forensic_regime_diagnosis')}` | Quebra CUSUM AR(1): {brk_txt}. "
+                    f"Teleconexões oceânicas parciais (`{tel.get('significant_strict_both_fdr05_count', 0)}` acopladas em FDR 5%): {tel_txt}. "
+                    f"Atribuição física Ridge destendenciada: {attr_summary}."
+                )
+            return text, tools_used
 
     # 2) Decomposição sazonal DJF/MAM/JJA/SON
     if any(tok in q_lower for tok in ("estação", "estacao", "sazonal", "season", "trimestr", "djf", "mam", "jja", "son", "estação seca")):

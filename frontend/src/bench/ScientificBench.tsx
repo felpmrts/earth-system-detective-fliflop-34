@@ -5,13 +5,18 @@ import { getVariableMetadata, VARIABLE_LIST } from '../contracts/catalog';
 import type {
   CopilotHistoryTurn,
   CopilotResponse,
+  DiscoveryResponse,
   RegionAnalysisResponse,
   RegionSelection,
   VariableStatistics,
 } from '../contracts/types';
 import { exportAnalysisAsCsv, exportAnalysisAsJson } from '../services/dataExporter';
 import { CopilotRichText } from './CopilotRichText';
-import { askStatisticalCopilot, buildClientCopilotResponse } from '../services/regionDataAdapter';
+import {
+  askStatisticalCopilot,
+  buildClientCopilotResponse,
+  discoverDynamicPatterns,
+} from '../services/regionDataAdapter';
 import {
   auditAnalysisInvariants,
   buildMethodologicalSummaryText,
@@ -247,6 +252,10 @@ export function ScientificBench({
   const [viewMode, setViewMode] = useState<ViewMode>('timeseries');
   const [showGam, setShowGam] = useState(true);
   const [showMahalanobis, setShowMahalanobis] = useState(true);
+  const [showCusumBreak, setShowCusumBreak] = useState(true);
+  const [discoveryResult, setDiscoveryResult] = useState<DiscoveryResponse | null>(null);
+  const [discoveryLoading, setDiscoveryLoading] = useState(false);
+  const [discoveryOpen, setDiscoveryOpen] = useState(true);
   const [showCopilot, setShowCopilot] = useState(true);
   const [openCards, setOpenCards] = useState({
     diagnostic: false,
@@ -264,6 +273,56 @@ export function ScientificBench({
       copilotEl.scrollIntoView({ behavior: 'smooth', block: 'nearest' });
     }
   }, [showCopilot]);
+
+  useEffect(() => {
+    if (!analysis || analysis.request_meta.source === 'offline_fallback') {
+      setDiscoveryResult(null);
+      setDiscoveryLoading(false);
+      return;
+    }
+    const controller = new AbortController();
+    setDiscoveryLoading(true);
+    void discoverDynamicPatterns({ analysis, signal: controller.signal })
+      .then(res => {
+        if (!controller.signal.aborted) {
+          setDiscoveryResult(res);
+          setDiscoveryLoading(false);
+        }
+      })
+      .catch(() => {
+        if (!controller.signal.aborted) {
+          setDiscoveryResult(null);
+          setDiscoveryLoading(false);
+        }
+      });
+    return () => controller.abort();
+  }, [analysis]);
+
+  async function handleRunMlDiscovery() {
+    if (!analysis || discoveryLoading) return;
+    setDiscoveryLoading(true);
+    try {
+      const res = await discoverDynamicPatterns({ analysis });
+      setDiscoveryResult(res);
+      if (res) setDiscoveryOpen(true);
+    } finally {
+      setDiscoveryLoading(false);
+    }
+  }
+
+  function handleExplainMlWithCopilot() {
+    if (!showCopilot) {
+      shouldScrollCopilotRef.current = true;
+      setShowCopilot(true);
+    } else if (typeof copilotDrawerRef.current?.scrollIntoView === 'function') {
+      copilotDrawerRef.current.scrollIntoView({ behavior: 'smooth', block: 'nearest' });
+    }
+    const promptText =
+      copilotLang === 'en'
+        ? 'Run ML discovery and explain the Layer 2 findings: AR(1) CUSUM regime break, partial ENSO/Atlantic ocean teleconnections (BH-FDR), detrended Ridge GCV + purged CV driver attribution, and ocean phases of Mahalanobis extremes.'
+        : 'Execute a descoberta dinâmica ML e explique os achados da Camada 2: quebra de regime CUSUM AR(1), teleconexões oceânicas parciais (ENSO/Atlântico com BH-FDR), atribuição física Ridge GCV + purged CV e fases oceânicas dos extremos de Mahalanobis.';
+    void submitCopilotQuestion(promptText);
+  }
 
   function toggleCard(key: keyof typeof openCards) {
     setOpenCards(prev => ({ ...prev, [key]: !prev[key] }));
@@ -586,36 +645,43 @@ export function ScientificBench({
       outlierHintsByDate.set(o.date, prev ? `${prev}<br>${msg}` : msg);
     }
 
-    const normalPts: { date: string; x: number; y: number }[] = [];
-    const outlierPts: { date: string; x: number; y: number; hint: string }[] = [];
-    const allPairs: { x: number; y: number }[] = [];
+    const matchedPairs: { date: string; x: number; y: number }[] = [];
 
     itemA.transformed.dates.forEach((d, pos) => {
       const xVal = itemA.transformed.yMain[pos];
       const yVal = mapB.get(d);
       if (xVal === null || xVal === undefined || yVal === undefined) return;
-      allPairs.push({ x: xVal, y: yVal });
-      const hint = outlierHintsByDate.get(d);
-      if (hint) {
-        outlierPts.push({ date: d, x: xVal, y: yVal, hint });
-      } else {
-        normalPts.push({ date: d, x: xVal, y: yVal });
-      }
+      matchedPairs.push({ date: d, x: xVal, y: yVal });
     });
 
-    const geometry = computeMahalanobisContourAndFit(allPairs, 2.5);
+    const geometry = computeMahalanobisContourAndFit(matchedPairs, 2.5);
     if (!geometry) return null;
+
+    const outlierSet = new Set<number>(geometry.outlierIndices);
+    const normalPts: { date: string; x: number; y: number; hint: string }[] = [];
+    const outlierPts: { date: string; x: number; y: number; hint: string }[] = [];
+    matchedPairs.forEach((p, idx) => {
+      const dm = geometry.distances[idx] ?? 0;
+      const tempHint = outlierHintsByDate.get(p.date);
+      const biHint = `D_M bivariado (X_A×Y_B) = ${formatPointValue(dm, 2)}`;
+      const fullHint = tempHint ? `${biHint}<br>${tempHint}` : biHint;
+      if (outlierSet.has(idx)) {
+        outlierPts.push({ ...p, hint: fullHint });
+      } else {
+        normalPts.push({ ...p, hint: fullHint });
+      }
+    });
 
     const scatterTraces: PlotTraces = [
       {
         x: normalPts.map(p => p.x),
         y: normalPts.map(p => p.y),
-        text: normalPts.map(p => p.date),
-        name: `Observações (${allPairs.length} meses)`,
+        customdata: normalPts.map(p => [p.date, p.hint]),
+        name: `Observações (${matchedPairs.length} meses)`,
         type: 'scatter',
         mode: 'markers',
         marker: { color: '#67e8f9', size: 6, opacity: 0.72 },
-        hovertemplate: 'Mês: %{text}<br>X (A): %{x:.4f}<br>Y (B): %{y:.4f}<extra></extra>',
+        hovertemplate: 'Mês: %{customdata[0]}<br>X (A): %{x:.4f}<br>Y (B): %{y:.4f}<br>%{customdata[1]}<extra></extra>',
       },
       ...(showMahalanobis && outlierPts.length > 0
         ? [
@@ -1193,6 +1259,18 @@ export function ScientificBench({
           >
             Outliers D_M &gt; 2,5
           </button>
+          {discoveryResult?.regime_and_gam_geometry.cusum_break_detected &&
+            discoveryResult.regime_and_gam_geometry.break_date && (
+              <button
+                type="button"
+                data-testid="toggle-cusum-break-btn"
+                aria-pressed={showCusumBreak}
+                className={showCusumBreak ? 'active' : ''}
+                onClick={() => setShowCusumBreak(prev => !prev)}
+              >
+                Quebra CUSUM ({discoveryResult.regime_and_gam_geometry.break_date})
+              </button>
+            )}
         </div>
       </div>
 
@@ -1246,6 +1324,39 @@ export function ScientificBench({
                     ? { title: { text: secondaryUnitLabel }, automargin: true, domain: [0, 0.45], anchor: 'x' }
                     : { title: { text: secondaryUnitLabel }, automargin: true, overlaying: 'y', side: 'right' },
                   legend: { orientation: 'h', y: -0.2 },
+                  ...(showCusumBreak &&
+                  discoveryResult?.regime_and_gam_geometry.cusum_break_detected &&
+                  discoveryResult.regime_and_gam_geometry.break_date
+                    ? {
+                        shapes: [
+                          {
+                            type: 'line' as const,
+                            xref: 'x' as const,
+                            yref: 'paper' as const,
+                            x0: discoveryResult.regime_and_gam_geometry.break_date,
+                            x1: discoveryResult.regime_and_gam_geometry.break_date,
+                            y0: 0,
+                            y1: 1,
+                            line: { color: '#fb7185', width: 2, dash: 'dash' as const },
+                          },
+                        ],
+                        annotations: [
+                          {
+                            xref: 'x' as const,
+                            yref: 'paper' as const,
+                            x: discoveryResult.regime_and_gam_geometry.break_date,
+                            y: 1.0,
+                            yanchor: 'bottom' as const,
+                            showarrow: false,
+                            font: { size: 11, color: '#fda4af' },
+                            bgcolor: 'rgba(15, 23, 42, 0.85)',
+                            bordercolor: '#fb7185',
+                            borderwidth: 1,
+                            text: `CUSUM AR(1): ${discoveryResult.regime_and_gam_geometry.break_date}`,
+                          },
+                        ],
+                      }
+                    : {}),
                 }}
               />
             </div>
@@ -1682,6 +1793,194 @@ export function ScientificBench({
             </article>
           </div>
         </BenchCollapsible>
+      </section>
+
+      <section
+        className="ml-discovery-bench-panel"
+        data-testid="ml-discovery-bench-panel"
+        aria-label="Descobertas Dinâmicas e Atribuição ML (Camada 2)"
+      >
+        <div className="ml-bench-header">
+          <div className="ml-bench-title-group">
+            <span className="ml-bench-kicker">MOTOR ML · CAMADA 2</span>
+            <h3>Descobertas Dinâmicas &amp; Atribuição Física</h3>
+            {discoveryResult && (
+              <span className="ml-bench-timing-pill">
+                {discoveryResult.discovery_meta.execution_time_ms.toFixed(1)} ms ·{' '}
+                {discoveryResult.regime_and_gam_geometry.forensic_regime_diagnosis}
+              </span>
+            )}
+          </div>
+          <div className="ml-bench-actions">
+            {!isOfflineAnalysis && (
+              <button
+                type="button"
+                className="glossary-toggle"
+                data-testid="ml-run-discovery-btn"
+                disabled={discoveryLoading}
+                onClick={() => void handleRunMlDiscovery()}
+              >
+                {discoveryLoading ? 'Executando ML...' : discoveryResult ? 'Re-executar ML' : 'Executar Descoberta ML'}
+              </button>
+            )}
+            <button
+              type="button"
+              className="ml-copilot-cta"
+              data-testid="ml-ask-copilot-btn"
+              disabled={copilotLoading}
+              onClick={handleExplainMlWithCopilot}
+            >
+              Interpretar Achados ML com Co-Piloto
+            </button>
+            {discoveryResult && (
+              <button
+                type="button"
+                className="glossary-toggle ml-panel-toggle"
+                data-testid="ml-panel-collapse-btn"
+                aria-expanded={discoveryOpen}
+                onClick={() => setDiscoveryOpen(prev => !prev)}
+              >
+                {discoveryOpen ? 'Recolher' : 'Expandir'}
+              </button>
+            )}
+          </div>
+        </div>
+
+        {!discoveryResult && !discoveryLoading && (
+          <p className="ml-bench-empty-note">
+            {isOfflineAnalysis
+              ? 'Modo offline ativo: use "Interpretar Achados ML com Co-Piloto" ou inicie o backend Python para teleconexões oceânicas parciais e CUSUM em tempo real.'
+              : 'Clique em "Executar Descoberta ML" para varredura CUSUM AR(1), teleconexões oceânicas parciais (ENSO/Atlântico com FDR) e atribuição Ridge Purged CV.'}
+          </p>
+        )}
+
+        {discoveryResult && discoveryOpen && (
+          <div className="ml-bench-grid">
+            <article className="ml-bench-card">
+              <h4>1. Regime Forense &amp; Quebra CUSUM AR(1)</h4>
+              <div className="ml-metric-row">
+                <span>Diagnóstico:</span>
+                <code>{discoveryResult.regime_and_gam_geometry.forensic_regime_diagnosis}</code>
+              </div>
+              <div className="ml-metric-row">
+                <span>Quebra estrutural (Pontes B⁽²⁾):</span>
+                <strong>
+                  {discoveryResult.regime_and_gam_geometry.cusum_break_detected
+                    ? `${discoveryResult.regime_and_gam_geometry.break_date} · CUSUM=${discoveryResult.regime_and_gam_geometry.cusum_max_stat?.toFixed(3)} (p=${formatPValue(discoveryResult.regime_and_gam_geometry.p_value_ar1_bridge ?? 1)})`
+                    : `Sem quebra (CUSUM=${discoveryResult.regime_and_gam_geometry.cusum_max_stat?.toFixed(3) ?? '—'}, p=${formatPValue(discoveryResult.regime_and_gam_geometry.p_value_ar1_bridge ?? 1)})`}
+                </strong>
+              </div>
+              <div className="ml-metric-row">
+                <span>Curvatura B₂ / Hinge AR(1):</span>
+                <span>
+                  p_B2={formatPValue(discoveryResult.regime_and_gam_geometry.quadratic_b2_p_ar1 ?? 1)} · p_hinge=
+                  {formatPValue(discoveryResult.regime_and_gam_geometry.hinge_p_ar1 ?? 1)}
+                </span>
+              </div>
+              {discoveryResult.regime_and_gam_geometry.pre_break_gam_slope_decade !== undefined &&
+                discoveryResult.regime_and_gam_geometry.post_break_gam_slope_decade !== undefined && (
+                  <div className="ml-metric-row">
+                    <span>Inclinação GAM pré vs. pós:</span>
+                    <span>
+                      {formatSignedNumber(discoveryResult.regime_and_gam_geometry.pre_break_gam_slope_decade, 3)} →{' '}
+                      {formatSignedNumber(discoveryResult.regime_and_gam_geometry.post_break_gam_slope_decade, 3)}{' '}
+                      {regions[0]?.trend_unit ?? ''}
+                    </span>
+                  </div>
+                )}
+            </article>
+
+            <article className="ml-bench-card">
+              <h4>2. Teleconexões Oceânicas Parciais (BH-FDR 5%)</h4>
+              <div className="ml-metric-row">
+                <span>Acoplamentos estritos (detrend + parcial FDR &lt; 0,05):</span>
+                <strong>
+                  {discoveryResult.partial_teleconnections.significant_strict_both_fdr05_count ??
+                    discoveryResult.partial_teleconnections.significant_partial_fdr05_count}{' '}
+                  / {discoveryResult.partial_teleconnections.total_tests}
+                </strong>
+              </div>
+              {discoveryResult.partial_teleconnections.top_teleconnections.length > 0 ? (
+                <table className="ml-bench-table">
+                  <thead>
+                    <tr>
+                      <th>Caixa / Var</th>
+                      <th>Lag</th>
+                      <th>r_parcial</th>
+                      <th>q_FDR</th>
+                    </tr>
+                  </thead>
+                  <tbody>
+                    {discoveryResult.partial_teleconnections.top_teleconnections.slice(0, 4).map(row => (
+                      <tr key={`${row.ocean_box_id}-${row.ocean_var}-${row.lag_months}`}>
+                        <td>
+                          <code>
+                            {row.ocean_box_id}.{row.ocean_var}
+                          </code>
+                        </td>
+                        <td>{row.lag_months}m</td>
+                        <td>{formatSignedNumber(row.partial_r, 3)}</td>
+                        <td className={row.is_strictly_coupled_fdr05 ? 'ml-fdr-sig' : ''}>
+                          {formatPValue(row.partial_fdr_q)}
+                        </td>
+                      </tr>
+                    ))}
+                  </tbody>
+                </table>
+              ) : (
+                <p className="ml-bench-empty-note">Sem sobreposição oceânica em cache para o período.</p>
+              )}
+            </article>
+
+            <article className="ml-bench-card">
+              <h4>3. Atribuição Ridge Destendenciada (Purged CV)</h4>
+              {discoveryResult.fast_gcv_physical_attribution.status === 'OK' ? (
+                <>
+                  <div className="ml-metric-row">
+                    <span>R² Purged CV / GCV:</span>
+                    <strong>
+                      {formatPointValue(discoveryResult.fast_gcv_physical_attribution.detrended_purged_cv_r2, 3)} /{' '}
+                      {formatPointValue(discoveryResult.fast_gcv_physical_attribution.detrended_gcv_r2, 3)} (p_F_AR1=
+                      {formatPValue(discoveryResult.fast_gcv_physical_attribution.p_value_f_ar1 ?? 1)})
+                    </strong>
+                  </div>
+                  {(discoveryResult.fast_gcv_physical_attribution.drivers_ranked ?? []).slice(0, 3).map(drv => (
+                    <div key={drv.predictor} className="ml-metric-row">
+                      <span>
+                        <code>{drv.predictor}</code>
+                      </span>
+                      <span>
+                        β={formatSignedNumber(drv.standardized_beta, 3)} · Δ(Q4−Q1)=
+                        {formatSignedNumber(drv.quartile_jump_q4_minus_q1, 3)}
+                      </span>
+                    </div>
+                  ))}
+                </>
+              ) : (
+                <p className="ml-bench-empty-note">
+                  Selecione uma segunda variável (Região B) para ranquear preditores físicos locais por Ridge Purged CV.
+                </p>
+              )}
+            </article>
+
+            <article className="ml-bench-card">
+              <h4>4. Fase Oceânica nos Extremos (D_M &gt; 2,5)</h4>
+              {discoveryResult.attributed_mahalanobis_outliers.length > 0 ? (
+                <ul className="ml-outlier-tags">
+                  {discoveryResult.attributed_mahalanobis_outliers.slice(0, 4).map(o => (
+                    <li key={o.date}>
+                      <code>{o.date}</code> (D_M={formatPointValue(o.mahalanobis_d, 2)}):{' '}
+                      <strong>{o.ocean_phase_tag}</strong> · Niño3.4 Z={formatSignedNumber(o.nino34_ts_z, 2)} · Atl Z=
+                      {formatSignedNumber(o.atl_grad_ts_z, 2)}
+                    </li>
+                  ))}
+                </ul>
+              ) : (
+                <p className="ml-bench-empty-note">Nenhum outlier extremo (D_M &gt; 2,5) detectado na série primária.</p>
+              )}
+            </article>
+          </div>
+        )}
       </section>
 
       {showCopilot && (

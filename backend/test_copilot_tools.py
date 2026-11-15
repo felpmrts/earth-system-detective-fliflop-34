@@ -50,6 +50,7 @@ class TestCopilotTools(unittest.TestCase):
             "compute_lagged_crosscorrelation_ar1",
             "inspect_quantiles_and_extremes",
             "fetch_additional_variable_analysis",
+            "run_ml_dynamic_discovery",
         }
         self.assertEqual(names, expected)
         for decl in decls:
@@ -328,6 +329,18 @@ class TestCopilotAgenticLoopAndCache(unittest.TestCase):
             [t["name"] for t in r_out["tools_used"]],
         )
 
+        r_ml = generate_copilot_response(
+            self.mock_analysis,
+            question="Explique as descobertas de ML, teleconexões ENSO e quebra CUSUM",
+            language="pt",
+            use_llm=False,
+        )
+        self.assertIn(
+            "run_ml_dynamic_discovery",
+            [t["name"] for t in r_ml["tools_used"]],
+        )
+        self.assertIn("Descoberta Dinâmica ML", r_ml["answer"])
+
     def test_backend_router_analyze_and_copilot_analysis_key_cache(self) -> None:
         router = BackendRouter()
         analysis_key = router._remember_analysis(self.mock_analysis)
@@ -432,6 +445,40 @@ class TestCopilotAgenticLoopAndCache(unittest.TestCase):
         self.assertEqual(resp["model"], "deepseek/deepseek-chat")
         self.assertEqual(resp["tools_used"][0]["name"], "inspect_quantiles_and_extremes")
         self.assertIn("2015-11", resp["reply_markdown"])
+
+    def test_post_audit_seasonal_m3_lag_fdr_m4_and_b2_sanitizer(self) -> None:
+        """Regression tests for M3 (annual seasonal aggregation+FDR), M4 (lag FDR gate), B2 (trend_unit & GWETTOP %)."""
+        import random
+        from backend.copilot_engine import sanitize_interval_scale_percentages
+
+        dates = _make_monthly_dates(1995, 25)
+        rng = random.Random(77)
+        vals_a = [rng.gauss(0.0, 1.0) for _ in dates]
+        vals_b = [rng.gauss(0.0, 1.0) for _ in dates]
+        reg_a = analyze_single_series("GWETTOP", dates, vals_a)
+        reg_b = analyze_single_series("GWETROOT", dates, vals_b)
+        analysis = {"region_a_analysis": reg_a, "region_b_analysis": reg_b}
+
+        # M3: each season has <= 1 obs per meteorological year (e.g. <= 25 for 25 yrs, not 75)
+        s_res = compute_seasonal_stratified_trends(analysis, slot="A")
+        self.assertLessEqual(s_res["seasons"]["JJA"]["n_observations"], 25)
+        self.assertIn("fdr_q_value", s_res["seasons"]["JJA"])
+
+        # M4: lag FDR present and protects against spurious noise precedence
+        l_res = compute_lagged_crosscorrelation_ar1(analysis, max_lag=6)
+        self.assertIn("q_detrended_fdr", l_res["best_detrended_lag"])
+        self.assertFalse(l_res["best_detrended_lag"]["is_detrended_sig_fdr05"])
+        self.assertIn("Sem precedência estatisticamente significativa", l_res["precedence_interpretation"])
+
+        # B2: GWETTOP (ratio, allow_percentage_change=False, unit != '%') must block relative '%' claims while keeping IC 95%
+        sanitized, warns = sanitize_interval_scale_percentages(
+            "Umidade GWETTOP caiu 12% (IC 95%: [-0.02, -0.01]).",
+            {"region_a_analysis": reg_a},
+            language="pt",
+        )
+        self.assertNotIn("12%", sanitized)
+        self.assertIn("IC 95%", sanitized)
+        self.assertGreater(len(warns), 0)
 
 
 if __name__ == "__main__":

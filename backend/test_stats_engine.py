@@ -393,6 +393,57 @@ class TestStatsEngineInvariants(unittest.TestCase):
         self.assertIn("long_term_p_value", mc)
         self.assertIn("short_term_p_value", mc)
 
+    def test_post_audit_statistical_invariants_c1_c5_m2_m5_b1(self) -> None:
+        """Regression tests for C1 (H0 GAM specificity), C5 (tier FDR gate), M2 (residual outliers), M5 (gaps), B1 (-99)."""
+        import random
+        from backend import stats_engine
+
+        # B1: -99.0 is valid temperature/anomaly, while -999.0 is NASA sentinel
+        self.assertFalse(stats_engine._is_missing_or_sentinel(-99.0))
+        self.assertTrue(stats_engine._is_missing_or_sentinel(-999.0))
+
+        # M2: identical residuals at t=0 (edge) and t=150 (interior) yield identical Mahalanobis distance
+        dates = [f"{1995 + i // 12:04d}-{(i % 12) + 1:02d}" for i in range(240)]
+        x_dec = [i / 120.0 for i in range(240)]
+        resid = [0.0] * 240
+        resid[0] = 3.5
+        resid[120] = 3.5
+        outs = stats_engine.detect_mahalanobis_outliers(dates, x_dec, resid, [0.0] * 240)
+        self.assertEqual(len(outs), 2)
+        self.assertAlmostEqual(outs[0]["mahalanobis_d"], outs[1]["mahalanobis_d"], places=4)
+
+        # M5: contiguous lag-1 skips temporal gaps
+        r_gap = stats_engine._contiguous_lag1_autocorr(
+            [1.0, 2.0, -5.0, -4.0],
+            x_decades=[0.0, 1.0 / 120.0, 24.0 / 120.0, 25.0 / 120.0],
+        )
+        self.assertGreater(r_gap, 0.8)
+
+        # C5: CONFIRMED_MODERATE requires is_sig_fdr05=True
+        self.assertEqual(
+            stats_engine.classify_confidence_tier(0.02, False, True),
+            "INSUFFICIENT_SIGNAL",
+        )
+        self.assertEqual(
+            stats_engine.classify_confidence_tier(0.02, True, True),
+            "CONFIRMED_MODERATE",
+        )
+
+        # C1: pure linear + gentle AR(1) stationary noise is not misclassified as non-linear
+        rng = random.Random(123)
+        e = 0.0
+        vals = []
+        for _ in range(240):
+            e = 0.55 * e + rng.gauss(0.0, 0.4)
+            vals.append(e)
+        res = stats_engine.analyze_single_series("T2M", dates, vals)
+        self.assertEqual(res["regression"]["regime_shape"], "linear")
+
+        # C1 H1: genuine broken-stick reversal detected
+        v_rev = [(-0.08 * (i / 12.0) if i < 120 else -0.8 + 0.14 * ((i - 120) / 12.0)) for i in range(240)]
+        res_rev = stats_engine.analyze_single_series("T2M", dates, v_rev)
+        self.assertEqual(res_rev["regression"]["regime_shape"], "non_monotonic")
+
 
 if __name__ == "__main__":
     unittest.main()

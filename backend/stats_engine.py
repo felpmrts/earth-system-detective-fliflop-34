@@ -254,7 +254,7 @@ _KNOWN_CLIMATE_EVENTS: Dict[int, str] = {
 # ============================================================================
 
 def _is_missing_or_sentinel(val: Any) -> bool:
-    """Checks if a value is None, NaN, Infinite, or NASA POWER sentinel (-999 / -99)."""
+    """Checks if a value is None, NaN, Infinite, or NASA POWER sentinel (-999)."""
     if val is None:
         return True
     try:
@@ -263,9 +263,54 @@ def _is_missing_or_sentinel(val: Any) -> bool:
         return True
     if not math.isfinite(fval):
         return True
-    if fval <= -900.0 or math.isclose(fval, -999.0, abs_tol=1e-3) or math.isclose(fval, -99.0, abs_tol=1e-3):
+    if fval <= -900.0 or math.isclose(fval, -999.0, abs_tol=1e-3):
         return True
     return False
+
+
+def _contiguous_lag1_autocorr(
+    values: Sequence[float],
+    valid_dates: Optional[Sequence[str]] = None,
+    x_decades: Optional[Sequence[float]] = None,
+    *,
+    step_months: int = 1,
+) -> float:
+    """Computes lag-1 autocorrelation skipping temporal gaps when dates or x_decades are provided."""
+    n = len(values)
+    if n < 3:
+        return 0.0
+
+    expected_step = max(1, int(step_months))
+    pair_a: List[float] = []
+    pair_b: List[float] = []
+    month_idx: Optional[List[int]] = None
+    if valid_dates is not None and len(valid_dates) == n:
+        month_idx = []
+        for d in valid_dates:
+            yr, mo = _parse_yyyy_mm(d)
+            month_idx.append(yr * 12 + mo)
+
+    for i in range(1, n):
+        if month_idx is not None:
+            if month_idx[i] - month_idx[i - 1] != expected_step:
+                continue
+        elif x_decades is not None and len(x_decades) == n:
+            dx = float(x_decades[i]) - float(x_decades[i - 1])
+            if dx <= 0.0 or dx > (1.25 * expected_step / 120.0):
+                continue
+        pair_a.append(float(values[i - 1]))
+        pair_b.append(float(values[i]))
+
+    if len(pair_a) < 2:
+        return 0.0
+    m_prev = sum(pair_a) / len(pair_a)
+    m_next = sum(pair_b) / len(pair_b)
+    num = sum((a - m_prev) * (b - m_next) for a, b in zip(pair_a, pair_b))
+    den_a = sum((a - m_prev) ** 2 for a in pair_a)
+    den_b = sum((b - m_next) ** 2 for b in pair_b)
+    denom = math.sqrt(den_a * den_b)
+    rho1 = (num / denom) if denom > 1e-15 else 0.0
+    return max(-0.95, min(0.95, rho1))
 
 
 def _parse_yyyy_mm(date_str: str) -> Tuple[int, int]:
@@ -902,16 +947,7 @@ def _fit_quadratic_acceleration(
     res = [yi - yhi for yi, yhi in zip(y_anomalies, y_hat)]
     sse = sum(ri * ri for ri in res)
     df_raw = max(1, n - 3)
-    rho1 = 0.0
-    if len(res) >= 4:
-        r_prev = res[:-1]
-        r_next = res[1:]
-        m_p = sum(r_prev) / len(r_prev)
-        m_n = sum(r_next) / len(r_next)
-        num_r = sum((a - m_p) * (b - m_n) for a, b in zip(r_prev, r_next))
-        den_r = math.sqrt(sum((a - m_p) ** 2 for a in r_prev) * sum((b - m_n) ** 2 for b in r_next))
-        if den_r > 1e-15:
-            rho1 = max(-0.95, min(0.95, num_r / den_r))
+    rho1 = _contiguous_lag1_autocorr(res, x_decades=x_decades)
     # Clamp positive autocorrelation inflation factor while avoiding artificial tightening for rho1 < 0
     df_eff = max(1.0, df_raw * (1.0 - max(0.0, rho1)) / (1.0 + max(0.0, rho1)))
     mse_eff = sse / df_eff
@@ -920,6 +956,60 @@ def _fit_quadratic_acceleration(
     p_b2 = _student_t_two_tailed_pvalue(t_b2, float(df_eff))
 
     return b2, p_b2
+
+
+def _fit_midpoint_hinge_test(
+    x_decades: Sequence[float],
+    y_anomalies: Sequence[float],
+) -> Tuple[float, float, float]:
+    """Fits a broken-stick hinge at the midpoint with Santer AR(1) df_eff correction."""
+    n = len(x_decades)
+    if n < 12 or (x_decades[-1] - x_decades[0]) <= 1e-9:
+        return 1.0, 0.0, 0.0
+
+    mid_x = x_decades[n // 2]
+    mean_x = sum(x_decades) / n
+    mean_y = sum(y_anomalies) / n
+    t = [x - mean_x for x in x_decades]
+    stt = sum(ti * ti for ti in t)
+    if stt <= 1e-15:
+        return 1.0, 0.0, 0.0
+
+    # Linear residuals
+    b1_lin = sum(ti * (yi - mean_y) for ti, yi in zip(t, y_anomalies)) / stt
+    sse_lin = sum(((yi - mean_y) - b1_lin * ti) ** 2 for ti, yi in zip(t, y_anomalies))
+
+    # Hinge basis h(x) = max(0, x - mid_x), orthogonalized against [1, t]
+    h_raw = [max(0.0, x - mid_x) for x in x_decades]
+    mean_h = sum(h_raw) / n
+    h_c = [hi - mean_h for hi in h_raw]
+    gamma = sum(ti * hi for ti, hi in zip(t, h_c)) / stt
+    h_orth = [hi - gamma * ti for hi, ti in zip(h_c, t)]
+    shh = sum(hi * hi for hi in h_orth)
+    if shh <= 1e-15:
+        return 1.0, b1_lin, b1_lin
+
+    b_hinge = sum(hi * (yi - mean_y) for hi, yi in zip(h_orth, y_anomalies)) / shh
+    b_t_adj = b1_lin - b_hinge * gamma
+    b_0_adj = mean_y - b_hinge * mean_h
+
+    res_h = [
+        yi - (b_0_adj + b_t_adj * ti + b_hinge * h_raw[idx])
+        for idx, (yi, ti) in enumerate(zip(y_anomalies, t))
+    ]
+    sse_h = sum(r * r for r in res_h)
+    rho1 = _contiguous_lag1_autocorr(res_h, x_decades=x_decades)
+    df_eff = max(1.0, (n - 3) * (1.0 - max(0.0, rho1)) / (1.0 + max(0.0, rho1)))
+    mse_h = sse_h / df_eff
+    if mse_h <= 1e-15:
+        return (0.0 if sse_lin > sse_h + 1e-12 else 1.0), b_t_adj, b_t_adj + b_hinge
+
+    f_stat = max(0.0, (sse_lin - sse_h) / mse_h)
+    if _HAS_SCIPY:
+        p_hinge = float(sps.f.sf(f_stat, 1.0, float(df_eff)))
+    else:
+        p_hinge = _student_t_two_tailed_pvalue(math.sqrt(f_stat), float(df_eff))
+    return max(0.0, min(1.0, p_hinge)), b_t_adj, b_t_adj + b_hinge
 
 
 def compute_gam_and_regime(
@@ -960,6 +1050,28 @@ def compute_gam_and_regime(
         gam_smooth = _whittaker_smoothing_spline(y_anomalies, lam=lam_w)
 
     b2, p_b2 = _fit_quadratic_acceleration(x_decades, y_anomalies)
+    p_hinge, hinge_pre, hinge_post = _fit_midpoint_hinge_test(x_decades, y_anomalies)
+
+    # Compute normalized quadratic curvature effect against residual dispersion
+    dt_dec = max(1e-6, abs(x_decades[-1] - x_decades[0])) if n >= 2 else 1.0
+    mean_x = sum(x_decades) / n
+    mean_y = sum(y_anomalies) / n
+    u = [x - mean_x for x in x_decades]
+    sum_u_sq = sum(ui * ui for ui in u)
+    b1_ols = (sum(ui * (yi - mean_y) for ui, yi in zip(u, y_anomalies)) / sum_u_sq) if sum_u_sq > 1e-15 else 0.0
+    lin_res = [(yi - mean_y) - b1_ols * ui for yi, ui in zip(y_anomalies, u)]
+    sigma_res = max(1e-9, statistics.pstdev(lin_res) if n > 2 else 1.0)
+    quad_eff = abs(b2) * (dt_dec ** 2) / sigma_res
+
+    # Check if quadratic stationary point falls strictly inside the central 70% of the window
+    vertex_interior = False
+    if abs(b2) > 1e-12 and sum_u_sq > 1e-15:
+        u2 = [ui * ui for ui in u]
+        alpha_u = sum(ui * u2i for ui, u2i in zip(u, u2)) / sum_u_sq
+        b1_raw = b1_ols - b2 * alpha_u
+        t_vert = -b1_raw / (2.0 * b2)
+        half_span = 0.5 * dt_dec
+        vertex_interior = abs(t_vert) < 0.70 * half_span
 
     # Inspect first derivative changes along first vs second half of the GAM curve
     mid = n // 2
@@ -972,10 +1084,12 @@ def compute_gam_and_regime(
         slope_first_half = slope_per_decade_sen
         slope_second_half = slope_per_decade_sen
 
-    # Classify regime_shape according to derivative geometry (Doc 04)
-    if slope_first_half * slope_second_half < 0 and abs(slope_first_half - slope_second_half) > max(0.05, 0.5 * abs(slope_per_decade_sen)):
+    # Calibrated AR(1)-protected classification (C1: eliminates ~95% null false positives)
+    if (p_hinge < 0.05 and (hinge_pre * hinge_post < 0.0)) or (
+        p_b2 < 0.05 and quad_eff > 0.5 and vertex_interior and (slope_first_half * slope_second_half < 0.0)
+    ):
         regime_shape = "non_monotonic"
-    elif p_b2 < 0.15 or abs(b2) > 0.08 * max(1e-4, abs(slope_per_decade_sen)):
+    elif p_b2 < 0.05 and quad_eff > 0.5:
         if slope_per_decade_sen >= 0 and b2 > 0:
             regime_shape = "accelerating_rise"
         elif slope_per_decade_sen <= 0 and b2 < 0:
@@ -1047,33 +1161,14 @@ def detect_mahalanobis_outliers(
                 else float(cov_mcd[1, 1])
             )
             mcd_sigma_r = math.sqrt(max(0.0, cond_var_mcd))
-            # Calibrate conditional residual scale combining MinCovDet and MAD floor
+            # Conditional distance from the regression line (free of uniform time edge-leverage bias)
             robust_sigma_r = max(0.5 * mcd_sigma_r + 0.5 * mad_sigma_r, mad_sigma_r, 1e-9)
-            slope_est = (
-                (linear_fit[-1] - linear_fit[0]) / (x_decades[-1] - x_decades[0])
-                if abs(x_decades[-1] - x_decades[0]) > 1e-12
-                else 0.0
-            )
-            cov_biv = np.array(
-                [
-                    [var_x, slope_est * var_x],
-                    [slope_est * var_x, (slope_est ** 2) * var_x + robust_sigma_r ** 2],
-                ],
-                dtype=np.float64,
-            )
-            mu_biv = np.array([mean_x, float(np.mean(yhat_arr)) + med_res], dtype=np.float64)
-            diff = X_biv - mu_biv
-            inv_cov = np.linalg.pinv(cov_biv)
-            dm_arr = np.sqrt(np.maximum(0.0, np.einsum("ij,jk,ik->i", diff, inv_cov, diff)))
-            dm_values = [float(v) for v in dm_arr]
+            dm_values = [abs(r - med_res) / robust_sigma_r for r in residuals]
         except Exception:
             dm_values = None
 
     if dm_values is None:
-        dm_values = [
-            math.sqrt(((x - mean_x) / sigma_x) ** 2 + ((r - med_res) / mad_sigma_r) ** 2)
-            for x, r in zip(x_decades, residuals)
-        ]
+        dm_values = [abs(r - med_res) / mad_sigma_r for r in residuals]
 
     outliers: List[Dict[str, Any]] = []
     for d_str, y, yhat, r, dm in zip(dates, y_anomalies, linear_fit, residuals, dm_values):
@@ -1111,6 +1206,9 @@ def compute_significance_ar1(
     residuals: Sequence[float],
     fdr_q_value: Optional[float] = None,
     y_anomalies: Optional[Sequence[float]] = None,
+    valid_dates: Optional[Sequence[str]] = None,
+    *,
+    step_months: int = 1,
 ) -> Dict[str, Any]:
     """
     Computes naive p-value and autocorrelation-corrected p-value combining:
@@ -1142,17 +1240,12 @@ def compute_significance_ar1(
         else:
             p_naive = _student_t_two_tailed_pvalue(t_naive, float(n_obs - 2))
 
-        # Compute lag-1 autocorrelation rho_1 of regression residuals
-        r_prev = residuals[:-1]
-        r_next = residuals[1:]
-        m_prev = sum(r_prev) / len(r_prev)
-        m_next = sum(r_next) / len(r_next)
-        num = sum((a - m_prev) * (b - m_next) for a, b in zip(r_prev, r_next))
-        den_a = sum((a - m_prev) ** 2 for a in r_prev)
-        den_b = sum((b - m_next) ** 2 for b in r_next)
-        denom = math.sqrt(den_a * den_b)
-        rho1 = (num / denom) if denom > 1e-15 else 0.0
-        rho1 = max(-0.95, min(0.95, rho1))
+        # Compute lag-1 autocorrelation rho_1 of regression residuals (skipping temporal gaps)
+        rho1 = _contiguous_lag1_autocorr(
+            residuals,
+            valid_dates=valid_dates,
+            step_months=step_months,
+        )
 
         if rho1 > 0.0:
             n_eff = n_obs * (1.0 - rho1) / (1.0 + rho1)
@@ -1178,12 +1271,8 @@ def compute_significance_ar1(
                 hr_p = float(hr_res.p)
                 if math.isfinite(hr_p):
                     hr_p_out = max(0.0, min(1.0, hr_p))
-                    if len(y_anomalies) >= 60:
-                        p_ar1 = max(p_naive, p_santer, hr_p_out)
-                    else:
-                        p_ar1 = max(p_naive, p_santer)
             except Exception:
-                p_ar1 = max(p_naive, p_santer)
+                hr_p_out = None
 
     p_naive = max(0.0, min(1.0, float(p_naive)))
     p_santer = max(0.0, min(1.0, float(p_santer)))
@@ -1209,7 +1298,7 @@ def classify_confidence_tier(p_ar1: float, is_sig_fdr05: bool, same_sign: bool) 
     """Classifies confidence tier from AR(1)-corrected p-value, BH-FDR flag, and OLS/Sen concordance."""
     if p_ar1 < 0.01 and is_sig_fdr05 and same_sign:
         return "CONFIRMED_HIGH"
-    if p_ar1 < 0.05 and same_sign:
+    if p_ar1 < 0.05 and is_sig_fdr05 and same_sign:
         return "CONFIRMED_MODERATE"
     if p_ar1 < 0.15 or not same_sign:
         return "INSUFFICIENT_SIGNAL"
@@ -1359,6 +1448,7 @@ def analyze_single_series(
         residuals=ols["residuals"],
         fdr_q_value=fdr_q_value,
         y_anomalies=valid_anom,
+        valid_dates=valid_dates,
     )
     outliers = detect_mahalanobis_outliers(
         dates=valid_dates,
